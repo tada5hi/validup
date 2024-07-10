@@ -1,0 +1,7 @@
+{
+    "extends": "@tada5hi/tsconfig",
+    "compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "Node"
+    }
+}
