@@ -1,0 +1,49 @@
+{
+    "name": "@validup/typeorm",
+    "version": "0.0.0",
+    "description": "A typeorm extension for validup.",
+    "author": {
+        "name": "Peter Placzek",
+        "email": "contact@tada5hi.net",
+        "url": "https://github.com/tada5hi"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/tada5hi/validup.git"
+    },
+    "main": "dist/index.cjs",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "exports": {
+        "./package.json": "./package.json",
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.cjs"
+        },
+        "./bin/*": "./bin/*"
+    },
+    "files": [
+        "bin",
+        "dist"
+    ],
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "scripts": {
+        "build:types": "tsc --emitDeclarationOnly -p tsconfig.build.json",
+        "build:js": "rollup -c",
+        "build": "rimraf dist && rimraf bin && npm run build:types && npm run build:js"
+    },
+    "keywords": [],
+    "license": "MIT",
+    "dependencies": {
+        "validup": "^0.0.0"
+    },
+    "devDependencies": {
+        "typeorm": "^0.3.20"
+    },
+    "peerDependencies": {
+        "typeorm": "^0.3.20"
+    }
+}
