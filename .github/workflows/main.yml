@@ -1,0 +1,82 @@
+name: CI
+
+on:
+    push:
+        branches: [develop, master, next, beta, alpha]
+    pull_request:
+        branches: [develop, master, next, beta, alpha]
+
+permissions:
+    packages: write
+    contents: write
+    issues: write
+    pull-requests: write
+
+env:
+    PRIMARY_NODE_VERSION: 20
+
+jobs:
+    install:
+        name: Checkout and Install
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Install
+              uses: ./.github/actions/install
+              with:
+                  node-version: ${{ env.PRIMARY_NODE_VERSION }}
+
+    lint:
+        name: Lint
+        needs: [build]
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@v4
+
+            -   name: Install
+                uses: ./.github/actions/install
+                with:
+                    node-version: ${{ env.PRIMARY_NODE_VERSION }}
+
+            -   name: Build
+                uses: ./.github/actions/build
+
+            -   name: Lint
+                run: |
+                    npm run lint
+
+    build:
+        name: Build
+        needs: [install]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Install
+              uses: ./.github/actions/install
+              with:
+                  node-version: ${{ env.PRIMARY_NODE_VERSION }}
+            - name: Build
+              uses: ./.github/actions/build
+
+    tests:
+        name: Test
+        needs: [build]
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@v4
+
+            -   name: Install
+                uses: ./.github/actions/install
+                with:
+                    node-version: ${{ env.PRIMARY_NODE_VERSION }}
+
+            -   name: Build
+                uses: ./.github/actions/build
+
+            -   name: Run tests
+                run: |
+                    npm run test

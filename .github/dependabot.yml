@@ -1,0 +1,21 @@
+version: 2
+updates:
+    # Maintain dependencies for GitHub Actions
+    - package-ecosystem: "github-actions"
+      directory: "/"
+      target-branch: "master"
+      schedule:
+          interval: "daily"
+
+    # Maintain dependencies for npm
+    - package-ecosystem: "npm"
+      directory: "/"
+      schedule:
+          interval: "daily"
+      versioning-strategy: "increase"
+      open-pull-requests-limit: 20
+      target-branch: "master"
+      commit-message:
+          prefix: "fix"
+          prefix-development: "build"
+          include: "scope"
