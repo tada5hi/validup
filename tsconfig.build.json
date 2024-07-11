@@ -2,6 +2,9 @@
     "extends": "@tada5hi/tsconfig",
     "compilerOptions": {
         "module": "ESNext",
-        "moduleResolution": "Node"
+        "moduleResolution": "Node",
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "strictPropertyInitialization": false
     }
 }

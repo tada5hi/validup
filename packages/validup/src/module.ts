@@ -8,7 +8,7 @@
 import type {
     ValidationError as BaseValidationError, FieldValidationError, ValidationChainWithExtensions,
 } from 'express-validator';
-import type { FieldInstance, Request } from 'express-validator/lib/base';
+import type { FieldInstance } from 'express-validator/lib/base';
 import type { ReadonlyContext } from 'express-validator/lib/context';
 import { distinctArray } from 'smob';
 import type { AttributeSource } from './constants';
@@ -16,7 +16,7 @@ import { buildFactory } from './factory';
 import { ValidationError } from './error';
 import { buildErrorMessageForAttributes } from './helpers';
 import type {
-    Factory,
+    Factory, Sources,
     ValidationChain, ValidationCompositeChain, ValidatorExecuteOptions, ValidatorRegisterOptions,
 } from './types';
 import { hasOwnProperty } from './utils';
@@ -90,7 +90,7 @@ export class Validator<
     // ----------------------------------------------
 
     async execute(
-        req: Request,
+        sources: Sources,
         options: ValidatorExecuteOptions<T> = {},
     ): Promise<T> {
         const data: Record<string, any> = {};
@@ -107,7 +107,7 @@ export class Validator<
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
 
-            const outcome = await item.run(req);
+            const outcome = await item.run(sources);
             const fields = outcome.context.getData({ requiredOnly: false });
 
             for (let i = 0; i < fields.length; i++) {

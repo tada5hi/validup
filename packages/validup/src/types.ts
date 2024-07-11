@@ -13,8 +13,10 @@ import type {
     CustomValidator,
     ExpressValidator,
 } from 'express-validator';
-import type { Middleware } from 'express-validator/lib/base';
+import type { Middleware, Request } from 'express-validator/lib/base';
 import type { AttributeSource } from './constants';
+
+export type Sources = Request;
 
 export type ValidatorErrorOptions = {
     children?: Record<string, any>[],

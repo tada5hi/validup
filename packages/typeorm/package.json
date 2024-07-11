@@ -33,7 +33,9 @@
     "scripts": {
         "build:types": "tsc --emitDeclarationOnly -p tsconfig.build.json",
         "build:js": "rollup -c",
-        "build": "rimraf dist && rimraf bin && npm run build:types && npm run build:js"
+        "build": "rimraf dist && rimraf bin && npm run build:types && npm run build:js",
+        "test": "cross-env NODE_ENV=test jest --config ./test/jest.config.js",
+        "test:coverage": "cross-env NODE_ENV=test jest --config ./test/jest.config.js --coverage"
     },
     "keywords": [],
     "license": "MIT",
@@ -41,6 +43,8 @@
         "validup": "^0.0.0"
     },
     "devDependencies": {
+        "better-sqlite3": "^11.1.2",
+        "reflect-metadata": "^0.2.2",
         "typeorm": "^0.3.20"
     },
     "peerDependencies": {

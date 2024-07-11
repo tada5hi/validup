@@ -5,8 +5,10 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { DataSource, EntityMetadata, EntityTarget } from 'typeorm';
-import type { ValidatorExecuteOptions } from 'validup';
+import type {
+    DataSource, EntityMetadata, EntityTarget, FindOptionsWhere, ObjectLiteral,
+} from 'typeorm';
+import type { Sources, ValidatorExecuteOptions } from 'validup';
 import { ValidationError, Validator, buildErrorMessageForAttributes } from 'validup';
 
 export class TypeormValidator<
@@ -24,10 +26,10 @@ export class TypeormValidator<
     }
 
     override async execute(
-        req: Request,
+        sources: Sources,
         options: ValidatorExecuteOptions<T> = {},
     ): Promise<T> {
-        const result = await super.execute(req, options);
+        const result = await super.execute(sources, options);
 
         const relations = await this.lookupRelations(result);
         const relationKeys = Object.keys(relations);
@@ -51,32 +53,40 @@ export class TypeormValidator<
         return fields;
     }
 
-    protected async lookupRelations(where: Partial<T>) : Promise<Partial<T>> {
+    protected async lookupRelations(input: Partial<T>) : Promise<Partial<T>> {
         const entityMetadata = await this.getEntityMetadata();
 
         const output : Record<string, any> = {};
         for (let i = 0; i < entityMetadata.relations.length; i++) {
             const relation = entityMetadata.relations[i];
-            const columns = relation.joinColumns.map((c) => c.propertyName);
-            if (columns.length === 0) {
-                continue;
+
+            const where : FindOptionsWhere<ObjectLiteral> = {};
+            const columns : string[] = [];
+            for (let j = 0; j < relation.joinColumns.length; j++) {
+                const joinColumn = relation.joinColumns[j];
+                if (typeof input[joinColumn.propertyName] === 'undefined') {
+                    continue;
+                }
+
+                if (joinColumn.referencedColumn) {
+                    where[joinColumn.referencedColumn.propertyName] = input[joinColumn.propertyName];
+                    columns.push(joinColumn.propertyName);
+                } else {
+                    throw new ValidationError(`Can not lookup foreign ${relation.propertyName} entity.`);
+                }
             }
 
-            const [column] = columns;
-
-            if (!column || typeof where[column] === 'undefined') {
+            if (columns.length === 0) {
                 continue;
             }
 
             const repository = this.dataSource.getRepository(relation.type);
             const entity = await repository.findOne({
-                where: {
-                    id: where[column],
-                },
+                where,
             });
 
             if (!entity) {
-                throw new ValidationError(buildErrorMessageForAttributes([column]));
+                throw new ValidationError(buildErrorMessageForAttributes(columns));
             }
 
             output[relation.propertyName] = entity;
@@ -89,6 +99,7 @@ export class TypeormValidator<
         const index = this.dataSource.entityMetadatas.findIndex(
             (entityMetadata) => entityMetadata.target === this.target,
         );
+
         if (index === -1) {
             throw new ValidationError(`The entity ${this.target} is not registered.`);
         }
