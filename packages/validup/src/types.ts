@@ -38,21 +38,21 @@ export type ValidatorRegisterOptions = {
 };
 
 export type ValidationChain = BaseValidationChain;
-export type ValidationCompositeChain = Middleware & ContextRunner;
+export type ValidationOneOf = Middleware & ContextRunner;
 
 type ChainCreateFn<C> = (
     attribute: string,
     source?: `${AttributeSource}`,
 ) => C;
 
-type CompositeChainCreateFn<C> = (
+type OneOfCreateFn<C> = (
     chains: C[]
-) => ValidationCompositeChain;
+) => ValidationOneOf;
 
 export type Factory<
     VALIDATORS extends Record<string, CustomValidator> = Record<string, CustomValidator>,
     SANITIZERS extends Record<string, CustomSanitizer> = Record<string, CustomSanitizer>,
 > = {
     createChain: ChainCreateFn<CustomValidationChain<ExpressValidator<VALIDATORS, SANITIZERS>>>,
-    createCompositeChain: CompositeChainCreateFn<CustomValidationChain<ExpressValidator<VALIDATORS, SANITIZERS>>>
+    createOneOf: OneOfCreateFn<CustomValidationChain<ExpressValidator<VALIDATORS, SANITIZERS>>>
 };

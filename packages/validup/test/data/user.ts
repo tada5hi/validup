@@ -27,7 +27,7 @@ export class UserValidator extends Validator<User> {
             .isNumeric()
             .optional({ values: 'null' });
 
-        const oneOf = this.createCompositeChain([
+        const oneOf = this.createOneOf([
             this.createChain('password')
                 .isLength({ min: 3, max: 128 }),
             this.createChain('token')

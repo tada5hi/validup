@@ -21,7 +21,7 @@ SANITIZERS extends Record<string, CustomSanitizer> = Record<string, CustomSaniti
     const instance = new ExpressValidator(validators, sanitizers);
 
     return {
-        createCompositeChain: (
+        createOneOf: (
             chains,
         ) => instance.oneOf(chains, {
             errorType: 'flat',

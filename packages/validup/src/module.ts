@@ -17,14 +17,14 @@ import { ValidationError } from './error';
 import { buildErrorMessageForAttributes } from './helpers';
 import type {
     Factory, Sources,
-    ValidationChain, ValidationCompositeChain, ValidatorExecuteOptions, ValidatorRegisterOptions,
+    ValidationChain, ValidationOneOf, ValidatorExecuteOptions, ValidatorRegisterOptions,
 } from './types';
 import { hasOwnProperty } from './utils';
 
 export class Validator<
     T extends Record<string, any> = Record<string, any>,
 > {
-    protected items : Record<string, (ValidationChain | ValidationCompositeChain)[]>;
+    protected items : Record<string, (ValidationChain | ValidationOneOf)[]>;
 
     protected factory : Factory;
 
@@ -44,15 +44,15 @@ export class Validator<
         return this.factory.createChain(attribute as string, source);
     }
 
-    createCompositeChain(
+    createOneOf(
         chains: ValidationChainWithExtensions<any>[],
     ) {
-        return this.factory.createCompositeChain(chains);
+        return this.factory.createOneOf(chains);
     }
 
     // ----------------------------------------------
 
-    registerMany<A extends ValidationChain | ValidationCompositeChain>(
+    registerMany<A extends ValidationChain | ValidationOneOf>(
         input: A[],
         options: ValidatorRegisterOptions = {},
     ) {
@@ -61,7 +61,7 @@ export class Validator<
         }
     }
 
-    register<A extends ValidationChain | ValidationCompositeChain>(
+    register<A extends ValidationChain | ValidationOneOf>(
         input: A,
         options: ValidatorRegisterOptions = {},
     ) {
@@ -111,7 +111,7 @@ export class Validator<
             const fields = outcome.context.getData({ requiredOnly: false });
 
             for (let i = 0; i < fields.length; i++) {
-                const itemErrors = this.extractFieldErrors(fields[i], outcome.context);
+                const itemErrors = this.extractAttributeErrors(fields[i], outcome.context);
                 if (itemErrors.length > 0) {
                     errors.push(...itemErrors);
                     continue;
@@ -146,7 +146,10 @@ export class Validator<
         return data as T;
     }
 
-    protected extractFieldErrors(field: FieldInstance, context: ReadonlyContext) : FieldValidationError[] {
+    protected extractAttributeErrors(
+        field: FieldInstance,
+        context: ReadonlyContext,
+    ) : FieldValidationError[] {
         return context.errors.filter(
             (error) => error.type === 'field' &&
                 error.location === field.location &&

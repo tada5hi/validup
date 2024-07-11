@@ -16,13 +16,16 @@ export class TypeormValidator<
 > extends Validator<T> {
     protected dataSource : DataSource;
 
-    protected target : EntityTarget<T>;
+    protected entityTarget : EntityTarget<T>;
 
-    constructor(dataSource: DataSource, target: EntityTarget<T>) {
+    constructor(
+        dataSource: DataSource,
+        entityTarget: EntityTarget<T>,
+    ) {
         super();
 
         this.dataSource = dataSource;
-        this.target = target;
+        this.entityTarget = entityTarget;
     }
 
     override async execute(
@@ -31,7 +34,7 @@ export class TypeormValidator<
     ): Promise<T> {
         const result = await super.execute(sources, options);
 
-        const relations = await this.lookupRelations(result);
+        const relations = await this.validateEntityRelations(result);
         const relationKeys = Object.keys(relations);
         for (let i = 0; i < relationKeys.length; i++) {
             const relationKey = relationKeys[i];
@@ -42,18 +45,7 @@ export class TypeormValidator<
         return result;
     }
 
-    protected async getFields() {
-        const entityMetadata = await this.getEntityMetadata();
-
-        const fields : string[] = entityMetadata.columns.map((c) => c.propertyName);
-        for (let i = 0; i < entityMetadata.relations.length; i++) {
-            fields.push(entityMetadata.relations[i].propertyName);
-        }
-
-        return fields;
-    }
-
-    protected async lookupRelations(input: Partial<T>) : Promise<Partial<T>> {
+    protected async validateEntityRelations(input: Partial<T>) : Promise<Partial<T>> {
         const entityMetadata = await this.getEntityMetadata();
 
         const output : Record<string, any> = {};
@@ -95,13 +87,29 @@ export class TypeormValidator<
         return output as Partial<T>;
     }
 
+    async getEntityColumns() {
+        const entityMetadata = await this.getEntityMetadata();
+
+        const items : string[] = [];
+
+        for (let i = 0; i < entityMetadata.columns.length; i++) {
+            items.push(entityMetadata.columns[i].propertyName);
+        }
+
+        for (let i = 0; i < entityMetadata.relations.length; i++) {
+            items.push(entityMetadata.relations[i].propertyName);
+        }
+
+        return items;
+    }
+
     protected async getEntityMetadata() : Promise<EntityMetadata> {
         const index = this.dataSource.entityMetadatas.findIndex(
-            (entityMetadata) => entityMetadata.target === this.target,
+            (entityMetadata) => entityMetadata.target === this.entityTarget,
         );
 
         if (index === -1) {
-            throw new ValidationError(`The entity ${this.target} is not registered.`);
+            throw new ValidationError(`The entity ${this.entityTarget} is not registered.`);
         }
 
         return this.dataSource.entityMetadatas[index];
