@@ -8,7 +8,7 @@
 import type {
     DataSource, EntityMetadata, EntityTarget, FindOptionsWhere, ObjectLiteral,
 } from 'typeorm';
-import type { ValidatorExecuteOptions } from 'validup';
+import type { ValidatorRunOptions } from 'validup';
 import { ValidationNestedError, Validator, buildErrorMessageForAttributes } from 'validup';
 
 export class TypeormValidator<
@@ -28,10 +28,10 @@ export class TypeormValidator<
         this.entityTarget = entityTarget;
     }
 
-    override async execute(
-        options: ValidatorExecuteOptions<T> = {},
+    override async run(
+        options: ValidatorRunOptions<T> = {},
     ): Promise<T> {
-        const result = await super.execute(options);
+        const result = await super.run(options);
 
         const relations = await this.validateEntityRelations(result);
         const relationKeys = Object.keys(relations);

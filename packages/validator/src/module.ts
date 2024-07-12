@@ -10,7 +10,7 @@ import type { ContextRunner, FieldValidationError, ValidationChain } from 'expre
 import type { FieldInstance } from 'express-validator/lib/base';
 import type { ReadonlyContext } from 'express-validator/lib/context';
 import { distinctArray } from 'smob';
-import type { ValidationRunner } from 'validup';
+import type { Runner } from 'validup';
 import { ValidationError } from 'validup';
 import { buildError } from './error';
 
@@ -27,7 +27,7 @@ function extractAttributeErrors(
 
 type FactoryFn = (chain: ValidationChain) => ContextRunner;
 
-export function createRunner(input: FactoryFn | ContextRunner) : ValidationRunner {
+export function createRunner(input: FactoryFn | ContextRunner) : Runner {
     let runner : ContextRunner;
     if (typeof input === 'function') {
         runner = input(body());

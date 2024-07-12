@@ -5,14 +5,14 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { ValidationRunner } from '../../src';
+import type { Runner } from '../../src';
 import { Validator } from '../../src';
 
 describe('src/module', () => {
     it('should validate', async () => {
         const validator = new Validator<{ foo: string, bar: string }>();
 
-        const chain : ValidationRunner = async (ctx) : Promise<unknown> => {
+        const chain : Runner = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value !== 'string') {
                 throw new Error('Value is not a string');
             }
@@ -22,7 +22,7 @@ describe('src/module', () => {
 
         validator.mountRunner('foo', chain);
 
-        const outcome = await validator.execute({
+        const outcome = await validator.run({
             data: {
                 foo: 'bar',
             },
@@ -34,14 +34,14 @@ describe('src/module', () => {
 
     it('should validate empty request', async () => {
         const validator = new Validator();
-        const outcome = await validator.execute({});
+        const outcome = await validator.run({});
         expect(outcome).toBeDefined();
     });
 
     it('should validate groups', async () => {
         const validator = new Validator<{ foo: string, bar: string }>();
 
-        const fooChain : ValidationRunner = async (ctx) : Promise<unknown> => {
+        const fooChain : Runner = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value !== 'string') {
                 throw new Error('Value is not a string');
             }
@@ -50,7 +50,7 @@ describe('src/module', () => {
         };
         validator.mountRunner('foo', fooChain, { group: 'foo' });
 
-        const barChain : ValidationRunner = async (ctx) : Promise<unknown> => {
+        const barChain : Runner = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value !== 'string') {
                 throw new Error('Value is not a string');
             }
@@ -60,7 +60,7 @@ describe('src/module', () => {
 
         validator.mountRunner('bar', barChain, { group: ['foo', 'bar'] });
 
-        let outcome = await validator.execute({
+        let outcome = await validator.run({
             data: {
                 foo: 'bar',
                 bar: 'baz',
@@ -70,7 +70,7 @@ describe('src/module', () => {
         expect(outcome.foo).toEqual('bar');
         expect(outcome.bar).toEqual('baz');
 
-        outcome = await validator.execute({
+        outcome = await validator.run({
             data: {
                 foo: 'bar',
                 bar: 'baz',
@@ -84,7 +84,7 @@ describe('src/module', () => {
     it('should validate with defaults', async () => {
         const validator = new Validator<{ foo: string }>();
 
-        const chain : ValidationRunner = async (ctx) : Promise<unknown> => {
+        const chain : Runner = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value === 'undefined') {
                 return undefined;
             }
@@ -98,10 +98,10 @@ describe('src/module', () => {
 
         validator.mountRunner('foo', chain);
 
-        let outcome = await validator.execute({});
+        let outcome = await validator.run({});
         expect(outcome.foo).toBeUndefined();
 
-        outcome = await validator.execute({
+        outcome = await validator.run({
             defaults: {
                 foo: 'boz',
             },
@@ -111,7 +111,7 @@ describe('src/module', () => {
 
     it('should not validate', async () => {
         const validator = new Validator<{ foo: string }>();
-        const chain : ValidationRunner = async (ctx) : Promise<unknown> => {
+        const chain : Runner = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value === 'undefined' || typeof ctx.value !== 'number') {
                 throw new Error('The value is invalid.');
             }
@@ -124,7 +124,7 @@ describe('src/module', () => {
         expect.assertions(2);
 
         try {
-            await validator.execute({});
+            await validator.run({});
         } catch (e: any) {
             expect(e).toBeDefined();
 

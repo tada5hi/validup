@@ -7,16 +7,7 @@
 
 import type { AttributeSource } from './constants';
 
-export type Sources = {
-    [p: string]: any
-};
-
-export type ValidatorErrorOptions = {
-    children?: Record<string, any>[],
-    code?: string | null
-};
-
-export type ValidatorExecuteOptions<
+export type ValidatorRunOptions<
     T extends Record<string, any> = Record<string, any>,
 > = {
     defaults?: {
@@ -26,21 +17,20 @@ export type ValidatorExecuteOptions<
     data?: Record<string, any>
 };
 
-export type ValidatorRegisterOptions = {
+export type ValidatorRunnerMountOptions = {
     src?: `${AttributeSource}`,
     group?: string | string[]
 };
 
-export type VChainRunContext = {
+export type RunnerContext = {
     key: string,
     value: unknown,
     src: Record<string, any>
 };
+export type Runner = (ctx: RunnerContext) => Promise<unknown> | unknown;
 
-export type ValidationRunner = (ctx: VChainRunContext) => Promise<unknown> | unknown;
-
-export type VChainBox = {
+export type RunnerConfig = {
     key: string,
     src?: `${AttributeSource}`,
-    runner: ValidationRunner
+    runner: Runner
 };

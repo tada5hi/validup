@@ -11,7 +11,7 @@ describe('src/module', () => {
     it('should validate extended validator', async () => {
         const validator = new UserValidator();
 
-        const outcome = await validator.execute({
+        const outcome = await validator.run({
             data: {
                 name: 'Peter',
                 age: 28,

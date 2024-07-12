@@ -5,11 +5,11 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { ValidationRunner } from 'validup';
+import type { Runner } from 'validup';
 import type { ZodType } from 'zod';
 import { buildError } from './error';
 
-export function createRunner(zod: ZodType) : ValidationRunner {
+export function createRunner(zod: ZodType) : Runner {
     return async (ctx): Promise<unknown> => {
         const outcome = await zod.safeParseAsync(ctx.value);
         if (outcome.success) {

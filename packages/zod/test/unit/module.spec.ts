@@ -15,7 +15,7 @@ describe('src/module', () => {
 
         validator.mountRunner('email', createRunner(z.string().email()));
 
-        const outcome = await validator.execute({
+        const outcome = await validator.run({
             data: {
                 email: 'foo@example.com',
             },

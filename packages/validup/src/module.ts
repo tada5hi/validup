@@ -8,14 +8,14 @@
 import { ValidationAttributeError, ValidationNestedError } from './errors';
 import { buildErrorMessageForAttributes } from './helpers';
 import type {
-    VChainBox, ValidationRunner, ValidatorExecuteOptions, ValidatorRegisterOptions,
+    Runner, RunnerConfig, ValidatorRunOptions, ValidatorRunnerMountOptions,
 } from './types';
 import { hasOwnProperty } from './utils';
 
 export class Validator<
     T extends Record<string, any> = Record<string, any>,
 > {
-    protected items : Record<string, VChainBox[]>;
+    protected items : Record<string, RunnerConfig[]>;
 
     protected sources : Record<string, Record<string, any>>;
 
@@ -30,8 +30,8 @@ export class Validator<
 
     mountRunner(
         key: keyof T,
-        chain: ValidationRunner,
-        options: ValidatorRegisterOptions = {},
+        runner: Runner,
+        options: ValidatorRunnerMountOptions = {},
     ) {
         let groups : string[] = [];
         if (options.group) {
@@ -52,7 +52,7 @@ export class Validator<
             }
 
             this.items[groups[i]].push({
-                runner: chain,
+                runner,
                 key: key as string,
                 src: options.src,
             });
@@ -71,7 +71,7 @@ export class Validator<
 
     // ----------------------------------------------
 
-    async execute(options: ValidatorExecuteOptions<T> = {}): Promise<T> {
+    async run(options: ValidatorRunOptions<T> = {}): Promise<T> {
         const data: Record<string, any> = {};
         const errors: ValidationAttributeError[] = [];
         const errorKeys : string[] = [];
