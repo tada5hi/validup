@@ -5,21 +5,19 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { VChain } from '../../src';
+import type { ValidationRunner } from '../../src';
 import { Validator } from '../../src';
 
 describe('src/module', () => {
     it('should validate', async () => {
         const validator = new Validator<{ foo: string, bar: string }>();
 
-        const chain : VChain = {
-            async run(ctx) : Promise<unknown> {
-                if (typeof ctx.value !== 'string') {
-                    throw new Error('Value is not a string');
-                }
+        const chain : ValidationRunner = async (ctx) : Promise<unknown> => {
+            if (typeof ctx.value !== 'string') {
+                throw new Error('Value is not a string');
+            }
 
-                return ctx.value;
-            },
+            return ctx.value;
         };
 
         validator.mountRunner('foo', chain);
@@ -43,25 +41,21 @@ describe('src/module', () => {
     it('should validate groups', async () => {
         const validator = new Validator<{ foo: string, bar: string }>();
 
-        const fooChain : VChain = {
-            async run(ctx) : Promise<unknown> {
-                if (typeof ctx.value !== 'string') {
-                    throw new Error('Value is not a string');
-                }
+        const fooChain : ValidationRunner = async (ctx) : Promise<unknown> => {
+            if (typeof ctx.value !== 'string') {
+                throw new Error('Value is not a string');
+            }
 
-                return ctx.value;
-            },
+            return ctx.value;
         };
         validator.mountRunner('foo', fooChain, { group: 'foo' });
 
-        const barChain : VChain = {
-            async run(ctx) : Promise<unknown> {
-                if (typeof ctx.value !== 'string') {
-                    throw new Error('Value is not a string');
-                }
+        const barChain : ValidationRunner = async (ctx) : Promise<unknown> => {
+            if (typeof ctx.value !== 'string') {
+                throw new Error('Value is not a string');
+            }
 
-                return ctx.value;
-            },
+            return ctx.value;
         };
 
         validator.mountRunner('bar', barChain, { group: ['foo', 'bar'] });
@@ -90,18 +84,16 @@ describe('src/module', () => {
     it('should validate with defaults', async () => {
         const validator = new Validator<{ foo: string }>();
 
-        const chain : VChain = {
-            async run(ctx) : Promise<unknown> {
-                if (typeof ctx.value === 'undefined') {
-                    return undefined;
-                }
+        const chain : ValidationRunner = async (ctx) : Promise<unknown> => {
+            if (typeof ctx.value === 'undefined') {
+                return undefined;
+            }
 
-                if (typeof ctx.value !== 'number') {
-                    throw new Error('The value is invalid.');
-                }
+            if (typeof ctx.value !== 'number') {
+                throw new Error('The value is invalid.');
+            }
 
-                return ctx.value;
-            },
+            return ctx.value;
         };
 
         validator.mountRunner('foo', chain);
@@ -119,14 +111,12 @@ describe('src/module', () => {
 
     it('should not validate', async () => {
         const validator = new Validator<{ foo: string }>();
-        const chain : VChain = {
-            async run(ctx) : Promise<unknown> {
-                if (typeof ctx.value === 'undefined' || typeof ctx.value !== 'number') {
-                    throw new Error('The value is invalid.');
-                }
+        const chain : ValidationRunner = async (ctx) : Promise<unknown> => {
+            if (typeof ctx.value === 'undefined' || typeof ctx.value !== 'number') {
+                throw new Error('The value is invalid.');
+            }
 
-                return ctx.value;
-            },
+            return ctx.value;
         };
 
         validator.mountRunner('foo', chain);

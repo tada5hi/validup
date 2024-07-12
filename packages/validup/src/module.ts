@@ -8,7 +8,7 @@
 import { ValidationAttributeError, ValidationNestedError } from './errors';
 import { buildErrorMessageForAttributes } from './helpers';
 import type {
-    VChain, VChainBox, ValidatorExecuteOptions, ValidatorRegisterOptions,
+    VChainBox, ValidationRunner, ValidatorExecuteOptions, ValidatorRegisterOptions,
 } from './types';
 import { hasOwnProperty } from './utils';
 
@@ -29,8 +29,8 @@ export class Validator<
     // ----------------------------------------------
 
     mountRunner(
-        key: string,
-        chain: VChain,
+        key: keyof T,
+        chain: ValidationRunner,
         options: ValidatorRegisterOptions = {},
     ) {
         let groups : string[] = [];
@@ -52,8 +52,8 @@ export class Validator<
             }
 
             this.items[groups[i]].push({
-                chain,
-                key,
+                runner: chain,
+                key: key as string,
                 src: options.src,
             });
         }
@@ -115,7 +115,7 @@ export class Validator<
             const value = src ? src[item.key] : undefined;
 
             try {
-                data[item.key] = await item.chain.run({
+                data[item.key] = await item.runner({
                     key: item.key,
                     value,
                     src: src || {},

@@ -8,25 +8,23 @@
 import 'reflect-metadata';
 
 import { DataSource } from 'typeorm';
-import type { VChain } from 'validup';
+import type { ValidationRunner } from 'validup';
 import { buildErrorMessageForAttributes } from 'validup';
 import { TypeormValidator } from '../../src';
 import { useDataSourceOptions } from '../data/data-source';
 import { Realm } from '../data/realm';
 import { User } from '../data/user';
 
-const uuidRunner : VChain = {
-    run: async (ctx) => {
-        if (typeof ctx.value !== 'string') {
-            throw new Error('Value is not a string');
-        }
+const uuidRunner : ValidationRunner = async (ctx) => {
+    if (typeof ctx.value !== 'string') {
+        throw new Error('Value is not a string');
+    }
 
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(ctx.value)) {
-            throw new Error('Value is not a uuid');
-        }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(ctx.value)) {
+        throw new Error('Value is not a uuid');
+    }
 
-        return ctx.value;
-    },
+    return ctx.value;
 };
 
 describe('src/module', () => {
@@ -46,14 +44,12 @@ describe('src/module', () => {
     it('should validate', async () => {
         const validator = new TypeormValidator(dataSource, User);
 
-        validator.mountRunner('name', {
-            run: async (ctx) => {
-                if (typeof ctx.value !== 'string') {
-                    throw new Error('Value is not a string.');
-                }
+        validator.mountRunner('name', async (ctx) => {
+            if (typeof ctx.value !== 'string') {
+                throw new Error('Value is not a string.');
+            }
 
-                return ctx.value;
-            },
+            return ctx.value;
         });
 
         validator.mountRunner('realm_id', uuidRunner);

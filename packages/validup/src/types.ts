@@ -37,12 +37,10 @@ export type VChainRunContext = {
     src: Record<string, any>
 };
 
-export type VChain = {
-    run: (ctx: VChainRunContext) => Promise<unknown> | unknown
-};
+export type ValidationRunner = (ctx: VChainRunContext) => Promise<unknown> | unknown;
 
 export type VChainBox = {
     key: string,
     src?: `${AttributeSource}`,
-    chain: VChain
+    runner: ValidationRunner
 };
