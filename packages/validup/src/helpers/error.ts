@@ -7,7 +7,7 @@
 
 import { distinctArray } from 'smob';
 
-export function buildErrorMessageForAttributes(input: string[] | Record<string, any>) {
+export function buildErrorMessageForAttributes(input: (number | string)[] | Record<string, any>) {
     let names: string[];
     if (Array.isArray(input)) {
         names = distinctArray(input);

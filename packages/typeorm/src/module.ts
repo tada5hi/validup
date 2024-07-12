@@ -8,8 +8,8 @@
 import type {
     DataSource, EntityMetadata, EntityTarget, FindOptionsWhere, ObjectLiteral,
 } from 'typeorm';
-import type { Sources, ValidatorExecuteOptions } from 'validup';
-import { ValidationError, Validator, buildErrorMessageForAttributes } from 'validup';
+import type { ValidatorExecuteOptions } from 'validup';
+import { ValidationNestedError, Validator, buildErrorMessageForAttributes } from 'validup';
 
 export class TypeormValidator<
     T extends Record<string, any> = Record<string, any>,
@@ -29,10 +29,9 @@ export class TypeormValidator<
     }
 
     override async execute(
-        sources: Sources,
         options: ValidatorExecuteOptions<T> = {},
     ): Promise<T> {
-        const result = await super.execute(sources, options);
+        const result = await super.execute(options);
 
         const relations = await this.validateEntityRelations(result);
         const relationKeys = Object.keys(relations);
@@ -64,7 +63,7 @@ export class TypeormValidator<
                     where[joinColumn.referencedColumn.propertyName] = input[joinColumn.propertyName];
                     columns.push(joinColumn.propertyName);
                 } else {
-                    throw new ValidationError(`Can not lookup foreign ${relation.propertyName} entity.`);
+                    throw new ValidationNestedError(`Can not lookup foreign ${relation.propertyName} entity.`);
                 }
             }
 
@@ -78,7 +77,7 @@ export class TypeormValidator<
             });
 
             if (!entity) {
-                throw new ValidationError(buildErrorMessageForAttributes(columns));
+                throw new ValidationNestedError(buildErrorMessageForAttributes(columns));
             }
 
             output[relation.propertyName] = entity;
@@ -109,7 +108,7 @@ export class TypeormValidator<
         );
 
         if (index === -1) {
-            throw new ValidationError(`The entity ${this.entityTarget} is not registered.`);
+            throw new ValidationNestedError(`The entity ${this.entityTarget} is not registered.`);
         }
 
         return this.dataSource.entityMetadatas[index];

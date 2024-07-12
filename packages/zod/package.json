@@ -1,7 +1,7 @@
 {
-    "name": "validup",
+    "name": "@validup/zod",
     "version": "0.0.0",
-    "description": "A validation library.",
+    "description": "A validup adapter for zod.",
     "author": {
         "name": "Peter Placzek",
         "email": "contact@tada5hi.net",
@@ -40,6 +40,12 @@
     "keywords": [],
     "license": "MIT",
     "dependencies": {
-        "smob": "^1.5.0"
+        "validup": "^0.0.0"
+    },
+    "devDependencies": {
+        "zod": "^3.23.8"
+    },
+    "peerDependencies": {
+        "zod": "^3.23.8"
     }
 }

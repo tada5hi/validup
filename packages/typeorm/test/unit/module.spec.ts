@@ -8,11 +8,26 @@
 import 'reflect-metadata';
 
 import { DataSource } from 'typeorm';
+import type { VChain } from 'validup';
 import { buildErrorMessageForAttributes } from 'validup';
 import { TypeormValidator } from '../../src';
 import { useDataSourceOptions } from '../data/data-source';
 import { Realm } from '../data/realm';
 import { User } from '../data/user';
+
+const uuidRunner : VChain = {
+    run: async (ctx) => {
+        if (typeof ctx.value !== 'string') {
+            throw new Error('Value is not a string');
+        }
+
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(ctx.value)) {
+            throw new Error('Value is not a uuid');
+        }
+
+        return ctx.value;
+    },
+};
 
 describe('src/module', () => {
     const dataSource = new DataSource(useDataSourceOptions());
@@ -31,11 +46,20 @@ describe('src/module', () => {
     it('should validate', async () => {
         const validator = new TypeormValidator(dataSource, User);
 
-        validator.register(validator.createChain('name').isString());
-        validator.register(validator.createChain('realm_id').isUUID());
+        validator.mountRunner('name', {
+            run: async (ctx) => {
+                if (typeof ctx.value !== 'string') {
+                    throw new Error('Value is not a string.');
+                }
+
+                return ctx.value;
+            },
+        });
+
+        validator.mountRunner('realm_id', uuidRunner);
 
         const outcome = await validator.execute({
-            body: {
+            data: {
                 name: 'admin',
                 realm_id: realm.id,
             },
@@ -48,13 +72,13 @@ describe('src/module', () => {
     it('should not validate', async () => {
         const validator = new TypeormValidator(dataSource, User);
 
-        validator.register(validator.createChain('realm_id').isUUID());
+        validator.mountRunner('realm_id', uuidRunner);
 
         expect.assertions(2);
 
         try {
             await validator.execute({
-                body: {
+                data: {
                     realm_id: '926bc2dc-f448-4441-a76e-7e6c6ff58204',
                 },
             });

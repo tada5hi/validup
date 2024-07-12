@@ -5,5 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export * from './has-own-property';
-export * from './object';
+export function isObject(input: unknown) : input is Record<string, any> {
+    return !!input &&
+        typeof input === 'object' &&
+        !Array.isArray(input);
+}

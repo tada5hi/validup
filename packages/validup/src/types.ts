@@ -5,18 +5,11 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type {
-    ValidationChain as BaseValidationChain,
-    ContextRunner,
-    CustomSanitizer,
-    CustomValidationChain,
-    CustomValidator,
-    ExpressValidator,
-} from 'express-validator';
-import type { Middleware, Request } from 'express-validator/lib/base';
 import type { AttributeSource } from './constants';
 
-export type Sources = Request;
+export type Sources = {
+    [p: string]: any
+};
 
 export type ValidatorErrorOptions = {
     children?: Record<string, any>[],
@@ -29,7 +22,8 @@ export type ValidatorExecuteOptions<
     defaults?: {
         [K in keyof T]: any
     },
-    group?: string
+    group?: string,
+    data?: Record<string, any>
 };
 
 export type ValidatorRegisterOptions = {
@@ -37,22 +31,18 @@ export type ValidatorRegisterOptions = {
     group?: string | string[]
 };
 
-export type ValidationChain = BaseValidationChain;
-export type ValidationOneOf = Middleware & ContextRunner;
+export type VChainRunContext = {
+    key: string,
+    value: unknown,
+    src: Record<string, any>
+};
 
-type ChainCreateFn<C> = (
-    attribute: string,
-    source?: `${AttributeSource}`,
-) => C;
+export type VChain = {
+    run: (ctx: VChainRunContext) => Promise<unknown> | unknown
+};
 
-type OneOfCreateFn<C> = (
-    chains: C[]
-) => ValidationOneOf;
-
-export type Factory<
-    VALIDATORS extends Record<string, CustomValidator> = Record<string, CustomValidator>,
-    SANITIZERS extends Record<string, CustomSanitizer> = Record<string, CustomSanitizer>,
-> = {
-    createChain: ChainCreateFn<CustomValidationChain<ExpressValidator<VALIDATORS, SANITIZERS>>>,
-    createOneOf: OneOfCreateFn<CustomValidationChain<ExpressValidator<VALIDATORS, SANITIZERS>>>
+export type VChainBox = {
+    key: string,
+    src?: `${AttributeSource}`,
+    chain: VChain
 };

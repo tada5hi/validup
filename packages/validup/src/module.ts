@@ -5,64 +5,32 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type {
-    ValidationError as BaseValidationError, FieldValidationError, ValidationChainWithExtensions,
-} from 'express-validator';
-import type { FieldInstance } from 'express-validator/lib/base';
-import type { ReadonlyContext } from 'express-validator/lib/context';
-import { distinctArray } from 'smob';
-import type { AttributeSource } from './constants';
-import { buildFactory } from './factory';
-import { ValidationError } from './error';
+import { ValidationAttributeError, ValidationNestedError } from './errors';
 import { buildErrorMessageForAttributes } from './helpers';
 import type {
-    Factory, Sources,
-    ValidationChain, ValidationOneOf, ValidatorExecuteOptions, ValidatorRegisterOptions,
+    VChain, VChainBox, ValidatorExecuteOptions, ValidatorRegisterOptions,
 } from './types';
 import { hasOwnProperty } from './utils';
 
 export class Validator<
     T extends Record<string, any> = Record<string, any>,
 > {
-    protected items : Record<string, (ValidationChain | ValidationOneOf)[]>;
+    protected items : Record<string, VChainBox[]>;
 
-    protected factory : Factory;
+    protected sources : Record<string, Record<string, any>>;
 
     // ----------------------------------------------
 
     constructor() {
         this.items = {};
-        this.factory = buildFactory();
+        this.sources = {};
     }
 
     // ----------------------------------------------
 
-    createChain<A extends keyof T>(
-        attribute: A,
-        source?: `${AttributeSource}`,
-    ) : ValidationChainWithExtensions<any> {
-        return this.factory.createChain(attribute as string, source);
-    }
-
-    createOneOf(
-        chains: ValidationChainWithExtensions<any>[],
-    ) {
-        return this.factory.createOneOf(chains);
-    }
-
-    // ----------------------------------------------
-
-    registerMany<A extends ValidationChain | ValidationOneOf>(
-        input: A[],
-        options: ValidatorRegisterOptions = {},
-    ) {
-        for (let i = 0; i < input.length; i++) {
-            this.register(input[i], options);
-        }
-    }
-
-    register<A extends ValidationChain | ValidationOneOf>(
-        input: A,
+    mountRunner(
+        key: string,
+        chain: VChain,
         options: ValidatorRegisterOptions = {},
     ) {
         let groups : string[] = [];
@@ -83,18 +51,30 @@ export class Validator<
                 this.items[groups[i]] = [];
             }
 
-            this.items[groups[i]].push(input);
+            this.items[groups[i]].push({
+                chain,
+                key,
+                src: options.src,
+            });
         }
     }
 
     // ----------------------------------------------
 
-    async execute(
-        sources: Sources,
-        options: ValidatorExecuteOptions<T> = {},
-    ): Promise<T> {
+    mountSource(key: string, value: Record<string, any>) {
+        this.sources[key] = value;
+    }
+
+    unmountSource(key: string) {
+        delete this.sources[key];
+    }
+
+    // ----------------------------------------------
+
+    async execute(options: ValidatorExecuteOptions<T> = {}): Promise<T> {
         const data: Record<string, any> = {};
-        const errors: BaseValidationError[] = [];
+        const errors: ValidationAttributeError[] = [];
+        const errorKeys : string[] = [];
 
         const items = this.items['*'] || [];
         if (
@@ -104,82 +84,81 @@ export class Validator<
             items.push(...this.items[options.group] || []);
         }
 
+        const sourceKeys = Object.keys(this.sources);
+
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
 
-            const outcome = await item.run(sources);
-            const fields = outcome.context.getData({ requiredOnly: false });
+            let src : Record<string, any> | undefined;
 
-            for (let i = 0; i < fields.length; i++) {
-                const itemErrors = this.extractAttributeErrors(fields[i], outcome.context);
-                if (itemErrors.length > 0) {
-                    errors.push(...itemErrors);
-                    continue;
+            if (item.src) {
+                const index = sourceKeys.indexOf(item.src);
+                if (index !== -1) {
+                    const sourceKey = sourceKeys[index];
+                    if (hasOwnProperty(this.sources[sourceKey], item.key)) {
+                        src = this.sources[sourceKey];
+                    }
+                } else if (options.data && hasOwnProperty(options.data, item.key)) {
+                    src = options.data;
+                }
+            } else if (options.data && hasOwnProperty(options.data, item.key)) {
+                src = options.data;
+            } else {
+                for (let j = 0; j < sourceKeys.length; j++) {
+                    if (hasOwnProperty(this.sources[sourceKeys[j]], item.key)) {
+                        src = this.sources[sourceKeys[j]];
+                        break;
+                    }
+                }
+            }
+
+            const value = src ? src[item.key] : undefined;
+
+            try {
+                data[item.key] = await item.chain.run({
+                    key: item.key,
+                    value,
+                    src: src || {},
+                });
+            } catch (e) {
+                if (e instanceof ValidationAttributeError) {
+                    errors.push(e);
+                } else if (e instanceof ValidationNestedError) {
+                    errors.push(...e.children);
+                } else {
+                    const error = new ValidationAttributeError({
+                        path: [item.key],
+                        received: value,
+                    });
+
+                    if (e instanceof Error) {
+                        error.cause = e;
+                        error.message = e.message;
+                    }
+
+                    errors.push(error);
                 }
 
-                data[fields[i].path] = fields[i].value;
+                errorKeys.push(item.key);
             }
         }
 
         if (errors.length > 0) {
-            throw this.mergeErrors(distinctArray(errors));
+            throw new ValidationNestedError(buildErrorMessageForAttributes(errorKeys), errors);
         }
 
-        const keys = Object.keys(data);
-        for (let i = 0; i < keys.length; i++) {
-            const value = data[keys[i]];
-            if (typeof value !== 'undefined') {
-                continue;
+        if (options.defaults) {
+            const defaultKeys = Object.keys(options.defaults);
+            for (let i = 0; i < defaultKeys.length; i++) {
+                if (
+                    !hasOwnProperty(data, defaultKeys[i]) ||
+                    typeof data[defaultKeys[i]] === 'undefined'
+                ) {
+                    data[defaultKeys[i]] = options.defaults[defaultKeys[i]];
+                }
             }
-
-            if (
-                options.defaults &&
-                hasOwnProperty(options.defaults, keys[i])
-            ) {
-                data[keys[i]] = options.defaults[keys[i]];
-                continue;
-            }
-
-            delete data[keys[i]];
         }
 
         return data as T;
-    }
-
-    protected extractAttributeErrors(
-        field: FieldInstance,
-        context: ReadonlyContext,
-    ) : FieldValidationError[] {
-        return context.errors.filter(
-            (error) => error.type === 'field' &&
-                error.location === field.location &&
-                error.path === field.path,
-        ) as FieldValidationError[];
-    }
-
-    protected mergeErrors(errors: BaseValidationError[]): Error {
-        const parameterNames : string[] = [];
-
-        for (let i = 0; i < errors.length; i++) {
-            const item = errors[i];
-
-            switch (item.type) {
-                case 'field': {
-                    parameterNames.push(item.path);
-                    break;
-                }
-                case 'alternative': {
-                    parameterNames.push(item.nestedErrors.map(
-                        ((el) => el.path),
-                    )
-                        .join('|'));
-                    break;
-                }
-            }
-        }
-
-        throw new ValidationError(buildErrorMessageForAttributes(Array.from(parameterNames)), {
-            children: errors,
-        });
     }
 }

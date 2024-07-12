@@ -7,7 +7,7 @@
 
 export * from './helpers';
 export * from './constants';
-export * from './error';
-export * from './factory';
+export * from './errors';
 export * from './module';
 export * from './types';
+export * from './utils';

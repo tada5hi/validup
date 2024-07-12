@@ -5,19 +5,27 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import type { VChain } from '../../src';
 import { Validator } from '../../src';
-import { UserValidator } from '../data/user';
 
 describe('src/module', () => {
     it('should validate', async () => {
         const validator = new Validator<{ foo: string, bar: string }>();
 
-        const fooChain = validator.createChain('foo')
-            .isString();
-        validator.register(fooChain);
+        const chain : VChain = {
+            async run(ctx) : Promise<unknown> {
+                if (typeof ctx.value !== 'string') {
+                    throw new Error('Value is not a string');
+                }
+
+                return ctx.value;
+            },
+        };
+
+        validator.mountRunner('foo', chain);
 
         const outcome = await validator.execute({
-            body: {
+            data: {
                 foo: 'bar',
             },
         });
@@ -35,45 +43,73 @@ describe('src/module', () => {
     it('should validate groups', async () => {
         const validator = new Validator<{ foo: string, bar: string }>();
 
-        const fooChain = validator.createChain('foo')
-            .isString();
-        validator.register(fooChain, { group: 'foo' });
+        const fooChain : VChain = {
+            async run(ctx) : Promise<unknown> {
+                if (typeof ctx.value !== 'string') {
+                    throw new Error('Value is not a string');
+                }
 
-        const barChain = validator.createChain('bar')
-            .isString();
+                return ctx.value;
+            },
+        };
+        validator.mountRunner('foo', fooChain, { group: 'foo' });
 
-        validator.register(barChain, { group: ['foo', 'bar'] });
+        const barChain : VChain = {
+            async run(ctx) : Promise<unknown> {
+                if (typeof ctx.value !== 'string') {
+                    throw new Error('Value is not a string');
+                }
+
+                return ctx.value;
+            },
+        };
+
+        validator.mountRunner('bar', barChain, { group: ['foo', 'bar'] });
 
         let outcome = await validator.execute({
-            body: {
+            data: {
                 foo: 'bar',
                 bar: 'baz',
             },
-        }, { group: 'foo' });
+            group: 'foo',
+        });
         expect(outcome.foo).toEqual('bar');
         expect(outcome.bar).toEqual('baz');
 
         outcome = await validator.execute({
-            body: {
+            data: {
                 foo: 'bar',
                 bar: 'baz',
             },
-        }, { group: 'bar' });
+            group: 'bar',
+        });
         expect(outcome.foo).toBeUndefined();
         expect(outcome.bar).toEqual('baz');
     });
 
     it('should validate with defaults', async () => {
         const validator = new Validator<{ foo: string }>();
-        validator.register(validator.createChain('foo')
-            .optional({ values: 'null' })
-            .isNumeric()
-            .default('bar'));
+
+        const chain : VChain = {
+            async run(ctx) : Promise<unknown> {
+                if (typeof ctx.value === 'undefined') {
+                    return undefined;
+                }
+
+                if (typeof ctx.value !== 'number') {
+                    throw new Error('The value is invalid.');
+                }
+
+                return ctx.value;
+            },
+        };
+
+        validator.mountRunner('foo', chain);
 
         let outcome = await validator.execute({});
         expect(outcome.foo).toBeUndefined();
 
-        outcome = await validator.execute({}, {
+        outcome = await validator.execute({
             defaults: {
                 foo: 'boz',
             },
@@ -81,31 +117,19 @@ describe('src/module', () => {
         expect(outcome.foo).toEqual('boz');
     });
 
-    it('should validate extended validator', async () => {
-        const validator = new UserValidator();
-
-        const outcome = await validator.execute({
-            body: {
-                name: 'Peter',
-                age: 28,
-                password: '1234',
-                foo: 'bar',
-            },
-        });
-
-        expect(outcome).toBeDefined();
-        expect(outcome.name).toEqual('Peter');
-        expect(outcome.age).toEqual(28);
-        expect(outcome.password).toEqual('1234');
-        expect((outcome as Record<string, any>).foo).toBeUndefined();
-    });
-
     it('should not validate', async () => {
         const validator = new Validator<{ foo: string }>();
-        validator.register(validator.createChain('foo')
-            .exists()
-            .notEmpty()
-            .isNumeric());
+        const chain : VChain = {
+            async run(ctx) : Promise<unknown> {
+                if (typeof ctx.value === 'undefined' || typeof ctx.value !== 'number') {
+                    throw new Error('The value is invalid.');
+                }
+
+                return ctx.value;
+            },
+        };
+
+        validator.mountRunner('foo', chain);
 
         expect.assertions(2);
 
@@ -113,6 +137,7 @@ describe('src/module', () => {
             await validator.execute({});
         } catch (e: any) {
             expect(e).toBeDefined();
+
             expect(e.children).toHaveLength(1);
         }
     });
