@@ -127,7 +127,7 @@ export class Validator<
                     errors.push(...e.children);
                 } else {
                     const error = new ValidationAttributeError({
-                        path: [item.key],
+                        path: item.key,
                         received: value,
                     });
 

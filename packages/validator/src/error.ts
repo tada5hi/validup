@@ -19,7 +19,7 @@ function generateAttributeErrors(
             const message = error.msg || buildErrorMessageForAttributes([name]);
 
             output.push(new ValidationAttributeError({
-                path: [name],
+                path: name,
                 received: error.value,
                 message,
             }));
@@ -53,7 +53,7 @@ export function buildNestedError(
         const children = generateAttributeErrors(errors[i], path);
         for (let j = 0; j < children.length; j++) {
             base.addChild(children[j]);
-            names.push(...children[j].path);
+            names.push(children[j].path);
         }
     }
 

@@ -58,7 +58,7 @@ describe('src/module', () => {
             if (e instanceof ValidationNestedError) {
                 expect(e.children).toBeDefined();
                 expect(e.children).toHaveLength(1);
-                expect(e.children[0].path).toEqual(['foo']);
+                expect(e.children[0].path).toEqual('foo');
             }
         }
     });

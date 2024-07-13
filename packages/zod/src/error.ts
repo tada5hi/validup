@@ -41,7 +41,7 @@ export function buildError(error: ZodError, options: ErrorBuildOptions) {
         }
 
         const child = new ValidationAttributeError({
-            path: [path],
+            path,
             message: issue.message,
             expected,
             received,

@@ -6,7 +6,7 @@
  */
 
 export type ValidationAttributeErrorOptions = {
-    path: (string | number)[],
+    path: string,
     message?: string,
     code?: string | null,
     received?: unknown,
@@ -14,7 +14,7 @@ export type ValidationAttributeErrorOptions = {
 };
 
 export class ValidationAttributeError extends Error {
-    readonly path: (string | number)[];
+    readonly path: string;
 
     readonly code?: string | null;
 
