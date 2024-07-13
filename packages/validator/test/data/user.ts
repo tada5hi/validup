@@ -19,14 +19,14 @@ export class UserValidator extends Validator<User> {
     constructor() {
         super();
 
-        this.mountRunner('name', createRunner((chain) => chain.exists()
+        this.mount('name', createRunner((chain) => chain.exists()
             .notEmpty()
             .isLength({ min: 3, max: 128 })));
 
-        this.mountRunner('age', createRunner((chain) => chain.isNumeric()
+        this.mount('age', createRunner((chain) => chain.isNumeric()
             .optional({ values: 'null' })));
 
-        this.mountRunner('password', createRunner((chain) => chain
+        this.mount('password', createRunner((chain) => chain
             .isLength({ min: 3, max: 128 })));
     }
 }

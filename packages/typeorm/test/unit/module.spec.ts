@@ -8,14 +8,14 @@
 import 'reflect-metadata';
 
 import { DataSource } from 'typeorm';
-import type { Runner } from 'validup';
+import type { AttributeValidator } from 'validup';
 import { buildErrorMessageForAttributes } from 'validup';
 import { TypeormValidator } from '../../src';
 import { useDataSourceOptions } from '../data/data-source';
 import { Realm } from '../data/realm';
 import { User } from '../data/user';
 
-const uuidRunner : Runner = async (ctx) => {
+const uuidRunner : AttributeValidator = async (ctx) => {
     if (typeof ctx.value !== 'string') {
         throw new Error('Value is not a string');
     }
@@ -44,7 +44,7 @@ describe('src/module', () => {
     it('should validate', async () => {
         const validator = new TypeormValidator(dataSource, User);
 
-        validator.mountRunner('name', async (ctx) => {
+        validator.mount('name', async (ctx) => {
             if (typeof ctx.value !== 'string') {
                 throw new Error('Value is not a string.');
             }
@@ -52,7 +52,7 @@ describe('src/module', () => {
             return ctx.value;
         });
 
-        validator.mountRunner('realm_id', uuidRunner);
+        validator.mount('realm_id', uuidRunner);
 
         const outcome = await validator.run({
             data: {
@@ -68,7 +68,7 @@ describe('src/module', () => {
     it('should not validate', async () => {
         const validator = new TypeormValidator(dataSource, User);
 
-        validator.mountRunner('realm_id', uuidRunner);
+        validator.mount('realm_id', uuidRunner);
 
         expect.assertions(2);
 

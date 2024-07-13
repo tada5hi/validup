@@ -5,8 +5,6 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { AttributeSource } from './constants';
-
 export type ValidatorRunOptions<
     T extends Record<string, any> = Record<string, any>,
 > = {
@@ -17,20 +15,16 @@ export type ValidatorRunOptions<
     data?: Record<string, any>
 };
 
-export type ValidatorRunnerMountOptions = {
-    src?: `${AttributeSource}`,
-    group?: string | string[]
-};
-
-export type RunnerContext = {
+export type AttributeValidatorContext = {
     key: string,
     value: unknown,
     src: Record<string, any>
 };
-export type Runner = (ctx: RunnerContext) => Promise<unknown> | unknown;
+export type AttributeValidator = (ctx: AttributeValidatorContext) => Promise<unknown> | unknown;
 
-export type RunnerConfig = {
+export type AttributeValidatorConfig = {
     key: string,
-    src?: `${AttributeSource}`,
-    runner: Runner
+    group?: string | string[],
+    src?: string,
+    validator: AttributeValidator
 };

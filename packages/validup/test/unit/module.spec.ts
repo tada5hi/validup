@@ -5,14 +5,14 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { Runner } from '../../src';
+import type { AttributeValidator } from '../../src';
 import { Validator } from '../../src';
 
 describe('src/module', () => {
     it('should validate', async () => {
         const validator = new Validator<{ foo: string, bar: string }>();
 
-        const chain : Runner = async (ctx) : Promise<unknown> => {
+        const chain : AttributeValidator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value !== 'string') {
                 throw new Error('Value is not a string');
             }
@@ -20,7 +20,7 @@ describe('src/module', () => {
             return ctx.value;
         };
 
-        validator.mountRunner('foo', chain);
+        validator.mount('foo', chain);
 
         const outcome = await validator.run({
             data: {
@@ -41,16 +41,16 @@ describe('src/module', () => {
     it('should validate groups', async () => {
         const validator = new Validator<{ foo: string, bar: string }>();
 
-        const fooChain : Runner = async (ctx) : Promise<unknown> => {
+        const fooChain : AttributeValidator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value !== 'string') {
                 throw new Error('Value is not a string');
             }
 
             return ctx.value;
         };
-        validator.mountRunner('foo', fooChain, { group: 'foo' });
+        validator.mount('foo', fooChain, { group: 'foo' });
 
-        const barChain : Runner = async (ctx) : Promise<unknown> => {
+        const barChain : AttributeValidator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value !== 'string') {
                 throw new Error('Value is not a string');
             }
@@ -58,7 +58,7 @@ describe('src/module', () => {
             return ctx.value;
         };
 
-        validator.mountRunner('bar', barChain, { group: ['foo', 'bar'] });
+        validator.mount('bar', barChain, { group: ['foo', 'bar'] });
 
         let outcome = await validator.run({
             data: {
@@ -84,7 +84,7 @@ describe('src/module', () => {
     it('should validate with defaults', async () => {
         const validator = new Validator<{ foo: string }>();
 
-        const chain : Runner = async (ctx) : Promise<unknown> => {
+        const chain : AttributeValidator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value === 'undefined') {
                 return undefined;
             }
@@ -96,7 +96,7 @@ describe('src/module', () => {
             return ctx.value;
         };
 
-        validator.mountRunner('foo', chain);
+        validator.mount('foo', chain);
 
         let outcome = await validator.run({});
         expect(outcome.foo).toBeUndefined();
@@ -111,7 +111,7 @@ describe('src/module', () => {
 
     it('should not validate', async () => {
         const validator = new Validator<{ foo: string }>();
-        const chain : Runner = async (ctx) : Promise<unknown> => {
+        const chain : AttributeValidator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value === 'undefined' || typeof ctx.value !== 'number') {
                 throw new Error('The value is invalid.');
             }
@@ -119,7 +119,7 @@ describe('src/module', () => {
             return ctx.value;
         };
 
-        validator.mountRunner('foo', chain);
+        validator.mount('foo', chain);
 
         expect.assertions(2);
 

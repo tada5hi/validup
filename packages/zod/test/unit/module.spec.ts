@@ -13,7 +13,7 @@ describe('src/module', () => {
     it('should validate', async () => {
         const validator = new Validator<{ email: string }>();
 
-        validator.mountRunner('email', createRunner(z.string().email()));
+        validator.mount('email', createRunner(z.string().email()));
 
         const outcome = await validator.run({
             data: {
@@ -28,7 +28,7 @@ describe('src/module', () => {
     it('should not validate', async () => {
         const validator = new Validator<{ email: string }>();
 
-        validator.mountRunner('email', createRunner(z.string().email()));
+        validator.mount('email', createRunner(z.string().email()));
 
         expect.assertions(4);
 
@@ -51,7 +51,7 @@ describe('src/module', () => {
     it('should not validate array', async () => {
         const validator = new Validator<{ foo: unknown[] }>();
 
-        validator.mountRunner('foo', createRunner(z.object({
+        validator.mount('foo', createRunner(z.object({
             bar: z.string().array().min(2),
         })));
 

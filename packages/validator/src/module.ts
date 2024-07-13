@@ -8,13 +8,13 @@
 import type { ContextRunner, FieldValidationError, ValidationChain } from 'express-validator';
 import { body } from 'express-validator';
 import { distinctArray } from 'smob';
-import type { Runner } from 'validup';
+import type { AttributeValidator } from 'validup';
 import { ValidationError } from 'validup';
 import { buildNestedError } from './error';
 
 type FactoryFn = (chain: ValidationChain) => ContextRunner;
 
-export function createRunner(input: FactoryFn | ContextRunner) : Runner {
+export function createRunner(input: FactoryFn | ContextRunner) : AttributeValidator {
     let runner : ContextRunner;
     if (typeof input === 'function') {
         runner = input(body());

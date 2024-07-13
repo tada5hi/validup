@@ -8,55 +8,36 @@
 import { ValidationAttributeError, ValidationNestedError } from './errors';
 import { buildErrorMessageForAttributes } from './helpers';
 import type {
-    Runner, RunnerConfig, ValidatorRunOptions, ValidatorRunnerMountOptions,
+    AttributeValidator, AttributeValidatorConfig, ValidatorRunOptions,
 } from './types';
 import { hasOwnProperty } from './utils';
 
 export class Validator<
     T extends Record<string, any> = Record<string, any>,
 > {
-    protected items : Record<string, RunnerConfig[]>;
+    protected items : AttributeValidatorConfig[];
 
     protected sources : Record<string, Record<string, any>>;
 
     // ----------------------------------------------
 
     constructor() {
-        this.items = {};
+        this.items = [];
         this.sources = {};
     }
 
     // ----------------------------------------------
 
-    mountRunner(
+    mount(
         key: keyof T,
-        runner: Runner,
-        options: ValidatorRunnerMountOptions = {},
+        validator: AttributeValidator,
+        options: Omit<AttributeValidatorConfig, 'validator' | 'key'> = {},
     ) {
-        let groups : string[] = [];
-        if (options.group) {
-            if (Array.isArray(options.group)) {
-                groups = options.group;
-            } else {
-                groups = [options.group];
-            }
-        }
-
-        if (groups.length === 0) {
-            groups.push('*');
-        }
-
-        for (let i = 0; i < groups.length; i++) {
-            if (!this.items[groups[i]]) {
-                this.items[groups[i]] = [];
-            }
-
-            this.items[groups[i]].push({
-                runner,
-                key: key as string,
-                src: options.src,
-            });
-        }
+        this.items.push({
+            ...options,
+            validator,
+            key: key as string,
+        });
     }
 
     // ----------------------------------------------
@@ -72,22 +53,34 @@ export class Validator<
     // ----------------------------------------------
 
     async run(options: ValidatorRunOptions<T> = {}): Promise<T> {
+        const sourceKeys = Object.keys(this.sources);
+
         const data: Record<string, any> = {};
+
         const errors: ValidationAttributeError[] = [];
         const errorKeys : string[] = [];
 
-        const items = this.items['*'] || [];
-        if (
-            options.group &&
-            options.group !== '*'
-        ) {
-            items.push(...this.items[options.group] || []);
-        }
+        for (let i = 0; i < this.items.length; i++) {
+            const item = this.items[i];
 
-        const sourceKeys = Object.keys(this.sources);
-
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
+            // Is validator assigned to specific group ?
+            if (item.group) {
+                if (Array.isArray(item.group)) {
+                    if (options.group) {
+                        if (item.group.indexOf(options.group) === -1) {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
+                } else if (options.group) {
+                    if (item.group !== options.group) {
+                        continue;
+                    }
+                } else {
+                    continue;
+                }
+            }
 
             let src : Record<string, any> | undefined;
 
@@ -115,7 +108,7 @@ export class Validator<
             const value = src ? src[item.key] : undefined;
 
             try {
-                data[item.key] = await item.runner({
+                data[item.key] = await item.validator({
                     key: item.key,
                     value,
                     src: src || {},

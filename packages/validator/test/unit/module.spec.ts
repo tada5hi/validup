@@ -31,7 +31,7 @@ describe('src/module', () => {
 
     it('should validate', async () => {
         const validator = new Validator();
-        validator.mountRunner('foo', createRunner((chain) => chain.isArray({ min: 1, max: 10 })));
+        validator.mount('foo', createRunner((chain) => chain.isArray({ min: 1, max: 10 })));
 
         const outcome = await validator.run({
             data: {
@@ -44,7 +44,7 @@ describe('src/module', () => {
 
     it('should not validate', async () => {
         const validator = new Validator();
-        validator.mountRunner('foo', createRunner((chain) => chain.isArray({ min: 1, max: 10 })));
+        validator.mount('foo', createRunner((chain) => chain.isArray({ min: 1, max: 10 })));
 
         expect.assertions(3);
 
