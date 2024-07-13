@@ -5,25 +5,12 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { body } from 'express-validator';
 import type { ContextRunner, FieldValidationError, ValidationChain } from 'express-validator';
-import type { FieldInstance } from 'express-validator/lib/base';
-import type { ReadonlyContext } from 'express-validator/lib/context';
+import { body } from 'express-validator';
 import { distinctArray } from 'smob';
 import type { Runner } from 'validup';
 import { ValidationError } from 'validup';
-import { buildError } from './error';
-
-function extractAttributeErrors(
-    field: FieldInstance,
-    context: ReadonlyContext,
-) : FieldValidationError[] {
-    return context.errors.filter(
-        (error) => error.type === 'field' &&
-            error.location === field.location &&
-            error.path === field.path,
-    ) as FieldValidationError[];
-}
+import { buildNestedError } from './error';
 
 type FactoryFn = (chain: ValidationChain) => ContextRunner;
 
@@ -42,9 +29,14 @@ export function createRunner(input: FactoryFn | ContextRunner) : Runner {
 
         const [field] = outcome.context.getData({ requiredOnly: false });
         if (field) {
-            const itemErrors = distinctArray(extractAttributeErrors(field, outcome.context));
-            if (itemErrors.length > 0) {
-                throw buildError(itemErrors);
+            const errors = distinctArray(outcome.context.errors.filter(
+                (error) => error.type === 'field' &&
+                    error.location === field.location &&
+                    error.path === field.path,
+            ) as FieldValidationError[]);
+
+            if (errors.length > 0) {
+                throw buildNestedError(errors, ctx.key);
             }
 
             return field.value;
