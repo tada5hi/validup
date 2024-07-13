@@ -16,6 +16,8 @@ export function createRunner(zod: ZodType) : Runner {
             return outcome.data;
         }
 
-        throw buildError(outcome.error);
+        throw buildError(outcome.error, {
+            path: ctx.key,
+        });
     };
 }

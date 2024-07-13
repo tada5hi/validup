@@ -8,7 +8,10 @@
 import { ValidationAttributeError, ValidationNestedError, hasOwnProperty } from 'validup';
 import type { ZodError } from 'zod';
 
-export function buildError(error: ZodError) {
+type ErrorBuildOptions = {
+    path: string
+};
+export function buildError(error: ZodError, options: ErrorBuildOptions) {
     const base = new ValidationNestedError();
 
     for (let i = 0; i < error.issues.length; i++) {
@@ -24,8 +27,21 @@ export function buildError(error: ZodError) {
             received = issue.received;
         }
 
+        let { path } = options;
+        if (issue.path) {
+            for (let j = 0; j < issue.path.length; j++) {
+                if (typeof issue.path[j] === 'string') {
+                    path += `.${issue.path[j]}`;
+                }
+
+                if (typeof issue.path[j] === 'number') {
+                    path += `[${issue.path[j]}]`;
+                }
+            }
+        }
+
         const child = new ValidationAttributeError({
-            path: issue.path,
+            path: [path],
             message: issue.message,
             expected,
             received,
