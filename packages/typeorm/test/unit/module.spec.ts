@@ -8,14 +8,14 @@
 import 'reflect-metadata';
 
 import { DataSource } from 'typeorm';
-import type { AttributeValidator } from 'validup';
+import type { Validator } from 'validup';
 import { buildErrorMessageForAttributes } from 'validup';
 import { TypeormValidator } from '../../src';
 import { useDataSourceOptions } from '../data/data-source';
 import { Realm } from '../data/realm';
 import { User } from '../data/user';
 
-const uuidRunner : AttributeValidator = async (ctx) => {
+const uuidRunner : Validator = async (ctx) => {
     if (typeof ctx.value !== 'string') {
         throw new Error('Value is not a string');
     }
@@ -55,10 +55,8 @@ describe('src/module', () => {
         validator.mount('realm_id', uuidRunner);
 
         const outcome = await validator.run({
-            data: {
-                name: 'admin',
-                realm_id: realm.id,
-            },
+            name: 'admin',
+            realm_id: realm.id,
         });
         expect(outcome).toBeDefined();
         expect(outcome.name).toEqual('admin');
@@ -74,9 +72,7 @@ describe('src/module', () => {
 
         try {
             await validator.run({
-                data: {
-                    realm_id: '926bc2dc-f448-4441-a76e-7e6c6ff58204',
-                },
+                realm_id: '926bc2dc-f448-4441-a76e-7e6c6ff58204',
             });
         } catch (e) {
             expect(e).toBeDefined();

@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export type ValidationAttributeErrorOptions = {
+export type ValidupValidatorErrorOptions = {
     path: string,
     message?: string,
     code?: string | null,
@@ -13,7 +13,7 @@ export type ValidationAttributeErrorOptions = {
     expected?: unknown
 };
 
-export class ValidationAttributeError extends Error {
+export class ValidupValidatorError extends Error {
     readonly path: string;
 
     readonly code?: string | null;
@@ -22,7 +22,7 @@ export class ValidationAttributeError extends Error {
 
     readonly expected?: unknown;
 
-    constructor(options: ValidationAttributeErrorOptions) {
+    constructor(options: ValidupValidatorErrorOptions) {
         super(options.message);
 
         this.path = options.path;

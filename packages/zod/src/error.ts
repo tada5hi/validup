@@ -5,14 +5,14 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { ValidationAttributeError, ValidationNestedError, hasOwnProperty } from 'validup';
+import { ValidupNestedError, ValidupValidatorError, hasOwnProperty } from 'validup';
 import type { ZodError } from 'zod';
 
 type ErrorBuildOptions = {
     path: string
 };
 export function buildError(error: ZodError, options: ErrorBuildOptions) {
-    const base = new ValidationNestedError();
+    const base = new ValidupNestedError();
 
     for (let i = 0; i < error.issues.length; i++) {
         const issue = error.issues[i];
@@ -40,7 +40,7 @@ export function buildError(error: ZodError, options: ErrorBuildOptions) {
             }
         }
 
-        const child = new ValidationAttributeError({
+        const child = new ValidupValidatorError({
             path,
             message: issue.message,
             expected,

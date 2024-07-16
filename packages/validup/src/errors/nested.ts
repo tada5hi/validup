@@ -5,19 +5,19 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { ValidationAttributeError } from './attribute';
-import { ValidationError } from './base';
+import type { ValidupValidatorError } from './attribute';
+import { ValidupError } from './base';
 
-export class ValidationNestedError extends ValidationError {
-    children: ValidationAttributeError[];
+export class ValidupNestedError extends ValidupError {
+    children: ValidupValidatorError[];
 
-    constructor(message?: string, children?: ValidationAttributeError[]) {
+    constructor(message?: string, children?: ValidupValidatorError[]) {
         super(message);
 
         this.children = children || [];
     }
 
-    addChild(child: ValidationAttributeError) {
+    addChild(child: ValidupValidatorError) {
         this.children.push(child);
     }
 }

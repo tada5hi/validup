@@ -7,4 +7,5 @@
 
 export * from './array-to-property-path';
 export * from './error';
+export * from './get-property-path-value';
 export * from './property-path-to-array';

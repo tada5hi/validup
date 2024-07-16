@@ -6,19 +6,17 @@
  */
 
 import { z } from 'zod';
-import { ValidationNestedError, Validator } from 'validup';
-import { createRunner } from '../../src';
+import { Container, ValidupNestedError } from 'validup';
+import { createValidator } from '../../src';
 
 describe('src/module', () => {
     it('should validate', async () => {
-        const validator = new Validator<{ email: string }>();
+        const validator = new Container<{ email: string }>();
 
-        validator.mount('email', createRunner(z.string().email()));
+        validator.mount('email', createValidator(z.string().email()));
 
         const outcome = await validator.run({
-            data: {
-                email: 'foo@example.com',
-            },
+            email: 'foo@example.com',
         });
 
         expect(outcome).toBeDefined();
@@ -26,20 +24,18 @@ describe('src/module', () => {
     });
 
     it('should not validate', async () => {
-        const validator = new Validator<{ email: string }>();
+        const validator = new Container<{ email: string }>();
 
-        validator.mount('email', createRunner(z.string().email()));
+        validator.mount('email', createValidator(z.string().email()));
 
         expect.assertions(4);
 
         try {
             await validator.run({
-                data: {
-                    email: 'foo',
-                },
+                email: 'foo',
             });
         } catch (e) {
-            if (e instanceof ValidationNestedError) {
+            if (e instanceof ValidupNestedError) {
                 expect(e.children).toBeDefined();
                 expect(e.children).toHaveLength(1);
                 expect(e.children[0].message).toEqual('Invalid email');
@@ -49,9 +45,9 @@ describe('src/module', () => {
     });
 
     it('should not validate array', async () => {
-        const validator = new Validator<{ foo: unknown[] }>();
+        const validator = new Container<{ foo: unknown[] }>();
 
-        validator.mount('foo', createRunner(z.object({
+        validator.mount('foo', createValidator(z.object({
             bar: z.string().array().min(2),
         })));
 
@@ -59,14 +55,12 @@ describe('src/module', () => {
 
         try {
             await validator.run({
-                data: {
-                    foo: {
-                        bar: [0],
-                    },
+                foo: {
+                    bar: [0],
                 },
             });
         } catch (e) {
-            if (e instanceof ValidationNestedError) {
+            if (e instanceof ValidupNestedError) {
                 expect(e.children).toBeDefined();
                 expect(e.children).toHaveLength(2);
 

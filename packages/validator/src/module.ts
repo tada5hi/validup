@@ -8,13 +8,13 @@
 import type { ContextRunner, FieldValidationError, ValidationChain } from 'express-validator';
 import { body } from 'express-validator';
 import { distinctArray } from 'smob';
-import type { AttributeValidator } from 'validup';
-import { ValidationError } from 'validup';
+import type { Validator } from 'validup';
+import { ValidupError } from 'validup';
 import { buildNestedError } from './error';
 
 type FactoryFn = (chain: ValidationChain) => ContextRunner;
 
-export function createRunner(input: FactoryFn | ContextRunner) : AttributeValidator {
+export function createValidator(input: FactoryFn | ContextRunner) : Validator {
     let runner : ContextRunner;
     if (typeof input === 'function') {
         runner = input(body());
@@ -42,6 +42,6 @@ export function createRunner(input: FactoryFn | ContextRunner) : AttributeValida
             return field.value;
         }
 
-        throw new ValidationError(`The attribute ${ctx.key} could not be validated.`);
+        throw new ValidupError(`The attribute ${ctx.key} could not be validated.`);
     };
 }

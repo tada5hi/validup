@@ -5,8 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { Validator } from 'validup';
-import { createRunner } from '../../src';
+import { Container } from 'validup';
+import { createValidator } from '../../src';
 
 export type User = {
     name: string,
@@ -15,18 +15,18 @@ export type User = {
     token: string
 };
 
-export class UserValidator extends Validator<User> {
+export class UserValidator extends Container<User> {
     constructor() {
         super();
 
-        this.mount('name', createRunner((chain) => chain.exists()
+        this.mount('name', createValidator((chain) => chain.exists()
             .notEmpty()
             .isLength({ min: 3, max: 128 })));
 
-        this.mount('age', createRunner((chain) => chain.isNumeric()
+        this.mount('age', createValidator((chain) => chain.isNumeric()
             .optional({ values: 'null' })));
 
-        this.mount('password', createRunner((chain) => chain
+        this.mount('password', createValidator((chain) => chain
             .isLength({ min: 3, max: 128 })));
     }
 }

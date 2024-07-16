@@ -6,19 +6,19 @@
  */
 
 import type { ValidationError } from 'express-validator/lib/base';
-import { ValidationAttributeError, ValidationNestedError, buildErrorMessageForAttributes } from 'validup';
+import { ValidupNestedError, ValidupValidatorError, buildErrorMessageForAttributes } from 'validup';
 
 function generateAttributeErrors(
     error: ValidationError,
     path: string,
-) : ValidationAttributeError[] {
-    const output : ValidationAttributeError[] = [];
+) : ValidupValidatorError[] {
+    const output : ValidupValidatorError[] = [];
     switch (error.type) {
         case 'field': {
             const name = error.path || path;
             const message = error.msg || buildErrorMessageForAttributes([name]);
 
-            output.push(new ValidationAttributeError({
+            output.push(new ValidupValidatorError({
                 path: name,
                 received: error.value,
                 message,
@@ -46,8 +46,8 @@ function generateAttributeErrors(
 export function buildNestedError(
     errors: ValidationError[],
     path: string,
-): ValidationNestedError {
-    const base = new ValidationNestedError();
+): ValidupNestedError {
+    const base = new ValidupNestedError();
     const names : (number | string)[] = [];
     for (let i = 0; i < errors.length; i++) {
         const children = generateAttributeErrors(errors[i], path);

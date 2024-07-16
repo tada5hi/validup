@@ -5,26 +5,27 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export type ValidatorRunOptions<
+export type ContainerRunOptions<
     T extends Record<string, any> = Record<string, any>,
 > = {
     defaults?: {
         [K in keyof T]: any
     },
     group?: string,
-    data?: Record<string, any>
+    keysFlat?: boolean
 };
 
-export type AttributeValidatorContext = {
+export type ValidatorContext = {
     key: string,
+    keyRaw: string,
     value: unknown,
-    src: Record<string, any>
+    data: Record<string, any>
 };
-export type AttributeValidator = (ctx: AttributeValidatorContext) => Promise<unknown> | unknown;
+export type Validator = (ctx: ValidatorContext) => Promise<unknown> | unknown;
 
-export type AttributeValidatorConfig = {
+export type ValidatorConfig = {
     key: string,
     group?: string | string[],
     src?: string,
-    validator: AttributeValidator
+    validator: Validator
 };

@@ -5,33 +5,31 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { ValidationAttributeError, ValidationNestedError } from './errors';
-import { buildErrorMessageForAttributes } from './helpers';
+import { ValidupNestedError, ValidupValidatorError } from './errors';
+import { buildErrorMessageForAttributes, getPropertyPathValue, setPropertyPathValue } from './helpers';
+import { expandPropertyPath } from './helpers/expand-property-path';
 import type {
-    AttributeValidator, AttributeValidatorConfig, ValidatorRunOptions,
+    ContainerRunOptions, Validator, ValidatorConfig,
 } from './types';
 import { hasOwnProperty } from './utils';
 
-export class Validator<
+export class Container<
     T extends Record<string, any> = Record<string, any>,
 > {
-    protected items : AttributeValidatorConfig[];
-
-    protected sources : Record<string, Record<string, any>>;
+    protected items : ValidatorConfig[];
 
     // ----------------------------------------------
 
     constructor() {
         this.items = [];
-        this.sources = {};
     }
 
     // ----------------------------------------------
 
     mount(
         key: keyof T,
-        validator: AttributeValidator,
-        options: Omit<AttributeValidatorConfig, 'validator' | 'key'> = {},
+        validator: Validator,
+        options: Omit<ValidatorConfig, 'validator' | 'key'> = {},
     ) {
         this.items.push({
             ...options,
@@ -42,22 +40,13 @@ export class Validator<
 
     // ----------------------------------------------
 
-    mountSource(key: string, value: Record<string, any>) {
-        this.sources[key] = value;
-    }
+    async run(
+        data: Record<string, any> = {},
+        options: ContainerRunOptions<T> = {},
+    ): Promise<T> {
+        const output: Record<string, any> = {};
 
-    unmountSource(key: string) {
-        delete this.sources[key];
-    }
-
-    // ----------------------------------------------
-
-    async run(options: ValidatorRunOptions<T> = {}): Promise<T> {
-        const sourceKeys = Object.keys(this.sources);
-
-        const data: Record<string, any> = {};
-
-        const errors: ValidationAttributeError[] = [];
+        const errors: ValidupValidatorError[] = [];
         const errorKeys : string[] = [];
 
         for (let i = 0; i < this.items.length; i++) {
@@ -82,76 +71,73 @@ export class Validator<
                 }
             }
 
-            let src : Record<string, any> | undefined;
-
-            if (item.src) {
-                const index = sourceKeys.indexOf(item.src);
-                if (index !== -1) {
-                    const sourceKey = sourceKeys[index];
-                    if (hasOwnProperty(this.sources[sourceKey], item.key)) {
-                        src = this.sources[sourceKey];
-                    }
-                } else if (options.data && hasOwnProperty(options.data, item.key)) {
-                    src = options.data;
-                }
-            } else if (options.data && hasOwnProperty(options.data, item.key)) {
-                src = options.data;
-            } else {
-                for (let j = 0; j < sourceKeys.length; j++) {
-                    if (hasOwnProperty(this.sources[sourceKeys[j]], item.key)) {
-                        src = this.sources[sourceKeys[j]];
-                        break;
-                    }
-                }
-            }
-
-            const value = src ? src[item.key] : undefined;
-
-            try {
-                data[item.key] = await item.validator({
-                    key: item.key,
-                    value,
-                    src: src || {},
-                });
-            } catch (e) {
-                if (e instanceof ValidationAttributeError) {
-                    errors.push(e);
-                } else if (e instanceof ValidationNestedError) {
-                    errors.push(...e.children);
+            const keys = expandPropertyPath(data, item.key, []);
+            for (let j = 0; j < keys.length; j++) {
+                let value : unknown;
+                if (hasOwnProperty(output, keys[j])) {
+                    value = output[keys[j]];
                 } else {
-                    const error = new ValidationAttributeError({
-                        path: item.key,
-                        received: value,
-                    });
-
-                    if (e instanceof Error) {
-                        error.cause = e;
-                        error.message = e.message;
-                    }
-
-                    errors.push(error);
+                    value = getPropertyPathValue(data, keys[j]);
                 }
 
-                errorKeys.push(item.key);
+                try {
+                    output[keys[j]] = await item.validator({
+                        key: keys[j],
+                        keyRaw: item.key,
+                        value,
+                        data,
+                    });
+                } catch (e) {
+                    if (e instanceof ValidupValidatorError) {
+                        errors.push(e);
+                    } else if (e instanceof ValidupNestedError) {
+                        errors.push(...e.children);
+                    } else {
+                        const error = new ValidupValidatorError({
+                            path: item.key,
+                            received: value,
+                        });
+
+                        if (e instanceof Error) {
+                            error.cause = e;
+                            error.message = e.message;
+                        }
+
+                        errors.push(error);
+                    }
+
+                    errorKeys.push(item.key);
+                }
             }
         }
 
         if (errors.length > 0) {
-            throw new ValidationNestedError(buildErrorMessageForAttributes(errorKeys), errors);
+            throw new ValidupNestedError(buildErrorMessageForAttributes(errorKeys), errors);
         }
 
         if (options.defaults) {
             const defaultKeys = Object.keys(options.defaults);
             for (let i = 0; i < defaultKeys.length; i++) {
                 if (
-                    !hasOwnProperty(data, defaultKeys[i]) ||
-                    typeof data[defaultKeys[i]] === 'undefined'
+                    !hasOwnProperty(output, defaultKeys[i]) ||
+                    typeof output[defaultKeys[i]] === 'undefined'
                 ) {
-                    data[defaultKeys[i]] = options.defaults[defaultKeys[i]];
+                    output[defaultKeys[i]] = options.defaults[defaultKeys[i]];
                 }
             }
         }
 
-        return data as T;
+        if (options.keysFlat) {
+            return output as T;
+        }
+
+        const temp : Record<string, any> = {};
+
+        const keys = Object.keys(output);
+        for (let i = 0; i < keys.length; i++) {
+            setPropertyPathValue(temp, keys[i], output[keys[i]]);
+        }
+
+        return temp as T;
     }
 }

@@ -5,10 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export enum AttributeSource {
-    BODY = 'body',
-    COOKIES = 'cookies',
-    HEADERS = 'headers',
-    PARAMS = 'params',
-    QUERY = 'query',
+export enum SourceKey {
+    DEFAULT = 'default',
+    WILDCARD = '*',
 }

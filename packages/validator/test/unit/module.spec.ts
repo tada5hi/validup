@@ -5,8 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { ValidationNestedError, Validator } from 'validup';
-import { createRunner } from '../../src';
+import { Container, ValidupNestedError } from 'validup';
+import { createValidator } from '../../src';
 import { UserValidator } from '../data/user';
 
 describe('src/module', () => {
@@ -14,12 +14,10 @@ describe('src/module', () => {
         const validator = new UserValidator();
 
         const outcome = await validator.run({
-            data: {
-                name: 'Peter',
-                age: 28,
-                password: '1234',
-                foo: 'bar',
-            },
+            name: 'Peter',
+            age: 28,
+            password: '1234',
+            foo: 'bar',
         });
 
         expect(outcome).toBeDefined();
@@ -30,32 +28,28 @@ describe('src/module', () => {
     });
 
     it('should validate', async () => {
-        const validator = new Validator();
-        validator.mount('foo', createRunner((chain) => chain.isArray({ min: 1, max: 10 })));
+        const validator = new Container();
+        validator.mount('foo', createValidator((chain) => chain.isArray({ min: 1, max: 10 })));
 
         const outcome = await validator.run({
-            data: {
-                foo: [1],
-            },
+            foo: [1],
         });
 
         expect(outcome.foo).toEqual([1]);
     });
 
     it('should not validate', async () => {
-        const validator = new Validator();
-        validator.mount('foo', createRunner((chain) => chain.isArray({ min: 1, max: 10 })));
+        const validator = new Container();
+        validator.mount('foo', createValidator((chain) => chain.isArray({ min: 1, max: 10 })));
 
         expect.assertions(3);
 
         try {
             await validator.run({
-                data: {
-                    foo: [],
-                },
+                foo: [],
             });
         } catch (e) {
-            if (e instanceof ValidationNestedError) {
+            if (e instanceof ValidupNestedError) {
                 expect(e.children).toBeDefined();
                 expect(e.children).toHaveLength(1);
                 expect(e.children[0].path).toEqual('foo');

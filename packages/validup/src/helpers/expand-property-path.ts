@@ -24,6 +24,7 @@ export function expandPropertyPath(
     const rest = segments.slice(1);
 
     if (
+        typeof data !== 'undefined' &&
         data !== null &&
         !isObject(data) &&
         !Array.isArray(data)
@@ -41,22 +42,24 @@ export function expandPropertyPath(
     data = data || {};
 
     if (key === '*') {
-        return Object.keys(data).flatMap((key) => expandPropertyPath(data[key], rest, currPath.concat(key)));
+        return Object.keys(data)
+            .flatMap((key) => expandPropertyPath(data[key], rest, currPath.concat(key)));
     }
 
     if (key === '**') {
-        return Object.keys(data).flatMap((key) => {
-            const nextPath = currPath.concat(key);
-            const value = data[key];
-            const set = new Set([
+        return Object.keys(data)
+            .flatMap((key) => {
+                const nextPath = currPath.concat(key);
+                const value = data[key];
+                const set = new Set([
                 // recursively find matching sub-paths
-                ...expandPropertyPath(value, segments, nextPath),
-                // skip the first remaining segment, if it matches the current key
-                ...(rest[0] === key ? expandPropertyPath(value, rest.slice(1), nextPath) : []),
-            ]);
+                    ...expandPropertyPath(value, segments, nextPath),
+                    // skip the first remaining segment, if it matches the current key
+                    ...(rest[0] === key ? expandPropertyPath(value, rest.slice(1), nextPath) : []),
+                ]);
 
-            return [...set];
-        });
+                return [...set];
+            });
     }
 
     return expandPropertyPath(data[key], rest, currPath.concat(key));

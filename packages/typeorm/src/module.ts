@@ -8,12 +8,12 @@
 import type {
     DataSource, EntityMetadata, EntityTarget, FindOptionsWhere, ObjectLiteral,
 } from 'typeorm';
-import type { ValidatorRunOptions } from 'validup';
-import { ValidationNestedError, Validator, buildErrorMessageForAttributes } from 'validup';
+import type { ContainerRunOptions } from 'validup';
+import { Container, ValidupNestedError, buildErrorMessageForAttributes } from 'validup';
 
 export class TypeormValidator<
     T extends Record<string, any> = Record<string, any>,
-> extends Validator<T> {
+> extends Container<T> {
     protected dataSource : DataSource;
 
     protected entityTarget : EntityTarget<T>;
@@ -29,9 +29,10 @@ export class TypeormValidator<
     }
 
     override async run(
-        options: ValidatorRunOptions<T> = {},
+        data: Record<string, any>,
+        options: ContainerRunOptions<T> = {},
     ): Promise<T> {
-        const result = await super.run(options);
+        const result = await super.run(data, options);
 
         const relations = await this.validateEntityRelations(result);
         const relationKeys = Object.keys(relations);
@@ -63,7 +64,7 @@ export class TypeormValidator<
                     where[joinColumn.referencedColumn.propertyName] = input[joinColumn.propertyName];
                     columns.push(joinColumn.propertyName);
                 } else {
-                    throw new ValidationNestedError(`Can not lookup foreign ${relation.propertyName} entity.`);
+                    throw new ValidupNestedError(`Can not lookup foreign ${relation.propertyName} entity.`);
                 }
             }
 
@@ -77,7 +78,7 @@ export class TypeormValidator<
             });
 
             if (!entity) {
-                throw new ValidationNestedError(buildErrorMessageForAttributes(columns));
+                throw new ValidupNestedError(buildErrorMessageForAttributes(columns));
             }
 
             output[relation.propertyName] = entity;
@@ -108,7 +109,7 @@ export class TypeormValidator<
         );
 
         if (index === -1) {
-            throw new ValidationNestedError(`The entity ${this.entityTarget} is not registered.`);
+            throw new ValidupNestedError(`The entity ${this.entityTarget} is not registered.`);
         }
 
         return this.dataSource.entityMetadatas[index];

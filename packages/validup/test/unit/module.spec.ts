@@ -5,14 +5,14 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { AttributeValidator } from '../../src';
-import { Validator } from '../../src';
+import type { Validator } from '../../src';
+import { Container } from '../../src';
 
 describe('src/module', () => {
     it('should validate', async () => {
-        const validator = new Validator<{ foo: string, bar: string }>();
+        const container = new Container<{ foo: string, bar: string }>();
 
-        const chain : AttributeValidator = async (ctx) : Promise<unknown> => {
+        const chain : Validator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value !== 'string') {
                 throw new Error('Value is not a string');
             }
@@ -20,12 +20,10 @@ describe('src/module', () => {
             return ctx.value;
         };
 
-        validator.mount('foo', chain);
+        container.mount('foo', chain);
 
-        const outcome = await validator.run({
-            data: {
-                foo: 'bar',
-            },
+        const outcome = await container.run({
+            foo: 'bar',
         });
         expect(outcome).toBeDefined();
         expect(outcome.foo).toEqual('bar');
@@ -33,24 +31,24 @@ describe('src/module', () => {
     });
 
     it('should validate empty request', async () => {
-        const validator = new Validator();
-        const outcome = await validator.run({});
+        const container = new Container();
+        const outcome = await container.run({});
         expect(outcome).toBeDefined();
     });
 
     it('should validate groups', async () => {
-        const validator = new Validator<{ foo: string, bar: string }>();
+        const container = new Container<{ foo: string, bar: string }>();
 
-        const fooChain : AttributeValidator = async (ctx) : Promise<unknown> => {
+        const fooChain : Validator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value !== 'string') {
                 throw new Error('Value is not a string');
             }
 
             return ctx.value;
         };
-        validator.mount('foo', fooChain, { group: 'foo' });
+        container.mount('foo', fooChain, { group: 'foo' });
 
-        const barChain : AttributeValidator = async (ctx) : Promise<unknown> => {
+        const barChain : Validator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value !== 'string') {
                 throw new Error('Value is not a string');
             }
@@ -58,23 +56,21 @@ describe('src/module', () => {
             return ctx.value;
         };
 
-        validator.mount('bar', barChain, { group: ['foo', 'bar'] });
+        container.mount('bar', barChain, { group: ['foo', 'bar'] });
 
-        let outcome = await validator.run({
-            data: {
-                foo: 'bar',
-                bar: 'baz',
-            },
+        let outcome = await container.run({
+            foo: 'bar',
+            bar: 'baz',
+        }, {
             group: 'foo',
         });
         expect(outcome.foo).toEqual('bar');
         expect(outcome.bar).toEqual('baz');
 
-        outcome = await validator.run({
-            data: {
-                foo: 'bar',
-                bar: 'baz',
-            },
+        outcome = await container.run({
+            foo: 'bar',
+            bar: 'baz',
+        }, {
             group: 'bar',
         });
         expect(outcome.foo).toBeUndefined();
@@ -82,9 +78,9 @@ describe('src/module', () => {
     });
 
     it('should validate with defaults', async () => {
-        const validator = new Validator<{ foo: string }>();
+        const container = new Container<{ foo: string }>();
 
-        const chain : AttributeValidator = async (ctx) : Promise<unknown> => {
+        const chain : Validator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value === 'undefined') {
                 return undefined;
             }
@@ -96,12 +92,12 @@ describe('src/module', () => {
             return ctx.value;
         };
 
-        validator.mount('foo', chain);
+        container.mount('foo', chain);
 
-        let outcome = await validator.run({});
+        let outcome = await container.run({});
         expect(outcome.foo).toBeUndefined();
 
-        outcome = await validator.run({
+        outcome = await container.run({}, {
             defaults: {
                 foo: 'boz',
             },
@@ -110,8 +106,8 @@ describe('src/module', () => {
     });
 
     it('should not validate', async () => {
-        const validator = new Validator<{ foo: string }>();
-        const chain : AttributeValidator = async (ctx) : Promise<unknown> => {
+        const container = new Container<{ foo: string }>();
+        const chain : Validator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value === 'undefined' || typeof ctx.value !== 'number') {
                 throw new Error('The value is invalid.');
             }
@@ -119,12 +115,12 @@ describe('src/module', () => {
             return ctx.value;
         };
 
-        validator.mount('foo', chain);
+        container.mount('foo', chain);
 
         expect.assertions(2);
 
         try {
-            await validator.run({});
+            await container.run({});
         } catch (e: any) {
             expect(e).toBeDefined();
 
