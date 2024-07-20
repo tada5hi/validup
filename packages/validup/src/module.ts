@@ -5,6 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { GroupKey } from './constants';
 import { ValidupNestedError, ValidupValidatorError } from './errors';
 import { buildErrorMessageForAttributes, getPropertyPathValue, setPropertyPathValue } from './helpers';
 import { expandPropertyPath } from './helpers/expand-property-path';
@@ -76,23 +77,8 @@ export class Container<
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
 
-            // Is validator assigned to specific group ?
-            if (item.group) {
-                if (Array.isArray(item.group)) {
-                    if (options.group) {
-                        if (item.group.indexOf(options.group) === -1) {
-                            continue;
-                        }
-                    } else {
-                        continue;
-                    }
-                } else if (options.group) {
-                    if (item.group !== options.group) {
-                        continue;
-                    }
-                } else {
-                    continue;
-                }
+            if (!this.isContainerItemIncluded(item, options.group)) {
+                continue;
             }
 
             const keys = expandPropertyPath(data, item.key, []);
@@ -179,5 +165,35 @@ export class Container<
         }
 
         return temp as T;
+    }
+
+    private isContainerItemIncluded(item: ContainerItem, group?: string) : boolean {
+        if (group === GroupKey.WILDCARD) {
+            return true;
+        }
+
+        if (item.group) {
+            if (Array.isArray(item.group)) {
+                if (item.group.indexOf(GroupKey.WILDCARD) !== -1) {
+                    return true;
+                }
+
+                if (group && item.group.indexOf(group) !== -1) {
+                    return true;
+                }
+            } else {
+                if (item.group === GroupKey.WILDCARD) {
+                    return true;
+                }
+
+                if (item.group === group) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return !group;
     }
 }

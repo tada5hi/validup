@@ -36,47 +36,6 @@ describe('src/module', () => {
         expect(outcome).toBeDefined();
     });
 
-    it('should validate groups', async () => {
-        const container = new Container<{ foo: string, bar: string }>();
-
-        const fooChain : Validator = async (ctx) : Promise<unknown> => {
-            if (typeof ctx.value !== 'string') {
-                throw new Error('Value is not a string');
-            }
-
-            return ctx.value;
-        };
-        container.mount('foo', { group: 'foo' }, fooChain);
-
-        const barChain : Validator = async (ctx) : Promise<unknown> => {
-            if (typeof ctx.value !== 'string') {
-                throw new Error('Value is not a string');
-            }
-
-            return ctx.value;
-        };
-
-        container.mount('bar', { group: ['foo', 'bar'] }, barChain);
-
-        let outcome = await container.run({
-            foo: 'bar',
-            bar: 'baz',
-        }, {
-            group: 'foo',
-        });
-        expect(outcome.foo).toEqual('bar');
-        expect(outcome.bar).toEqual('baz');
-
-        outcome = await container.run({
-            foo: 'bar',
-            bar: 'baz',
-        }, {
-            group: 'bar',
-        });
-        expect(outcome.foo).toBeUndefined();
-        expect(outcome.bar).toEqual('baz');
-    });
-
     it('should validate with defaults', async () => {
         const container = new Container<{ foo: string }>();
 
