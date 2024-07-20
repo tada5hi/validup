@@ -9,14 +9,14 @@ import { ValidupNestedError, ValidupValidatorError } from './errors';
 import { buildErrorMessageForAttributes, getPropertyPathValue, setPropertyPathValue } from './helpers';
 import { expandPropertyPath } from './helpers/expand-property-path';
 import type {
-    ContainerRunOptions, Validator, ValidatorConfig,
+    ContainerItem, ContainerMountOptions, ContainerRunOptions, Validator,
 } from './types';
-import { hasOwnProperty } from './utils';
+import { hasOwnProperty, isObject } from './utils';
 
 export class Container<
     T extends Record<string, any> = Record<string, any>,
 > {
-    protected items : ValidatorConfig[];
+    protected items : ContainerItem[];
 
     // ----------------------------------------------
 
@@ -28,13 +28,37 @@ export class Container<
 
     mount(
         key: keyof T,
-        validator: Validator,
-        options: Omit<ValidatorConfig, 'validator' | 'key'> = {},
-    ) {
+        data: Container | Validator
+    ) : void;
+
+    mount(
+        key: keyof T,
+        options: ContainerMountOptions,
+        data: Container | Validator
+    ) : void;
+
+    mount(...args: any[]) : void {
+        if (args.length < 2) {
+            throw new SyntaxError('The mount method requires at least');
+        }
+
+        const key = args[0];
+        let data: Container | Validator;
+        let options: ContainerMountOptions = {};
+
+        if (
+            args[1] instanceof Container ||
+            typeof args[1] === 'function'
+        ) {
+            [, data] = args;
+        } else {
+            [, options, data] = args;
+        }
+
         this.items.push({
             ...options,
-            validator,
-            key: key as string,
+            data,
+            key,
         });
     }
 
@@ -81,12 +105,28 @@ export class Container<
                 }
 
                 try {
-                    output[keys[j]] = await item.validator({
-                        key: keys[j],
-                        keyRaw: item.key,
-                        value,
-                        data,
-                    });
+                    if (item.data instanceof Container) {
+                        const temp = await item.data.run(
+                            isObject(value) ? value : {},
+                            {
+                                group: options.group,
+                                keysFlat: true,
+                                // todo: extract defaults for container
+                                // todo: current context data should also be provided
+                            },
+                        );
+                        const tmpKeys = Object.keys(temp);
+                        for (let k = 0; k < tmpKeys.length; k++) {
+                            output[tmpKeys[k]] = temp[output[tmpKeys[k]]];
+                        }
+                    } else {
+                        output[keys[j]] = await item.data({
+                            key: keys[j],
+                            keyRaw: item.key,
+                            value,
+                            data,
+                        });
+                    }
                 } catch (e) {
                     if (e instanceof ValidupValidatorError) {
                         errors.push(e);

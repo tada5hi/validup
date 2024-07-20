@@ -5,6 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import type { Container } from './module';
+
 export type ContainerRunOptions<
     T extends Record<string, any> = Record<string, any>,
 > = {
@@ -23,9 +25,11 @@ export type ValidatorContext = {
 };
 export type Validator = (ctx: ValidatorContext) => Promise<unknown> | unknown;
 
-export type ValidatorConfig = {
+export type ContainerMountOptions = {
+    group?: string | string[]
+};
+
+export type ContainerItem = ContainerMountOptions & {
     key: string,
-    group?: string | string[],
-    src?: string,
-    validator: Validator
+    data: Validator | Container
 };

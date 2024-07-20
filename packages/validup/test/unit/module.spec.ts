@@ -46,7 +46,7 @@ describe('src/module', () => {
 
             return ctx.value;
         };
-        container.mount('foo', fooChain, { group: 'foo' });
+        container.mount('foo', { group: 'foo' }, fooChain);
 
         const barChain : Validator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value !== 'string') {
@@ -56,7 +56,7 @@ describe('src/module', () => {
             return ctx.value;
         };
 
-        container.mount('bar', barChain, { group: ['foo', 'bar'] });
+        container.mount('bar', { group: ['foo', 'bar'] }, barChain);
 
         let outcome = await container.run({
             foo: 'bar',
