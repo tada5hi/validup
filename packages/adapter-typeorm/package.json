@@ -1,6 +1,6 @@
 {
     "name": "@validup/adapter-typeorm",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "description": "A typeorm adapter for validup.",
     "author": {
         "name": "Peter Placzek",
@@ -40,7 +40,7 @@
     "keywords": [],
     "license": "MIT",
     "dependencies": {
-        "validup": "^0.0.0"
+        "validup": "^0.1.0"
     },
     "devDependencies": {
         "better-sqlite3": "^11.1.2",
