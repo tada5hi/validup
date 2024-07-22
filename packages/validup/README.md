@@ -53,9 +53,9 @@ import {
 const isString: Validator = (ctx: ValidatorContext) => {
     if (typeof ctx.value !== 'string') {
         throw new ValidupValidatorError({
-            message: `The key ${ctx.key} expected a string as input.`,
+            message: `The validator for ${ctx.path} expected a string as input.`,
             expected: 'string',
-            path: ctx.key
+            path: ctx.path
         })
     }
     

@@ -17,12 +17,12 @@ describe('module/mount-key', () => {
                 bar: 1,
             },
         }, {
-            keysFlat: true,
+            flat: true,
         });
 
         expect(output['foo.bar']).toMatchObject({
-            key: 'foo.bar',
-            keyRaw: 'foo.bar',
+            path: 'foo.bar',
+            pathRaw: 'foo.bar',
             value: 1,
         });
     });
@@ -34,12 +34,12 @@ describe('module/mount-key', () => {
         const output = await container.run({
             foo: ['bar', 'baz'],
         }, {
-            keysFlat: true,
+            flat: true,
         });
 
         expect(output['foo[1]']).toMatchObject({
-            key: 'foo[1]',
-            keyRaw: 'foo[1]',
+            path: 'foo[1]',
+            pathRaw: 'foo[1]',
             value: 'baz',
         });
     });
@@ -48,11 +48,11 @@ describe('module/mount-key', () => {
         const container = new Container();
         container.mount('foo.bar.baz', ((ctx) => ctx));
 
-        const output = await container.run({}, { keysFlat: true });
+        const output = await container.run({}, { flat: true });
 
         expect(output['foo.bar.baz']).toMatchObject({
-            key: 'foo.bar.baz',
-            keyRaw: 'foo.bar.baz',
+            path: 'foo.bar.baz',
+            pathRaw: 'foo.bar.baz',
             value: undefined,
         });
     });
@@ -77,17 +77,17 @@ describe('module/mount-key', () => {
                 foo: 1,
             },
         }, {
-            keysFlat: true,
+            flat: true,
         });
 
         expect(output['foo.foo']).toMatchObject({
-            key: 'foo.foo',
-            keyRaw: '**.foo',
+            path: 'foo.foo',
+            pathRaw: '**.foo',
             value: 1,
         });
         expect(output.foo).toMatchObject({
-            key: 'foo',
-            keyRaw: '**.foo',
+            path: 'foo',
+            pathRaw: '**.foo',
             value: { foo: 1 },
         });
     });
@@ -108,17 +108,17 @@ describe('module/mount-key', () => {
                 },
             },
         }, {
-            keysFlat: true,
+            flat: true,
         });
 
         expect(output['foo.a.b.bar']).toMatchObject({
-            key: 'foo.a.b.bar',
-            keyRaw: 'foo.**.bar',
+            path: 'foo.a.b.bar',
+            pathRaw: 'foo.**.bar',
             value: 1,
         });
         expect(output['foo.c.bar']).toMatchObject({
-            key: 'foo.c.bar',
-            keyRaw: 'foo.**.bar',
+            path: 'foo.c.bar',
+            pathRaw: 'foo.**.bar',
             value: 2,
         });
     });

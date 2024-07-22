@@ -14,12 +14,15 @@ export type ContainerRunOptions<
         [K in keyof T]: any
     },
     group?: string,
-    keysFlat?: boolean
+    flat?: boolean,
+    path?: string,
+    pathRaw?: string
 };
 
 export type ValidatorContext = {
     key: string,
-    keyRaw: string,
+    path: string,
+    pathRaw: string,
     value: unknown,
     data: Record<string, any>
 };
@@ -30,6 +33,6 @@ export type ContainerMountOptions = {
 };
 
 export type ContainerItem = ContainerMountOptions & {
-    key: string,
+    path: string,
     data: Validator | Container
 };

@@ -1,4 +1,6 @@
 {
     "packages/validup": "0.0.0",
-    "packages/typeorm": "0.0.0"
+    "packages/adapter-typeorm": "0.0.0",
+    "packages/adapter-validator": "0.0.0",
+    "packages/adapter-zod": "0.0.0"
 }

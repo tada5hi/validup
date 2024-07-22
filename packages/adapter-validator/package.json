@@ -1,7 +1,7 @@
 {
-    "name": "@validup/validator",
+    "name": "@validup/adapter-validator",
     "version": "0.0.0",
-    "description": "A validator adapter for validup.",
+    "description": "A validator.js adapter for validup.",
     "author": {
         "name": "Peter Placzek",
         "email": "contact@tada5hi.net",

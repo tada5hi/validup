@@ -22,7 +22,7 @@ container.mount('bar', { group: ['foo', 'bar'] }, validator);
 container.mount('boz', validator);
 
 describe('group', () => {
-    it('should execute', async () => {
+    it('should work with explicit group', async () => {
         let outcome = await container.run({
             foo: 'bar',
             bar: 'baz',

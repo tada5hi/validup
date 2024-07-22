@@ -5,7 +5,9 @@
     "initial-version": "0.1.0",
     "packages": {
         "packages/validup": {"component": "validup"},
-        "packages/typeorm": {"component": "typeorm"}
+        "packages/adapter-typeorm": {"component": "adapter-typeorm"},
+        "packages/adapter-validator": {"component": "adapter-validator"},
+        "packages/adapter-zod": {"component": "adapter-zod"}
     },
     "plugins": [
         {
@@ -17,7 +19,9 @@
             "groupName": "main",
             "components": [
                 "validup",
-                "typeorm"
+                "adapter-typeorm",
+                "adapter-zod",
+                "adapter-validator"
             ]
         }
     ],

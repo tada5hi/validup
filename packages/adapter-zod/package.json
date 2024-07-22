@@ -1,5 +1,5 @@
 {
-    "name": "@validup/zod",
+    "name": "@validup/adapter-zod",
     "version": "0.0.0",
     "description": "A validup adapter for zod.",
     "author": {

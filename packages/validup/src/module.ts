@@ -28,12 +28,12 @@ export class Container<
     // ----------------------------------------------
 
     mount(
-        key: keyof T,
+        key: string,
         data: Container | Validator
     ) : void;
 
     mount(
-        key: keyof T,
+        key: string,
         options: ContainerMountOptions,
         data: Container | Validator
     ) : void;
@@ -59,7 +59,7 @@ export class Container<
         this.items.push({
             ...options,
             data,
-            key,
+            path: key,
         });
     }
 
@@ -77,11 +77,11 @@ export class Container<
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
 
-            if (!this.isContainerItemIncluded(item, options.group)) {
+            if (!this.isContainerItemGroupIncluded(item, options.group)) {
                 continue;
             }
 
-            const keys = expandPropertyPath(data, item.key, []);
+            const keys = expandPropertyPath(data, item.path, []);
             for (let j = 0; j < keys.length; j++) {
                 let value : unknown;
                 if (hasOwnProperty(output, keys[j])) {
@@ -90,25 +90,30 @@ export class Container<
                     value = getPropertyPathValue(data, keys[j]);
                 }
 
+                const path = this.mergePaths(options.path, keys[j]);
+                const pathRaw = this.mergePaths(options.pathRaw, item.path);
                 try {
                     if (item.data instanceof Container) {
                         const temp = await item.data.run(
                             isObject(value) ? value : {},
                             {
                                 group: options.group,
-                                keysFlat: true,
+                                flat: true,
+                                path,
+                                pathRaw,
                                 // todo: extract defaults for container
                                 // todo: current context data should also be provided
                             },
                         );
                         const tmpKeys = Object.keys(temp);
                         for (let k = 0; k < tmpKeys.length; k++) {
-                            output[tmpKeys[k]] = temp[output[tmpKeys[k]]];
+                            output[this.mergePaths(keys[j], tmpKeys[k])] = temp[output[tmpKeys[k]]];
                         }
                     } else {
                         output[keys[j]] = await item.data({
                             key: keys[j],
-                            keyRaw: item.key,
+                            path,
+                            pathRaw,
                             value,
                             data,
                         });
@@ -120,7 +125,7 @@ export class Container<
                         errors.push(...e.children);
                     } else {
                         const error = new ValidupValidatorError({
-                            path: item.key,
+                            path,
                             received: value,
                         });
 
@@ -132,7 +137,7 @@ export class Container<
                         errors.push(error);
                     }
 
-                    errorKeys.push(item.key);
+                    errorKeys.push(path);
                 }
             }
         }
@@ -153,7 +158,7 @@ export class Container<
             }
         }
 
-        if (options.keysFlat) {
+        if (options.flat) {
             return output as T;
         }
 
@@ -167,7 +172,10 @@ export class Container<
         return temp as T;
     }
 
-    private isContainerItemIncluded(item: ContainerItem, group?: string) : boolean {
+    private isContainerItemGroupIncluded(
+        item: ContainerItem,
+        group?: string,
+    ) : boolean {
         if (group === GroupKey.WILDCARD) {
             return true;
         }
@@ -195,5 +203,24 @@ export class Container<
         }
 
         return !group;
+    }
+
+    private mergePaths(...args: (string | undefined)[]) {
+        let output : string = '';
+
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
+            if (!arg) {
+                continue;
+            }
+
+            if (arg.at(0) === '.') {
+                output += arg;
+            } else {
+                output += output.length > 0 ? `.${arg}` : arg;
+            }
+        }
+
+        return output;
     }
 }
