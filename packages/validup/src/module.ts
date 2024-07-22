@@ -10,7 +10,12 @@ import { ValidupNestedError, ValidupValidatorError } from './errors';
 import { buildErrorMessageForAttributes, getPropertyPathValue, setPropertyPathValue } from './helpers';
 import { expandPropertyPath } from './helpers/expand-property-path';
 import type {
-    ContainerItem, ContainerMountOptions, ContainerRunOptions, Validator,
+    ContainerItem,
+    ContainerMountOptions,
+    ContainerRunOptions,
+    ObjectPropertyPath,
+    ObjectPropertyPathExtended,
+    Validator,
 } from './types';
 import { hasOwnProperty, isObject } from './utils';
 
@@ -28,12 +33,12 @@ export class Container<
     // ----------------------------------------------
 
     mount(
-        key: string,
+        key: ObjectPropertyPathExtended<T>,
         data: Container | Validator
     ) : void;
 
     mount(
-        key: string,
+        key: ObjectPropertyPathExtended<T>,
         options: ContainerMountOptions,
         data: Container | Validator
     ) : void;
@@ -154,7 +159,7 @@ export class Container<
                     !hasOwnProperty(output, defaultKeys[i]) ||
                     typeof output[defaultKeys[i]] === 'undefined'
                 ) {
-                    output[defaultKeys[i]] = options.defaults[defaultKeys[i]];
+                    output[defaultKeys[i]] = options.defaults[defaultKeys[i] as unknown as ObjectPropertyPath<T>];
                 }
             }
         }
