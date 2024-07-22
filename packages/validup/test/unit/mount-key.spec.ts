@@ -8,6 +8,30 @@
 import { Container } from '../../src';
 
 describe('module/mount-key', () => {
+    it('should mount nested container', async () => {
+        const childContainer = new Container();
+        childContainer.mount('foo.bar', ((ctx) => ctx));
+
+        const container = new Container();
+        container.mount('baz', childContainer);
+
+        const output = await container.run({
+            baz: {
+                foo: {
+                    bar: 1,
+                },
+            },
+        }, {
+            flat: true,
+        });
+
+        expect(output['baz.foo.bar']).toMatchObject({
+            path: 'baz.foo.bar',
+            pathRaw: 'baz.foo.bar',
+            value: 1,
+        });
+    });
+
     it('should support nested key with dot notation', async () => {
         const container = new Container();
         container.mount('foo.bar', ((ctx) => ctx));

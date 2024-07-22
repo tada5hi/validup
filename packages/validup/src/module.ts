@@ -92,9 +92,10 @@ export class Container<
 
                 const path = this.mergePaths(options.path, keys[j]);
                 const pathRaw = this.mergePaths(options.pathRaw, item.path);
+
                 try {
                     if (item.data instanceof Container) {
-                        const temp = await item.data.run(
+                        const tmp = await item.data.run(
                             isObject(value) ? value : {},
                             {
                                 group: options.group,
@@ -102,12 +103,12 @@ export class Container<
                                 path,
                                 pathRaw,
                                 // todo: extract defaults for container
-                                // todo: current context data should also be provided
                             },
                         );
-                        const tmpKeys = Object.keys(temp);
+
+                        const tmpKeys = Object.keys(tmp);
                         for (let k = 0; k < tmpKeys.length; k++) {
-                            output[this.mergePaths(keys[j], tmpKeys[k])] = temp[output[tmpKeys[k]]];
+                            output[this.mergePaths(keys[j], tmpKeys[k])] = tmp[tmpKeys[k]];
                         }
                     } else {
                         output[keys[j]] = await item.data({
