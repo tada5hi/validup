@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.1](https://github.com/tada5hi/validup/compare/adapter-typeorm-v0.1.0...adapter-typeorm-v0.1.1) (2024-07-24)
+
+
+### Features
+
+* rename typeorm-validator to typeorm-container ([cedfe19](https://github.com/tada5hi/validup/commit/cedfe190056414c499391402d11f8020968b35e2))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.1.0 to ^0.1.1
+
 ## 0.1.0 (2024-07-22)
 
 
