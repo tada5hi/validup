@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.1](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.0...adapter-zod-v0.1.1) (2024-07-24)
+
+
+### Features
+
+* introduce container oneOf and pathsToInclude option ([a4e9a10](https://github.com/tada5hi/validup/commit/a4e9a1045924a7946cd628d282099ec0b788b76f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.1.0 to ^0.1.1
+
 ## 0.1.0 (2024-07-22)
 
 
