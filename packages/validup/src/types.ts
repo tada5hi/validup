@@ -7,23 +7,69 @@
 
 import type { Container } from './module';
 
+export type ContainerOptions<T> = {
+    /**
+     * Only one of the mounted container/validators must succeed.
+     */
+    oneOf?: boolean,
+
+    /**
+     * Limit mounted paths on execution.
+     * By default, all mounted containers/validators will
+     * be considered for execution.
+     */
+    pathsToInclude?: ObjectPropertyPath<T>[]
+};
+
 export type ContainerRunOptions<
     T extends Record<string, any> = Record<string, any>,
 > = {
+    /**
+     * Default values for the container output.
+     */
     defaults?: {
         [Key in ObjectPropertyPath<T>]: any
     },
+    /**
+     * Group to execute.
+     */
     group?: string,
+    /**
+     * Output flat object?
+     */
     flat?: boolean,
+    /**
+     * Passed path from the parent container.
+     */
     path?: string,
-    pathRaw?: string
+    /**
+     * Limit mounted paths on execution.
+     * By default, all mounted containers/validators will
+     * be considered for execution.
+     */
+    pathsToInclude?: ObjectPropertyPath<T>[]
 };
 
 export type ValidatorContext = {
-    key: string,
+    /**
+     * The expanded mount path in the current container.
+     */
     path: string,
+    /**
+     * The unexpanded mount path in the current container.
+     */
     pathRaw: string,
+    /**
+     * The global mount path of the parent container.
+     */
+    pathAbsolute: string,
+    /**
+     * The actual value, which should be validated.
+     */
     value: unknown,
+    /**
+     * The input data of the current container.
+     */
     data: Record<string, any>
 };
 export type Validator = (ctx: ValidatorContext) => Promise<unknown> | unknown;

@@ -7,6 +7,7 @@
 
 export type ValidupValidatorErrorOptions = {
     path: string,
+    pathAbsolute?: string,
     message?: string,
     code?: string | null,
     received?: unknown,
@@ -15,6 +16,8 @@ export type ValidupValidatorErrorOptions = {
 
 export class ValidupValidatorError extends Error {
     readonly path: string;
+
+    readonly pathAbsolute : string;
 
     readonly code?: string | null;
 
@@ -26,6 +29,7 @@ export class ValidupValidatorError extends Error {
         super(options.message);
 
         this.path = options.path;
+        this.pathAbsolute = options.pathAbsolute ?? options.path;
         this.code = options.code;
         this.received = options.received;
         this.expected = options.expected;

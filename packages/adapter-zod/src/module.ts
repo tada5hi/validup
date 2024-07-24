@@ -17,7 +17,7 @@ export function createValidator(zod: ZodType) : Validator {
         }
 
         throw buildError(outcome.error, {
-            path: ctx.key,
+            path: ctx.path,
         });
     };
 }

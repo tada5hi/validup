@@ -12,7 +12,7 @@ describe('src/module', () => {
     it('should validate', async () => {
         const container = new Container<{ foo: string, bar: string }>();
 
-        const chain : Validator = async (ctx) : Promise<unknown> => {
+        const validator : Validator = async (ctx) : Promise<unknown> => {
             if (typeof ctx.value !== 'string') {
                 throw new Error('Value is not a string');
             }
@@ -20,7 +20,7 @@ describe('src/module', () => {
             return ctx.value;
         };
 
-        container.mount('foo', chain);
+        container.mount('foo', validator);
 
         const outcome = await container.run({
             foo: 'bar',

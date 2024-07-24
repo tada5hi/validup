@@ -12,6 +12,7 @@ import { expandPropertyPath } from './helpers/expand-property-path';
 import type {
     ContainerItem,
     ContainerMountOptions,
+    ContainerOptions,
     ContainerRunOptions,
     ObjectPropertyPath,
     ObjectPropertyPathExtended,
@@ -22,11 +23,14 @@ import { hasOwnProperty, isObject } from './utils';
 export class Container<
     T extends Record<string, any> = Record<string, any>,
 > {
+    protected options : ContainerOptions<T>;
+
     protected items : ContainerItem[];
 
     // ----------------------------------------------
 
-    constructor() {
+    constructor(options: ContainerOptions<T> = {}) {
+        this.options = options;
         this.items = [];
     }
 
@@ -79,24 +83,41 @@ export class Container<
         const errors: ValidupValidatorError[] = [];
         const errorKeys : string[] = [];
 
+        let pathsToInclude : string[] | undefined;
+        if (options.pathsToInclude) {
+            pathsToInclude = options.pathsToInclude as string[];
+        } else if (this.options.pathsToInclude) {
+            pathsToInclude = this.options.pathsToInclude as string[];
+        }
+
+        let itemCount = 0;
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
 
-            if (!this.isContainerItemGroupIncluded(item, options.group)) {
+            if (!this.isItemGroupIncluded(item, options.group)) {
                 continue;
             }
 
-            const keys = expandPropertyPath(data, item.path, []);
-            for (let j = 0; j < keys.length; j++) {
+            let pathsCount = 0;
+
+            const paths = expandPropertyPath(data, item.path, []);
+            for (let j = 0; j < paths.length; j++) {
+                const path = paths[j];
+                const pathAbsolute = this.mergePaths(options.path, paths[j]);
+
                 let value : unknown;
-                if (hasOwnProperty(output, keys[j])) {
-                    value = output[keys[j]];
+                if (hasOwnProperty(output, path)) {
+                    value = output[path];
                 } else {
-                    value = getPropertyPathValue(data, keys[j]);
+                    value = getPropertyPathValue(data, path);
                 }
 
-                const path = this.mergePaths(options.path, keys[j]);
-                const pathRaw = this.mergePaths(options.pathRaw, item.path);
+                if (
+                    typeof pathsToInclude !== 'undefined' &&
+                    pathsToInclude.indexOf(path) === -1
+                ) {
+                    continue;
+                }
 
                 try {
                     if (item.data instanceof Container) {
@@ -105,21 +126,21 @@ export class Container<
                             {
                                 group: options.group,
                                 flat: true,
-                                path,
-                                pathRaw,
+                                path: pathAbsolute,
                                 // todo: extract defaults for container
                             },
                         );
 
                         const tmpKeys = Object.keys(tmp);
                         for (let k = 0; k < tmpKeys.length; k++) {
-                            output[this.mergePaths(keys[j], tmpKeys[k])] = tmp[tmpKeys[k]];
+                            output[this.mergePaths(path, tmpKeys[k])] = tmp[tmpKeys[k]];
                         }
                     } else {
-                        output[keys[j]] = await item.data({
-                            key: keys[j],
+                        output[path] = await item.data({
                             path,
-                            pathRaw,
+                            pathRaw: item.path,
+
+                            pathAbsolute,
                             value,
                             data,
                         });
@@ -132,6 +153,7 @@ export class Container<
                     } else {
                         const error = new ValidupValidatorError({
                             path,
+                            pathAbsolute,
                             received: value,
                         });
 
@@ -143,12 +165,22 @@ export class Container<
                         errors.push(error);
                     }
 
-                    errorKeys.push(path);
+                    errorKeys.push(pathAbsolute);
                 }
+
+                pathsCount++;
+            }
+
+            if (pathsCount > 0) {
+                itemCount++;
             }
         }
 
-        if (errors.length > 0) {
+        if (this.options.oneOf) {
+            if (errors.length === itemCount) {
+                throw new ValidupNestedError(buildErrorMessageForAttributes(errorKeys), errors);
+            }
+        } else if (errors.length > 0) {
             throw new ValidupNestedError(buildErrorMessageForAttributes(errorKeys), errors);
         }
 
@@ -178,7 +210,7 @@ export class Container<
         return temp as T;
     }
 
-    private isContainerItemGroupIncluded(
+    private isItemGroupIncluded(
         item: ContainerItem,
         group?: string,
     ) : boolean {

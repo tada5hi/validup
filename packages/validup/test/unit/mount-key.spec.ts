@@ -5,6 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import type { ValidatorContext } from '../../src';
 import { Container } from '../../src';
 
 describe('module/mount-key', () => {
@@ -26,10 +27,10 @@ describe('module/mount-key', () => {
         });
 
         expect(output['baz.foo.bar']).toMatchObject({
-            path: 'baz.foo.bar',
-            pathRaw: 'baz.foo.bar',
+            pathAbsolute: 'baz.foo.bar',
+            pathRaw: 'foo.bar',
             value: 1,
-        });
+        } satisfies Partial<ValidatorContext>);
     });
 
     it('should support nested key with dot notation', async () => {
@@ -45,10 +46,10 @@ describe('module/mount-key', () => {
         });
 
         expect(output['foo.bar']).toMatchObject({
-            path: 'foo.bar',
+            pathAbsolute: 'foo.bar',
             pathRaw: 'foo.bar',
             value: 1,
-        });
+        } satisfies Partial<ValidatorContext>);
     });
 
     it('should support key with square brackets notation', async () => {
@@ -62,10 +63,10 @@ describe('module/mount-key', () => {
         });
 
         expect(output['foo[1]']).toMatchObject({
-            path: 'foo[1]',
+            pathAbsolute: 'foo[1]',
             pathRaw: 'foo[1]',
             value: 'baz',
-        });
+        } satisfies Partial<ValidatorContext>);
     });
 
     it('should support key with non existent value', async () => {
@@ -75,10 +76,10 @@ describe('module/mount-key', () => {
         const output = await container.run({}, { flat: true });
 
         expect(output['foo.bar.baz']).toMatchObject({
-            path: 'foo.bar.baz',
+            pathAbsolute: 'foo.bar.baz',
             pathRaw: 'foo.bar.baz',
             value: undefined,
-        });
+        } satisfies Partial<ValidatorContext>);
     });
 
     it('should support primitive key property', async () => {
@@ -105,15 +106,15 @@ describe('module/mount-key', () => {
         });
 
         expect(output['foo.foo']).toMatchObject({
-            path: 'foo.foo',
+            pathAbsolute: 'foo.foo',
             pathRaw: '**.foo',
             value: 1,
-        });
+        } satisfies Partial<ValidatorContext>);
         expect(output.foo).toMatchObject({
-            path: 'foo',
+            pathAbsolute: 'foo',
             pathRaw: '**.foo',
             value: { foo: 1 },
-        });
+        } satisfies Partial<ValidatorContext>);
     });
 
     it('should support deeply nested pattern with glob star', async () => {
@@ -136,14 +137,14 @@ describe('module/mount-key', () => {
         });
 
         expect(output['foo.a.b.bar']).toMatchObject({
-            path: 'foo.a.b.bar',
+            pathAbsolute: 'foo.a.b.bar',
             pathRaw: 'foo.**.bar',
             value: 1,
-        });
+        } satisfies Partial<ValidatorContext>);
         expect(output['foo.c.bar']).toMatchObject({
-            path: 'foo.c.bar',
+            pathAbsolute: 'foo.c.bar',
             pathRaw: 'foo.**.bar',
             value: 2,
-        });
+        } satisfies Partial<ValidatorContext>);
     });
 });

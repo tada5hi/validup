@@ -36,12 +36,12 @@ export function createValidator(input: FactoryFn | ContextRunner) : Validator {
             ) as FieldValidationError[]);
 
             if (errors.length > 0) {
-                throw buildNestedError(errors, ctx.key);
+                throw buildNestedError(errors, ctx.path);
             }
 
             return field.value;
         }
 
-        throw new ValidupError(`The attribute ${ctx.key} could not be validated.`);
+        throw new ValidupError(`The attribute ${ctx.path} could not be validated.`);
     };
 }
