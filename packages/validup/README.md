@@ -147,22 +147,26 @@ type Validator = (ctx: ValidatorContext) => Promise<unknown> | unknown;
 ```ts
 type ValidatorContext = {
     /**
-     * Expanded mount path.
+     * The expanded mount path in the current container.
      */
-    key: string,
+    path: string,
     /**
-     * mount path (simple key or glob pattern)
+     * The unexpanded mount path in the current container.
      */
-    keyRaw: string,
+    pathRaw: string,
     /**
-     * The actual value.
+     * The global mount path of the parent container.
+     */
+    pathAbsolute: string,
+    /**
+     * The actual value, which should be validated.
      */
     value: unknown,
     /**
-     * Input data
+     * The input data of the current container.
      */
     data: Record<string, any>
-}
+};
 ```
 
 ## License
