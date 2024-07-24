@@ -11,7 +11,7 @@ import type {
 import type { ContainerRunOptions } from 'validup';
 import { Container, ValidupNestedError, buildErrorMessageForAttributes } from 'validup';
 
-export class TypeormValidator<
+export class TypeormContainer<
     T extends Record<string, any> = Record<string, any>,
 > extends Container<T> {
     protected dataSource : DataSource;

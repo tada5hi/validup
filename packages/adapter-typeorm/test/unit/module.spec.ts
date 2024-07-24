@@ -10,7 +10,7 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import type { Validator } from 'validup';
 import { buildErrorMessageForAttributes } from 'validup';
-import { TypeormValidator } from '../../src';
+import { TypeormContainer } from '../../src';
 import { useDataSourceOptions } from '../data/data-source';
 import { Realm } from '../data/realm';
 import { User } from '../data/user';
@@ -42,7 +42,7 @@ describe('src/module', () => {
     });
 
     it('should validate', async () => {
-        const validator = new TypeormValidator(dataSource, User);
+        const validator = new TypeormContainer(dataSource, User);
 
         validator.mount('name', async (ctx) => {
             if (typeof ctx.value !== 'string') {
@@ -64,7 +64,7 @@ describe('src/module', () => {
     });
 
     it('should not validate', async () => {
-        const validator = new TypeormValidator(dataSource, User);
+        const validator = new TypeormContainer(dataSource, User);
 
         validator.mount('realm_id', uuidRunner);
 
@@ -81,7 +81,7 @@ describe('src/module', () => {
     });
 
     it('should get internal entity columns', async () => {
-        const validator = new TypeormValidator(dataSource, User);
+        const validator = new TypeormContainer(dataSource, User);
 
         const attributes = await validator.getEntityColumns();
         expect(attributes).toEqual(['id', 'name', 'realm_id', 'realm']);
