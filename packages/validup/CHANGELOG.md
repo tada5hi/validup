@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/tada5hi/validup/compare/validup-v0.1.1...validup-v0.1.2) (2024-07-25)
+
+
+### Features
+
+* permit mounting container without path ([420933b](https://github.com/tada5hi/validup/commit/420933b87f14e18fb23c5008bd82ea835bb78afd))
+
 ## [0.1.1](https://github.com/tada5hi/validup/compare/validup-v0.1.0...validup-v0.1.1) (2024-07-24)
 
 

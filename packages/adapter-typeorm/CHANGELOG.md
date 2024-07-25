@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.2](https://github.com/tada5hi/validup/compare/adapter-typeorm-v0.1.1...adapter-typeorm-v0.1.2) (2024-07-25)
+
+
+### Features
+
+* contextualize typeorm container constructor ([c9a2ae9](https://github.com/tada5hi/validup/commit/c9a2ae985a5b3c7d3402bd90efe2df7cfb36ed91))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.1.1 to ^0.1.2
+
 ## [0.1.1](https://github.com/tada5hi/validup/compare/adapter-typeorm-v0.1.0...adapter-typeorm-v0.1.1) (2024-07-24)
 
 

@@ -1,6 +1,6 @@
 {
-    "packages/validup": "0.1.1",
-    "packages/adapter-typeorm": "0.1.1",
-    "packages/adapter-validator": "0.1.1",
-    "packages/adapter-zod": "0.1.1"
+    "packages/validup": "0.1.2",
+    "packages/adapter-typeorm": "0.1.2",
+    "packages/adapter-validator": "0.1.2",
+    "packages/adapter-zod": "0.1.2"
 }
