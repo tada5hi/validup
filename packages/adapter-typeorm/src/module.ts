@@ -10,6 +10,7 @@ import type {
 } from 'typeorm';
 import type { ContainerRunOptions } from 'validup';
 import { Container, ValidupNestedError, buildErrorMessageForAttributes } from 'validup';
+import type { TypeormContainerContext } from './types';
 
 export class TypeormContainer<
     T extends Record<string, any> = Record<string, any>,
@@ -18,14 +19,11 @@ export class TypeormContainer<
 
     protected entityTarget : EntityTarget<T>;
 
-    constructor(
-        dataSource: DataSource,
-        entityTarget: EntityTarget<T>,
-    ) {
-        super();
+    constructor(ctx: TypeormContainerContext<T>) {
+        super(ctx.options);
 
-        this.dataSource = dataSource;
-        this.entityTarget = entityTarget;
+        this.dataSource = ctx.dataSource;
+        this.entityTarget = ctx.entityTarget;
     }
 
     override async run(

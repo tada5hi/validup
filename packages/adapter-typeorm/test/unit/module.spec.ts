@@ -42,7 +42,10 @@ describe('src/module', () => {
     });
 
     it('should validate', async () => {
-        const validator = new TypeormContainer(dataSource, User);
+        const validator = new TypeormContainer({
+            dataSource,
+            entityTarget: User,
+        });
 
         validator.mount('name', async (ctx) => {
             if (typeof ctx.value !== 'string') {
@@ -64,7 +67,10 @@ describe('src/module', () => {
     });
 
     it('should not validate', async () => {
-        const validator = new TypeormContainer(dataSource, User);
+        const validator = new TypeormContainer({
+            dataSource,
+            entityTarget: User,
+        });
 
         validator.mount('realm_id', uuidRunner);
 
@@ -81,7 +87,10 @@ describe('src/module', () => {
     });
 
     it('should get internal entity columns', async () => {
-        const validator = new TypeormContainer(dataSource, User);
+        const validator = new TypeormContainer({
+            dataSource,
+            entityTarget: User,
+        });
 
         const attributes = await validator.getEntityColumns();
         expect(attributes).toEqual(['id', 'name', 'realm_id', 'realm']);
