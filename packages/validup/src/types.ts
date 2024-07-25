@@ -7,6 +7,8 @@
 
 import type { Container } from './module';
 
+export type ObjectLiteral = Record<string | number, any>;
+
 export type ContainerOptions<T> = {
     /**
      * Only one of the mounted container/validators must succeed.
@@ -75,18 +77,22 @@ export type ValidatorContext = {
 export type Validator = (ctx: ValidatorContext) => Promise<unknown> | unknown;
 
 export type ContainerMountOptions = {
-    group?: string | string[]
+    group?: string | string[],
+    /**
+     * Limit mounted paths on execution.
+     * By default, all mounted containers/validators will
+     * be considered for execution.
+     */
+    pathsToInclude?: string[]
 };
 
 export type ContainerItem = ContainerMountOptions & {
-    path: string,
+    path?: string,
     data: Validator | Container
 };
 
 type ArrayElement<ArrayType extends readonly unknown[]> =
     ArrayType extends readonly (infer ElementType)[] ? ElementType : never;
-
-type ObjectLiteral = Record<string | number, any>;
 
 type PrevIndex = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 

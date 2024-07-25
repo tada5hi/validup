@@ -33,6 +33,32 @@ describe('module/mount-key', () => {
         } satisfies Partial<ValidatorContext>);
     });
 
+    it('should mount container on same level', async () => {
+        const childContainer = new Container();
+        childContainer.mount('foo', ((ctx) => ctx));
+
+        const container = new Container();
+        container.mount('bar', ((ctx) => ctx));
+        container.mount(childContainer);
+
+        const output = await container.run({
+            foo: 'bar',
+            bar: 'baz',
+        });
+
+        expect(output.foo).toMatchObject({
+            pathAbsolute: 'foo',
+            pathRaw: 'foo',
+            value: 'bar',
+        } satisfies Partial<ValidatorContext>);
+
+        expect(output.bar).toMatchObject({
+            pathAbsolute: 'bar',
+            pathRaw: 'bar',
+            value: 'baz',
+        } satisfies Partial<ValidatorContext>);
+    });
+
     it('should support nested key with dot notation', async () => {
         const container = new Container();
         container.mount('foo.bar', ((ctx) => ctx));

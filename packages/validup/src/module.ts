@@ -36,6 +36,13 @@ export class Container<
 
     // ----------------------------------------------
 
+    mount(container: Container) : void;
+
+    mount(
+        options: ContainerMountOptions,
+        container: Container
+    ): void;
+
     mount(
         key: ObjectPropertyPathExtended<T>,
         data: Container | Validator
@@ -48,27 +55,54 @@ export class Container<
     ) : void;
 
     mount(...args: any[]) : void {
-        if (args.length < 2) {
-            throw new SyntaxError('The mount method requires at least');
+        if (args.length < 1) {
+            throw new SyntaxError('The mount method requires at least one argument');
         }
 
-        const key = args[0];
-        let data: Container | Validator;
+        let path : string | undefined;
+
+        let data: Container | Validator | undefined;
+        let dataIsContainer : boolean = false;
+
         let options: ContainerMountOptions = {};
 
+        for (let i = 0; i < args.length; i++) {
+            if (typeof args[i] === 'string') {
+                path = args[i];
+                continue;
+            }
+
+            if (typeof args[i] === 'function') {
+                data = args[i];
+                continue;
+            }
+
+            if (args[i] instanceof Container) {
+                data = args[i];
+                dataIsContainer = true;
+                continue;
+            }
+
+            if (isObject(args[i])) {
+                options = args[i];
+            }
+        }
+
         if (
-            args[1] instanceof Container ||
-            typeof args[1] === 'function'
+            !dataIsContainer &&
+            (typeof path === 'undefined' || path.length === 0)
         ) {
-            [, data] = args;
-        } else {
-            [, options, data] = args;
+            throw new SyntaxError('Only a container can be mounted without a key.');
+        }
+
+        if (typeof data === 'undefined') {
+            throw new SyntaxError('No container/validator could be extracted from the fn arguments.');
         }
 
         this.items.push({
             ...options,
             data,
-            path: key,
+            path,
         });
     }
 
@@ -100,7 +134,13 @@ export class Container<
 
             let pathsCount = 0;
 
-            const paths = expandPropertyPath(data, item.path, []);
+            let paths : string[];
+            if (item.path) {
+                paths = expandPropertyPath(data, item.path, []);
+            } else {
+                paths = [''];
+            }
+
             for (let j = 0; j < paths.length; j++) {
                 const path = paths[j];
                 const pathAbsolute = this.mergePaths(options.path, paths[j]);
@@ -127,6 +167,7 @@ export class Container<
                                 group: options.group,
                                 flat: true,
                                 path: pathAbsolute,
+                                pathsToInclude: options.pathsToInclude,
                                 // todo: extract defaults for container
                             },
                         );
@@ -138,7 +179,7 @@ export class Container<
                     } else {
                         output[path] = await item.data({
                             path,
-                            pathRaw: item.path,
+                            pathRaw: item.path ?? '',
 
                             pathAbsolute,
                             value,
@@ -248,7 +289,7 @@ export class Container<
 
         for (let i = 0; i < args.length; i++) {
             const arg = args[i];
-            if (!arg) {
+            if (!arg || arg.length === 0) {
                 continue;
             }
 
