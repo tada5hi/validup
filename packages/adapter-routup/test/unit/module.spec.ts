@@ -8,6 +8,7 @@
 import { basic } from '@routup/basic';
 import { Router, coreHandler, createNodeDispatcher } from 'routup';
 import { Container, ValidupValidatorError } from 'validup';
+// eslint-disable-next-line import/no-extraneous-dependencies
 import supertest from 'supertest';
 import { RoutupContainerAdapter } from '../../src';
 
