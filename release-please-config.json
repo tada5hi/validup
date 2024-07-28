@@ -5,7 +5,7 @@
     "initial-version": "0.1.0",
     "packages": {
         "packages/validup": {"component": "validup"},
-        "packages/adapter-typeorm": {"component": "adapter-typeorm"},
+        "packages/adapter-routup": {"component": "adapter-routup"},
         "packages/adapter-validator": {"component": "adapter-validator"},
         "packages/adapter-zod": {"component": "adapter-zod"}
     },
@@ -19,7 +19,7 @@
             "groupName": "main",
             "components": [
                 "validup",
-                "adapter-typeorm",
+                "adapter-routup",
                 "adapter-zod",
                 "adapter-validator"
             ]

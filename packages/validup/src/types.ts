@@ -109,7 +109,7 @@ export type ObjectPropertyPathExtended<T, Depth extends number = 4> = [Depth] ex
             ) :
             T[Key] extends ObjectLiteral ?
                 (
-                    ObjectPropertyPathExtended<T[Key]> extends string ?
+                    ObjectPropertyPathExtended<T[Key], PrevIndex[Depth]> extends string ?
                         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                         // @ts-expect-error
                         `${Key}.${ObjectPropertyPathExtended<T[Key], PrevIndex[Depth]>}` |
@@ -124,19 +124,19 @@ export type ObjectPropertyPathExtended<T, Depth extends number = 4> = [Depth] ex
 export type ObjectPropertyPath<T, Depth extends number = 4> = [Depth] extends [0] ? never : T extends ObjectLiteral ?
     {
         [Key in keyof T & (string | number)]: T[Key] extends unknown[] ?
-            (ObjectPropertyPathExtended<ArrayElement<T[Key]>, PrevIndex[Depth]> extends string ?
+            (ObjectPropertyPath<ArrayElement<T[Key]>, PrevIndex[Depth]> extends string ?
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-expect-error
-            `${Key}[${number}].${ObjectPropertyPathExtended<ArrayElement<T[Key]>, PrevIndex[Depth]>}` |
+            `${Key}[${number}].${ObjectPropertyPath<ArrayElement<T[Key]>, PrevIndex[Depth]>}` |
             `${Key}` :
             `${Key}[${number}]` | `${Key}`
             ) :
             T[Key] extends ObjectLiteral ?
                 (
-                    ObjectPropertyPathExtended<T[Key]> extends string ?
+                    ObjectPropertyPath<T[Key], PrevIndex[Depth]> extends string ?
                     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                     // @ts-expect-error
-                    `${Key}.${ObjectPropertyPathExtended<T[Key], PrevIndex[Depth]>}` |
+                    `${Key}.${ObjectPropertyPath<T[Key], PrevIndex[Depth]>}` |
                     `${Key}` :
                     `${Key}`
                 ) :
