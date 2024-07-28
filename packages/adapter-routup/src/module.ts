@@ -70,12 +70,8 @@ export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
 
     private extendObjectProperties<O extends Record<string, any>>(
         src: O,
-        input?: Partial<O>,
+        input: Partial<O>,
     ) : O {
-        if (!input) {
-            return src;
-        }
-
         const keys : (keyof O)[] = Object.keys(input);
         for (let i = 0; i < keys.length; i++) {
             src[keys[i]] = input[keys[i]] as O[keyof O];
