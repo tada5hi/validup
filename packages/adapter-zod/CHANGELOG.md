@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.3](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.2...adapter-zod-v0.1.3) (2024-07-28)
+
+
+### Miscellaneous Chores
+
+* **adapter-zod:** Synchronize main versions
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.1.2 to ^0.1.3
+
 ## [0.1.2](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.1...adapter-zod-v0.1.2) (2024-07-25)
 
 
