@@ -10,10 +10,9 @@ import type { Request } from 'routup';
 import { useRequestBody } from '@routup/basic/body';
 import { useRequestCookies } from '@routup/basic/cookie';
 import { useRequestQuery } from '@routup/basic/query';
-import type { ObjectLiteral } from 'validup';
-import { Container, isObject } from 'validup';
+import type { Container, ObjectLiteral } from 'validup';
 import { Location } from './constants';
-import type { Input, RoutupContainerRunOptions } from './types';
+import type { RoutupContainerRunOptions } from './types';
 
 export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
     protected container : Container<T>;
@@ -22,61 +21,44 @@ export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
         this.container = container;
     }
 
-    async run(req: Request, options: RoutupContainerRunOptions<Input<T>> = {}) : Promise<T> {
-        const wrapper = new Container<Input<T>>({
-            oneOf: true,
-        });
-
-        const locations = options.locations || {};
-
-        const data : Record<string, any> = {};
-
-        if (typeof locations.body === 'undefined' || locations.body) {
-            data.body = useRequestBody(req);
-            wrapper.mount(Location.BODY, { group: options.group }, this.container);
+    async run(req: Request, options: RoutupContainerRunOptions<T> = {}) : Promise<T> {
+        const locations = options.locations || [];
+        if (locations.length === 0) {
+            locations.push(Location.BODY);
         }
 
-        if (locations.query) {
-            data.query = useRequestQuery(req);
-            wrapper.mount(Location.QUERY, { group: options.group }, this.container);
-        }
+        let output = {} as T;
 
-        if (locations.params) {
-            data.params = useRequestParams(req);
-            wrapper.mount(Location.PARAMS, { group: options.group }, this.container);
-        }
+        for (let i = 0; i < locations.length; i++) {
+            let data : Record<string, any>;
 
-        if (locations.cookies) {
-            data.cookies = useRequestCookies(req);
-            wrapper.mount(Location.COOKIES, { group: options.group }, this.container);
-        }
+            switch (locations[i]) {
+                case Location.COOKIES: {
+                    data = useRequestCookies(req);
+                    break;
+                }
+                case Location.QUERY: {
+                    data = useRequestQuery(req);
+                    break;
+                }
+                case Location.PARAMS: {
+                    data = useRequestParams(req);
+                    break;
+                }
+                default: {
+                    data = useRequestBody(req);
+                    break;
+                }
+            }
 
-        const output : Record<string, any> = {};
-
-        // todo: extend defaults, pathsToInclude
-        const tmp = await wrapper.run(data, options);
-        const tmpKeys = Object.keys(tmp);
-        for (let i = 0; i < tmpKeys.length; i++) {
-            const tmpKey = tmpKeys[i];
-            const tmpValue = tmp[tmpKey as keyof typeof tmp];
-
-            if (isObject(tmpValue)) {
-                this.extendObjectProperties(output, tmpValue);
+            try {
+                output = await this.container.run(data, options);
+                break;
+            } catch (e) {
+                // do nothing...
             }
         }
 
         return output as T;
-    }
-
-    private extendObjectProperties<O extends Record<string, any>>(
-        src: O,
-        input: Partial<O>,
-    ) : O {
-        const keys : (keyof O)[] = Object.keys(input);
-        for (let i = 0; i < keys.length; i++) {
-            src[keys[i]] = input[keys[i]] as O[keyof O];
-        }
-
-        return src;
     }
 }

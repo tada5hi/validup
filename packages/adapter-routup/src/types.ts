@@ -12,7 +12,8 @@ export type Input<T extends ObjectLiteral> = {
     [Key in `${Location}`]: T
 };
 export type RoutupContainerRunOptions<T extends ObjectLiteral> = ContainerRunOptions<T> & {
-    locations?: {
-        [Key in `${Location}`]?: boolean
-    }
+    /**
+     * default: ['body']
+     */
+    locations?: `${Location}`[]
 };

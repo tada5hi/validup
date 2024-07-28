@@ -62,9 +62,7 @@ describe('src/module', () => {
             const adapter = new RoutupContainerAdapter(container);
 
             const output = await adapter.run(req, {
-                locations: {
-                    query: true,
-                },
+                locations: ['query'],
             });
 
             return output.token;
@@ -90,9 +88,7 @@ describe('src/module', () => {
             const adapter = new RoutupContainerAdapter(container);
 
             const output = await adapter.run(req, {
-                locations: {
-                    cookies: true,
-                },
+                locations: ['cookies'],
             });
 
             return output.token;
@@ -117,9 +113,7 @@ describe('src/module', () => {
             const adapter = new RoutupContainerAdapter(container);
 
             const output = await adapter.run(req, {
-                locations: {
-                    params: true,
-                },
+                locations: ['params'],
             });
 
             return output.token;
