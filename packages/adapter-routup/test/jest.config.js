@@ -8,21 +8,7 @@
 module.exports = {
     testEnvironment: 'node',
     transform: {
-        '^.+\\.tsx?$': [
-            '@swc/jest',
-            {
-                jsc: {
-                    parser: {
-                        syntax: 'typescript',
-                        decorators: true,
-                    },
-                    transform: {
-                        decoratorMetadata: true,
-                        legacyDecorator: true,
-                    },
-                },
-            },
-        ],
+        '^.+\\.tsx?$': '@swc/jest',
     },
     moduleFileExtensions: [
         'ts',
