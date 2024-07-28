@@ -8,9 +8,6 @@
 import type { ContainerRunOptions, ObjectLiteral } from 'validup';
 import type { Location } from './constants';
 
-export type Input<T extends ObjectLiteral> = {
-    [Key in `${Location}`]: T
-};
 export type RoutupContainerRunOptions<T extends ObjectLiteral> = ContainerRunOptions<T> & {
     /**
      * default: ['body']
