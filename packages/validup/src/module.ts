@@ -281,7 +281,7 @@ export class Container<
             return false;
         }
 
-        return !group;
+        return true;
     }
 
     private mergePaths(...args: (string | undefined)[]) {

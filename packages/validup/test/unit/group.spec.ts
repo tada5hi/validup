@@ -5,34 +5,17 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { Validator } from '../../src';
 import { Container } from '../../src';
-
-const validator : Validator = async (ctx) : Promise<unknown> => {
-    if (typeof ctx.value !== 'string') {
-        throw new Error('Value is not a string');
-    }
-
-    return ctx.value;
-};
+import { stringValidator } from '../data';
 
 const container = new Container<{ foo: string, bar: string, boz: string }>();
-container.mount('foo', { group: 'foo' }, validator);
-container.mount('bar', { group: ['foo', 'bar'] }, validator);
-container.mount('boz', validator);
+container.mount('foo', { group: 'foo' }, stringValidator);
+container.mount('bar', { group: ['foo', 'bar'] }, stringValidator);
+container.mount('boz', stringValidator);
 
 describe('group', () => {
     it('should work with explicit group', async () => {
-        let outcome = await container.run({
-            foo: 'bar',
-            bar: 'baz',
-        }, {
-            group: 'foo',
-        });
-        expect(outcome.foo).toEqual('bar');
-        expect(outcome.bar).toEqual('baz');
-
-        outcome = await container.run({
+        const outcome = await container.run({
             foo: 'bar',
             bar: 'baz',
             boz: 'biz',
@@ -41,7 +24,7 @@ describe('group', () => {
         });
         expect(outcome.foo).toBeUndefined();
         expect(outcome.bar).toEqual('baz');
-        expect(outcome.boz).toBeUndefined();
+        expect(outcome.boz).toEqual('biz');
     });
 
     it('should work with wildcard group', async () => {
