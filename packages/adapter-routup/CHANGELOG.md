@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.4](https://github.com/tada5hi/validup/compare/adapter-routup-v0.1.3...adapter-routup-v0.1.4) (2024-07-29)
+
+
+### Bug Fixes
+
+* one location source must succeed ([bae4c37](https://github.com/tada5hi/validup/commit/bae4c37917f6078d4dd196d832704e493458eaa5))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * validup bumped from ^0.1.3 to ^0.1.4
+  * peerDependencies
+    * validup bumped from ^0.1.3 to ^0.1.4
+
 ## [0.1.3](https://github.com/tada5hi/validup/compare/adapter-routup-v0.1.2...adapter-routup-v0.1.3) (2024-07-28)
 
 

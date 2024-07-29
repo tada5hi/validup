@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/tada5hi/validup/compare/validup-v0.1.3...validup-v0.1.4) (2024-07-29)
+
+
+### Miscellaneous Chores
+
+* **validup:** Synchronize main versions
+
 ## [0.1.3](https://github.com/tada5hi/validup/compare/validup-v0.1.2...validup-v0.1.3) (2024-07-28)
 
 
