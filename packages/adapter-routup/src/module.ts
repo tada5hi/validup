@@ -11,6 +11,7 @@ import { useRequestBody } from '@routup/basic/body';
 import { useRequestCookies } from '@routup/basic/cookie';
 import { useRequestQuery } from '@routup/basic/query';
 import type { Container, ObjectLiteral } from 'validup';
+import { ValidupError, ValidupNestedError } from 'validup';
 import { Location } from './constants';
 import type { RoutupContainerRunOptions } from './types';
 
@@ -27,7 +28,9 @@ export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
             locations.push(Location.BODY);
         }
 
+        let succeeded : boolean = false;
         let output = {} as T;
+        let error : ValidupError | undefined;
 
         for (let i = 0; i < locations.length; i++) {
             let data : Record<string, any>;
@@ -53,9 +56,20 @@ export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
 
             try {
                 output = await this.container.run(data, options);
+                succeeded = true;
                 break;
             } catch (e) {
-                // do nothing...
+                if (e instanceof ValidupError) {
+                    error = e;
+                }
+            }
+        }
+
+        if (!succeeded) {
+            if (error) {
+                throw error;
+            } else {
+                throw new ValidupNestedError('An unknown validation error occurred.');
             }
         }
 
