@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.5](https://github.com/tada5hi/validup/compare/adapter-routup-v0.1.4...adapter-routup-v0.1.5) (2024-08-06)
+
+
+### Features
+
+* adjusted input for nested validation error ([91582f7](https://github.com/tada5hi/validup/commit/91582f79b18f9bf8f11191f26fbe38467e923c84))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * validup bumped from ^0.1.3 to ^0.1.4
+  * peerDependencies
+    * validup bumped from ^0.1.3 to ^0.1.4
+
 ## [0.1.4](https://github.com/tada5hi/validup/compare/adapter-routup-v0.1.3...adapter-routup-v0.1.4) (2024-07-29)
 
 

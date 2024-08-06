@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/tada5hi/validup/compare/validup-v0.1.3...validup-v0.1.4) (2024-08-06)
+
+
+### Features
+
+* adjusted input for nested validation error ([91582f7](https://github.com/tada5hi/validup/commit/91582f79b18f9bf8f11191f26fbe38467e923c84))
+
 ## [0.1.3](https://github.com/tada5hi/validup/compare/validup-v0.1.2...validup-v0.1.3) (2024-07-28)
 
 
