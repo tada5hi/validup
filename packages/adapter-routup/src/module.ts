@@ -69,7 +69,7 @@ export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
             if (error) {
                 throw error;
             } else {
-                throw new ValidupNestedError('An unknown validation error occurred.');
+                throw new ValidupNestedError({ message: 'An unknown validation error occurred.' });
             }
         }
 

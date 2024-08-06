@@ -5,16 +5,21 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { ValidupValidatorError } from './attribute';
+import type { ValidupValidatorError } from './validator';
 import { ValidupError } from './base';
+
+export type ValidupNestedErrorOptions = {
+    children?: ValidupValidatorError[],
+    message?: string
+};
 
 export class ValidupNestedError extends ValidupError {
     children: ValidupValidatorError[];
 
-    constructor(message?: string, children?: ValidupValidatorError[]) {
-        super(message);
+    constructor(options: ValidupNestedErrorOptions = {}) {
+        super(options.message || 'One or many attributes may be invalid.');
 
-        this.children = children || [];
+        this.children = options.children || [];
     }
 
     addChild(child: ValidupValidatorError) {

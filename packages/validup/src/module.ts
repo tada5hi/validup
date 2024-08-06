@@ -219,10 +219,10 @@ export class Container<
 
         if (this.options.oneOf) {
             if (errors.length === itemCount) {
-                throw new ValidupNestedError(buildErrorMessageForAttributes(errorKeys), errors);
+                throw new ValidupNestedError({ message: buildErrorMessageForAttributes(errorKeys), children: errors });
             }
         } else if (errors.length > 0) {
-            throw new ValidupNestedError(buildErrorMessageForAttributes(errorKeys), errors);
+            throw new ValidupNestedError({ message: buildErrorMessageForAttributes(errorKeys), children: errors });
         }
 
         if (options.defaults) {
