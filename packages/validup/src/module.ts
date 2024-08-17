@@ -32,6 +32,8 @@ export class Container<
     constructor(options: ContainerOptions<T> = {}) {
         this.options = options;
         this.items = [];
+
+        this.initialize();
     }
 
     // ----------------------------------------------
@@ -301,5 +303,9 @@ export class Container<
         }
 
         return output;
+    }
+
+    protected initialize() : void {
+
     }
 }
