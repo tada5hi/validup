@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/tada5hi/validup/compare/validup-v0.1.4...validup-v0.1.5) (2024-08-17)
+
+
+### Features
+
+* add initialize helper fn for container ([aafd12a](https://github.com/tada5hi/validup/commit/aafd12ada463776a353d9876237836e75f4988aa))
+
 ## [0.1.4](https://github.com/tada5hi/validup/compare/validup-v0.1.3...validup-v0.1.4) (2024-08-06)
 
 
