@@ -116,7 +116,12 @@ describe('module/mount-key', () => {
             foo: 1,
         });
 
-        expect(Object.keys(output)).toHaveLength(0);
+        expect(output.foo.toFixed).toMatchObject({
+            path: 'foo.toFixed',
+            pathRaw: 'foo.toFixed',
+            pathAbsolute: 'foo.toFixed',
+            value: expect.any(Function),
+        } satisfies Partial<ValidatorContext>);
     });
 
     it('should support glob star pattern', async () => {

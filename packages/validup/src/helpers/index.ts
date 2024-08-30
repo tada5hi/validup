@@ -5,7 +5,4 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export * from './array-to-property-path';
 export * from './error';
-export * from './get-property-path-value';
-export * from './property-path-to-array';

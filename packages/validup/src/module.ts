@@ -5,10 +5,10 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { expandPath, getPathValue, setPathValue } from 'pathtrace';
 import { GroupKey } from './constants';
 import { ValidupNestedError, ValidupValidatorError } from './errors';
-import { buildErrorMessageForAttributes, getPropertyPathValue, setPropertyPathValue } from './helpers';
-import { expandPropertyPath } from './helpers/expand-property-path';
+import { buildErrorMessageForAttributes } from './helpers';
 import type {
     ContainerItem,
     ContainerMountOptions,
@@ -138,7 +138,7 @@ export class Container<
 
             let paths : string[];
             if (item.path) {
-                paths = expandPropertyPath(data, item.path, []);
+                paths = expandPath(data, item.path);
             } else {
                 paths = [''];
             }
@@ -150,8 +150,10 @@ export class Container<
                 let value : unknown;
                 if (hasOwnProperty(output, path)) {
                     value = output[path];
+                } else if (path.length > 0) {
+                    value = getPathValue(data, path);
                 } else {
-                    value = getPropertyPathValue(data, path);
+                    value = data;
                 }
 
                 if (
@@ -247,7 +249,7 @@ export class Container<
 
         const keys = Object.keys(output);
         for (let i = 0; i < keys.length; i++) {
-            setPropertyPathValue(temp, keys[i], output[keys[i]]);
+            setPathValue(temp, keys[i], output[keys[i]]);
         }
 
         return temp as T;
