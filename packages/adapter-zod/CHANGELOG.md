@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.6](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.5...adapter-zod-v0.1.6) (2024-09-02)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.1.5 to ^0.1.6
+
 ## [0.1.5](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.4...adapter-zod-v0.1.5) (2024-08-17)
 
 

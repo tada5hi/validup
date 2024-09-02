@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.6](https://github.com/tada5hi/validup/compare/validup-v0.1.5...validup-v0.1.6) (2024-09-02)
+
+
+### Features
+
+* replace internal path helpers with pathtrace ([9e82be1](https://github.com/tada5hi/validup/commit/9e82be14bde589f3915c57fd6ddee9d2a357f71e))
+
+
+### Bug Fixes
+
+* **deps:** bump pathtrace to v1.0.0 ([b5a4438](https://github.com/tada5hi/validup/commit/b5a4438a5505cbfbac4f964c06f4ebbdc06f2e67))
+
 ## [0.1.5](https://github.com/tada5hi/validup/compare/validup-v0.1.4...validup-v0.1.5) (2024-08-17)
 
 
