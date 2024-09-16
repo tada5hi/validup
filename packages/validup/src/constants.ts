@@ -8,3 +8,18 @@
 export enum GroupKey {
     WILDCARD = '*',
 }
+
+export enum OptionalValue {
+    /**
+     * value: undefined
+     */
+    UNDEFINED = 'undefined',
+    /**
+     * value: null & undefined
+     */
+    NULL = 'null',
+    /**
+     * value: empty string, false, 0
+     */
+    FALSY = 'falsy',
+}

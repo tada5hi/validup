@@ -5,6 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import type { OptionalValue } from './constants';
 import type { Container } from './module';
 
 export type ObjectLiteral = Record<string | number, any>;
@@ -77,13 +78,39 @@ export type ValidatorContext = {
 export type Validator = (ctx: ValidatorContext) => Promise<unknown> | unknown;
 
 export type ContainerMountOptions = {
+    /**
+     * Group(s) to execute.
+     */
     group?: string | string[],
+
     /**
      * Limit mounted paths on execution.
      * By default, all mounted containers/validators will
      * be considered for execution.
      */
-    pathsToInclude?: string[]
+    pathsToInclude?: string[],
+
+    /**
+     * Specify if the mounted container has to be evaluated successfully.
+     *
+     * default: false
+     */
+    optional?: boolean,
+
+    /**
+     * Which values are considered optional.
+     * An optional value won't be passed to the underlying container/validator.
+     *
+     * default: 'undefined'
+     */
+    optionalValue?: `${OptionalValue}`,
+
+    /**
+     * Include optional value as property in output.
+     *
+     * default: false
+     */
+    optionalInclude?: boolean
 };
 
 export type ContainerItem = ContainerMountOptions & {
