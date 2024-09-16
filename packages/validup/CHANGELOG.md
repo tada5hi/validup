@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/tada5hi/validup/compare/validup-v0.1.6...validup-v0.1.7) (2024-09-16)
+
+
+### Features
+
+* add optional, optionalValue & optionalInlcude option for container mount ([5b40d2a](https://github.com/tada5hi/validup/commit/5b40d2a1dfb42bf25a37ac9814f1992e37f7d1e4))
+
 ## [0.1.6](https://github.com/tada5hi/validup/compare/validup-v0.1.5...validup-v0.1.6) (2024-09-02)
 
 

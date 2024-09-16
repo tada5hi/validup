@@ -1,6 +1,6 @@
 {
     "name": "@validup/adapter-zod",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "description": "A validup adapter for zod.",
     "author": {
         "name": "Peter Placzek",
@@ -40,7 +40,7 @@
     "keywords": [],
     "license": "MIT",
     "dependencies": {
-        "validup": "^0.1.6"
+        "validup": "^0.1.7"
     },
     "devDependencies": {
         "zod": "^3.23.8"
