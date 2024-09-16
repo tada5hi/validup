@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.7](https://github.com/tada5hi/validup/compare/adapter-validator-v0.1.6...adapter-validator-v0.1.7) (2024-09-16)
+
+
+### Bug Fixes
+
+* pathing (path + pathAbsolute) for adapters ([ddb46fc](https://github.com/tada5hi/validup/commit/ddb46fcb931d42579744650bc46a4f968b175a46))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.1.6 to ^0.1.7
+
 ## [0.1.6](https://github.com/tada5hi/validup/compare/adapter-validator-v0.1.5...adapter-validator-v0.1.6) (2024-09-02)
 
 
