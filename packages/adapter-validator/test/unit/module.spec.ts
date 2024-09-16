@@ -39,10 +39,10 @@ describe('src/module', () => {
     });
 
     it('should not validate', async () => {
+        expect.assertions(4);
+
         const validator = new Container();
         validator.mount('foo', createValidator((chain) => chain.isArray({ min: 1, max: 10 })));
-
-        expect.assertions(3);
 
         try {
             await validator.run({
@@ -53,6 +53,32 @@ describe('src/module', () => {
                 expect(e.children).toBeDefined();
                 expect(e.children).toHaveLength(1);
                 expect(e.children[0].path).toEqual('foo');
+                expect(e.children[0].pathAbsolute).toEqual('foo');
+            }
+        }
+    });
+
+    it('should not validate nested container', async () => {
+        expect.assertions(4);
+
+        const child = new Container();
+        child.mount('foo', createValidator((chain) => chain.isArray({ min: 1, max: 10 })));
+
+        const parent = new Container();
+        parent.mount('child', child);
+
+        try {
+            await parent.run({
+                child: {
+                    foo: [],
+                },
+            });
+        } catch (e) {
+            if (e instanceof ValidupNestedError) {
+                expect(e.children).toBeDefined();
+                expect(e.children).toHaveLength(1);
+                expect(e.children[0].path).toEqual('foo');
+                expect(e.children[0].pathAbsolute).toEqual('child.foo');
             }
         }
     });

@@ -8,18 +8,24 @@
 import type { ValidationError } from 'express-validator/lib/base';
 import { ValidupNestedError, ValidupValidatorError, buildErrorMessageForAttributes } from 'validup';
 
+type ErrorOptions = {
+    path: string,
+    pathAbsolute?: string
+};
+
 function generateAttributeErrors(
     error: ValidationError,
-    path: string,
+    options: ErrorOptions,
 ) : ValidupValidatorError[] {
     const output : ValidupValidatorError[] = [];
     switch (error.type) {
         case 'field': {
-            const name = error.path || path;
+            const name = error.path || options.path;
             const message = error.msg || buildErrorMessageForAttributes([name]);
 
             output.push(new ValidupValidatorError({
                 path: name,
+                pathAbsolute: options.pathAbsolute || options.path,
                 received: error.value,
                 message,
             }));
@@ -27,14 +33,14 @@ function generateAttributeErrors(
         }
         case 'alternative': {
             for (let i = 0; i < error.nestedErrors.length; i++) {
-                output.push(...generateAttributeErrors(error.nestedErrors[i], path));
+                output.push(...generateAttributeErrors(error.nestedErrors[i], options));
             }
             break;
         }
         case 'alternative_grouped': {
             for (let i = 0; i < error.nestedErrors.length; i++) {
                 for (let j = 0; j < error.nestedErrors[i].length; j++) {
-                    output.push(...generateAttributeErrors(error.nestedErrors[i][j], path));
+                    output.push(...generateAttributeErrors(error.nestedErrors[i][j], options));
                 }
             }
         }
@@ -45,12 +51,12 @@ function generateAttributeErrors(
 
 export function buildNestedError(
     errors: ValidationError[],
-    path: string,
+    options: ErrorOptions,
 ): ValidupNestedError {
     const base = new ValidupNestedError();
     const names : (number | string)[] = [];
     for (let i = 0; i < errors.length; i++) {
-        const children = generateAttributeErrors(errors[i], path);
+        const children = generateAttributeErrors(errors[i], options);
         for (let j = 0; j < children.length; j++) {
             base.addChild(children[j]);
             names.push(children[j].path);

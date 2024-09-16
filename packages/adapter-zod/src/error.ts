@@ -9,8 +9,10 @@ import { ValidupNestedError, ValidupValidatorError, hasOwnProperty } from 'valid
 import type { ZodError } from 'zod';
 
 type ErrorBuildOptions = {
-    path: string
+    path: string,
+    pathAbsolute?: string,
 };
+
 export function buildError(error: ZodError, options: ErrorBuildOptions) {
     const base = new ValidupNestedError();
 
@@ -42,6 +44,7 @@ export function buildError(error: ZodError, options: ErrorBuildOptions) {
 
         const child = new ValidupValidatorError({
             path,
+            pathAbsolute: options.pathAbsolute || options.path,
             message: issue.message,
             expected,
             received,

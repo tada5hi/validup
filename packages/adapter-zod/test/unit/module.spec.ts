@@ -28,7 +28,7 @@ describe('src/module', () => {
 
         validator.mount('email', createValidator(z.string().email()));
 
-        expect.assertions(4);
+        expect.assertions(5);
 
         try {
             await validator.run({
@@ -39,6 +39,30 @@ describe('src/module', () => {
                 expect(e.children).toBeDefined();
                 expect(e.children).toHaveLength(1);
                 expect(e.children[0].message).toEqual('Invalid email');
+                expect(e.children[0].path).toEqual('email');
+                expect(e.children[0].pathAbsolute).toEqual('email');
+            }
+        }
+    });
+
+    it('should not validate nested container', async () => {
+        const child = new Container<{ email: string }>();
+        child.mount('email', createValidator(z.string().email()));
+
+        const parent = new Container<{child: { email: string }}>();
+        parent.mount('child', child);
+
+        try {
+            await parent.run({
+                child: {
+                    email: 'foo',
+                },
+            });
+        } catch (e) {
+            if (e instanceof ValidupNestedError) {
+                expect(e.children).toBeDefined();
+                expect(e.children).toHaveLength(1);
+                expect(e.children[0].pathAbsolute).toEqual('child.email');
                 expect(e.children[0].path).toEqual('email');
             }
         }

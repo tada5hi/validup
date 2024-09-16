@@ -36,7 +36,10 @@ export function createValidator(input: FactoryFn | ContextRunner) : Validator {
             ) as FieldValidationError[]);
 
             if (errors.length > 0) {
-                throw buildNestedError(errors, ctx.path);
+                throw buildNestedError(errors, {
+                    path: ctx.path,
+                    pathAbsolute: ctx.pathAbsolute,
+                });
             }
 
             return field.value;
