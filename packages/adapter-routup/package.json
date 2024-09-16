@@ -40,14 +40,14 @@
     "keywords": [],
     "license": "MIT",
     "devDependencies": {
-        "@routup/basic": "^1.4.0",
+        "@routup/basic": "^1.4.1",
         "@types/supertest": "^6.0.2",
         "routup": "^4.0.1",
         "supertest": "^7.0.0",
         "validup": "^0.1.6"
     },
     "peerDependencies": {
-        "@routup/basic": "^1.4.0",
+        "@routup/basic": "^1.4.1",
         "routup": "^4.0.1",
         "validup": "^0.1.6"
     }
