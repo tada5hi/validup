@@ -20,7 +20,7 @@ export function isOptionalValue(
     const optionValueNormalized = optionalValue || OptionalValue.UNDEFINED;
 
     if (optionValueNormalized === OptionalValue.NULL) {
-        return value === null;
+        return value === null || typeof value === 'undefined';
     }
 
     if (optionValueNormalized === OptionalValue.UNDEFINED) {
