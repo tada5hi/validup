@@ -23,6 +23,19 @@ describe('src/module', () => {
         expect(outcome.email).toEqual('foo@example.com');
     });
 
+    it('should validate with validator fn', async () => {
+        const validator = new Container<{ email: string }>();
+
+        validator.mount('email', createValidator(() => z.string().email()));
+
+        const outcome = await validator.run({
+            email: 'foo@example.com',
+        });
+
+        expect(outcome).toBeDefined();
+        expect(outcome.email).toEqual('foo@example.com');
+    });
+
     it('should not validate', async () => {
         const validator = new Container<{ email: string }>();
 

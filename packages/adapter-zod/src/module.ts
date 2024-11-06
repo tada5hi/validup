@@ -5,12 +5,21 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { Validator } from 'validup';
+import type { Validator, ValidatorContext } from 'validup';
 import type { ZodType } from 'zod';
 import { buildError } from './error';
 
-export function createValidator(zod: ZodType) : Validator {
+type ZodCreateFn = (ctx: ValidatorContext) => ZodType;
+
+export function createValidator(input: ZodCreateFn | ZodType) : Validator {
     return async (ctx): Promise<unknown> => {
+        let zod : ZodType;
+        if (typeof input === 'function') {
+            zod = input(ctx);
+        } else {
+            zod = input;
+        }
+
         const outcome = await zod.safeParseAsync(ctx.value);
         if (outcome.success) {
             return outcome.data;
