@@ -7,6 +7,10 @@
 
 import { distinctArray } from 'smob';
 
+export function buildErrorMessageForAttribute(key: string | number) {
+    return `The attribute ${String(key)} is invalid.`;
+}
+
 export function buildErrorMessageForAttributes(input: (number | string)[] | Record<string, any>) {
     let names: string[];
     if (Array.isArray(input)) {
@@ -23,5 +27,5 @@ export function buildErrorMessageForAttributes(input: (number | string)[] | Reco
         return `The attributes ${names.join(', ')} are invalid.`;
     }
 
-    return `The attribute ${String(names[0])} is invalid.`;
+    return buildErrorMessageForAttribute(names[0]);
 }

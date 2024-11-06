@@ -5,6 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { ValidupError } from './base';
+
 export type ValidupValidatorErrorOptions = {
     path: string,
     pathAbsolute?: string,
@@ -14,7 +16,7 @@ export type ValidupValidatorErrorOptions = {
     expected?: unknown
 };
 
-export class ValidupValidatorError extends Error {
+export class ValidupValidatorError extends ValidupError {
     readonly path: string;
 
     readonly pathAbsolute : string;

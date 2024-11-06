@@ -14,7 +14,7 @@ export type ValidupNestedErrorOptions = {
 };
 
 export class ValidupNestedError extends ValidupError {
-    children: ValidupValidatorError[];
+    readonly children: ValidupValidatorError[];
 
     constructor(options: ValidupNestedErrorOptions = {}) {
         super(options.message || 'One or many attributes may be invalid.');
