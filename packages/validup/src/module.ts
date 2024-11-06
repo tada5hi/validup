@@ -178,30 +178,28 @@ export class Container<
                 }
 
                 try {
-                    if (item.data instanceof Container) {
-                        if (
-                            item.optional &&
-                            isOptionalValue(value, item.optionalValue)
-                        ) {
-                            if (item.optionalInclude) {
-                                output[path] = value;
-                            }
-                        } else {
-                            const tmp = await item.data.run(
-                                isObject(value) ? value : {},
-                                {
-                                    group: options.group,
-                                    flat: true,
-                                    path: pathAbsolute,
-                                    pathsToInclude: options.pathsToInclude,
-                                    // todo: extract defaults for container
-                                },
-                            );
+                    if (
+                        item.optional &&
+                        isOptionalValue(value, item.optionalValue)
+                    ) {
+                        if (item.optionalInclude) {
+                            output[path] = value;
+                        }
+                    } else if (item.data instanceof Container) {
+                        const tmp = await item.data.run(
+                            isObject(value) ? value : {},
+                            {
+                                group: options.group,
+                                flat: true,
+                                path: pathAbsolute,
+                                pathsToInclude: options.pathsToInclude,
+                                // todo: extract defaults for container
+                            },
+                        );
 
-                            const tmpKeys = Object.keys(tmp);
-                            for (let k = 0; k < tmpKeys.length; k++) {
-                                output[this.mergePaths(path, tmpKeys[k])] = tmp[tmpKeys[k]];
-                            }
+                        const tmpKeys = Object.keys(tmp);
+                        for (let k = 0; k < tmpKeys.length; k++) {
+                            output[this.mergePaths(path, tmpKeys[k])] = tmp[tmpKeys[k]];
                         }
                     } else {
                         output[path] = await item.data({
@@ -211,6 +209,7 @@ export class Container<
                             pathAbsolute,
                             value,
                             data,
+                            group: options.group,
                         });
                     }
                 } catch (e) {

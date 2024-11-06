@@ -87,7 +87,11 @@ export type ValidatorContext = {
     /**
      * The input data of the current container.
      */
-    data: Record<string, any>
+    data: Record<string, any>,
+    /**
+     * Group in which the validator is called.
+     */
+    group?: string
 };
 export type Validator = (ctx: ValidatorContext) => Promise<unknown> | unknown;
 
@@ -98,7 +102,8 @@ export type ContainerMountOptions = {
     group?: string | string[],
 
     /**
-     * Specify if the mounted container has to be evaluated successfully.
+     * Specify if an optional value is also acceptable for the mount key.
+     * An optional value won't be passed to the underlying container/validator.
      *
      * default: false
      */

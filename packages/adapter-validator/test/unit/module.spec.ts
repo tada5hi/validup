@@ -45,6 +45,43 @@ describe('src/module', () => {
         expect(outcome.foo).toEqual([1]);
     });
 
+    it('should behave differently depending on group', async () => {
+        const validator = createValidator((ctx) => {
+            const chain = createValidationChain()
+                .isArray({ min: 1, max: 10 });
+
+            if (ctx.group === 'optional') {
+                return chain.optional({ values: 'null' });
+            }
+
+            return chain;
+        });
+
+        const container = new Container();
+        container.mount('foo', { group: 'required' }, validator);
+        container.mount('foo', { group: 'optional' }, validator);
+
+        expect.assertions(2);
+
+        const outcome = await container.run({
+            foo: null,
+        }, {
+            group: 'optional',
+        });
+
+        expect(outcome.foo).toEqual(null);
+
+        try {
+            await container.run({
+                foo: null,
+            }, {
+                group: 'required',
+            });
+        } catch (e) {
+            expect(e).toBeDefined();
+        }
+    });
+
     it('should not validate', async () => {
         expect.assertions(4);
 
