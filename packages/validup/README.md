@@ -165,7 +165,11 @@ type ValidatorContext = {
     /**
      * The input data of the current container.
      */
-    data: Record<string, any>
+    data: Record<string, any>,
+    /**
+     * The group name for which the validator is executed.
+     */
+    group?: string
 };
 ```
 

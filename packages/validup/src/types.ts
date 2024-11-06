@@ -89,7 +89,7 @@ export type ValidatorContext = {
      */
     data: Record<string, any>,
     /**
-     * Group in which the validator is called.
+     * The group name for which the validator is executed.
      */
     group?: string
 };
