@@ -126,6 +126,13 @@ export class Container<
             pathsToInclude = this.options.pathsToInclude as string[];
         }
 
+        let pathsToExclude : string[] | undefined;
+        if (options.pathsToExclude) {
+            pathsToExclude = options.pathsToExclude as string[];
+        } else if (this.options.pathsToInclude) {
+            pathsToExclude = this.options.pathsToExclude as string[];
+        }
+
         let itemCount = 0;
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
@@ -159,6 +166,13 @@ export class Container<
                 if (
                     typeof pathsToInclude !== 'undefined' &&
                     pathsToInclude.indexOf(path) === -1
+                ) {
+                    continue;
+                }
+
+                if (
+                    typeof pathsToExclude !== 'undefined' &&
+                    pathsToExclude.indexOf(path) !== -1
                 ) {
                     continue;
                 }

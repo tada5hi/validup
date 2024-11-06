@@ -21,7 +21,14 @@ export type ContainerOptions<T> = {
      * By default, all mounted containers/validators will
      * be considered for execution.
      */
-    pathsToInclude?: ObjectPropertyPath<T>[]
+    pathsToInclude?: ObjectPropertyPath<T>[],
+
+    /**
+     * Exclude mounted paths on execution.
+     * By default, all mounted containers/validators will
+     * be considered for execution.
+     */
+    pathsToExclude?: ObjectPropertyPath<T>[]
 };
 
 export type ContainerRunOptions<
@@ -51,6 +58,13 @@ export type ContainerRunOptions<
      * be considered for execution.
      */
     pathsToInclude?: ObjectPropertyPath<T>[]
+
+    /**
+     * Exclude mounted paths on execution.
+     * By default, all mounted containers/validators will
+     * be considered for execution.
+     */
+    pathsToExclude?: ObjectPropertyPath<T>[]
 };
 
 export type ValidatorContext = {
@@ -84,13 +98,6 @@ export type ContainerMountOptions = {
     group?: string | string[],
 
     /**
-     * Limit mounted paths on execution.
-     * By default, all mounted containers/validators will
-     * be considered for execution.
-     */
-    pathsToInclude?: string[],
-
-    /**
      * Specify if the mounted container has to be evaluated successfully.
      *
      * default: false
@@ -110,7 +117,7 @@ export type ContainerMountOptions = {
      *
      * default: false
      */
-    optionalInclude?: boolean
+    optionalInclude?: boolean,
 };
 
 export type ContainerItem = ContainerMountOptions & {
