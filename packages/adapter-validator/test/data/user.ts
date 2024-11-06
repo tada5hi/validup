@@ -6,7 +6,7 @@
  */
 
 import { Container } from 'validup';
-import { createValidator } from '../../src';
+import { createValidationChain, createValidator } from '../../src';
 
 export type User = {
     name: string,
@@ -19,14 +19,24 @@ export class UserValidator extends Container<User> {
     constructor() {
         super();
 
-        this.mount('name', createValidator((chain) => chain.exists()
-            .notEmpty()
-            .isLength({ min: 3, max: 128 })));
+        this.mount('name', createValidator(() => {
+            const chain = createValidationChain();
+            return chain.exists()
+                .notEmpty()
+                .isLength({ min: 3, max: 128 });
+        }));
 
-        this.mount('age', createValidator((chain) => chain.isNumeric()
-            .optional({ values: 'null' })));
+        this.mount('age', createValidator(() => {
+            const chain = createValidationChain();
 
-        this.mount('password', createValidator((chain) => chain
-            .isLength({ min: 3, max: 128 })));
+            return chain.isNumeric()
+                .optional({ values: 'null' });
+        }));
+
+        this.mount('password', createValidator(() => {
+            const chain = createValidationChain();
+            return chain
+                .isLength({ min: 3, max: 128 });
+        }));
     }
 }

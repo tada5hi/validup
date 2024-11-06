@@ -6,7 +6,7 @@
  */
 
 import { Container, ValidupNestedError } from 'validup';
-import { createValidator } from '../../src';
+import { createValidationChain, createValidator } from '../../src';
 import { UserValidator } from '../data/user';
 
 describe('src/module', () => {
@@ -29,7 +29,14 @@ describe('src/module', () => {
 
     it('should validate', async () => {
         const validator = new Container();
-        validator.mount('foo', createValidator((chain) => chain.isArray({ min: 1, max: 10 })));
+        validator.mount(
+            'foo',
+            createValidator(() => {
+                const chain = createValidationChain();
+
+                return chain.isArray({ min: 1, max: 10 });
+            }),
+        );
 
         const outcome = await validator.run({
             foo: [1],
@@ -42,7 +49,10 @@ describe('src/module', () => {
         expect.assertions(4);
 
         const validator = new Container();
-        validator.mount('foo', createValidator((chain) => chain.isArray({ min: 1, max: 10 })));
+        validator.mount('foo', createValidator(() => {
+            const chain = createValidationChain();
+            return chain.isArray({ min: 1, max: 10 });
+        }));
 
         try {
             await validator.run({
@@ -62,7 +72,11 @@ describe('src/module', () => {
         expect.assertions(4);
 
         const child = new Container();
-        child.mount('foo', createValidator((chain) => chain.isArray({ min: 1, max: 10 })));
+        child.mount('foo', createValidator(() => {
+            const chain = createValidationChain();
+
+            return chain.isArray({ min: 1, max: 10 });
+        }));
 
         const parent = new Container();
         parent.mount('child', child);

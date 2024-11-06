@@ -5,24 +5,27 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { ContextRunner, FieldValidationError, ValidationChain } from 'express-validator';
-import { body } from 'express-validator';
+import type { ContextRunner, FieldValidationError } from 'express-validator';
 import { distinctArray } from 'smob';
-import type { Validator } from 'validup';
+import type { Validator, ValidatorContext } from 'validup';
 import { ValidupError } from 'validup';
 import { buildNestedError } from './error';
 
-type FactoryFn = (chain: ValidationChain) => ContextRunner;
+type ContextRunnerCreateFn = (
+    ctx: ValidatorContext
+) => ContextRunner;
 
-export function createValidator(input: FactoryFn | ContextRunner) : Validator {
-    let runner : ContextRunner;
-    if (typeof input === 'function') {
-        runner = input(body());
-    } else {
-        runner = input;
-    }
-
+export function createValidator(
+    input: ContextRunnerCreateFn | ContextRunner,
+) : Validator {
     return async (ctx): Promise<unknown> => {
+        let runner : ContextRunner;
+        if (typeof input === 'function') {
+            runner = input(ctx);
+        } else {
+            runner = input;
+        }
+
         const outcome = await runner.run({
             body: ctx.value,
         });

@@ -5,5 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export * from './chain';
-export * from './module';
+import { type ValidationChain, body } from 'express-validator';
+
+export function createValidationChain() : ValidationChain {
+    return body();
+}
