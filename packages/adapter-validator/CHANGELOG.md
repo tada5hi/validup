@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.0](https://github.com/tada5hi/validup/compare/adapter-validator-v0.1.7...adapter-validator-v0.2.0) (2024-11-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* signature changed
+
+### Features
+
+* pass group to underlying validator on container execution ([6e44105](https://github.com/tada5hi/validup/commit/6e44105ce5e0c32e926f12e3516ee8fc4683864e))
+* refactored signature of context runner create fn ([10b0502](https://github.com/tada5hi/validup/commit/10b0502bb7c01db70d790647a39dad2ae0595d16))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.1.7 to ^0.1.8
+
 ## [0.1.7](https://github.com/tada5hi/validup/compare/adapter-validator-v0.1.6...adapter-validator-v0.1.7) (2024-09-16)
 
 

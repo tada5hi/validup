@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.8](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.7...adapter-zod-v0.1.8) (2024-11-06)
+
+
+### Features
+
+* add zod create fn support ([f19c0f0](https://github.com/tada5hi/validup/commit/f19c0f0da09f637c7921346dcf492d3a952b7822))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.1.7 to ^0.1.8
+
 ## [0.1.7](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.6...adapter-zod-v0.1.7) (2024-09-16)
 
 

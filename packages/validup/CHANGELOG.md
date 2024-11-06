@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.8](https://github.com/tada5hi/validup/compare/validup-v0.1.7...validup-v0.1.8) (2024-11-06)
+
+
+### Features
+
+* additional helper for error message building ([928bc8b](https://github.com/tada5hi/validup/commit/928bc8bfcb6aa9c207512905d1857136fbf15219))
+* introduce pathsToExclude option ([bd69ec7](https://github.com/tada5hi/validup/commit/bd69ec7e3b71e001a75a27f492316e64c4bf122c))
+* pass group to underlying validator on container execution ([6e44105](https://github.com/tada5hi/validup/commit/6e44105ce5e0c32e926f12e3516ee8fc4683864e))
+
+
+### Bug Fixes
+
+* **deps:** bump pathtrace from 1.0.0 to 1.1.0 ([#123](https://github.com/tada5hi/validup/issues/123)) ([f1ad75a](https://github.com/tada5hi/validup/commit/f1ad75a7d54bc88dce7d311110bd233470b983f7))
+* optional value check ([bc2359a](https://github.com/tada5hi/validup/commit/bc2359af0e03ff84860a9a392c0e41e27f580cc8))
+
 ## [0.1.7](https://github.com/tada5hi/validup/compare/validup-v0.1.6...validup-v0.1.7) (2024-09-16)
 
 
