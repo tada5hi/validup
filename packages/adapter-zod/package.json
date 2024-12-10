@@ -43,9 +43,9 @@
         "validup": "^0.1.8"
     },
     "devDependencies": {
-        "zod": "^3.23.8"
+        "zod": "^3.24.0"
     },
     "peerDependencies": {
-        "zod": "^3.23.8"
+        "zod": "^3.24.0"
     }
 }
