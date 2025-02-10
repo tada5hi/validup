@@ -215,8 +215,15 @@ export class Container<
                 } catch (e) {
                     if (e instanceof ValidupValidatorError) {
                         errors.push(e);
+                        errorKeys.push(pathAbsolute);
                     } else if (e instanceof ValidupNestedError) {
                         errors.push(...e.children);
+
+                        if (pathAbsolute.length > 0) {
+                            errorKeys.push(pathAbsolute);
+                        } else {
+                            errorKeys.push(...e.children.map((child) => child.pathAbsolute));
+                        }
                     } else {
                         const error = new ValidupValidatorError({
                             path,
@@ -230,9 +237,8 @@ export class Container<
                         }
 
                         errors.push(error);
+                        errorKeys.push(pathAbsolute);
                     }
-
-                    errorKeys.push(pathAbsolute);
                 }
 
                 pathsCount++;

@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { Container, ValidupNestedError } from 'validup';
+import { Container, ValidupNestedError, buildErrorMessageForAttributes } from 'validup';
 import { createValidator } from '../../src';
 
 describe('src/module', () => {
@@ -73,9 +73,34 @@ describe('src/module', () => {
             });
         } catch (e) {
             if (e instanceof ValidupNestedError) {
+                expect(e.message).toEqual(buildErrorMessageForAttributes(['child']));
                 expect(e.children).toBeDefined();
                 expect(e.children).toHaveLength(1);
                 expect(e.children[0].pathAbsolute).toEqual('child.email');
+                expect(e.children[0].path).toEqual('email');
+            }
+        }
+    });
+
+    it('should not validate nested container with empty child mount path', async () => {
+        const child = new Container<{ email: string }>();
+        child.mount('email', createValidator(z.string().email()));
+
+        const parent = new Container<{child: { email: string }}>();
+        parent.mount(child);
+
+        try {
+            await parent.run({
+                child: {
+                    email: 'foo',
+                },
+            });
+        } catch (e) {
+            if (e instanceof ValidupNestedError) {
+                expect(e.message).toEqual(buildErrorMessageForAttributes(['email']));
+                expect(e.children).toBeDefined();
+                expect(e.children).toHaveLength(1);
+                expect(e.children[0].pathAbsolute).toEqual('email');
                 expect(e.children[0].path).toEqual('email');
             }
         }
