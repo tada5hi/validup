@@ -1,6 +1,6 @@
 {
     "name": "@validup/adapter-validator",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "description": "A validator.js adapter for validup.",
     "author": {
         "name": "Peter Placzek",
@@ -40,7 +40,7 @@
     "keywords": [],
     "license": "MIT",
     "dependencies": {
-        "validup": "^0.1.8",
+        "validup": "^0.1.9",
         "smob": "^1.5.0"
     },
     "devDependencies": {

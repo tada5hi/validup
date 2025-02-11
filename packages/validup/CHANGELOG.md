@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/tada5hi/validup/compare/validup-v0.1.8...validup-v0.1.9) (2025-02-10)
+
+
+### Bug Fixes
+
+* use child error paths if parent mount path is empty ([8db0d3b](https://github.com/tada5hi/validup/commit/8db0d3b92fdf2587dd961236531eb0b6e20cea36))
+
 ## [0.1.8](https://github.com/tada5hi/validup/compare/validup-v0.1.7...validup-v0.1.8) (2024-11-06)
 
 

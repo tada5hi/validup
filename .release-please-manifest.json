@@ -1,6 +1,6 @@
 {
-    "packages/validup": "0.1.8",
-    "packages/adapter-routup": "0.1.9",
-    "packages/adapter-validator": "0.2.0",
-    "packages/adapter-zod": "0.1.8"
+    "packages/validup": "0.1.9",
+    "packages/adapter-routup": "0.1.10",
+    "packages/adapter-validator": "0.2.1",
+    "packages/adapter-zod": "0.1.9"
 }
