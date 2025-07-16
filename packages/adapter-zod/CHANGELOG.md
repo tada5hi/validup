@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.9...adapter-zod-v0.1.10) (2025-07-16)
+
+
+### Bug Fixes
+
+* **deps:** bump zod to v4.0.0 ([01fe0be](https://github.com/tada5hi/validup/commit/01fe0be9d9686ca71c3809857e93db65e8a3a22a))
+
 ## [0.1.9](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.8...adapter-zod-v0.1.9) (2025-02-10)
 
 
