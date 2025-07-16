@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.11](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.10...adapter-zod-v0.1.11) (2025-07-16)
+
+
+### Bug Fixes
+
+* error issue path access ([ea7e9a0](https://github.com/tada5hi/validup/commit/ea7e9a06b639defce4a1a5cac9131acfcbe18233))
+
 ## [0.1.10](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.9...adapter-zod-v0.1.10) (2025-07-16)
 
 
