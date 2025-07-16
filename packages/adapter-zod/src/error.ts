@@ -8,7 +8,7 @@
 import { ValidupNestedError, ValidupValidatorError, hasOwnProperty } from 'validup';
 import type { ZodError } from 'zod';
 
-type ErrorBuildOptions = {
+export type ErrorBuildOptions = {
     path: string,
     pathAbsolute?: string,
 };
@@ -32,12 +32,14 @@ export function buildError(error: ZodError, options: ErrorBuildOptions) {
         let { path } = options;
         if (issue.path) {
             for (let j = 0; j < issue.path.length; j++) {
-                if (typeof issue.path[j] === 'string') {
-                    path += `.${issue.path[j]}`;
+                const item = issue.path[j];
+
+                if (typeof item === 'string') {
+                    path += `.${item}`;
                 }
 
-                if (typeof issue.path[j] === 'number') {
-                    path += `[${issue.path[j]}]`;
+                if (typeof item === 'number') {
+                    path += `[${item}]`;
                 }
             }
         }

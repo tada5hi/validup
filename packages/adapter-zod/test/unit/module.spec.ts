@@ -51,7 +51,7 @@ describe('src/module', () => {
             if (e instanceof ValidupNestedError) {
                 expect(e.children).toBeDefined();
                 expect(e.children).toHaveLength(1);
-                expect(e.children[0].message).toEqual('Invalid email');
+                expect(e.children[0].message).toEqual('Invalid email address');
                 expect(e.children[0].path).toEqual('email');
                 expect(e.children[0].pathAbsolute).toEqual('email');
             }
@@ -126,11 +126,11 @@ describe('src/module', () => {
                 expect(e.children).toBeDefined();
                 expect(e.children).toHaveLength(2);
 
-                expect(e.children[0].message).toEqual('Array must contain at least 2 element(s)');
-                expect(e.children[0].path).toEqual('foo.bar');
+                expect(e.children[0].message).toEqual('Invalid input: expected string, received number');
+                expect(e.children[0].path).toEqual('foo.bar[0]');
 
-                expect(e.children[1].message).toEqual('Expected string, received number');
-                expect(e.children[1].path).toEqual('foo.bar[0]');
+                expect(e.children[1].message).toEqual('Too small: expected array to have >=2 items');
+                expect(e.children[1].path).toEqual('foo.bar');
             }
         }
     });
