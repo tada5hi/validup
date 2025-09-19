@@ -38,7 +38,7 @@
         "@tada5hi/tsconfig": "^0.6.0",
         "@types/jest": "^30.0.0",
         "@types/node": "^24.0.14",
-        "cross-env": "^7.0.3",
+        "cross-env": "^10.0.0",
         "eslint": "^8.57.0",
         "husky": "^9.1.7",
         "jest": "^30.0.4",
