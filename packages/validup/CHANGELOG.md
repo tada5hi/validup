@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/tada5hi/validup/compare/validup-v0.1.9...validup-v0.1.10) (2025-12-08)
+
+
+### Features
+
+* more flexible container implementation ([66c12c6](https://github.com/tada5hi/validup/commit/66c12c62cd4663602d8e074110044a6c28faba35))
+
 ## [0.1.9](https://github.com/tada5hi/validup/compare/validup-v0.1.8...validup-v0.1.9) (2025-02-10)
 
 

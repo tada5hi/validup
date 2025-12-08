@@ -1,6 +1,6 @@
 {
     "name": "@validup/adapter-routup",
-    "version": "0.1.10",
+    "version": "0.1.11",
     "description": "A routup adapter for validup.",
     "author": {
         "name": "Peter Placzek",
@@ -44,11 +44,11 @@
         "@types/supertest": "^6.0.2",
         "routup": "^4.0.2",
         "supertest": "^7.1.4",
-        "validup": "^0.1.9"
+        "validup": "^0.1.10"
     },
     "peerDependencies": {
         "@routup/basic": "^1.4.3",
         "routup": "^4.0.2",
-        "validup": "^0.1.9"
+        "validup": "^0.1.10"
     }
 }
