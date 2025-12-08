@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.11](https://github.com/tada5hi/validup/compare/adapter-routup-v0.1.10...adapter-routup-v0.1.11) (2025-12-08)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * validup bumped from ^0.1.9 to ^0.1.10
+  * peerDependencies
+    * validup bumped from ^0.1.9 to ^0.1.10
+
 ## [0.1.10](https://github.com/tada5hi/validup/compare/adapter-routup-v0.1.9...adapter-routup-v0.1.10) (2025-02-10)
 
 
