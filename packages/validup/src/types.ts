@@ -5,67 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { OptionalValue } from './constants';
-import type { Container } from './module';
-
 export type ObjectLiteral = Record<string | number, any>;
-
-export type ContainerOptions<T> = {
-    /**
-     * Only one of the mounted container/validators must succeed.
-     */
-    oneOf?: boolean,
-
-    /**
-     * Limit mounted paths on execution.
-     * By default, all mounted containers/validators will
-     * be considered for execution.
-     */
-    pathsToInclude?: ObjectPropertyPath<T>[],
-
-    /**
-     * Exclude mounted paths on execution.
-     * By default, all mounted containers/validators will
-     * be considered for execution.
-     */
-    pathsToExclude?: ObjectPropertyPath<T>[]
-};
-
-export type ContainerRunOptions<
-    T extends Record<string, any> = Record<string, any>,
-> = {
-    /**
-     * Default values for the container output.
-     */
-    defaults?: {
-        [Key in ObjectPropertyPath<T>]: any
-    },
-    /**
-     * Group to execute.
-     */
-    group?: string,
-    /**
-     * Output flat object?
-     */
-    flat?: boolean,
-    /**
-     * Passed path from the parent container.
-     */
-    path?: string,
-    /**
-     * Limit mounted paths on execution.
-     * By default, all mounted containers/validators will
-     * be considered for execution.
-     */
-    pathsToInclude?: ObjectPropertyPath<T>[]
-
-    /**
-     * Exclude mounted paths on execution.
-     * By default, all mounted containers/validators will
-     * be considered for execution.
-     */
-    pathsToExclude?: ObjectPropertyPath<T>[]
-};
 
 export type ValidatorContext = {
     /**
@@ -94,41 +34,6 @@ export type ValidatorContext = {
     group?: string
 };
 export type Validator = (ctx: ValidatorContext) => Promise<unknown> | unknown;
-
-export type ContainerMountOptions = {
-    /**
-     * Group(s) to execute.
-     */
-    group?: string | string[],
-
-    /**
-     * Specify if an optional value is also acceptable for the mount key.
-     * An optional value won't be passed to the underlying container/validator.
-     *
-     * default: false
-     */
-    optional?: boolean,
-
-    /**
-     * Which values are considered optional.
-     * An optional value won't be passed to the underlying container/validator.
-     *
-     * default: 'undefined'
-     */
-    optionalValue?: `${OptionalValue}`,
-
-    /**
-     * Include optional value as property in output.
-     *
-     * default: false
-     */
-    optionalInclude?: boolean,
-};
-
-export type ContainerItem = ContainerMountOptions & {
-    path?: string,
-    data: Validator | Container
-};
 
 type ArrayElement<ArrayType extends readonly unknown[]> =
     ArrayType extends readonly (infer ElementType)[] ? ElementType : never;

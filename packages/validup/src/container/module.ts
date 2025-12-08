@@ -1,28 +1,28 @@
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2024-2025.
  * Author Peter Placzek (tada5hi)
  * For the full copyright and license information,
  * view the LICENSE file that was distributed with this source code.
  */
 
 import { expandPath, getPathValue, setPathValue } from 'pathtrace';
-import { GroupKey } from './constants';
-import { ValidupNestedError, ValidupValidatorError } from './errors';
-import { buildErrorMessageForAttributes, isOptionalValue } from './helpers';
+import { GroupKey } from '../constants';
+import { ValidupNestedError, ValidupValidatorError } from '../errors';
+import { buildErrorMessageForAttributes, isOptionalValue } from '../helpers';
 import type {
-    ContainerItem,
-    ContainerMountOptions,
-    ContainerOptions,
-    ContainerRunOptions,
     ObjectPropertyPath,
     ObjectPropertyPathExtended,
     Validator,
+} from '../types';
+import { hasOwnProperty, isObject } from '../utils';
+import { isContainer } from './check';
+import type {
+    ContainerItem, ContainerMountOptions, ContainerOptions, ContainerRunOptions, IContainer,
 } from './types';
-import { hasOwnProperty, isObject } from './utils';
 
 export class Container<
     T extends Record<string, any> = Record<string, any>,
-> {
+> implements IContainer {
     protected options : ContainerOptions<T>;
 
     protected items : ContainerItem[];
@@ -38,22 +38,22 @@ export class Container<
 
     // ----------------------------------------------
 
-    mount(container: Container) : void;
+    mount(container: IContainer) : void;
 
     mount(
         options: ContainerMountOptions,
-        container: Container
+        container: IContainer
     ): void;
 
     mount(
         key: ObjectPropertyPathExtended<T>,
-        data: Container | Validator
+        data: IContainer | Validator
     ) : void;
 
     mount(
         key: ObjectPropertyPathExtended<T>,
         options: ContainerMountOptions,
-        data: Container | Validator
+        data: IContainer | Validator
     ) : void;
 
     mount(...args: any[]) : void {
@@ -63,29 +63,31 @@ export class Container<
 
         let path : string | undefined;
 
-        let data: Container | Validator | undefined;
+        let data: IContainer | Validator | undefined;
         let dataIsContainer : boolean = false;
 
         let options: ContainerMountOptions = {};
 
         for (let i = 0; i < args.length; i++) {
-            if (typeof args[i] === 'string') {
-                path = args[i];
+            const arg = args[i];
+
+            if (typeof arg === 'string') {
+                path = arg;
                 continue;
             }
 
-            if (typeof args[i] === 'function') {
-                data = args[i];
+            if (typeof arg === 'function') {
+                data = arg;
                 continue;
             }
 
-            if (args[i] instanceof Container) {
-                data = args[i];
+            if (isContainer(arg)) {
+                data = arg;
                 dataIsContainer = true;
                 continue;
             }
 
-            if (isObject(args[i])) {
+            if (isObject(arg)) {
                 options = args[i];
             }
         }
@@ -185,7 +187,7 @@ export class Container<
                         if (item.optionalInclude) {
                             output[path] = value;
                         }
-                    } else if (item.data instanceof Container) {
+                    } else if (isContainer(item.data)) {
                         const tmp = await item.data.run(
                             isObject(value) ? value : {},
                             {
