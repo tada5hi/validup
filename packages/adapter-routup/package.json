@@ -42,13 +42,13 @@
     "devDependencies": {
         "@routup/basic": "^1.4.3",
         "@types/supertest": "^6.0.2",
-        "routup": "^4.0.2",
-        "supertest": "^7.1.4",
+        "routup": "^4.1.0",
+        "supertest": "^7.2.2",
         "validup": "^0.1.10"
     },
     "peerDependencies": {
         "@routup/basic": "^1.4.3",
-        "routup": "^4.0.2",
+        "routup": "^4.1.0",
         "validup": "^0.1.10"
     }
 }
