@@ -5,25 +5,16 @@
  *  view the LICENSE file that was distributed with this source code.
  */
 
-import type { IssueCode, IssueSeverity } from './constants';
-
 export interface Issue {
     /**
      * Code identifying the issue
      */
-    // eslint-disable-next-line @typescript-eslint/ban-types
-    code: `${IssueCode}` | (string & {}),
+    code?: string,
 
     /**
      * Context in which the issue occurred.
      */
-    meta? :Record<string, any>,
-
-    /**
-     * Issue severity level (warning, info, error)
-     */
-    // eslint-disable-next-line @typescript-eslint/ban-types
-    severity: `${IssueSeverity}` | (string & {}),
+    meta?: Record<string, unknown>,
 
     /**
      * Received input value.
@@ -43,13 +34,5 @@ export interface Issue {
     /**
      * Issue message.
      */
-    message: string,
-
-    /**
-     * Sub issues
-     */
-    issues: Issue[],
+    message: string
 }
-
-export type IssueInput = Omit<Issue, 'severity' | 'code' | 'issues'> &
-Partial<Pick<Issue, 'severity' | 'code' | 'issues'>>;

@@ -16,7 +16,6 @@ import type {
     ContainerItem, ContainerMountOptions, ContainerOptions, ContainerRunOptions, IContainer,
 } from './types';
 import type { Issue } from '../issue';
-import { IssueSeverity, defineIssue } from '../issue';
 
 export class Container<
     T extends Record<string, any> = Record<string, any>,
@@ -226,9 +225,6 @@ export class Container<
                     if (e instanceof ValidupError) {
                         for (let i = 0; i < e.issues.length; i++) {
                             const issue = e.issues[i];
-                            if (!issue.severity || issue.severity === IssueSeverity.ERROR) {
-                                errors++;
-                            }
 
                             childIssues.push({
                                 ...issue,
@@ -238,18 +234,15 @@ export class Container<
                                 ],
                             });
                         }
-                    } else {
-                        errors++;
-
-                        if (path) {
-                            childIssues.push(defineIssue({
-                                message: `The validation of property ${path} failed`,
-                                path: [path],
-                            }));
-                        }
+                    } else if (path) {
+                        childIssues.push({
+                            message: `The validation of property ${path} failed`,
+                            path: [path],
+                        });
                     }
 
                     issues.push(...childIssues);
+                    errors++;
                 }
 
                 pathsCount++;

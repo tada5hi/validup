@@ -6,7 +6,6 @@
  */
 
 import type { ValidationError } from 'express-validator/lib/base';
-import { IssueCode, defineIssue } from 'validup';
 import type { Issue } from 'validup';
 
 function buildIssuesForError(
@@ -15,12 +14,11 @@ function buildIssuesForError(
     const output : Issue[] = [];
     switch (error.type) {
         case 'field': {
-            output.push(defineIssue({
-                code: IssueCode.INVALID_VALUE,
+            output.push({
                 path: error.path ? [error.path] : [],
                 received: error.value,
                 message: error.msg,
-            }));
+            });
             break;
         }
         case 'alternative': {
