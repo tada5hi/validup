@@ -7,18 +7,16 @@
 
 import { expandPath, getPathValue, setPathValue } from 'pathtrace';
 import { GroupKey } from '../constants';
-import { ValidupNestedError, ValidupValidatorError } from '../errors';
-import { buildErrorMessageForAttributes, isOptionalValue } from '../helpers';
-import type {
-    ObjectPropertyPath,
-    ObjectPropertyPathExtended,
-    Validator,
-} from '../types';
+import { ValidupError } from '../errors';
+import { isOptionalValue } from '../helpers';
+import type { ObjectPropertyPath, ObjectPropertyPathExtended, Validator } from '../types';
 import { hasOwnProperty, isObject } from '../utils';
 import { isContainer } from './check';
 import type {
     ContainerItem, ContainerMountOptions, ContainerOptions, ContainerRunOptions, IContainer,
 } from './types';
+import type { Issue } from '../issue';
+import { IssueSeverity, defineIssue } from '../issue';
 
 export class Container<
     T extends Record<string, any> = Record<string, any>,
@@ -112,15 +110,15 @@ export class Container<
 
     // ----------------------------------------------
 
+    /**
+     * @throws ValidupError
+     * @param data
+     * @param options
+     */
     async run(
         data: Record<string, any> = {},
         options: ContainerRunOptions<T> = {},
     ): Promise<T> {
-        const output: Record<string, any> = {};
-
-        const errors: ValidupValidatorError[] = [];
-        const errorKeys : string[] = [];
-
         let pathsToInclude : string[] | undefined;
         if (options.pathsToInclude) {
             pathsToInclude = options.pathsToInclude as string[];
@@ -135,11 +133,17 @@ export class Container<
             pathsToExclude = this.options.pathsToExclude as string[];
         }
 
+        const output: Record<string, any> = {};
+
+        let errors : number = 0;
+        const issues : Issue[] = [];
+
         let itemCount = 0;
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
 
             if (!this.isItemGroupIncluded(item, options.group)) {
+                // todo: maybe add issue info
                 continue;
             }
 
@@ -169,6 +173,7 @@ export class Container<
                     typeof pathsToInclude !== 'undefined' &&
                     pathsToInclude.indexOf(path) === -1
                 ) {
+                    // todo: maybe add issue info
                     continue;
                 }
 
@@ -176,6 +181,7 @@ export class Container<
                     typeof pathsToExclude !== 'undefined' &&
                     pathsToExclude.indexOf(path) !== -1
                 ) {
+                    // todo: maybe add issue info
                     continue;
                 }
 
@@ -215,32 +221,35 @@ export class Container<
                         });
                     }
                 } catch (e) {
-                    if (e instanceof ValidupValidatorError) {
-                        errors.push(e);
-                        errorKeys.push(pathAbsolute);
-                    } else if (e instanceof ValidupNestedError) {
-                        errors.push(...e.children);
+                    const childIssues : Issue[] = [];
 
-                        if (pathAbsolute.length > 0) {
-                            errorKeys.push(pathAbsolute);
-                        } else {
-                            errorKeys.push(...e.children.map((child) => child.pathAbsolute));
+                    if (e instanceof ValidupError) {
+                        for (let i = 0; i < e.issues.length; i++) {
+                            const issue = e.issues[i];
+                            if (!issue.severity || issue.severity === IssueSeverity.ERROR) {
+                                errors++;
+                            }
+
+                            childIssues.push({
+                                ...issue,
+                                path: [
+                                    ...(path ? [path] : []),
+                                    ...(issue.path || []),
+                                ],
+                            });
                         }
                     } else {
-                        const error = new ValidupValidatorError({
-                            path,
-                            pathAbsolute,
-                            received: value,
-                        });
+                        errors++;
 
-                        if (e instanceof Error) {
-                            error.cause = e;
-                            error.message = e.message;
+                        if (path) {
+                            childIssues.push(defineIssue({
+                                message: `The validation of property ${path} failed`,
+                                path: [path],
+                            }));
                         }
-
-                        errors.push(error);
-                        errorKeys.push(pathAbsolute);
                     }
+
+                    issues.push(...childIssues);
                 }
 
                 pathsCount++;
@@ -252,11 +261,11 @@ export class Container<
         }
 
         if (this.options.oneOf) {
-            if (errors.length === itemCount) {
-                throw new ValidupNestedError({ message: buildErrorMessageForAttributes(errorKeys), children: errors });
+            if (errors === itemCount) {
+                throw new ValidupError(issues);
             }
-        } else if (errors.length > 0) {
-            throw new ValidupNestedError({ message: buildErrorMessageForAttributes(errorKeys), children: errors });
+        } else if (errors > 0) {
+            throw new ValidupError(issues);
         }
 
         if (options.defaults) {

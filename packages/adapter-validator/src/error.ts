@@ -6,41 +6,33 @@
  */
 
 import type { ValidationError } from 'express-validator/lib/base';
-import { ValidupNestedError, ValidupValidatorError, buildErrorMessageForAttributes } from 'validup';
+import { IssueCode, defineIssue } from 'validup';
+import type { Issue } from 'validup';
 
-type ErrorOptions = {
-    path: string,
-    pathAbsolute?: string
-};
-
-function generateAttributeErrors(
+function buildIssuesForError(
     error: ValidationError,
-    options: ErrorOptions,
-) : ValidupValidatorError[] {
-    const output : ValidupValidatorError[] = [];
+) : Issue[] {
+    const output : Issue[] = [];
     switch (error.type) {
         case 'field': {
-            const name = error.path || options.path;
-            const message = error.msg || buildErrorMessageForAttributes([name]);
-
-            output.push(new ValidupValidatorError({
-                path: name,
-                pathAbsolute: options.pathAbsolute || options.path,
+            output.push(defineIssue({
+                code: IssueCode.INVALID_VALUE,
+                path: error.path ? [error.path] : [],
                 received: error.value,
-                message,
+                message: error.msg,
             }));
             break;
         }
         case 'alternative': {
             for (let i = 0; i < error.nestedErrors.length; i++) {
-                output.push(...generateAttributeErrors(error.nestedErrors[i], options));
+                output.push(...buildIssuesForError(error.nestedErrors[i]));
             }
             break;
         }
         case 'alternative_grouped': {
             for (let i = 0; i < error.nestedErrors.length; i++) {
                 for (let j = 0; j < error.nestedErrors[i].length; j++) {
-                    output.push(...generateAttributeErrors(error.nestedErrors[i][j], options));
+                    output.push(...buildIssuesForError(error.nestedErrors[i][j]));
                 }
             }
         }
@@ -49,21 +41,13 @@ function generateAttributeErrors(
     return output;
 }
 
-export function buildNestedError(
+export function buildIssuesForErrors(
     errors: ValidationError[],
-    options: ErrorOptions,
-): ValidupNestedError {
-    const base = new ValidupNestedError();
-    const names : (number | string)[] = [];
+): Issue[] {
+    const issues : Issue[] = [];
     for (let i = 0; i < errors.length; i++) {
-        const children = generateAttributeErrors(errors[i], options);
-        for (let j = 0; j < children.length; j++) {
-            base.addChild(children[j]);
-            names.push(children[j].path);
-        }
+        issues.push(...buildIssuesForError(errors[i]));
     }
 
-    base.message = buildErrorMessageForAttributes(names);
-
-    return base;
+    return issues;
 }

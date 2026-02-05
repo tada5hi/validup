@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { Container, ValidupNestedError } from 'validup';
+import { Container, ValidupError } from 'validup';
 import { createValidationChain, createValidator } from '../../src';
 import { UserValidator } from '../data/user';
 
@@ -83,7 +83,7 @@ describe('src/module', () => {
     });
 
     it('should not validate', async () => {
-        expect.assertions(4);
+        expect.assertions(3);
 
         const validator = new Container();
         validator.mount('foo', createValidator(() => {
@@ -96,17 +96,16 @@ describe('src/module', () => {
                 foo: [],
             });
         } catch (e) {
-            if (e instanceof ValidupNestedError) {
-                expect(e.children).toBeDefined();
-                expect(e.children).toHaveLength(1);
-                expect(e.children[0].path).toEqual('foo');
-                expect(e.children[0].pathAbsolute).toEqual('foo');
+            if (e instanceof ValidupError) {
+                expect(e.issues).toBeDefined();
+                expect(e.issues).toHaveLength(1);
+                expect(e.issues[0].path).toEqual(['foo']);
             }
         }
     });
 
     it('should not validate nested container', async () => {
-        expect.assertions(4);
+        expect.assertions(2);
 
         const child = new Container();
         child.mount('foo', createValidator(() => {
@@ -125,11 +124,9 @@ describe('src/module', () => {
                 },
             });
         } catch (e) {
-            if (e instanceof ValidupNestedError) {
-                expect(e.children).toBeDefined();
-                expect(e.children).toHaveLength(1);
-                expect(e.children[0].path).toEqual('foo');
-                expect(e.children[0].pathAbsolute).toEqual('child.foo');
+            if (e instanceof ValidupError) {
+                expect(e.issues).toHaveLength(1);
+                expect(e.issues[0].path).toEqual(['child', 'foo']);
             }
         }
     });
