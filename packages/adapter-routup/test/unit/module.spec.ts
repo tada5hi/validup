@@ -7,17 +7,15 @@
 
 import { basic } from '@routup/basic';
 import { Router, coreHandler, createNodeDispatcher } from 'routup';
-import { Container, ValidupValidatorError } from 'validup';
+import { Container, ValidupError } from 'validup';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import supertest from 'supertest';
 import { RoutupContainerAdapter } from '../../src';
 
 const container = new Container<{ token: string }>();
-container.mount('token', ({ path, value }) => {
+container.mount('token', ({ value }) => {
     if (typeof value !== 'string') {
-        throw new ValidupValidatorError({
-            path,
-        });
+        throw new ValidupError();
     }
 
     return value;
