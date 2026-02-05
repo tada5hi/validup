@@ -33,7 +33,7 @@ export interface Issue {
     /**
      * Expected input value.
      */
-    expected?: unknown
+    expected?: unknown,
 
     /**
      * Issue path.

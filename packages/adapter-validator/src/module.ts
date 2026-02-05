@@ -7,9 +7,8 @@
 
 import type { ContextRunner, FieldValidationError } from 'express-validator';
 import { distinctArray } from 'smob';
-import type { Validator, ValidatorContext } from 'validup';
+import type { Issue, Validator, ValidatorContext } from 'validup';
 import { ValidupError } from 'validup';
-import type { Issue } from 'validup/src/issue';
 import { buildIssuesForErrors } from './error';
 
 type ContextRunnerCreateFn = (
