@@ -5,7 +5,7 @@
  *  view the LICENSE file that was distributed with this source code.
  */
 
-export interface Issue {
+export interface IssueBase {
     /**
      * Code identifying the issue
      */
@@ -17,16 +17,6 @@ export interface Issue {
     meta?: Record<string, unknown>,
 
     /**
-     * Received input value.
-     */
-    received?: unknown,
-
-    /**
-     * Expected input value.
-     */
-    expected?: unknown,
-
-    /**
      * Issue path.
      */
     path: PropertyKey[],
@@ -36,3 +26,31 @@ export interface Issue {
      */
     message: string
 }
+
+export interface IssueItem extends IssueBase {
+    /**
+     * Issue Type
+     */
+    type: 'item',
+
+    /**
+     * Received input value.
+     */
+    received?: unknown,
+
+    /**
+     * Expected input value.
+     */
+    expected?: unknown,
+}
+
+export interface IssueGroup extends IssueBase {
+    /**
+     * Issue Type
+     */
+    type: 'group',
+
+    issues: Issue[]
+}
+
+export type Issue = IssueGroup | IssueItem;

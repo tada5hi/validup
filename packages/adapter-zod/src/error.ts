@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { hasOwnProperty } from 'validup';
+import { defineIssueItem, hasOwnProperty } from 'validup';
 import type { ZodError } from 'zod';
 import type { Issue } from 'validup';
 
@@ -25,12 +25,12 @@ export function buildIssues(error: ZodError) {
             received = issue.received;
         }
 
-        issues.push({
+        issues.push(defineIssueItem({
             path: issue.path || [],
             message: issue.message,
             expected,
             received,
-        });
+        }));
     }
 
     return issues;

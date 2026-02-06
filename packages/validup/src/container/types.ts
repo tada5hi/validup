@@ -51,7 +51,7 @@ export type ContainerRunOptions<
     /**
      * Passed path from the parent container.
      */
-    path?: string,
+    path?: string[],
     /**
      * Limit mounted paths on execution.
      * By default, all mounted containers/validators will

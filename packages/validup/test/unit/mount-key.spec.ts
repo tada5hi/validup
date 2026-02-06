@@ -27,8 +27,7 @@ describe('module/mount-key', () => {
         });
 
         expect(output['baz.foo.bar']).toMatchObject({
-            pathAbsolute: 'baz.foo.bar',
-            pathRaw: 'foo.bar',
+            path: ['baz', 'foo', 'bar'],
             value: 1,
         } satisfies Partial<ValidatorContext>);
     });
@@ -47,14 +46,12 @@ describe('module/mount-key', () => {
         });
 
         expect(output.foo).toMatchObject({
-            pathAbsolute: 'foo',
-            pathRaw: 'foo',
+            path: ['foo'],
             value: 'bar',
         } satisfies Partial<ValidatorContext>);
 
         expect(output.bar).toMatchObject({
-            pathAbsolute: 'bar',
-            pathRaw: 'bar',
+            path: ['bar'],
             value: 'baz',
         } satisfies Partial<ValidatorContext>);
     });
@@ -72,8 +69,7 @@ describe('module/mount-key', () => {
         });
 
         expect(output['foo.bar']).toMatchObject({
-            pathAbsolute: 'foo.bar',
-            pathRaw: 'foo.bar',
+            path: ['foo', 'bar'],
             value: 1,
         } satisfies Partial<ValidatorContext>);
     });
@@ -89,8 +85,7 @@ describe('module/mount-key', () => {
         });
 
         expect(output['foo[1]']).toMatchObject({
-            pathAbsolute: 'foo[1]',
-            pathRaw: 'foo[1]',
+            path: ['foo', '1'],
             value: 'baz',
         } satisfies Partial<ValidatorContext>);
     });
@@ -102,8 +97,7 @@ describe('module/mount-key', () => {
         const output = await container.run({}, { flat: true });
 
         expect(output['foo.bar.baz']).toMatchObject({
-            pathAbsolute: 'foo.bar.baz',
-            pathRaw: 'foo.bar.baz',
+            path: ['foo', 'bar', 'baz'],
             value: undefined,
         } satisfies Partial<ValidatorContext>);
     });
@@ -117,9 +111,7 @@ describe('module/mount-key', () => {
         });
 
         expect(output.foo.toFixed).toMatchObject({
-            path: 'foo.toFixed',
-            pathRaw: 'foo.toFixed',
-            pathAbsolute: 'foo.toFixed',
+            path: ['foo', 'toFixed'],
             value: expect.any(Function),
         } satisfies Partial<ValidatorContext>);
     });
@@ -137,13 +129,11 @@ describe('module/mount-key', () => {
         });
 
         expect(output['foo.foo']).toMatchObject({
-            pathAbsolute: 'foo.foo',
-            pathRaw: '**.foo',
+            path: ['foo', 'foo'],
             value: 1,
         } satisfies Partial<ValidatorContext>);
         expect(output.foo).toMatchObject({
-            pathAbsolute: 'foo',
-            pathRaw: '**.foo',
+            path: ['foo'],
             value: { foo: 1 },
         } satisfies Partial<ValidatorContext>);
     });
@@ -168,13 +158,11 @@ describe('module/mount-key', () => {
         });
 
         expect(output['foo.a.b.bar']).toMatchObject({
-            pathAbsolute: 'foo.a.b.bar',
-            pathRaw: 'foo.**.bar',
+            path: ['foo', 'a', 'b', 'bar'],
             value: 1,
         } satisfies Partial<ValidatorContext>);
         expect(output['foo.c.bar']).toMatchObject({
-            pathAbsolute: 'foo.c.bar',
-            pathRaw: 'foo.**.bar',
+            path: ['foo', 'c', 'bar'],
             value: 2,
         } satisfies Partial<ValidatorContext>);
     });

@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { Container } from '../../src';
+import { Container, ValidupError } from '../../src';
 import { stringValidator } from '../data';
 
 describe('oneOf', () => {
@@ -25,9 +25,9 @@ describe('oneOf', () => {
         expect(output.bar).toBeUndefined();
     });
 
-    it('should not work falsy oneOf option', async () => {
+    it('should not work with truthy oneOf option', async () => {
         const container = new Container<{ foo: string, bar: string }>({
-            oneOf: false,
+            oneOf: true,
         });
 
         container.mount('foo', stringValidator);
@@ -37,10 +37,36 @@ describe('oneOf', () => {
 
         try {
             await container.run({
-                foo: 'boz',
+                foo: 1,
             });
         } catch (e) {
             expect(e).toBeDefined();
+        }
+    });
+
+    it('should not work falsy oneOf option', async () => {
+        const container = new Container<{ foo: string, bar: string }>({
+            oneOf: false,
+        });
+
+        container.mount('foo', stringValidator);
+        container.mount('bar', stringValidator);
+
+        expect.assertions(2);
+
+        try {
+            await container.run({
+                foo: 'boz',
+            });
+        } catch (e) {
+            if (e instanceof ValidupError) {
+                expect(e.issues).toHaveLength(1);
+
+                const [issue] = e.issues;
+                if (issue.type === 'item') {
+                    expect(issue.path).toEqual(['bar']);
+                }
+            }
         }
     });
 });

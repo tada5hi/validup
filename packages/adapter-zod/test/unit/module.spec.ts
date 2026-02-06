@@ -122,13 +122,16 @@ describe('src/module', () => {
             });
         } catch (e) {
             if (e instanceof ValidupError) {
-                expect(e.issues).toHaveLength(2);
+                const [group] = e.issues;
+                if (group.type === 'group') {
+                    expect(group.issues.length).toEqual(2);
 
-                expect(e.issues[0].message).toEqual('Invalid input: expected string, received number');
-                expect(e.issues[0].path).toEqual(['foo', 'bar', 0]);
+                    expect(group.issues[0].message).toEqual('Invalid input: expected string, received number');
+                    expect(group.issues[0].path).toEqual(['foo', 'bar', 0]);
 
-                expect(e.issues[1].message).toEqual('Too small: expected array to have >=2 items');
-                expect(e.issues[1].path).toEqual(['foo', 'bar']);
+                    expect(group.issues[1].message).toEqual('Too small: expected array to have >=2 items');
+                    expect(group.issues[1].path).toEqual(['foo', 'bar']);
+                }
             }
         }
     });

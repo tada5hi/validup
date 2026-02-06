@@ -5,7 +5,9 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { expandPath, getPathValue, setPathValue } from 'pathtrace';
+import {
+    expandPath, getPathValue, pathToArray, setPathValue,
+} from 'pathtrace';
 import { GroupKey } from '../constants';
 import { ValidupError } from '../errors';
 import { isOptionalValue } from '../helpers';
@@ -16,6 +18,7 @@ import type {
     ContainerItem, ContainerMountOptions, ContainerOptions, ContainerRunOptions, IContainer,
 } from './types';
 import type { Issue } from '../issue';
+import { defineIssueGroup, defineIssueItem } from '../issue';
 
 export class Container<
     T extends Record<string, any> = Record<string, any>,
@@ -158,21 +161,24 @@ export class Container<
             }
 
             for (let j = 0; j < paths.length; j++) {
-                const path = paths[j];
-                const pathAbsolute = this.mergePaths(options.path, paths[j]);
+                const pathRelative = paths[j];
+                const pathAbsolute = [
+                    ...(options.path ? options.path : []),
+                    ...(pathRelative ? pathToArray(pathRelative) : []),
+                ];
 
                 let value : unknown;
-                if (hasOwnProperty(output, path)) {
-                    value = output[path];
-                } else if (path.length > 0) {
-                    value = getPathValue(data, path);
+                if (pathRelative.length > 0) {
+                    value = hasOwnProperty(output, pathRelative) ?
+                        output[pathRelative] :
+                        getPathValue(data, pathRelative);
                 } else {
                     value = data;
                 }
 
                 if (
                     typeof pathsToInclude !== 'undefined' &&
-                    pathsToInclude.indexOf(path) === -1
+                    pathsToInclude.indexOf(pathRelative) === -1
                 ) {
                     // todo: maybe add issue info
                     continue;
@@ -180,7 +186,7 @@ export class Container<
 
                 if (
                     typeof pathsToExclude !== 'undefined' &&
-                    pathsToExclude.indexOf(path) !== -1
+                    pathsToExclude.indexOf(pathRelative) !== -1
                 ) {
                     // todo: maybe add issue info
                     continue;
@@ -192,7 +198,7 @@ export class Container<
                         isOptionalValue(value, item.optionalValue)
                     ) {
                         if (item.optionalInclude) {
-                            output[path] = value;
+                            output[pathRelative] = value;
                         }
                     } else if (isContainer(item.data)) {
                         const tmp = await item.data.run(
@@ -208,14 +214,13 @@ export class Container<
 
                         const tmpKeys = Object.keys(tmp);
                         for (let k = 0; k < tmpKeys.length; k++) {
-                            output[this.mergePaths(path, tmpKeys[k])] = tmp[tmpKeys[k]];
+                            output[this.mergePaths(pathRelative, tmpKeys[k])] = tmp[tmpKeys[k]];
                         }
                     } else {
-                        output[path] = await item.data({
-                            path,
-                            pathRaw: item.path ?? '',
+                        output[pathRelative] = await item.data({
+                            key: pathRelative,
+                            path: pathAbsolute,
 
-                            pathAbsolute,
                             value,
                             data,
                             group: options.group,
@@ -231,19 +236,34 @@ export class Container<
                             childIssues.push({
                                 ...issue,
                                 path: [
-                                    ...(path ? [path] : []),
+                                    ...(pathRelative ? [pathRelative] : []),
                                     ...(issue.path || []),
                                 ],
                             });
                         }
-                    } else if (path) {
-                        childIssues.push({
-                            message: `The validation of property ${path} failed`,
-                            path: [path],
-                        });
+                    } else if (e instanceof Error) {
+                        childIssues.push(defineIssueItem({
+                            path: (pathRelative ? [pathRelative] : []),
+                            message: e.message,
+                        }));
                     }
 
-                    issues.push(...childIssues);
+                    if (pathRelative) {
+                        if (childIssues.length > 1 || childIssues.length === 0) {
+                            const group = defineIssueGroup({
+                                message: `Property ${pathRelative} is invalid`,
+                                path: [pathRelative],
+                                issues: childIssues,
+                            });
+
+                            issues.push(group);
+                        } else {
+                            issues.push(...childIssues);
+                        }
+                    } else {
+                        issues.push(...childIssues);
+                    }
+
                     pathFailed = true;
                 }
 
@@ -261,7 +281,14 @@ export class Container<
 
         if (this.options.oneOf) {
             if (errorCount === itemCount) {
-                throw new ValidupError(issues);
+                const group = defineIssueGroup({
+                    // code: IssueCode.ONE_OF
+                    message: 'None of the branches succeeded',
+                    issues,
+                    path: options.path ? options.path : [],
+                });
+
+                throw new ValidupError([group]);
             }
         } else if (errorCount > 0) {
             throw new ValidupError(issues);
