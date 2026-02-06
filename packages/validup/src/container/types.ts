@@ -5,9 +5,10 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import type { Path } from 'pathtrace';
 import type { OptionalValue } from '../constants';
 import type {
-    ObjectLiteral, ObjectPropertyPath, Validator,
+    ObjectLiteral, Validator,
 } from '../types';
 
 export type ContainerOptions<T> = {
@@ -21,14 +22,14 @@ export type ContainerOptions<T> = {
      * By default, all mounted containers/validators will
      * be considered for execution.
      */
-    pathsToInclude?: ObjectPropertyPath<T>[],
+    pathsToInclude?: Path<T>[],
 
     /**
      * Exclude mounted paths on execution.
      * By default, all mounted containers/validators will
      * be considered for execution.
      */
-    pathsToExclude?: ObjectPropertyPath<T>[]
+    pathsToExclude?: Path<T>[]
 };
 
 export type ContainerRunOptions<
@@ -38,33 +39,36 @@ export type ContainerRunOptions<
      * Default values for the container output.
      */
     defaults?: {
-        [Key in ObjectPropertyPath<T>]: any
+        [Key in Path<T>]: any
     },
     /**
      * Group to execute.
      */
     group?: string,
+
     /**
      * Output flat object?
      */
     flat?: boolean,
+
     /**
      * Passed path from the parent container.
      */
-    path?: string[],
+    path?: PropertyKey[],
+
     /**
      * Limit mounted paths on execution.
      * By default, all mounted containers/validators will
      * be considered for execution.
      */
-    pathsToInclude?: ObjectPropertyPath<T>[]
+    pathsToInclude?: Path<T>[]
 
     /**
      * Exclude mounted paths on execution.
      * By default, all mounted containers/validators will
      * be considered for execution.
      */
-    pathsToExclude?: ObjectPropertyPath<T>[]
+    pathsToExclude?: Path<T>[]
 };
 
 export type ContainerMountOptions = {

@@ -85,7 +85,7 @@ describe('module/mount-key', () => {
         });
 
         expect(output['foo[1]']).toMatchObject({
-            path: ['foo', '1'],
+            path: ['foo', 1],
             value: 'baz',
         } satisfies Partial<ValidatorContext>);
     });

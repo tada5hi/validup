@@ -5,13 +5,14 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import type { Path } from 'pathtrace';
 import {
     expandPath, getPathValue, pathToArray, setPathValue,
 } from 'pathtrace';
 import { GroupKey } from '../constants';
 import { ValidupError } from '../errors';
 import { isOptionalValue } from '../helpers';
-import type { ObjectPropertyPath, ObjectPropertyPathExtended, Validator } from '../types';
+import type { Validator } from '../types';
 import { hasOwnProperty, isObject } from '../utils';
 import { isContainer } from './check';
 import type {
@@ -46,12 +47,12 @@ export class Container<
     ): void;
 
     mount(
-        key: ObjectPropertyPathExtended<T>,
+        key: Path<T>,
         data: IContainer | Validator
     ) : void;
 
     mount(
-        key: ObjectPropertyPathExtended<T>,
+        key: Path<T>,
         options: ContainerMountOptions,
         data: IContainer | Validator
     ) : void;
@@ -301,7 +302,7 @@ export class Container<
                     !hasOwnProperty(output, defaultKeys[i]) ||
                     typeof output[defaultKeys[i]] === 'undefined'
                 ) {
-                    output[defaultKeys[i]] = options.defaults[defaultKeys[i] as unknown as ObjectPropertyPath<T>];
+                    output[defaultKeys[i]] = options.defaults[defaultKeys[i] as unknown as Path<T>];
                 }
             }
         }
