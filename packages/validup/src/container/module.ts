@@ -134,10 +134,11 @@ export class Container<
 
         const output: Record<string, any> = {};
 
-        let errors : number = 0;
         const issues : Issue[] = [];
 
-        let itemCount = 0;
+        let itemCount : number = 0;
+        let errorCount : number = 0;
+
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
 
@@ -146,7 +147,8 @@ export class Container<
                 continue;
             }
 
-            let pathsCount = 0;
+            let pathCount = 0;
+            let pathFailed = false;
 
             let paths : string[];
             if (item.path) {
@@ -242,22 +244,26 @@ export class Container<
                     }
 
                     issues.push(...childIssues);
-                    errors++;
+                    pathFailed = true;
                 }
 
-                pathsCount++;
+                pathCount++;
             }
 
-            if (pathsCount > 0) {
+            if (pathCount > 0) {
                 itemCount++;
+
+                if (pathFailed) {
+                    errorCount++;
+                }
             }
         }
 
         if (this.options.oneOf) {
-            if (errors === itemCount) {
+            if (errorCount === itemCount) {
                 throw new ValidupError(issues);
             }
-        } else if (errors > 0) {
+        } else if (errorCount > 0) {
             throw new ValidupError(issues);
         }
 
