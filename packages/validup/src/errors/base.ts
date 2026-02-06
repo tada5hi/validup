@@ -5,6 +5,24 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export class ValidupError extends Error {
+import type { Issue } from '../issue';
 
+export class ValidupError extends Error {
+    readonly issues: Issue[];
+
+    constructor(issues: Issue[] = []) {
+        super(JSON.stringify(
+            issues,
+            (_: string, value: any) => {
+                if (typeof value === 'bigint') {
+                    return value.toString();
+                }
+
+                return value;
+            },
+            2,
+        ));
+
+        this.issues = issues;
+    }
 }

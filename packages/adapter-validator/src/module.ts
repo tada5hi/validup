@@ -7,9 +7,9 @@
 
 import type { ContextRunner, FieldValidationError } from 'express-validator';
 import { distinctArray } from 'smob';
-import type { Validator, ValidatorContext } from 'validup';
+import type { Issue, Validator, ValidatorContext } from 'validup';
 import { ValidupError } from 'validup';
-import { buildNestedError } from './error';
+import { buildIssuesForErrors } from './error';
 
 type ContextRunnerCreateFn = (
     ctx: ValidatorContext
@@ -30,6 +30,8 @@ export function createValidator(
             body: ctx.value,
         });
 
+        const issues : Issue[] = [];
+
         const [field] = outcome.context.getData({ requiredOnly: false });
         if (field) {
             const errors = distinctArray(outcome.context.errors.filter(
@@ -39,15 +41,12 @@ export function createValidator(
             ) as FieldValidationError[]);
 
             if (errors.length > 0) {
-                throw buildNestedError(errors, {
-                    path: ctx.path,
-                    pathAbsolute: ctx.pathAbsolute,
-                });
+                issues.push(...buildIssuesForErrors(errors));
+            } else {
+                return field.value;
             }
-
-            return field.value;
         }
 
-        throw new ValidupError(`The attribute ${ctx.path} could not be validated.`);
+        throw new ValidupError(issues);
     };
 }

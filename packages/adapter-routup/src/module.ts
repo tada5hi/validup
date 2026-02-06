@@ -11,7 +11,7 @@ import { useRequestBody } from '@routup/basic/body';
 import { useRequestCookies } from '@routup/basic/cookie';
 import { useRequestQuery } from '@routup/basic/query';
 import type { Container, ObjectLiteral } from 'validup';
-import { ValidupError, ValidupNestedError } from 'validup';
+import { ValidupError } from 'validup';
 import { Location } from './constants';
 import type { RoutupContainerRunOptions } from './types';
 
@@ -69,7 +69,7 @@ export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
             if (error) {
                 throw error;
             } else {
-                throw new ValidupNestedError({ message: 'An unknown validation error occurred.' });
+                throw new ValidupError([]);
             }
         }
 

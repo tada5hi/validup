@@ -5,16 +5,12 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { ValidupNestedError, ValidupValidatorError, hasOwnProperty } from 'validup';
+import { defineIssueItem, hasOwnProperty } from 'validup';
 import type { ZodError } from 'zod';
+import type { Issue } from 'validup';
 
-export type ErrorBuildOptions = {
-    path: string,
-    pathAbsolute?: string,
-};
-
-export function buildError(error: ZodError, options: ErrorBuildOptions) {
-    const base = new ValidupNestedError();
+export function buildIssues(error: ZodError) {
+    const issues : Issue[] = [];
 
     for (let i = 0; i < error.issues.length; i++) {
         const issue = error.issues[i];
@@ -29,31 +25,13 @@ export function buildError(error: ZodError, options: ErrorBuildOptions) {
             received = issue.received;
         }
 
-        let { path } = options;
-        if (issue.path) {
-            for (let j = 0; j < issue.path.length; j++) {
-                const item = issue.path[j];
-
-                if (typeof item === 'string') {
-                    path += `.${item}`;
-                }
-
-                if (typeof item === 'number') {
-                    path += `[${item}]`;
-                }
-            }
-        }
-
-        const child = new ValidupValidatorError({
-            path,
-            pathAbsolute: options.pathAbsolute || options.path,
+        issues.push(defineIssueItem({
+            path: issue.path || [],
             message: issue.message,
             expected,
             received,
-        });
-
-        base.addChild(child);
+        }));
     }
 
-    return base;
+    return issues;
 }

@@ -6,8 +6,9 @@
  */
 
 import type { Validator, ValidatorContext } from 'validup';
+import { ValidupError } from 'validup';
 import type { ZodType } from 'zod';
-import { buildError } from './error';
+import { buildIssues } from './error';
 
 type ZodCreateFn = (ctx: ValidatorContext) => ZodType;
 
@@ -25,9 +26,8 @@ export function createValidator(input: ZodCreateFn | ZodType) : Validator {
             return outcome.data;
         }
 
-        throw buildError(outcome.error, {
-            path: ctx.path,
-            pathAbsolute: ctx.pathAbsolute,
-        });
+        const issues = buildIssues(outcome.error);
+
+        throw new ValidupError(issues);
     };
 }

@@ -8,6 +8,7 @@
 export * from './helpers';
 export * from './constants';
 export * from './errors';
+export * from './issue';
 export * from './container';
 export * from './types';
 export * from './utils';

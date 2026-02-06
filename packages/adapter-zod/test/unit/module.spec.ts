@@ -6,7 +6,10 @@
  */
 
 import { z } from 'zod';
-import { Container, ValidupNestedError, buildErrorMessageForAttributes } from 'validup';
+import {
+    Container,
+    ValidupError,
+} from 'validup';
 import { createValidator } from '../../src';
 
 describe('src/module', () => {
@@ -41,19 +44,17 @@ describe('src/module', () => {
 
         validator.mount('email', createValidator(z.string().email()));
 
-        expect.assertions(5);
+        expect.assertions(3);
 
         try {
             await validator.run({
                 email: 'foo',
             });
         } catch (e) {
-            if (e instanceof ValidupNestedError) {
-                expect(e.children).toBeDefined();
-                expect(e.children).toHaveLength(1);
-                expect(e.children[0].message).toEqual('Invalid email address');
-                expect(e.children[0].path).toEqual('email');
-                expect(e.children[0].pathAbsolute).toEqual('email');
+            if (e instanceof ValidupError) {
+                expect(e.issues).toHaveLength(1);
+                expect(e.issues[0].message).toEqual('Invalid email address');
+                expect(e.issues[0].path).toEqual(['email']);
             }
         }
     });
@@ -65,6 +66,8 @@ describe('src/module', () => {
         const parent = new Container<{child: { email: string }}>();
         parent.mount('child', child);
 
+        expect.assertions(2);
+
         try {
             await parent.run({
                 child: {
@@ -72,12 +75,9 @@ describe('src/module', () => {
                 },
             });
         } catch (e) {
-            if (e instanceof ValidupNestedError) {
-                expect(e.message).toEqual(buildErrorMessageForAttributes(['child']));
-                expect(e.children).toBeDefined();
-                expect(e.children).toHaveLength(1);
-                expect(e.children[0].pathAbsolute).toEqual('child.email');
-                expect(e.children[0].path).toEqual('email');
+            if (e instanceof ValidupError) {
+                expect(e.issues).toHaveLength(1);
+                expect(e.issues[0].path).toEqual(['child', 'email']);
             }
         }
     });
@@ -89,6 +89,8 @@ describe('src/module', () => {
         const parent = new Container<{child: { email: string }}>();
         parent.mount(child);
 
+        expect.assertions(2);
+
         try {
             await parent.run({
                 child: {
@@ -96,12 +98,9 @@ describe('src/module', () => {
                 },
             });
         } catch (e) {
-            if (e instanceof ValidupNestedError) {
-                expect(e.message).toEqual(buildErrorMessageForAttributes(['email']));
-                expect(e.children).toBeDefined();
-                expect(e.children).toHaveLength(1);
-                expect(e.children[0].pathAbsolute).toEqual('email');
-                expect(e.children[0].path).toEqual('email');
+            if (e instanceof ValidupError) {
+                expect(e.issues).toHaveLength(1);
+                expect(e.issues[0].path).toEqual(['email']);
             }
         }
     });
@@ -113,7 +112,7 @@ describe('src/module', () => {
             bar: z.string().array().min(2),
         })));
 
-        expect.assertions(6);
+        expect.assertions(5);
 
         try {
             await validator.run({
@@ -122,15 +121,17 @@ describe('src/module', () => {
                 },
             });
         } catch (e) {
-            if (e instanceof ValidupNestedError) {
-                expect(e.children).toBeDefined();
-                expect(e.children).toHaveLength(2);
+            if (e instanceof ValidupError) {
+                const [group] = e.issues;
+                if (group.type === 'group') {
+                    expect(group.issues.length).toEqual(2);
 
-                expect(e.children[0].message).toEqual('Invalid input: expected string, received number');
-                expect(e.children[0].path).toEqual('foo.bar[0]');
+                    expect(group.issues[0].message).toEqual('Invalid input: expected string, received number');
+                    expect(group.issues[0].path).toEqual(['foo', 'bar', 0]);
 
-                expect(e.children[1].message).toEqual('Too small: expected array to have >=2 items');
-                expect(e.children[1].path).toEqual('foo.bar');
+                    expect(group.issues[1].message).toEqual('Too small: expected array to have >=2 items');
+                    expect(group.issues[1].path).toEqual(['foo', 'bar']);
+                }
             }
         }
     });

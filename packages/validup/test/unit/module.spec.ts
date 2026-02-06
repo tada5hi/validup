@@ -76,14 +76,14 @@ describe('src/module', () => {
 
         container.mount('foo', chain);
 
-        expect.assertions(2);
+        expect.assertions(3);
 
         try {
             await container.run({});
         } catch (e: any) {
             expect(e).toBeDefined();
-
-            expect(e.children).toHaveLength(1);
+            expect(e.issues).toBeDefined();
+            expect(e.issues.length).toBeGreaterThanOrEqual(1);
         }
     });
 });

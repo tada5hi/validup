@@ -5,20 +5,21 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { expandPath, getPathValue, setPathValue } from 'pathtrace';
+import type { Path } from 'pathtrace';
+import {
+    expandPath, getPathValue, pathToArray, setPathValue,
+} from 'pathtrace';
 import { GroupKey } from '../constants';
-import { ValidupNestedError, ValidupValidatorError } from '../errors';
-import { buildErrorMessageForAttributes, isOptionalValue } from '../helpers';
-import type {
-    ObjectPropertyPath,
-    ObjectPropertyPathExtended,
-    Validator,
-} from '../types';
+import { ValidupError } from '../errors';
+import { isOptionalValue } from '../helpers';
+import type { Validator } from '../types';
 import { hasOwnProperty, isObject } from '../utils';
 import { isContainer } from './check';
 import type {
     ContainerItem, ContainerMountOptions, ContainerOptions, ContainerRunOptions, IContainer,
 } from './types';
+import type { Issue } from '../issue';
+import { defineIssueGroup, defineIssueItem } from '../issue';
 
 export class Container<
     T extends Record<string, any> = Record<string, any>,
@@ -46,12 +47,14 @@ export class Container<
     ): void;
 
     mount(
-        key: ObjectPropertyPathExtended<T>,
+        // eslint-disable-next-line @typescript-eslint/ban-types
+        key: Path<T> & (string & {}),
         data: IContainer | Validator
     ) : void;
 
     mount(
-        key: ObjectPropertyPathExtended<T>,
+        // eslint-disable-next-line @typescript-eslint/ban-types
+        key: Path<T> & (string & {}),
         options: ContainerMountOptions,
         data: IContainer | Validator
     ) : void;
@@ -112,15 +115,15 @@ export class Container<
 
     // ----------------------------------------------
 
+    /**
+     * @throws ValidupError
+     * @param data
+     * @param options
+     */
     async run(
         data: Record<string, any> = {},
         options: ContainerRunOptions<T> = {},
     ): Promise<T> {
-        const output: Record<string, any> = {};
-
-        const errors: ValidupValidatorError[] = [];
-        const errorKeys : string[] = [];
-
         let pathsToInclude : string[] | undefined;
         if (options.pathsToInclude) {
             pathsToInclude = options.pathsToInclude as string[];
@@ -135,47 +138,63 @@ export class Container<
             pathsToExclude = this.options.pathsToExclude as string[];
         }
 
-        let itemCount = 0;
+        const output: Record<string, any> = {};
+
+        const issues : Issue[] = [];
+
+        let itemCount : number = 0;
+        let errorCount : number = 0;
+
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
 
             if (!this.isItemGroupIncluded(item, options.group)) {
+                // todo: maybe add issue info
                 continue;
             }
 
-            let pathsCount = 0;
+            let pathCount = 0;
+            let pathFailed = false;
 
-            let paths : string[];
+            let keys : string[];
             if (item.path) {
-                paths = expandPath(data, item.path);
+                keys = expandPath(data, item.path);
             } else {
-                paths = [''];
+                keys = [''];
             }
 
-            for (let j = 0; j < paths.length; j++) {
-                const path = paths[j];
-                const pathAbsolute = this.mergePaths(options.path, paths[j]);
+            for (let j = 0; j < keys.length; j++) {
+                const key = keys[j];
+                const keyParts = key ? pathToArray(key) : [];
+
+                const pathRelative = keyParts.at(-1);
+                const pathAbsolute = [
+                    ...(options.path ? options.path : []),
+                    ...keyParts,
+                ];
 
                 let value : unknown;
-                if (hasOwnProperty(output, path)) {
-                    value = output[path];
-                } else if (path.length > 0) {
-                    value = getPathValue(data, path);
+                if (key.length > 0) {
+                    value = hasOwnProperty(output, key) ?
+                        output[key] :
+                        getPathValue(data, key);
                 } else {
                     value = data;
                 }
 
                 if (
                     typeof pathsToInclude !== 'undefined' &&
-                    pathsToInclude.indexOf(path) === -1
+                    pathsToInclude.indexOf(key) === -1
                 ) {
+                    // todo: maybe add issue info
                     continue;
                 }
 
                 if (
                     typeof pathsToExclude !== 'undefined' &&
-                    pathsToExclude.indexOf(path) !== -1
+                    pathsToExclude.indexOf(key) !== -1
                 ) {
+                    // todo: maybe add issue info
                     continue;
                 }
 
@@ -185,7 +204,7 @@ export class Container<
                         isOptionalValue(value, item.optionalValue)
                     ) {
                         if (item.optionalInclude) {
-                            output[path] = value;
+                            output[key] = value;
                         }
                     } else if (isContainer(item.data)) {
                         const tmp = await item.data.run(
@@ -201,62 +220,84 @@ export class Container<
 
                         const tmpKeys = Object.keys(tmp);
                         for (let k = 0; k < tmpKeys.length; k++) {
-                            output[this.mergePaths(path, tmpKeys[k])] = tmp[tmpKeys[k]];
+                            output[this.mergePaths(key, tmpKeys[k])] = tmp[tmpKeys[k]];
                         }
                     } else {
-                        output[path] = await item.data({
-                            path,
-                            pathRaw: item.path ?? '',
+                        output[key] = await item.data({
+                            key,
+                            path: pathAbsolute,
 
-                            pathAbsolute,
                             value,
                             data,
                             group: options.group,
                         });
                     }
                 } catch (e) {
-                    if (e instanceof ValidupValidatorError) {
-                        errors.push(e);
-                        errorKeys.push(pathAbsolute);
-                    } else if (e instanceof ValidupNestedError) {
-                        errors.push(...e.children);
+                    const childIssues : Issue[] = [];
 
-                        if (pathAbsolute.length > 0) {
-                            errorKeys.push(pathAbsolute);
+                    if (e instanceof ValidupError) {
+                        for (let i = 0; i < e.issues.length; i++) {
+                            const issue = e.issues[i];
+
+                            childIssues.push({
+                                ...issue,
+                                path: [
+                                    ...keyParts,
+                                    ...(issue.path || []),
+                                ],
+                            });
+                        }
+                    } else if (e instanceof Error) {
+                        childIssues.push(defineIssueItem({
+                            path: keyParts,
+                            message: e.message,
+                        }));
+                    }
+
+                    if (pathRelative) {
+                        if (childIssues.length > 1 || childIssues.length === 0) {
+                            const group = defineIssueGroup({
+                                message: `Property ${String(pathRelative)} is invalid`,
+                                path: keyParts,
+                                issues: childIssues,
+                            });
+
+                            issues.push(group);
                         } else {
-                            errorKeys.push(...e.children.map((child) => child.pathAbsolute));
+                            issues.push(...childIssues);
                         }
                     } else {
-                        const error = new ValidupValidatorError({
-                            path,
-                            pathAbsolute,
-                            received: value,
-                        });
-
-                        if (e instanceof Error) {
-                            error.cause = e;
-                            error.message = e.message;
-                        }
-
-                        errors.push(error);
-                        errorKeys.push(pathAbsolute);
+                        issues.push(...childIssues);
                     }
+
+                    pathFailed = true;
                 }
 
-                pathsCount++;
+                pathCount++;
             }
 
-            if (pathsCount > 0) {
+            if (pathCount > 0) {
                 itemCount++;
+
+                if (pathFailed) {
+                    errorCount++;
+                }
             }
         }
 
         if (this.options.oneOf) {
-            if (errors.length === itemCount) {
-                throw new ValidupNestedError({ message: buildErrorMessageForAttributes(errorKeys), children: errors });
+            if (errorCount === itemCount) {
+                const group = defineIssueGroup({
+                    // code: IssueCode.ONE_OF
+                    message: 'None of the branches succeeded',
+                    issues,
+                    path: options.path ? options.path : [],
+                });
+
+                throw new ValidupError([group]);
             }
-        } else if (errors.length > 0) {
-            throw new ValidupNestedError({ message: buildErrorMessageForAttributes(errorKeys), children: errors });
+        } else if (errorCount > 0) {
+            throw new ValidupError(issues);
         }
 
         if (options.defaults) {
@@ -266,7 +307,7 @@ export class Container<
                     !hasOwnProperty(output, defaultKeys[i]) ||
                     typeof output[defaultKeys[i]] === 'undefined'
                 ) {
-                    output[defaultKeys[i]] = options.defaults[defaultKeys[i] as unknown as ObjectPropertyPath<T>];
+                    output[defaultKeys[i]] = options.defaults[defaultKeys[i] as unknown as Path<T>];
                 }
             }
         }
