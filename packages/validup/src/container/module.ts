@@ -47,12 +47,14 @@ export class Container<
     ): void;
 
     mount(
-        key: Path<T>,
+        // eslint-disable-next-line @typescript-eslint/ban-types
+        key: Path<T> & (string & {}),
         data: IContainer | Validator
     ) : void;
 
     mount(
-        key: Path<T>,
+        // eslint-disable-next-line @typescript-eslint/ban-types
+        key: Path<T> & (string & {}),
         options: ContainerMountOptions,
         data: IContainer | Validator
     ) : void;
@@ -154,32 +156,35 @@ export class Container<
             let pathCount = 0;
             let pathFailed = false;
 
-            let paths : string[];
+            let keys : string[];
             if (item.path) {
-                paths = expandPath(data, item.path);
+                keys = expandPath(data, item.path);
             } else {
-                paths = [''];
+                keys = [''];
             }
 
-            for (let j = 0; j < paths.length; j++) {
-                const pathRelative = paths[j];
+            for (let j = 0; j < keys.length; j++) {
+                const key = keys[j];
+                const keyParts = key ? pathToArray(key) : [];
+
+                const pathRelative = keyParts.at(-1);
                 const pathAbsolute = [
                     ...(options.path ? options.path : []),
-                    ...(pathRelative ? pathToArray(pathRelative) : []),
+                    ...keyParts,
                 ];
 
                 let value : unknown;
-                if (pathRelative.length > 0) {
-                    value = hasOwnProperty(output, pathRelative) ?
-                        output[pathRelative] :
-                        getPathValue(data, pathRelative);
+                if (key.length > 0) {
+                    value = hasOwnProperty(output, key) ?
+                        output[key] :
+                        getPathValue(data, key);
                 } else {
                     value = data;
                 }
 
                 if (
                     typeof pathsToInclude !== 'undefined' &&
-                    pathsToInclude.indexOf(pathRelative) === -1
+                    pathsToInclude.indexOf(key) === -1
                 ) {
                     // todo: maybe add issue info
                     continue;
@@ -187,7 +192,7 @@ export class Container<
 
                 if (
                     typeof pathsToExclude !== 'undefined' &&
-                    pathsToExclude.indexOf(pathRelative) !== -1
+                    pathsToExclude.indexOf(key) !== -1
                 ) {
                     // todo: maybe add issue info
                     continue;
@@ -199,7 +204,7 @@ export class Container<
                         isOptionalValue(value, item.optionalValue)
                     ) {
                         if (item.optionalInclude) {
-                            output[pathRelative] = value;
+                            output[key] = value;
                         }
                     } else if (isContainer(item.data)) {
                         const tmp = await item.data.run(
@@ -215,11 +220,11 @@ export class Container<
 
                         const tmpKeys = Object.keys(tmp);
                         for (let k = 0; k < tmpKeys.length; k++) {
-                            output[this.mergePaths(pathRelative, tmpKeys[k])] = tmp[tmpKeys[k]];
+                            output[this.mergePaths(key, tmpKeys[k])] = tmp[tmpKeys[k]];
                         }
                     } else {
-                        output[pathRelative] = await item.data({
-                            key: pathRelative,
+                        output[key] = await item.data({
+                            key,
                             path: pathAbsolute,
 
                             value,
@@ -237,14 +242,14 @@ export class Container<
                             childIssues.push({
                                 ...issue,
                                 path: [
-                                    ...(pathRelative ? [pathRelative] : []),
+                                    ...keyParts,
                                     ...(issue.path || []),
                                 ],
                             });
                         }
                     } else if (e instanceof Error) {
                         childIssues.push(defineIssueItem({
-                            path: (pathRelative ? [pathRelative] : []),
+                            path: keyParts,
                             message: e.message,
                         }));
                     }
@@ -252,8 +257,8 @@ export class Container<
                     if (pathRelative) {
                         if (childIssues.length > 1 || childIssues.length === 0) {
                             const group = defineIssueGroup({
-                                message: `Property ${pathRelative} is invalid`,
-                                path: [pathRelative],
+                                message: `Property ${String(pathRelative)} is invalid`,
+                                path: keyParts,
                                 issues: childIssues,
                             });
 
