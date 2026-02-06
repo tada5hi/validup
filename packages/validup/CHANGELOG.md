@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0](https://github.com/tada5hi/validup/compare/validup-v0.1.10...validup-v0.2.0) (2026-02-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* API Changed
+
+### Features
+
+* issue mechanism & path refactoring ([#311](https://github.com/tada5hi/validup/issues/311)) ([7b26a1f](https://github.com/tada5hi/validup/commit/7b26a1f3465e47d680fbef2f29aba3b3cffe6c81))
+
 ## [0.1.10](https://github.com/tada5hi/validup/compare/validup-v0.1.9...validup-v0.1.10) (2025-12-08)
 
 

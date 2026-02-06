@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.0](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.12...adapter-zod-v0.2.0) (2026-02-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* API Changed
+
+### Features
+
+* issue mechanism & path refactoring ([#311](https://github.com/tada5hi/validup/issues/311)) ([7b26a1f](https://github.com/tada5hi/validup/commit/7b26a1f3465e47d680fbef2f29aba3b3cffe6c81))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.1.10 to ^0.2.0
+
 ## [0.1.12](https://github.com/tada5hi/validup/compare/adapter-zod-v0.1.11...adapter-zod-v0.1.12) (2025-12-08)
 
 
