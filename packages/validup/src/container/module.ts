@@ -267,7 +267,7 @@ export class Container<
                     }
 
                     if (pathRelative) {
-                        if (childIssues.length > 1 || childIssues.length === 0) {
+                        if (item.type === 'container' || childIssues.length > 1) {
                             const group = defineIssueGroup({
                                 message: buildErrorMessageForAttribute(pathRelative),
                                 path: keyParts,

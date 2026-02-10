@@ -66,7 +66,7 @@ describe('src/module', () => {
         const parent = new Container<{child: { email: string }}>();
         parent.mount('child', child);
 
-        expect.assertions(2);
+        expect.assertions(3);
 
         try {
             await parent.run({
@@ -76,8 +76,13 @@ describe('src/module', () => {
             });
         } catch (e) {
             if (e instanceof ValidupError) {
-                expect(e.issues).toHaveLength(1);
-                expect(e.issues[0].path).toEqual(['child', 'email']);
+                const [issue] = e.issues;
+                expect(issue.path).toEqual(['child']);
+
+                if (issue.type === 'group') {
+                    expect(issue.issues).toHaveLength(1);
+                    expect(issue.issues[0].path).toEqual(['child', 'email']);
+                }
             }
         }
     });
