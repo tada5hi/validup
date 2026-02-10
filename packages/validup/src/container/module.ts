@@ -10,7 +10,7 @@ import {
     expandPath, getPathValue, pathToArray, setPathValue,
 } from 'pathtrace';
 import { GroupKey } from '../constants';
-import { ValidupError } from '../errors';
+import { ValidupError, isError, isValidupError } from '../error';
 import { buildErrorMessageForAttribute, isOptionalValue } from '../helpers';
 import type { Validator } from '../types';
 import { hasOwnProperty, isObject } from '../utils';
@@ -247,7 +247,7 @@ export class Container<
                 } catch (e) {
                     const childIssues : Issue[] = [];
 
-                    if (e instanceof ValidupError) {
+                    if (isValidupError(e)) {
                         for (let i = 0; i < e.issues.length; i++) {
                             const issue = e.issues[i];
 
@@ -259,7 +259,7 @@ export class Container<
                                 ],
                             });
                         }
-                    } else if (e instanceof Error) {
+                    } else if (isError(e)) {
                         childIssues.push(defineIssueItem({
                             path: keyParts,
                             message: e.message,
