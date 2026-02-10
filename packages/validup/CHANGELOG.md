@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/tada5hi/validup/compare/validup-v0.2.0...validup-v0.2.1) (2026-02-10)
+
+
+### Features
+
+* shape helper for error & issues ([1eea1c0](https://github.com/tada5hi/validup/commit/1eea1c05d8d766433e569e51e1049a4f4e324437))
+* stringify path helper ([345cb52](https://github.com/tada5hi/validup/commit/345cb52053f9cfb55695c363fb024c51f50df9ed))
+
 ## [0.2.0](https://github.com/tada5hi/validup/compare/validup-v0.1.10...validup-v0.2.0) (2026-02-10)
 
 
