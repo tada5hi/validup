@@ -7,12 +7,12 @@
 
 import { distinctArray } from 'smob';
 
-export function buildErrorMessageForAttribute(key: string | number) {
-    return `The attribute ${String(key)} is invalid.`;
+export function buildErrorMessageForAttribute(key: PropertyKey) {
+    return `Property ${String(key)} is invalid`;
 }
 
-export function buildErrorMessageForAttributes(input: (number | string)[] | Record<string, any>) {
-    let names: string[];
+export function buildErrorMessageForAttributes(input: PropertyKey[] | Record<string, any>) {
+    let names: PropertyKey[];
     if (Array.isArray(input)) {
         names = distinctArray(input);
     } else {
@@ -20,11 +20,11 @@ export function buildErrorMessageForAttributes(input: (number | string)[] | Reco
     }
 
     if (names.length === 0) {
-        return 'An unexpected error occurred.';
+        return 'Properties are invalid';
     }
 
     if (names.length > 1) {
-        return `The attributes ${names.join(', ')} are invalid.`;
+        return `Properties ${names.join(', ')} are invalid.`;
     }
 
     return buildErrorMessageForAttribute(names[0]);

@@ -11,7 +11,7 @@ import {
 } from 'pathtrace';
 import { GroupKey } from '../constants';
 import { ValidupError } from '../errors';
-import { isOptionalValue } from '../helpers';
+import { buildErrorMessageForAttribute, isOptionalValue } from '../helpers';
 import type { Validator } from '../types';
 import { hasOwnProperty, isObject } from '../utils';
 import { isContainer } from './check';
@@ -19,7 +19,7 @@ import type {
     ContainerOptions, ContainerRunOptions, IContainer, Mount, MountOptions,
 } from './types';
 import type { Issue } from '../issue';
-import { defineIssueGroup, defineIssueItem } from '../issue';
+import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
 
 export class Container<
     T extends Record<string, any> = Record<string, any>,
@@ -269,7 +269,7 @@ export class Container<
                     if (pathRelative) {
                         if (childIssues.length > 1 || childIssues.length === 0) {
                             const group = defineIssueGroup({
-                                message: `Property ${String(pathRelative)} is invalid`,
+                                message: buildErrorMessageForAttribute(pathRelative),
                                 path: keyParts,
                                 issues: childIssues,
                             });
@@ -300,7 +300,7 @@ export class Container<
         if (this.options.oneOf) {
             if (errorCount === itemCount) {
                 const group = defineIssueGroup({
-                    // code: IssueCode.ONE_OF
+                    code: IssueCode.ONE_OF_FAILED,
                     message: 'None of the branches succeeded',
                     issues,
                     path: options.path ? options.path : [],

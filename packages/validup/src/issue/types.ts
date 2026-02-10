@@ -6,10 +6,6 @@
  */
 
 export interface IssueBase {
-    /**
-     * Code identifying the issue
-     */
-    code?: string,
 
     /**
      * Context in which the issue occurred.
@@ -29,6 +25,11 @@ export interface IssueBase {
 
 export interface IssueItem extends IssueBase {
     /**
+     * Code identifying the issue
+     */
+    code: string,
+
+    /**
      * Issue Type
      */
     type: 'item',
@@ -46,10 +47,18 @@ export interface IssueItem extends IssueBase {
 
 export interface IssueGroup extends IssueBase {
     /**
+     * Code identifying the issue
+     */
+    code?: string,
+
+    /**
      * Issue Type
      */
     type: 'group',
 
+    /**
+     * Child issues
+     */
     issues: Issue[]
 }
 
