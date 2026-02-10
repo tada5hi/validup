@@ -88,11 +88,11 @@ console.log(output);
 
 ### Errors
 
-During the execution of a [validator](#validator), a ValidupValidatorError or ValidupNestedError can be thrown.
-A ValidupNestedError bundles multiple ValidupValidationErrors.
+During the execution of a [validator](#validator), a ValidupError can be thrown.
+An error can contain multiple issues.
 
-When the execution of a Container fails, the container will always throw a ValidupNestedError.
-Unknown errors will be converted to a ValidupValidatorError.
+When the execution of a Container fails, the container will always throw a ValidupError.
+Unknown errors will be converted.
 
 ### Mounting
 
