@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1](https://github.com/tada5hi/validup/compare/adapter-validator-v0.3.0...adapter-validator-v0.3.1) (2026-02-10)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.2.0 to ^0.2.1
+
 ## [0.3.0](https://github.com/tada5hi/validup/compare/adapter-validator-v0.2.2...adapter-validator-v0.3.0) (2026-02-10)
 
 
