@@ -48,5 +48,8 @@
     },
     "peerDependencies": {
         "express-validator": "^7.3.1"
+    },
+    "publishConfig": {
+        "access": "public"
     }
 }

@@ -50,5 +50,8 @@
         "@routup/basic": "^1.4.3",
         "routup": "^4.1.0",
         "validup": "^0.2.0"
+    },
+    "publishConfig": {
+        "access": "public"
     }
 }
