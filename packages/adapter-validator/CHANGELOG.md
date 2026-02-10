@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.3.0](https://github.com/tada5hi/validup/compare/adapter-validator-v0.2.2...adapter-validator-v0.3.0) (2026-02-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* API Changed
+
+### Features
+
+* issue mechanism & path refactoring ([#311](https://github.com/tada5hi/validup/issues/311)) ([7b26a1f](https://github.com/tada5hi/validup/commit/7b26a1f3465e47d680fbef2f29aba3b3cffe6c81))
+
+
+### Bug Fixes
+
+* group issues if child is container or more than one item ([85cc68a](https://github.com/tada5hi/validup/commit/85cc68ae382d9362b3180b1d94845fad4764984d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.1.10 to ^0.2.0
+
 ## [0.2.2](https://github.com/tada5hi/validup/compare/adapter-validator-v0.2.1...adapter-validator-v0.2.2) (2025-12-08)
 
 

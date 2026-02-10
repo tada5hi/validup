@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.0](https://github.com/tada5hi/validup/compare/validup-v0.1.10...validup-v0.2.0) (2026-02-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* API Changed
+
+### Features
+
+* enhance differentation between validator & container ([7eb9ed8](https://github.com/tada5hi/validup/commit/7eb9ed860c6349bc7dca661d9a5f75b10d567148))
+* issue mechanism & path refactoring ([#311](https://github.com/tada5hi/validup/issues/311)) ([7b26a1f](https://github.com/tada5hi/validup/commit/7b26a1f3465e47d680fbef2f29aba3b3cffe6c81))
+* make issue item code prop required ([e893b95](https://github.com/tada5hi/validup/commit/e893b95b8ddc25486338dac652c9bd7c584fb218))
+
+
+### Bug Fixes
+
+* **deps:** bump pathtrace to v2.1.2 ([bf81b78](https://github.com/tada5hi/validup/commit/bf81b7890dfdc04e157db3c08533557c7714b02b))
+* group issues if child is container or more than one item ([85cc68a](https://github.com/tada5hi/validup/commit/85cc68ae382d9362b3180b1d94845fad4764984d))
+
 ## [0.1.10](https://github.com/tada5hi/validup/compare/validup-v0.1.9...validup-v0.1.10) (2025-12-08)
 
 
