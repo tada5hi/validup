@@ -7,3 +7,4 @@
 
 export * from './error';
 export * from './optional-value';
+export * from './path-stringify';

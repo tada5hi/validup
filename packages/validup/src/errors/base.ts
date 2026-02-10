@@ -5,23 +5,15 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { buildErrorMessageForAttributes, stringifyPath } from '../helpers';
 import type { Issue } from '../issue';
 
 export class ValidupError extends Error {
     readonly issues: Issue[];
 
     constructor(issues: Issue[] = []) {
-        super(JSON.stringify(
-            issues,
-            (_: string, value: any) => {
-                if (typeof value === 'bigint') {
-                    return value.toString();
-                }
-
-                return value;
-            },
-            2,
-        ));
+        const paths = issues.map((issue) => stringifyPath(issue.path));
+        super(buildErrorMessageForAttributes(paths));
 
         this.issues = issues;
     }
