@@ -71,7 +71,7 @@ export type ContainerRunOptions<
     pathsToExclude?: Path<T>[]
 };
 
-export type ContainerMountOptions = {
+export type MountOptions = {
     /**
      * Group(s) to execute.
      */
@@ -114,7 +114,19 @@ export interface IContainer<T extends ObjectLiteral = ObjectLiteral> {
     ): Promise<T>
 }
 
-export type ContainerItem = ContainerMountOptions & {
+export type BaseMount = {
+    options: MountOptions,
     path?: string,
-    data: Validator | IContainer
 };
+
+export type ContainerMount = BaseMount & {
+    type: 'container',
+    data: IContainer,
+};
+
+export type ValidatorMount = BaseMount & {
+    type: 'validator',
+    data: Validator
+};
+
+export type Mount = ContainerMount | ValidatorMount;

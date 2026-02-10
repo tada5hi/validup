@@ -16,7 +16,7 @@ import type { Validator } from '../types';
 import { hasOwnProperty, isObject } from '../utils';
 import { isContainer } from './check';
 import type {
-    ContainerItem, ContainerMountOptions, ContainerOptions, ContainerRunOptions, IContainer,
+    ContainerOptions, ContainerRunOptions, IContainer, Mount, MountOptions,
 } from './types';
 import type { Issue } from '../issue';
 import { defineIssueGroup, defineIssueItem } from '../issue';
@@ -26,7 +26,7 @@ export class Container<
 > implements IContainer {
     protected options : ContainerOptions<T>;
 
-    protected items : ContainerItem[];
+    protected items : Mount[];
 
     // ----------------------------------------------
 
@@ -42,20 +42,20 @@ export class Container<
     mount(container: IContainer) : void;
 
     mount(
-        options: ContainerMountOptions,
+        options: MountOptions,
         container: IContainer
     ): void;
 
     mount(
         // eslint-disable-next-line @typescript-eslint/ban-types
-        key: Path<T> & (string & {}),
+        key: Path<T> | (string & {}),
         data: IContainer | Validator
     ) : void;
 
     mount(
         // eslint-disable-next-line @typescript-eslint/ban-types
-        key: Path<T> & (string & {}),
-        options: ContainerMountOptions,
+        key: Path<T> | (string & {}),
+        options: MountOptions,
         data: IContainer | Validator
     ) : void;
 
@@ -69,7 +69,7 @@ export class Container<
         let data: IContainer | Validator | undefined;
         let dataIsContainer : boolean = false;
 
-        let options: ContainerMountOptions = {};
+        let options: MountOptions = {};
 
         for (let i = 0; i < args.length; i++) {
             const arg = args[i];
@@ -106,10 +106,22 @@ export class Container<
             throw new SyntaxError('No container/validator could be extracted from the fn arguments.');
         }
 
+        if (isContainer(data)) {
+            this.items.push({
+                options,
+                data,
+                path,
+                type: 'container',
+            });
+
+            return;
+        }
+
         this.items.push({
-            ...options,
+            options,
             data,
             path,
+            type: 'validator',
         });
     }
 
@@ -200,13 +212,13 @@ export class Container<
 
                 try {
                     if (
-                        item.optional &&
-                        isOptionalValue(value, item.optionalValue)
+                        item.options.optional &&
+                        isOptionalValue(value, item.options.optionalValue)
                     ) {
-                        if (item.optionalInclude) {
+                        if (item.options.optionalInclude) {
                             output[key] = value;
                         }
-                    } else if (isContainer(item.data)) {
+                    } else if (item.type === 'container') {
                         const tmp = await item.data.run(
                             isObject(value) ? value : {},
                             {
@@ -222,7 +234,7 @@ export class Container<
                         for (let k = 0; k < tmpKeys.length; k++) {
                             output[this.mergePaths(key, tmpKeys[k])] = tmp[tmpKeys[k]];
                         }
-                    } else {
+                    } else if (item.type === 'validator') {
                         output[key] = await item.data({
                             key,
                             path: pathAbsolute,
@@ -327,28 +339,28 @@ export class Container<
     }
 
     private isItemGroupIncluded(
-        item: ContainerItem,
+        item: Mount,
         group?: string,
     ) : boolean {
         if (group === GroupKey.WILDCARD) {
             return true;
         }
 
-        if (item.group) {
-            if (Array.isArray(item.group)) {
-                if (item.group.indexOf(GroupKey.WILDCARD) !== -1) {
+        if (item.options.group) {
+            if (Array.isArray(item.options.group)) {
+                if (item.options.group.indexOf(GroupKey.WILDCARD) !== -1) {
                     return true;
                 }
 
-                if (group && item.group.indexOf(group) !== -1) {
+                if (group && item.options.group.indexOf(group) !== -1) {
                     return true;
                 }
             } else {
-                if (item.group === GroupKey.WILDCARD) {
+                if (item.options.group === GroupKey.WILDCARD) {
                     return true;
                 }
 
-                if (item.group === group) {
+                if (item.options.group === group) {
                     return true;
                 }
             }
