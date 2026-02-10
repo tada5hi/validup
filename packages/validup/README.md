@@ -149,23 +149,23 @@ type ValidatorContext = {
     /**
      * The expanded mount path in the current container.
      */
-    path: string,
-    /**
-     * The unexpanded mount path in the current container.
-     */
-    pathRaw: string,
+    key: string,
+
     /**
      * The global mount path of the parent container.
      */
-    pathAbsolute: string,
+    path: PropertyKey[],
+
     /**
      * The actual value, which should be validated.
      */
     value: unknown,
+
     /**
      * The input data of the current container.
      */
     data: Record<string, any>,
+
     /**
      * The group name for which the validator is executed.
      */
