@@ -5,11 +5,14 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { defineIssueItem, hasOwnProperty } from 'validup';
+import { defineIssueItem, hasOwnProperty, isIssueItem } from 'validup';
 import type { ZodError } from 'zod';
-import type { Issue } from 'validup';
+import type { Issue, ValidupError } from 'validup';
 
-export function buildIssues(error: ZodError) {
+export type ZodIssues = ZodError['issues'];
+export type ZodIssue = ZodIssues extends (infer U)[] ? U : never;
+
+export function buildIssuesForZodError(error: ZodError) {
     const issues : Issue[] = [];
 
     for (let i = 0; i < error.issues.length; i++) {
@@ -34,4 +37,36 @@ export function buildIssues(error: ZodError) {
     }
 
     return issues;
+}
+
+/**
+ * Build Zod Issues for validup issue.
+ *
+ * @param issue
+ */
+export function buildZodIssuesForIssue(issue: Issue) : ZodIssue[] {
+    if (isIssueItem(issue)) {
+        return [
+            {
+                code: 'custom',
+                message: issue.message,
+                path: issue.path,
+            },
+        ];
+    }
+
+    const output : ZodIssue[] = [];
+    for (let i = 0; i < issue.issues.length; i++) {
+        const child = issue.issues[i];
+
+        output.push(...buildZodIssuesForIssue(child));
+    }
+
+    return output;
+}
+
+export function buildZodIssuesForError(error: ValidupError) : ZodIssue[] {
+    return error.issues
+        .map((issue) => buildZodIssuesForIssue(issue))
+        .flat();
 }

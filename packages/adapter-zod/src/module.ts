@@ -8,7 +8,7 @@
 import type { Validator, ValidatorContext } from 'validup';
 import { ValidupError } from 'validup';
 import type { ZodType } from 'zod';
-import { buildIssues } from './error';
+import { buildIssuesForZodError } from './error';
 
 type ZodCreateFn = (ctx: ValidatorContext) => ZodType;
 
@@ -26,7 +26,7 @@ export function createValidator(input: ZodCreateFn | ZodType) : Validator {
             return outcome.data;
         }
 
-        const issues = buildIssues(outcome.error);
+        const issues = buildIssuesForZodError(outcome.error);
 
         throw new ValidupError(issues);
     };
