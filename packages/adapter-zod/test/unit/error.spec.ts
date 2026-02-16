@@ -45,14 +45,12 @@ describe('error', () => {
                 }),
         ));
 
-        expect.assertions(1);
+        expect.assertions(2);
 
-        try {
-            await container.run({ foo: 1 });
-        } catch (e) {
-            if (isValidupError(e)) {
-                expect(e.issues).toHaveLength(1);
-            }
+        const output = await container.safeRun({ foo: 1 });
+        expect(output.success).toBeFalsy();
+        if (!output.success) {
+            expect(output.error).toBeInstanceOf(ValidupError);
         }
     });
 });
