@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/tada5hi/validup/compare/adapter-zod-v0.2.1...adapter-zod-v0.2.2) (2026-02-16)
+
+
+### Features
+
+* transform validup error to zod issues ([ba77647](https://github.com/tada5hi/validup/commit/ba776470bd689c42d2a436feabc058a05a00516f))
+
 ## [0.2.1](https://github.com/tada5hi/validup/compare/adapter-zod-v0.2.0...adapter-zod-v0.2.1) (2026-02-10)
 
 
