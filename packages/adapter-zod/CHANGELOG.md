@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/tada5hi/validup/compare/adapter-zod-v0.2.2...adapter-zod-v0.2.3) (2026-02-16)
+
+
+### Bug Fixes
+
+* typing for building zod issues ([7f1b12a](https://github.com/tada5hi/validup/commit/7f1b12a10cc00eadcefc0dba79d54fe9072bc3a5))
+
 ## [0.2.2](https://github.com/tada5hi/validup/compare/adapter-zod-v0.2.1...adapter-zod-v0.2.2) (2026-02-16)
 
 
