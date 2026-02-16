@@ -6,11 +6,11 @@
  */
 
 import { defineIssueItem, hasOwnProperty, isIssueItem } from 'validup';
-import type { $ZodIssueCustom } from 'zod/v4/core';
+import type { $ZodRawIssue } from 'zod/v4/core';
 import type { ZodError } from 'zod';
 import type { Issue, ValidupError } from 'validup';
 
-export type ZodIssue = $ZodIssueCustom;
+export type ZodIssue = $ZodRawIssue;
 
 export function buildIssuesForZodError(error: ZodError) {
     const issues : Issue[] = [];
@@ -51,6 +51,7 @@ export function buildZodIssuesForIssue(issue: Issue) : ZodIssue[] {
                 code: 'custom',
                 message: issue.message,
                 path: issue.path,
+                input: issue.received,
             },
         ];
     }

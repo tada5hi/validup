@@ -129,6 +129,7 @@ export class Container<
 
     /**
      * @throws ValidupError
+     *
      * @param data
      * @param options
      */
