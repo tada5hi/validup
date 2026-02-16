@@ -6,11 +6,11 @@
  */
 
 import { defineIssueItem, hasOwnProperty, isIssueItem } from 'validup';
+import type { $ZodIssueCustom } from 'zod/v4/core';
 import type { ZodError } from 'zod';
 import type { Issue, ValidupError } from 'validup';
 
-export type ZodIssues = ZodError['issues'];
-export type ZodIssue = ZodIssues extends (infer U)[] ? U : never;
+export type ZodIssue = $ZodIssueCustom;
 
 export function buildIssuesForZodError(error: ZodError) {
     const issues : Issue[] = [];
