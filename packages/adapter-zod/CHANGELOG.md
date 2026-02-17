@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.4](https://github.com/tada5hi/validup/compare/adapter-zod-v0.2.3...adapter-zod-v0.2.4) (2026-02-17)
+
+
+### Features
+
+* container safe-parse method ([#327](https://github.com/tada5hi/validup/issues/327)) ([c4f0a13](https://github.com/tada5hi/validup/commit/c4f0a13bec376242fe2c702a4e090267b93bbe41))
+
+
+### Bug Fixes
+
+* use ZodRawIssue instead of ZodCustomIssue ([8822210](https://github.com/tada5hi/validup/commit/8822210257448092bce48c2e39f31e6260ef3c1d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.2.1 to ^0.2.2
+
 ## [0.2.3](https://github.com/tada5hi/validup/compare/adapter-zod-v0.2.2...adapter-zod-v0.2.3) (2026-02-16)
 
 
