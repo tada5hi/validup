@@ -348,6 +348,18 @@ export class Container<
                 return { success: false, error: e };
             }
 
+            if (isError(e)) {
+                return {
+                    success: false,
+                    error: new ValidupError([
+                        defineIssueItem({
+                            path: [],
+                            message: e.message,
+                        }),
+                    ]),
+                };
+            }
+
             return { success: false, error: new ValidupError() };
         }
     }
