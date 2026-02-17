@@ -16,7 +16,7 @@ import type { Validator } from '../types';
 import { hasOwnProperty, isObject } from '../utils';
 import { isContainer } from './check';
 import type {
-    ContainerOptions, ContainerRunOptions, IContainer, Mount, MountOptions,
+    ContainerOptions, ContainerRunOptions, IContainer, Mount, MountOptions, Result,
 } from './types';
 import type { Issue } from '../issue';
 import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
@@ -337,6 +337,31 @@ export class Container<
         }
 
         return temp as T;
+    }
+
+    async safeRun(input: Record<string, any> = {}, options: ContainerRunOptions<T> = {}): Promise<Result<T>> {
+        try {
+            const data = await this.run(input, options);
+            return { success: true, data };
+        } catch (e) {
+            if (isValidupError(e)) {
+                return { success: false, error: e };
+            }
+
+            if (isError(e)) {
+                return {
+                    success: false,
+                    error: new ValidupError([
+                        defineIssueItem({
+                            path: [],
+                            message: e.message,
+                        }),
+                    ]),
+                };
+            }
+
+            return { success: false, error: new ValidupError() };
+        }
     }
 
     private isItemGroupIncluded(

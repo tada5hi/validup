@@ -7,6 +7,7 @@
 
 import type { Path } from 'pathtrace';
 import type { OptionalValue } from '../constants';
+import type { ValidupError } from '../error';
 import type {
     ObjectLiteral, Validator,
 } from '../types';
@@ -101,17 +102,42 @@ export type MountOptions = {
     optionalInclude?: boolean,
 };
 
+export type ResultSuccess<T> = {
+    success: true;
+    data: T,
+    error?: never
+};
+
+export type ResultFailure = {
+    success: false;
+    data?: never,
+    error: ValidupError;
+};
+
+export type Result<T extends ObjectLiteral = ObjectLiteral> = ResultSuccess<T> | ResultFailure;
+
 export interface IContainer<T extends ObjectLiteral = ObjectLiteral> {
     /**
-     * Execute container with given input.
+     * Run container with given input.
      *
-     * @param data
+     * @param input
      * @param options
      */
     run(
-        data?: Record<string, any>,
+        input?: Record<string, any>,
         options?: ContainerRunOptions<T>,
     ): Promise<T>
+
+    /**
+     * Safe run container with given input.
+     *
+     * @param input
+     * @param options
+     */
+    safeRun(
+        input?: Record<string, any>,
+        options?: ContainerRunOptions<T>,
+    ): Promise<Result<T>>
 }
 
 export type BaseMount = {

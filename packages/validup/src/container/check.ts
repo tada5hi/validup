@@ -10,5 +10,6 @@ import type { IContainer } from './types';
 
 export function isContainer(input: unknown) : input is IContainer {
     return isObject(input) &&
-        typeof input.run === 'function';
+        typeof input.run === 'function' &&
+        typeof input.safeRun === 'function';
 }
