@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.3](https://github.com/tada5hi/validup/compare/adapter-validator-v0.3.2...adapter-validator-v0.3.3) (2026-03-10)
+
+
+### Bug Fixes
+
+* **deps:** bump the minorandpatch group across 1 directory with 8 updates ([#335](https://github.com/tada5hi/validup/issues/335)) ([8246912](https://github.com/tada5hi/validup/commit/8246912300fd35eb367072e0613424429668e894))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.2.2 to ^0.2.3
+
 ## [0.3.2](https://github.com/tada5hi/validup/compare/adapter-validator-v0.3.1...adapter-validator-v0.3.2) (2026-02-17)
 
 
