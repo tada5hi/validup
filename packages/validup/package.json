@@ -40,7 +40,7 @@
     "keywords": [],
     "license": "MIT",
     "dependencies": {
-        "pathtrace": "^2.1.2",
+        "pathtrace": "^2.2.0",
         "smob": "^1.6.1"
     },
     "publishConfig": {
