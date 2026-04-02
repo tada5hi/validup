@@ -44,10 +44,10 @@
         "smob": "^1.6.1"
     },
     "devDependencies": {
-        "express-validator": "^7.3.1"
+        "express-validator": "^7.3.2"
     },
     "peerDependencies": {
-        "express-validator": "^7.3.1"
+        "express-validator": "^7.3.2"
     },
     "publishConfig": {
         "access": "public"
