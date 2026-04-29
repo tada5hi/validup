@@ -66,8 +66,12 @@ export interface ValidupComposable<T extends ObjectLiteral = ObjectLiteral> {
     /** Resolve a registered child composable by `options.name`. */
     $getResultsForChild<C extends ObjectLiteral = ObjectLiteral>(name: string): ValidupComposable<C> | undefined;
 
-    /** Per-field accessor — proxies to `fields[<key>]`. */
-    readonly fields: { readonly [K in keyof T]: FieldState<T[K]> };
+    /**
+     * Per-field accessor. Top-level keys narrow to `FieldState<T[K]>`;
+     * dotted (`'user.email'`) and bracketed (`'tags[0]'`) paths fall back to
+     * `FieldState<any>` since their value type can't be derived structurally.
+     */
+    readonly fields: { readonly [K in keyof T]: FieldState<T[K]> } & Record<string, FieldState<any>>;
 }
 
 export interface ValidupComposableOptions<T extends ObjectLiteral> {

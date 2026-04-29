@@ -30,7 +30,7 @@ Most validation libraries make you choose between two extremes: a schema DSL tha
 
 ## Packages
 
-This monorepo publishes one core library and three adapters:
+This monorepo publishes one core library and four adapters:
 
 | Package                                                 | Version                                                                                | Description                                              |
 |---------------------------------------------------------|----------------------------------------------------------------------------------------|----------------------------------------------------------|
@@ -104,12 +104,13 @@ validup/
 │   ├── validup/              # Core library
 │   ├── adapter-zod/          # @validup/adapter-zod
 │   ├── adapter-validator/    # @validup/adapter-validator
-│   └── adapter-routup/       # @validup/adapter-routup
+│   ├── adapter-routup/       # @validup/adapter-routup
+│   └── adapter-vue/          # @validup/adapter-vue
 ├── nx.json                   # Nx caching for build / lint / test
 └── release-please-config.json
 ```
 
-The four packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Adapters depend on `validup`; the core has no peer dependencies.
+The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Adapters depend on `validup`; the core has no peer dependencies.
 
 ## Development
 

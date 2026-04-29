@@ -64,6 +64,27 @@ describe('$validate', () => {
         expect($v.fields.name.$errors.value.length).toBeGreaterThan(0);
     });
 
+    it('surfaces $errors for validation paths absent from state (regression: copilot review #353)', async () => {
+        const container = new Container<{ address: { city: string } }>();
+        const child = new Container<{ city: string }>();
+        child.mount('city', isNonEmptyString);
+        container.mount('address', child);
+
+        // State starts empty — no `address` key. The container still
+        // validates `address.city`. Without `$validate()` marking issue
+        // paths dirty, `$errors` would stay empty here.
+        const state = reactive({} as { address?: { city: string } });
+        const $v = useValidup(container, state as { address: { city: string } });
+        await flush();
+
+        const result = await $v.$validate();
+        expect(result.success).toBe(false);
+        await flush();
+
+        expect($v.$errors.value.length).toBeGreaterThan(0);
+        expect($v.fields['address.city'].$errors.value.length).toBeGreaterThan(0);
+    });
+
     it('cancels a pending debounce timer (stale debounced runs cannot overwrite the result)', async () => {
         const container = new Container<{ name: string }>();
         container.mount('name', isNonEmptyString);

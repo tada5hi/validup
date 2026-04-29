@@ -6,17 +6,16 @@
  */
 
 import {
-    computed, 
-    getCurrentInstance, 
-    getCurrentScope, 
-    inject, 
-    isRef, 
-    onScopeDispose, 
-    provide, 
-    reactive, 
-    ref, 
-    toRef, 
-    unref, 
+    computed,
+    getCurrentInstance,
+    getCurrentScope,
+    inject,
+    isRef,
+    onScopeDispose,
+    provide,
+    reactive,
+    ref,
+    unref,
     watch,
 } from 'vue';
 import type { Ref } from 'vue';
@@ -120,7 +119,9 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
 ): ValidupComposable<T> {
     const containerRef = (isRef(container) ? container : ref(container)) as Ref<any>;
     const stateRef = (isRef(state) ? state : ref(state)) as Ref<T>;
-    const groupRef = toRef(options.group ?? undefined) as Ref<string | undefined>;
+    // Normalize MaybeRef explicitly — `toRef(maybeRef)` semantics shifted across
+    // Vue 3.x minor versions; `isRef` keeps reactivity intact regardless.
+    const groupRef = (isRef(options.group) ? options.group : ref(options.group)) as Ref<string | undefined>;
 
     const dirtyPaths = reactive<Set<string>>(new Set());
     const internalIssues = ref<Issue[]>([]);
@@ -303,6 +304,19 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
 
     // ---- form-level state --------------------------------------------------
 
+    function markIssuePathsDirty() {
+        // Container mounts may target paths that don't (yet) exist on the
+        // state object — e.g. validating `address.city` when state starts as
+        // `{}`, or any optional/nested object the user hasn't created yet.
+        // Without this, `$errors` would stay empty after `$validate()` for
+        // those paths because no state key matches.
+        for (const item of flattenIssueItems([...internalIssues.value, ...externalIssues.value])) {
+            if (item.path.length > 0) {
+                dirtyPaths.add(pathKey(item.path));
+            }
+        }
+    }
+
     function $touch() {
         const data = unref(stateRef) as Record<string, unknown> | null | undefined;
         if (data && typeof data === 'object') {
@@ -310,6 +324,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
                 dirtyPaths.add(key);
             }
         }
+        markIssuePathsDirty();
     }
 
     function $reset() {
@@ -317,7 +332,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         externalIssues.value = [];
     }
 
-    function $validate(): Promise<Result<T>> {
+    async function $validate(): Promise<Result<T>> {
         // Cancel any pending debounced run — `$validate` is the explicit
         // submit-time check and must not race with a stale debounced result.
         if (debounceTimer) {
@@ -325,7 +340,11 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
             debounceTimer = undefined;
         }
         $touch();
-        return runOnce();
+        const result = await runOnce();
+        // The run we just performed may have produced new issues for paths
+        // not previously known. Mark those dirty too so `$errors` reflects them.
+        markIssuePathsDirty();
+        return result;
     }
 
     function setExternalIssues(issues: Issue[]) {
