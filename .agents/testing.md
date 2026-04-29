@@ -2,27 +2,27 @@
 
 ## Runner
 
-- **Jest 30** with **`@swc/jest`** transformer (no Babel, no `ts-jest`).
-- Each package has its own `test/jest.config.js` — there is no root-level Jest config. Run from the package directory or via `npm run test` (which delegates to `nx run-many -t test`).
-- Tests run under `cross-env NODE_ENV=test`.
+- **Vitest 4** with the v8 coverage provider.
+- Each package has its own `test/vitest.config.ts` — there is no root-level Vitest config. Run from the package directory or via `npm run test` (which delegates to `nx run-many -t test`).
+- `globals: true` is enabled, so `describe`/`it`/`expect`/etc. are available without imports.
 
 ## Layout
 
 ```
 packages/<pkg>/test/
-├── jest.config.js
+├── vitest.config.ts
 ├── unit/
 │   └── *.spec.ts        # one spec per concern
 └── data/                # shared fixtures (validup core only)
 ```
 
-Discovery pattern (`testRegex`): `(/unit/.*|(\.|/)(test|spec))\.(ts|js)x?$`. New specs should live under `test/unit/` and end in `.spec.ts`. `dist/` is ignored.
+Spec discovery (`test.include`): `test/unit/**/*.{test,spec}.{js,ts}`. New specs should live under `test/unit/` and end in `.spec.ts`.
 
-`rootDir` is `../` so source under `src/` is reachable as `../../src` from inside `test/unit/`.
+Specs reach package source via relative imports — `import { Container } from '../../src';` from inside `test/unit/`.
 
-## Coverage Thresholds (validup core)
+## Coverage Thresholds
 
-`packages/validup/test/jest.config.js`:
+All four packages currently use the same thresholds (`coverage.thresholds` in `vitest.config.ts`):
 
 | Metric     | Threshold |
 |------------|-----------|
@@ -57,6 +57,6 @@ Specs import directly from the package source, not the built dist:
 import { Container, type Validator } from '../../src';
 ```
 
-- Use `expect.assertions(n)` when asserting in `catch` blocks (see `module.spec.ts:79`) — the codebase is consistent about this.
+- Use `expect.assertions(n)` when asserting in `catch` blocks (see `module.spec.ts`) — the codebase is consistent about this.
 - Adapter tests use `supertest` (routup) or instantiate the foreign library inline (zod, express-validator).
 - Coverage is collected only from `src/**/*.{ts,tsx,js,jsx}`.

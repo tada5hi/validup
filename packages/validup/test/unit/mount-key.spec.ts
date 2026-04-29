@@ -16,15 +16,7 @@ describe('module/mount-key', () => {
         const container = new Container();
         container.mount('baz', childContainer);
 
-        const output = await container.run({
-            baz: {
-                foo: {
-                    bar: 1,
-                },
-            },
-        }, {
-            flat: true,
-        });
+        const output = await container.run({ baz: { foo: { bar: 1 } } }, { flat: true });
 
         expect(output['baz.foo.bar']).toMatchObject({
             path: ['baz', 'foo', 'bar'],
@@ -60,13 +52,7 @@ describe('module/mount-key', () => {
         const container = new Container();
         container.mount('foo.bar', ((ctx) => ctx));
 
-        const output = await container.run({
-            foo: {
-                bar: 1,
-            },
-        }, {
-            flat: true,
-        });
+        const output = await container.run({ foo: { bar: 1 } }, { flat: true });
 
         expect(output['foo.bar']).toMatchObject({
             path: ['foo', 'bar'],
@@ -78,11 +64,7 @@ describe('module/mount-key', () => {
         const container = new Container();
         container.mount('foo[1]', ((ctx) => ctx));
 
-        const output = await container.run({
-            foo: ['bar', 'baz'],
-        }, {
-            flat: true,
-        });
+        const output = await container.run({ foo: ['bar', 'baz'] }, { flat: true });
 
         expect(output['foo[1]']).toMatchObject({
             path: ['foo', 1],
@@ -106,9 +88,7 @@ describe('module/mount-key', () => {
         const container = new Container();
         container.mount('foo.toFixed', ((ctx) => ctx));
 
-        const output = await container.run({
-            foo: 1,
-        });
+        const output = await container.run({ foo: 1 });
 
         expect(output.foo.toFixed).toMatchObject({
             path: ['foo', 'toFixed'],
@@ -120,13 +100,7 @@ describe('module/mount-key', () => {
         const container = new Container();
         container.mount('**.foo', ((ctx) => ctx));
 
-        const output = await container.run({
-            foo: {
-                foo: 1,
-            },
-        }, {
-            flat: true,
-        });
+        const output = await container.run({ foo: { foo: 1 } }, { flat: true });
 
         expect(output['foo.foo']).toMatchObject({
             path: ['foo', 'foo'],
@@ -144,18 +118,10 @@ describe('module/mount-key', () => {
 
         const output = await container.run({
             foo: {
-                a: {
-                    b: {
-                        bar: 1,
-                    },
-                },
-                c: {
-                    bar: 2,
-                },
+                a: { b: { bar: 1 } },
+                c: { bar: 2 },
             },
-        }, {
-            flat: true,
-        });
+        }, { flat: true });
 
         expect(output['foo.a.b.bar']).toMatchObject({
             path: ['foo', 'a', 'b', 'bar'],

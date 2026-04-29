@@ -7,7 +7,10 @@
 
 import { isObject } from '../utils';
 import type {
-    Issue, IssueBase, IssueGroup, IssueItem,
+    Issue, 
+    IssueBase, 
+    IssueGroup, 
+    IssueItem,
 } from './types';
 
 function isIssuePath(input: unknown) : input is PropertyKey[] {
@@ -20,7 +23,7 @@ function isIssuePath(input: unknown) : input is PropertyKey[] {
     typeof el === 'symbol');
 }
 
-function isBaseIssue(input: unknown) : input is IssueBase & {[ke: string]: any} {
+function isBaseIssue(input: unknown) : input is IssueBase & { [ke: string]: any } {
     if (!isObject(input)) {
         return false;
     }

@@ -11,23 +11,19 @@ inputs:
 runs:
     using: 'composite'
     steps:
-        -   name: echo github.ref
-            shell: bash
-            run: echo ${{ github.ref }}
-
         -   name: Use Node.js ${{ inputs.node-version }}
-            uses: actions/setup-node@v3
+            uses: actions/setup-node@v4
             with:
                 node-version: ${{ inputs.node-version }}
                 registry-url: ${{ inputs.registry-url }}
 
         -   name: Use cache
-            uses: actions/cache@v3
+            uses: actions/cache@v4
             with:
                 path: |
                     node_modules
                     */*/node_modules
-                key: ${{ runner.os }}-install-${{ hashFiles('**/package.json') }}
+                key: ${{ runner.os }}-install-${{ hashFiles('**/package-lock.json') }}
                 restore-keys: |
                     ${{ runner.os }}-install-
 

@@ -10,9 +10,7 @@ import { stringValidator } from '../data';
 
 describe('oneOf', () => {
     it('should execute only specific mount item', async () => {
-        const container = new Container<{ foo: string, bar: string }>({
-            pathsToInclude: ['foo'],
-        });
+        const container = new Container<{ foo: string, bar: string }>({ pathsToInclude: ['foo'] });
 
         container.mount('foo', stringValidator);
         container.mount('bar', stringValidator);
@@ -27,9 +25,7 @@ describe('oneOf', () => {
     });
 
     it('should not execute any mount item', async () => {
-        const container = new Container<{ foo: string, bar: string }>({
-            pathsToInclude: [],
-        });
+        const container = new Container<{ foo: string, bar: string }>({ pathsToInclude: [] });
 
         container.mount('foo', stringValidator);
         container.mount('bar', stringValidator);

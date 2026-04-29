@@ -55,9 +55,7 @@ describe('optional', () => {
             child,
         );
 
-        const output = await parent.run({
-            child: null,
-        });
+        const output = await parent.run({ child: null });
         expect(Object.keys(output)).toHaveLength(0);
     });
 
@@ -76,9 +74,7 @@ describe('optional', () => {
             child,
         );
 
-        const output = await parent.run({
-            child: null,
-        });
+        const output = await parent.run({ child: null });
         expect(Object.keys(output)).toHaveLength(1);
         expect(output.child).toEqual(null);
     });
@@ -94,9 +90,7 @@ describe('optional', () => {
             child,
         );
 
-        const output = await parent.run({
-            child: '',
-        });
+        const output = await parent.run({ child: '' });
         expect(Object.keys(output)).toHaveLength(0);
     });
 
@@ -115,9 +109,7 @@ describe('optional', () => {
             child,
         );
 
-        const output = await parent.run({
-            child: '',
-        });
+        const output = await parent.run({ child: '' });
         expect(Object.keys(output)).toHaveLength(1);
         expect(output.child).toEqual('');
     });
@@ -136,9 +128,7 @@ describe('optional', () => {
         expect.assertions(1);
 
         try {
-            await parent.run({
-                child: null,
-            });
+            await parent.run({ child: null });
         } catch (e) {
             expect(e).toBeDefined();
         }
@@ -158,9 +148,7 @@ describe('optional', () => {
         expect.assertions(1);
 
         try {
-            await parent.run({
-                child: '',
-            });
+            await parent.run({ child: '' });
         } catch (e) {
             expect(e).toBeDefined();
         }
@@ -180,9 +168,7 @@ describe('optional', () => {
         expect.assertions(1);
 
         try {
-            await parent.run({
-                child: ' ',
-            });
+            await parent.run({ child: ' ' });
         } catch (e) {
             expect(e).toBeDefined();
         }

@@ -44,8 +44,8 @@ export function buildIssuesForErrors(
     errors: ValidationError[],
 ): Issue[] {
     const issues : Issue[] = [];
-    for (let i = 0; i < errors.length; i++) {
-        issues.push(...buildIssuesForError(errors[i]));
+    for (const error of errors) {
+        issues.push(...buildIssuesForError(error));
     }
 
     return issues;

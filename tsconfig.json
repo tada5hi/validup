@@ -1,7 +1,18 @@
 {
-    "extends": "./tsconfig.build.json",
+    "extends": "@tada5hi/tsconfig",
     "compilerOptions": {
-        "baseUrl": ".",
-        "noEmit": true
+        "target": "ES2022",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "strictPropertyInitialization": false,
+        "noUncheckedIndexedAccess": false,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "verbatimModuleSyntax": false,
+        "noImplicitOverride": false,
+        "noEmit": true,
+        "allowImportingTsExtensions": true
     }
 }

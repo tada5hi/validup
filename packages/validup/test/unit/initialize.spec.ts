@@ -20,9 +20,7 @@ describe('src/module/initialize', () => {
     it('should call initialize method', async () => {
         const container = new StringContainer();
 
-        const output = await container.run({
-            foo: 'bar',
-        });
+        const output = await container.run({ foo: 'bar' });
 
         expect(output.foo).toEqual('bar');
     });

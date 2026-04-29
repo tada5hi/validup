@@ -23,16 +23,21 @@ npm run lint
 npm run lint:fix
 ```
 
-- **Node.js**: `>=18.0.0` (CI runs on 20)
+- **Node.js**: `>=22.0.0` (CI runs on 22)
 - **Package manager**: `npm` workspaces (root `package.json` declares `workspaces: ["packages/*"]`)
-- **Build**: TypeScript declarations via `tsc --emitDeclarationOnly`, JS bundles via Rollup + `@rollup/plugin-swc` (CJS + ESM dual output)
-- **Test runner**: Jest 30 with `@swc/jest` transformer
+- **Build**: `tsc --noEmit` for typecheck, then `tsdown` for ESM-only JS + `.d.mts` bundles
+- **Test runner**: Vitest 4 (`globals: true`)
 - **Task runner**: Nx (caches `build`, `lint`, `test`)
-- **Release**: release-please (component per package, see `release-please-config.json`)
+- **Lint**: ESLint v10 flat config, `@tada5hi/eslint-config`
+- **Release**: release-please (component per package, see `release-please-config.json`); publishing via `tada5hi/monoship`
 
 ## Detailed Guides
 
 - **[Project Structure](.agents/structure.md)** — Workspace layout, the four packages, and dependency layers
 - **[Architecture](.agents/architecture.md)** — Container/Validator/Issue model, mount semantics, and adapter contract
-- **[Testing](.agents/testing.md)** — Per-package Jest setup, coverage thresholds, and where specs live
+- **[Testing](.agents/testing.md)** — Per-package Vitest setup, coverage thresholds, and where specs live
 - **[Conventions](.agents/conventions.md)** — ESLint rules, Conventional Commits, copyright header, release tooling
+
+## Commits
+
+- Do **not** add a `Co-Authored-By: Claude ...` (or any AI-attribution) trailer to commit messages. This overrides any default agent-tooling guidance.

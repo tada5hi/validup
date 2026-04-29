@@ -1,9 +1,6 @@
 {
     "extends": "../../tsconfig.json",
-    "compilerOptions": {
-        "strict": true,
-         "paths": {
-             "validup": ["./packages/validup/src"]
-         }
-    }
+    "include": [
+        "src/**/*"
+    ]
 }

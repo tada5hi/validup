@@ -10,25 +10,19 @@ import { stringValidator } from '../data';
 
 describe('oneOf', () => {
     it('should work with truthy oneOf option', async () => {
-        const container = new Container<{ foo: string, bar: string }>({
-            oneOf: true,
-        });
+        const container = new Container<{ foo: string, bar: string }>({ oneOf: true });
 
         container.mount('foo', stringValidator);
         container.mount('bar', stringValidator);
 
-        const output = await container.run({
-            foo: 'boz',
-        });
+        const output = await container.run({ foo: 'boz' });
 
         expect(output.foo).toEqual('boz');
         expect(output.bar).toBeUndefined();
     });
 
     it('should not work with truthy oneOf option', async () => {
-        const container = new Container<{ foo: string, bar: string }>({
-            oneOf: true,
-        });
+        const container = new Container<{ foo: string, bar: string }>({ oneOf: true });
 
         container.mount('foo', stringValidator);
         container.mount('bar', stringValidator);
@@ -36,18 +30,14 @@ describe('oneOf', () => {
         expect.assertions(1);
 
         try {
-            await container.run({
-                foo: 1,
-            });
+            await container.run({ foo: 1 });
         } catch (e) {
             expect(e).toBeDefined();
         }
     });
 
     it('should not work falsy oneOf option', async () => {
-        const container = new Container<{ foo: string, bar: string }>({
-            oneOf: false,
-        });
+        const container = new Container<{ foo: string, bar: string }>({ oneOf: false });
 
         container.mount('foo', stringValidator);
         container.mount('bar', stringValidator);
@@ -55,9 +45,7 @@ describe('oneOf', () => {
         expect.assertions(2);
 
         try {
-            await container.run({
-                foo: 'boz',
-            });
+            await container.run({ foo: 'boz' });
         } catch (e) {
             if (e instanceof ValidupError) {
                 expect(e.issues).toHaveLength(1);

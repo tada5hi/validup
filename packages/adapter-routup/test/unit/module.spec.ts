@@ -8,7 +8,6 @@
 import { basic } from '@routup/basic';
 import { Router, coreHandler, createNodeDispatcher } from 'routup';
 import { Container, ValidupError } from 'validup';
-// eslint-disable-next-line import/no-extraneous-dependencies
 import supertest from 'supertest';
 import { RoutupContainerAdapter } from '../../src';
 
@@ -25,9 +24,7 @@ describe('src/module', () => {
     it('should validate with default', async () => {
         const router = new Router();
 
-        router.use(basic({
-            body: true,
-        }));
+        router.use(basic({ body: true }));
 
         router.post('/', coreHandler(async (req) => {
             const adapter = new RoutupContainerAdapter(container);
@@ -41,9 +38,7 @@ describe('src/module', () => {
 
         const response = await server
             .post('/')
-            .send({
-                token: 'bar',
-            });
+            .send({ token: 'bar' });
 
         expect(response.statusCode).toEqual(200);
         expect(response.text).toEqual('bar');
@@ -52,16 +47,12 @@ describe('src/module', () => {
     it('should validate with query', async () => {
         const router = new Router();
 
-        router.use(basic({
-            query: true,
-        }));
+        router.use(basic({ query: true }));
 
         router.post('/', coreHandler(async (req) => {
             const adapter = new RoutupContainerAdapter(container);
 
-            const output = await adapter.run(req, {
-                locations: ['query'],
-            });
+            const output = await adapter.run(req, { locations: ['query'] });
 
             return output.token;
         }));
@@ -78,16 +69,12 @@ describe('src/module', () => {
     it('should validate with cookies', async () => {
         const router = new Router();
 
-        router.use(basic({
-            cookie: true,
-        }));
+        router.use(basic({ cookie: true }));
 
         router.post('/', coreHandler(async (req) => {
             const adapter = new RoutupContainerAdapter(container);
 
-            const output = await adapter.run(req, {
-                locations: ['cookies'],
-            });
+            const output = await adapter.run(req, { locations: ['cookies'] });
 
             return output.token;
         }));
@@ -110,9 +97,7 @@ describe('src/module', () => {
         router.post('/:token', coreHandler(async (req) => {
             const adapter = new RoutupContainerAdapter(container);
 
-            const output = await adapter.run(req, {
-                locations: ['params'],
-            });
+            const output = await adapter.run(req, { locations: ['params'] });
 
             return output.token;
         }));

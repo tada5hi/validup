@@ -9,7 +9,8 @@ import type { Path } from 'pathtrace';
 import type { OptionalValue } from '../constants';
 import type { ValidupError } from '../error';
 import type {
-    ObjectLiteral, Validator,
+    ObjectLiteral, 
+    Validator,
 } from '../types';
 
 export type ContainerOptions<T> = {

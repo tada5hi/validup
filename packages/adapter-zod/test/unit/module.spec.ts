@@ -18,9 +18,7 @@ describe('src/module', () => {
 
         validator.mount('email', createValidator(z.string().email()));
 
-        const outcome = await validator.run({
-            email: 'foo@example.com',
-        });
+        const outcome = await validator.run({ email: 'foo@example.com' });
 
         expect(outcome).toBeDefined();
         expect(outcome.email).toEqual('foo@example.com');
@@ -31,9 +29,7 @@ describe('src/module', () => {
 
         validator.mount('email', createValidator(() => z.string().email()));
 
-        const outcome = await validator.run({
-            email: 'foo@example.com',
-        });
+        const outcome = await validator.run({ email: 'foo@example.com' });
 
         expect(outcome).toBeDefined();
         expect(outcome.email).toEqual('foo@example.com');
@@ -47,9 +43,7 @@ describe('src/module', () => {
         expect.assertions(3);
 
         try {
-            await validator.run({
-                email: 'foo',
-            });
+            await validator.run({ email: 'foo' });
         } catch (e) {
             if (e instanceof ValidupError) {
                 expect(e.issues).toHaveLength(1);
@@ -63,17 +57,13 @@ describe('src/module', () => {
         const child = new Container<{ email: string }>();
         child.mount('email', createValidator(z.string().email()));
 
-        const parent = new Container<{child: { email: string }}>();
+        const parent = new Container<{ child: { email: string } }>();
         parent.mount('child', child);
 
         expect.assertions(3);
 
         try {
-            await parent.run({
-                child: {
-                    email: 'foo',
-                },
-            });
+            await parent.run({ child: { email: 'foo' } });
         } catch (e) {
             if (e instanceof ValidupError) {
                 const [issue] = e.issues;
@@ -91,17 +81,13 @@ describe('src/module', () => {
         const child = new Container<{ email: string }>();
         child.mount('email', createValidator(z.string().email()));
 
-        const parent = new Container<{child: { email: string }}>();
+        const parent = new Container<{ child: { email: string } }>();
         parent.mount(child);
 
         expect.assertions(2);
 
         try {
-            await parent.run({
-                child: {
-                    email: 'foo',
-                },
-            });
+            await parent.run({ child: { email: 'foo' } });
         } catch (e) {
             if (e instanceof ValidupError) {
                 expect(e.issues).toHaveLength(1);
@@ -113,18 +99,12 @@ describe('src/module', () => {
     it('should not validate array', async () => {
         const validator = new Container<{ foo: unknown[] }>();
 
-        validator.mount('foo', createValidator(z.object({
-            bar: z.string().array().min(2),
-        })));
+        validator.mount('foo', createValidator(z.object({ bar: z.string().array().min(2) })));
 
         expect.assertions(5);
 
         try {
-            await validator.run({
-                foo: {
-                    bar: [0],
-                },
-            });
+            await validator.run({ foo: { bar: [0] } });
         } catch (e) {
             if (e instanceof ValidupError) {
                 const [group] = e.issues;

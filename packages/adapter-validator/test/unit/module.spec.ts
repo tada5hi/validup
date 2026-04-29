@@ -38,9 +38,7 @@ describe('src/module', () => {
             }),
         );
 
-        const outcome = await validator.run({
-            foo: [1],
-        });
+        const outcome = await validator.run({ foo: [1] });
 
         expect(outcome.foo).toEqual([1]);
     });
@@ -63,20 +61,12 @@ describe('src/module', () => {
 
         expect.assertions(2);
 
-        const outcome = await container.run({
-            foo: null,
-        }, {
-            group: 'optional',
-        });
+        const outcome = await container.run({ foo: null }, { group: 'optional' });
 
         expect(outcome.foo).toEqual(null);
 
         try {
-            await container.run({
-                foo: null,
-            }, {
-                group: 'required',
-            });
+            await container.run({ foo: null }, { group: 'required' });
         } catch (e) {
             expect(e).toBeDefined();
         }
@@ -92,9 +82,7 @@ describe('src/module', () => {
         }));
 
         try {
-            await validator.run({
-                foo: [],
-            });
+            await validator.run({ foo: [] });
         } catch (e) {
             if (e instanceof ValidupError) {
                 expect(e.issues).toBeDefined();
@@ -118,11 +106,7 @@ describe('src/module', () => {
         parent.mount('child', child);
 
         try {
-            await parent.run({
-                child: {
-                    foo: [],
-                },
-            });
+            await parent.run({ child: { foo: [] } });
         } catch (e) {
             if (e instanceof ValidupError) {
                 const [issue] = e.issues;

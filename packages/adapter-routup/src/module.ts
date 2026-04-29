@@ -32,10 +32,10 @@ export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
         let output = {} as T;
         let error : ValidupError | undefined;
 
-        for (let i = 0; i < locations.length; i++) {
+        for (const location of locations) {
             let data : Record<string, any>;
 
-            switch (locations[i]) {
+            switch (location) {
                 case Location.COOKIES: {
                     data = useRequestCookies(req);
                     break;

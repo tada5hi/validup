@@ -7,7 +7,10 @@
 
 import type { IssueGroup, IssueItem } from '../../src';
 import {
-    defineIssueGroup, defineIssueItem, isIssueGroup, isIssueItem,
+    defineIssueGroup, 
+    defineIssueItem, 
+    isIssueGroup, 
+    isIssueItem,
 } from '../../src';
 
 describe('issue', () => {

@@ -68,6 +68,5 @@ export function buildZodIssuesForIssue(issue: Issue) : ZodIssue[] {
 
 export function buildZodIssuesForError(error: ValidupError) : ZodIssue[] {
     return error.issues
-        .map((issue) => buildZodIssuesForIssue(issue))
-        .flat();
+        .flatMap((issue) => buildZodIssuesForIssue(issue));
 }

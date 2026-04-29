@@ -1,6 +1,7 @@
 {
     "name": "validup",
     "version": "0.2.2",
+    "type": "module",
     "description": "A validation library.",
     "author": {
         "name": "Peter Placzek",
@@ -11,31 +12,27 @@
         "type": "git",
         "url": "https://github.com/tada5hi/validup.git"
     },
-    "main": "dist/index.cjs",
-    "module": "dist/index.mjs",
-    "types": "dist/index.d.ts",
+    "main": "dist/index.mjs",
+    "types": "dist/index.d.mts",
     "exports": {
         "./package.json": "./package.json",
         ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.mjs",
-            "require": "./dist/index.cjs"
-        },
-        "./bin/*": "./bin/*"
+            "types": "./dist/index.d.mts",
+            "import": "./dist/index.mjs"
+        }
     },
     "files": [
-        "bin",
         "dist"
     ],
     "engines": {
-        "node": ">=18.0.0"
+        "node": ">=22.0.0"
     },
     "scripts": {
-        "build:types": "tsc --emitDeclarationOnly -p tsconfig.build.json",
-        "build:js": "rollup -c",
-        "build": "rimraf dist && rimraf bin && npm run build:types && npm run build:js",
-        "test": "cross-env NODE_ENV=test jest --config ./test/jest.config.js",
-        "test:coverage": "cross-env NODE_ENV=test jest --config ./test/jest.config.js --coverage"
+        "build:types": "tsc --noEmit",
+        "build:js": "tsdown",
+        "build": "npm run build:types && npm run build:js",
+        "test": "vitest --config test/vitest.config.ts --run",
+        "test:coverage": "vitest --config test/vitest.config.ts --run --coverage"
     },
     "keywords": [],
     "license": "MIT",

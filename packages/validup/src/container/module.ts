@@ -7,7 +7,10 @@
 
 import type { Path } from 'pathtrace';
 import {
-    expandPath, getPathValue, pathToArray, setPathValue,
+    expandPath, 
+    getPathValue, 
+    pathToArray, 
+    setPathValue,
 } from 'pathtrace';
 import { GroupKey } from '../constants';
 import { ValidupError, isError, isValidupError } from '../error';
@@ -16,7 +19,12 @@ import type { Validator } from '../types';
 import { hasOwnProperty, isObject } from '../utils';
 import { isContainer } from './check';
 import type {
-    ContainerOptions, ContainerRunOptions, IContainer, Mount, MountOptions, Result,
+    ContainerOptions, 
+    ContainerRunOptions, 
+    IContainer, 
+    Mount, 
+    MountOptions, 
+    Result,
 } from './types';
 import type { Issue } from '../issue';
 import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
@@ -47,13 +55,11 @@ export class Container<
     ): void;
 
     mount(
-        // eslint-disable-next-line @typescript-eslint/ban-types
         key: Path<T> | (string & {}),
         data: IContainer | Validator
     ) : void;
 
     mount(
-        // eslint-disable-next-line @typescript-eslint/ban-types
         key: Path<T> | (string & {}),
         options: MountOptions,
         data: IContainer | Validator
@@ -71,9 +77,7 @@ export class Container<
 
         let options: MountOptions = {};
 
-        for (let i = 0; i < args.length; i++) {
-            const arg = args[i];
-
+        for (const arg of args) {
             if (typeof arg === 'string') {
                 path = arg;
                 continue;
@@ -91,7 +95,7 @@ export class Container<
             }
 
             if (isObject(arg)) {
-                options = args[i];
+                options = arg;
             }
         }
 
@@ -176,8 +180,7 @@ export class Container<
                 keys = [''];
             }
 
-            for (let j = 0; j < keys.length; j++) {
-                const key = keys[j];
+            for (const key of keys) {
                 const keyParts = key ? pathToArray(key) : [];
 
                 const pathRelative = keyParts.at(-1);
@@ -197,7 +200,7 @@ export class Container<
 
                 if (
                     typeof pathsToInclude !== 'undefined' &&
-                    pathsToInclude.indexOf(key) === -1
+                    !pathsToInclude.includes(key)
                 ) {
                     // todo: maybe add issue info
                     continue;
@@ -205,7 +208,7 @@ export class Container<
 
                 if (
                     typeof pathsToExclude !== 'undefined' &&
-                    pathsToExclude.indexOf(key) !== -1
+                    pathsToExclude.includes(key)
                 ) {
                     // todo: maybe add issue info
                     continue;
@@ -232,8 +235,8 @@ export class Container<
                         );
 
                         const tmpKeys = Object.keys(tmp);
-                        for (let k = 0; k < tmpKeys.length; k++) {
-                            output[this.mergePaths(key, tmpKeys[k])] = tmp[tmpKeys[k]];
+                        for (const tmpKey of tmpKeys) {
+                            output[this.mergePaths(key, tmpKey)] = tmp[tmpKey];
                         }
                     } else if (item.type === 'validator') {
                         output[key] = await item.data({
@@ -315,12 +318,12 @@ export class Container<
 
         if (options.defaults) {
             const defaultKeys = Object.keys(options.defaults);
-            for (let i = 0; i < defaultKeys.length; i++) {
+            for (const defaultKey of defaultKeys) {
                 if (
-                    !hasOwnProperty(output, defaultKeys[i]) ||
-                    typeof output[defaultKeys[i]] === 'undefined'
+                    !hasOwnProperty(output, defaultKey) ||
+                    typeof output[defaultKey] === 'undefined'
                 ) {
-                    output[defaultKeys[i]] = options.defaults[defaultKeys[i] as unknown as Path<T>];
+                    output[defaultKey] = options.defaults[defaultKey as unknown as Path<T>];
                 }
             }
         }
@@ -332,8 +335,8 @@ export class Container<
         const temp : Record<string, any> = {};
 
         const keys = Object.keys(output);
-        for (let i = 0; i < keys.length; i++) {
-            setPathValue(temp, keys[i], output[keys[i]]);
+        for (const key of keys) {
+            setPathValue(temp, key, output[key]);
         }
 
         return temp as T;
@@ -374,11 +377,11 @@ export class Container<
 
         if (item.options.group) {
             if (Array.isArray(item.options.group)) {
-                if (item.options.group.indexOf(GroupKey.WILDCARD) !== -1) {
+                if (item.options.group.includes(GroupKey.WILDCARD)) {
                     return true;
                 }
 
-                if (group && item.options.group.indexOf(group) !== -1) {
+                if (group && item.options.group.includes(group)) {
                     return true;
                 }
             } else {
@@ -400,8 +403,7 @@ export class Container<
     private mergePaths(...args: (string | undefined)[]) {
         let output : string = '';
 
-        for (let i = 0; i < args.length; i++) {
-            const arg = args[i];
+        for (const arg of args) {
             if (!arg || arg.length === 0) {
                 continue;
             }

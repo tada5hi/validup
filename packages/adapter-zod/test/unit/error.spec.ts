@@ -6,7 +6,10 @@
  */
 
 import {
-    Container, ValidupError, defineIssueItem, isValidupError,
+    Container, 
+    ValidupError, 
+    defineIssueItem, 
+    isValidupError,
 } from 'validup';
 import { z } from 'zod';
 import { buildZodIssuesForError, createValidator } from '../../src';
@@ -28,15 +31,13 @@ describe('error', () => {
         const childContainer = new Container();
         childContainer.mount('bar', createValidator(z.string()));
 
-        const container = new Container<{foo: string}>();
+        const container = new Container<{ foo: string }>();
         container.mount('foo', createValidator(
             z
                 .any()
                 .check(async (ctx) => {
                     try {
-                        await childContainer.run({
-                            bar: ctx.value,
-                        });
+                        await childContainer.run({ bar: ctx.value });
                     } catch (e) {
                         if (isValidupError(e)) {
                             ctx.issues.push(...buildZodIssuesForError(e));

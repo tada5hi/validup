@@ -12,7 +12,7 @@ import { ValidupError } from 'validup';
 import { buildIssuesForErrors } from './error';
 
 type ContextRunnerCreateFn = (
-    ctx: ValidatorContext
+    ctx: ValidatorContext,
 ) => ContextRunner;
 
 export function createValidator(
@@ -26,9 +26,7 @@ export function createValidator(
             runner = input;
         }
 
-        const outcome = await runner.run({
-            body: ctx.value,
-        });
+        const outcome = await runner.run({ body: ctx.value });
 
         const issues : Issue[] = [];
 

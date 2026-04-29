@@ -22,9 +22,7 @@ describe('src/module', () => {
 
         container.mount('foo', validator);
 
-        const outcome = await container.run({
-            foo: 'bar',
-        });
+        const outcome = await container.run({ foo: 'bar' });
         expect(outcome).toBeDefined();
         expect(outcome.foo).toEqual('bar');
         expect(outcome.bar).toBeUndefined();
@@ -56,11 +54,7 @@ describe('src/module', () => {
         let outcome = await container.run({});
         expect(outcome.foo).toBeUndefined();
 
-        outcome = await container.run({}, {
-            defaults: {
-                foo: 'boz',
-            },
-        });
+        outcome = await container.run({}, { defaults: { foo: 'boz' } });
         expect(outcome.foo).toEqual('boz');
     });
 

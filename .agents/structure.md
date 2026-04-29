@@ -10,12 +10,10 @@ validup/
 │   ├── adapter-validator/    # express-validator bridge (npm: @validup/adapter-validator)
 │   └── adapter-routup/       # routup HTTP request adapter (npm: @validup/adapter-routup)
 ├── nx.json                   # Nx caching config (build, lint, test cacheable)
-├── rollup.config.mjs         # Shared Rollup factory (createConfig)
-├── tsconfig.build.json       # Strict TS base; ESNext + Node resolution + decorator metadata
-├── tsconfig.json             # Lint-only (extends build, noEmit)
+├── tsconfig.json             # Shared TS base — extends @tada5hi/tsconfig, noEmit
 ├── release-please-config.json
-├── commitlint.config.js      # extends @tada5hi/commitlint-config
-└── .eslintrc                 # extends @tada5hi/eslint-config-typescript
+├── commitlint.config.mjs     # extends @tada5hi/commitlint-config
+└── eslint.config.js          # ESLint v10 flat config — uses @tada5hi/eslint-config
 ```
 
 ## Packages
@@ -27,7 +25,7 @@ validup/
 | express-validator adapter      | `packages/adapter-validator`  | `@validup/adapter-validator` | `validup`, `smob`                   | `express-validator ^7.3.1`                      |
 | Routup adapter                 | `packages/adapter-routup`     | `@validup/adapter-routup`    | (none — `validup` is peer)          | `validup`, `routup`, `@routup/basic`            |
 
-All packages publish dual CJS (`dist/index.cjs`) + ESM (`dist/index.mjs`) bundles plus `dist/index.d.ts`.
+All packages are `"type": "module"` and publish **ESM-only** (`dist/index.mjs` + `dist/index.d.mts`). No CJS output.
 
 ## Dependency Layers
 
@@ -40,6 +38,29 @@ adapter-routup ─────┘
 - `validup` is the only **leaf** package — adapters never depend on each other.
 - `nx run-many -t build` resolves order via `dependsOn: ["^build"]` in `nx.json`, so editing the core forces adapter rebuilds.
 - When changing core types/exports, adapters may need updates (especially `adapter-zod` which uses `defineIssueItem`, `isIssueItem`, `hasOwnProperty` from the core).
+
+## Per-Package Files
+
+Each package has the same layout:
+
+```
+packages/<pkg>/
+├── package.json
+├── tsconfig.json         # extends ../../tsconfig.json, includes src/**/*
+├── tsdown.config.ts      # entry: src/index.ts, format: esm, dts: true
+├── src/
+│   ├── index.ts          # barrel re-export
+│   └── ...
+└── test/
+    ├── vitest.config.ts  # globals: true, include: test/unit/**/*.{spec,test}.{js,ts}
+    └── unit/
+        └── *.spec.ts
+```
+
+Build scripts per package:
+- `build:types` → `tsc --noEmit` (typecheck only — emission is handled by tsdown)
+- `build:js` → `tsdown`
+- `build` → runs both sequentially
 
 ## Core Package Layout (`packages/validup/src/`)
 
@@ -77,4 +98,4 @@ Tests live under each package in `test/` (not a top-level `tests/` dir):
 
 - `packages/validup/test/unit/*.spec.ts` — covers the core (module, group, mount-key, optional, one-of, paths-to-include, error, issue, initialize)
 - `packages/validup/test/data/` — shared fixtures (`string-validator.ts`)
-- Adapter packages each have their own `test/jest.config.js` and `test/unit/*.spec.ts`
+- Adapter packages each have their own `test/vitest.config.ts` and `test/unit/*.spec.ts`
