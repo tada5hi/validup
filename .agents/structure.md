@@ -1,0 +1,80 @@
+# Project Structure
+
+## Repository Layout
+
+```
+validup/
+├── packages/
+│   ├── validup/              # Core library (npm: validup)
+│   ├── adapter-zod/          # zod bridge (npm: @validup/adapter-zod)
+│   ├── adapter-validator/    # express-validator bridge (npm: @validup/adapter-validator)
+│   └── adapter-routup/       # routup HTTP request adapter (npm: @validup/adapter-routup)
+├── nx.json                   # Nx caching config (build, lint, test cacheable)
+├── rollup.config.mjs         # Shared Rollup factory (createConfig)
+├── tsconfig.build.json       # Strict TS base; ESNext + Node resolution + decorator metadata
+├── tsconfig.json             # Lint-only (extends build, noEmit)
+├── release-please-config.json
+├── commitlint.config.js      # extends @tada5hi/commitlint-config
+└── .eslintrc                 # extends @tada5hi/eslint-config-typescript
+```
+
+## Packages
+
+| Package                        | Path                          | Public name                  | Depends on (runtime)                | Peer deps                                       |
+|--------------------------------|-------------------------------|------------------------------|-------------------------------------|-------------------------------------------------|
+| Core                           | `packages/validup`            | `validup`                    | `pathtrace`, `smob`                 | —                                               |
+| Zod adapter                    | `packages/adapter-zod`        | `@validup/adapter-zod`       | `validup`                           | `zod ^3.25.0 \|\| ^4.0.0`                       |
+| express-validator adapter      | `packages/adapter-validator`  | `@validup/adapter-validator` | `validup`, `smob`                   | `express-validator ^7.3.1`                      |
+| Routup adapter                 | `packages/adapter-routup`     | `@validup/adapter-routup`    | (none — `validup` is peer)          | `validup`, `routup`, `@routup/basic`            |
+
+All packages publish dual CJS (`dist/index.cjs`) + ESM (`dist/index.mjs`) bundles plus `dist/index.d.ts`.
+
+## Dependency Layers
+
+```
+adapter-zod ──┐
+adapter-validator ──┼──► validup ──► pathtrace, smob
+adapter-routup ─────┘
+```
+
+- `validup` is the only **leaf** package — adapters never depend on each other.
+- `nx run-many -t build` resolves order via `dependsOn: ["^build"]` in `nx.json`, so editing the core forces adapter rebuilds.
+- When changing core types/exports, adapters may need updates (especially `adapter-zod` which uses `defineIssueItem`, `isIssueItem`, `hasOwnProperty` from the core).
+
+## Core Package Layout (`packages/validup/src/`)
+
+| Subdir       | Responsibility                                                                              |
+|--------------|---------------------------------------------------------------------------------------------|
+| `container/` | `Container` class (`module.ts`), `IContainer`/`Mount`/`MountOptions` types, `isContainer`   |
+| `error/`     | `ValidupError` class (`base.ts`) and `isError`/`isValidupError` guards (`check.ts`)         |
+| `issue/`     | `Issue` types (item/group), `IssueCode` enum, `defineIssueItem`/`defineIssueGroup` factories, `isIssue`/`isIssueItem`/`isIssueGroup` guards |
+| `helpers/`   | `buildErrorMessageForAttribute(s)`, `isOptionalValue`, `stringifyPath`                      |
+| `utils/`     | Internal helpers — `isObject`, `hasOwnProperty`                                             |
+| `constants.ts` | `GroupKey.WILDCARD = '*'`, `OptionalValue` enum (`UNDEFINED` / `NULL` / `FALSY`)          |
+| `types.ts`   | `Validator`, `ValidatorContext`, `ObjectLiteral`                                            |
+| `index.ts`   | Re-exports every subdir (barrel — preserve when adding modules)                             |
+
+## Adapter Package Layout
+
+Each adapter follows the same shape:
+
+```
+src/
+├── module.ts    # createValidator() or *Adapter class — the public entry
+├── error.ts     # buildIssuesFor*Error() — translate foreign errors into validup Issues
+├── types.ts     # (optional) adapter-specific option types
+├── constants.ts # (optional) e.g. Location enum in adapter-routup
+└── index.ts     # Barrel re-export
+```
+
+- **adapter-zod**: `createValidator(zod | (ctx) => zod)` calls `safeParseAsync`; on failure converts each `ZodIssue` (`$ZodRawIssue` from `zod/v4/core`) into a validup `IssueItem`. Also exports `buildZodIssuesForError` for the reverse direction.
+- **adapter-validator**: `createValidator(chain | (ctx) => chain)` runs an express-validator `ContextRunner` with `body: ctx.value`, then translates `ValidationError` (`field` / `alternative` / `alternative_grouped`) into issues. Also exports `createValidationChain()`.
+- **adapter-routup**: `RoutupContainerAdapter` wraps a `Container`; `run(req, options)` reads from `Location` (`body` / `cookies` / `params` / `query`, default `body`) and tries each location until one succeeds.
+
+## Tests
+
+Tests live under each package in `test/` (not a top-level `tests/` dir):
+
+- `packages/validup/test/unit/*.spec.ts` — covers the core (module, group, mount-key, optional, one-of, paths-to-include, error, issue, initialize)
+- `packages/validup/test/data/` — shared fixtures (`string-validator.ts`)
+- Adapter packages each have their own `test/jest.config.js` and `test/unit/*.spec.ts`
