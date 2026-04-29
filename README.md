@@ -126,10 +126,11 @@ npm run lint
 npm run lint:fix
 ```
 
-- **Node.js**: `>=18.0.0` (CI runs on 20)
-- **Test runner**: Jest 30 with `@swc/jest`
-- **Bundler**: Rollup with `@rollup/plugin-swc` (dual CJS + ESM output)
-- **Releases**: managed by [release-please](https://github.com/googleapis/release-please) — one component per package
+- **Node.js**: `>=22.0.0` (CI runs on 22)
+- **Test runner**: [Vitest 4](https://vitest.dev)
+- **Bundler**: [tsdown](https://tsdown.dev) — ESM-only output (`dist/index.mjs` + `dist/index.d.mts`)
+- **Lint**: ESLint v10 flat config
+- **Releases**: managed by [release-please](https://github.com/googleapis/release-please) — one component per package; published via [`tada5hi/monoship`](https://github.com/tada5hi/monoship)
 
 ## Contributing
 

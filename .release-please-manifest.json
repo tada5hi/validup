@@ -2,5 +2,6 @@
     "packages/validup": "0.2.2",
     "packages/adapter-routup": "0.2.2",
     "packages/adapter-validator": "0.3.2",
+    "packages/adapter-vue": "0.1.0",
     "packages/adapter-zod": "0.2.4"
 }
