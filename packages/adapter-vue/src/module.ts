@@ -21,13 +21,14 @@ import {
 } from 'vue';
 import type { Ref } from 'vue';
 import type {
-    Issue, 
-    IssueItem, 
-    ObjectLiteral, 
-    Result, 
+    Issue,
+    IssueGroup,
+    IssueItem,
+    ObjectLiteral,
+    Result,
     ValidupError,
 } from 'validup';
-import { isIssueItem, isValidupError } from 'validup';
+import { isIssueGroup, isIssueItem, isValidupError } from 'validup';
 import { PARENT_INJECTION_KEY } from './helpers/child';
 import type {
     ContainerInput, 
@@ -96,6 +97,17 @@ function flattenIssueItems(issues: Issue[]): IssueItem[] {
             output.push(issue);
         } else {
             output.push(...flattenIssueItems(issue.issues));
+        }
+    }
+    return output;
+}
+
+function flattenIssueGroups(issues: Issue[]): IssueGroup[] {
+    const output: IssueGroup[] = [];
+    for (const issue of issues) {
+        if (isIssueGroup(issue)) {
+            output.push(issue);
+            output.push(...flattenIssueGroups(issue.issues));
         }
     }
     return output;
@@ -306,6 +318,12 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
     }
 
     function $validate(): Promise<Result<T>> {
+        // Cancel any pending debounced run — `$validate` is the explicit
+        // submit-time check and must not race with a stale debounced result.
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = undefined;
+        }
         $touch();
         return runOnce();
     }
@@ -322,8 +340,21 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         $pending: computed(() => pending.value),
         $dirty: computed(() => dirtyPaths.size > 0),
         $errors: computed(() => flattenIssueItems([...internalIssues.value, ...externalIssues.value])
-            .filter((i) => isPrefixDirty(dirtyPaths, pathKey(i.path)))),
+            .filter((i) => i.path.length > 0 && isPrefixDirty(dirtyPaths, pathKey(i.path)))),
         $issues: computed(() => [...internalIssues.value, ...externalIssues.value]),
+        // Path-less issues (cross-cutting failures like rate limit, CSRF) are
+        // always visible — no dirty gate, no field to attach to.
+        $externalErrors: computed(() => flattenIssueItems(externalIssues.value)
+            .filter((i) => i.path.length === 0)),
+        // Group-level issues (e.g. ONE_OF_FAILED). Empty-path groups surface
+        // once any field is dirty; nested groups gate on prefix-dirty rules.
+        $groupErrors: computed(() => flattenIssueGroups([...internalIssues.value, ...externalIssues.value])
+            .filter((g) => {
+                if (g.path.length === 0) {
+                    return dirtyPaths.size > 0;
+                }
+                return isPrefixDirty(dirtyPaths, pathKey(g.path));
+            })),
         $touch,
         $reset,
         $validate,

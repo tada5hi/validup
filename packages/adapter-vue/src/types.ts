@@ -12,10 +12,11 @@ import type {
     WritableComputedRef,
 } from 'vue';
 import type {
-    IContainer, 
-    Issue, 
-    IssueItem, 
-    ObjectLiteral, 
+    IContainer,
+    Issue,
+    IssueGroup,
+    IssueItem,
+    ObjectLiteral,
     Result,
 } from 'validup';
 
@@ -42,6 +43,18 @@ export interface ValidupComposable<T extends ObjectLiteral = ObjectLiteral> {
     readonly $errors: ComputedRef<IssueItem[]>;
     /** Raw issues for the whole form (groups + items), regardless of dirty state. */
     readonly $issues: ComputedRef<Issue[]>;
+    /**
+     * External issues with no field path (`path: []`) — cross-cutting backend
+     * errors like rate limiting, CSRF, or generic submit failures. Always
+     * visible (no dirty gate). Cleared by `$reset()`.
+     */
+    readonly $externalErrors: ComputedRef<IssueItem[]>;
+    /**
+     * Group-level issues (e.g. `IssueCode.ONE_OF_FAILED` from a `oneOf`
+     * container). Dirty-gated: empty-path groups surface once any field is
+     * dirty; nested groups follow the same prefix-dirty rules as field errors.
+     */
+    readonly $groupErrors: ComputedRef<IssueGroup[]>;
 
     $touch(): void;
     $reset(): void;
