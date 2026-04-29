@@ -38,6 +38,7 @@ This monorepo publishes one core library and three adapters:
 | [`@validup/adapter-zod`](./packages/adapter-zod)        | [![npm][adapter-zod-npm-src]][adapter-zod-npm-href]                                    | Bridge to [zod](https://zod.dev) schemas                 |
 | [`@validup/adapter-validator`](./packages/adapter-validator) | [![npm][adapter-validator-npm-src]][adapter-validator-npm-href]                   | Bridge to [express-validator](https://express-validator.github.io) chains |
 | [`@validup/adapter-routup`](./packages/adapter-routup)  | [![npm][adapter-routup-npm-src]][adapter-routup-npm-href]                              | Run a `Container` against a [routup](https://routup.net) request |
+| [`@validup/adapter-vue`](./packages/adapter-vue)        | [![npm][adapter-vue-npm-src]][adapter-vue-npm-href]                                    | [Vue 3](https://vuejs.org) composable for client-side forms |
 
 ## Installation
 
@@ -53,6 +54,7 @@ Optionally add an adapter:
 npm install @validup/adapter-zod --save        # zod schemas
 npm install @validup/adapter-validator --save  # express-validator chains
 npm install @validup/adapter-routup --save     # routup HTTP requests
+npm install @validup/adapter-vue --save        # Vue 3 forms
 ```
 
 ## At a Glance
@@ -161,3 +163,5 @@ Published under [MIT License](./LICENSE).
 [adapter-validator-npm-href]: https://npmjs.com/package/@validup/adapter-validator
 [adapter-routup-npm-src]: https://badge.fury.io/js/@validup%2Fadapter-routup.svg
 [adapter-routup-npm-href]: https://npmjs.com/package/@validup/adapter-routup
+[adapter-vue-npm-src]: https://badge.fury.io/js/@validup%2Fadapter-vue.svg
+[adapter-vue-npm-href]: https://npmjs.com/package/@validup/adapter-vue

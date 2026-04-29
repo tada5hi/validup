@@ -5,6 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { describe, expect, it } from 'vitest';
 import { nextTick, reactive, ref } from 'vue';
 import { Container, defineIssueItem } from 'validup';
 import type { Validator } from 'validup';
@@ -27,7 +28,9 @@ const isNonEmptyString: Validator = (ctx) => {
 async function flush() {
     // Multiple cycles to drain: Vue's scheduler tick + safeRun's promise chain.
     await nextTick();
-    await new Promise((r) => setTimeout(r, 0));
+    await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+    });
     await nextTick();
 }
 

@@ -6,20 +6,87 @@
  */
 
 import {
-    computed, getCurrentInstance, getCurrentScope, inject, isRef, onScopeDispose, provide, reactive, ref, toRef, unref, watch,
+    computed, 
+    getCurrentInstance, 
+    getCurrentScope, 
+    inject, 
+    isRef, 
+    onScopeDispose, 
+    provide, 
+    reactive, 
+    ref, 
+    toRef, 
+    unref, 
+    watch,
 } from 'vue';
 import type { Ref } from 'vue';
 import type {
-    Issue, IssueItem, ObjectLiteral, Result, ValidupError,
+    Issue, 
+    IssueItem, 
+    ObjectLiteral, 
+    Result, 
+    ValidupError,
 } from 'validup';
 import { isIssueItem, isValidupError } from 'validup';
 import { PARENT_INJECTION_KEY } from './helpers/child';
 import type {
-    ContainerInput, FieldState, ParentRegistry, StateInput, ValidupComposable, ValidupComposableOptions,
+    ContainerInput, 
+    FieldState, 
+    ParentRegistry, 
+    StateInput, 
+    ValidupComposable, 
+    ValidupComposableOptions,
 } from './types';
 
 function pathKey(path: PropertyKey[]): string {
     return path.map((p) => String(p)).join('.');
+}
+
+function pathFromKey(key: string): string[] {
+    // Accepts dotted (`a.b.c`), bracketed (`a[0].b`), or mixed (`a.b[0].c`).
+    return key
+        .replace(/\[(\w+)\]/g, '.$1')
+        .split('.')
+        .filter((s) => s.length > 0);
+}
+
+function readNested(obj: any, segments: string[]): unknown {
+    let cur: any = obj;
+    for (const seg of segments) {
+        if (cur == null) {
+            return undefined;
+        }
+        cur = cur[seg];
+    }
+    return cur;
+}
+
+function writeNested(obj: any, segments: string[], value: unknown): void {
+    if (segments.length === 0) {
+        return;
+    }
+    let cur: any = obj;
+    for (let i = 0; i < segments.length - 1; i++) {
+        const seg = segments[i];
+        if (cur[seg] == null || typeof cur[seg] !== 'object') {
+            cur[seg] = /^\d+$/.test(segments[i + 1] as string) ? [] : {};
+        }
+        cur = cur[seg];
+    }
+    cur[segments[segments.length - 1] as string] = value;
+}
+
+function isPrefixDirty(dirtyPaths: ReadonlySet<string>, key: string): boolean {
+    if (dirtyPaths.has(key)) {
+        return true;
+    }
+    const segments = key.split('.');
+    for (let n = 1; n < segments.length; n++) {
+        if (dirtyPaths.has(segments.slice(0, n).join('.'))) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function flattenIssueItems(issues: Issue[]): IssueItem[] {
@@ -56,9 +123,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         pending.value = true;
         try {
             const c = unref(containerRef);
-            const result = await c.safeRun(unref(stateRef) as Record<string, any>, {
-                group: groupRef.value,
-            });
+            const result = await c.safeRun(unref(stateRef) as Record<string, any>, { group: groupRef.value });
             if (id !== runId) {
                 return result;
             }
@@ -156,12 +221,13 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
     // ---- per-field state ---------------------------------------------------
 
     function buildFieldState<V>(key: string): FieldState<V> {
-        const path = key;
+        const segments = pathFromKey(key);
+        const path = segments.join('.');
 
         const $model = computed<V>({
-            get: () => (unref(stateRef) as Record<string, any>)[key] as V,
+            get: () => readNested(unref(stateRef), segments) as V,
             set: (value) => {
-                (unref(stateRef) as Record<string, any>)[key] = value;
+                writeNested(unref(stateRef), segments, value);
                 dirtyPaths.add(path);
                 clearExternalAtPath(path);
             },
@@ -173,8 +239,8 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
             $model,
             $invalid: computed(() => items.value.length > 0),
             $pending: computed(() => pending.value),
-            $dirty: computed(() => dirtyPaths.has(path)),
-            $errors: computed(() => (dirtyPaths.has(path) ? items.value : [])),
+            $dirty: computed(() => isPrefixDirty(dirtyPaths, path)),
+            $errors: computed(() => (isPrefixDirty(dirtyPaths, path) ? items.value : [])),
             $issues: computed(() => rawIssuesAtPath(path)),
             $touch: () => {
                 dirtyPaths.add(path);
@@ -187,6 +253,11 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
     }
 
     const fieldsCache = new Map<string, FieldState<any>>();
+    function liveStateKeys(): string[] {
+        const data = unref(stateRef) as Record<string, unknown> | null | undefined;
+        return data && typeof data === 'object' ? Object.keys(data) : [];
+    }
+
     const fields = new Proxy({} as ValidupComposable<T>['fields'], {
         get(_, prop) {
             if (typeof prop !== 'string') {
@@ -198,6 +269,23 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
                 fieldsCache.set(prop, cached);
             }
             return cached;
+        },
+        has(_, prop) {
+            return typeof prop === 'string' && liveStateKeys().includes(prop);
+        },
+        ownKeys() {
+            return liveStateKeys();
+        },
+        getOwnPropertyDescriptor(_, prop) {
+            if (typeof prop !== 'string' || !liveStateKeys().includes(prop)) {
+                return undefined;
+            }
+            return {
+                enumerable: true,
+                configurable: true,
+                writable: false,
+                value: undefined,
+            };
         },
     });
 
@@ -234,10 +322,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         $pending: computed(() => pending.value),
         $dirty: computed(() => dirtyPaths.size > 0),
         $errors: computed(() => flattenIssueItems([...internalIssues.value, ...externalIssues.value])
-            .filter((i) => {
-                const head = String(i.path[0] ?? '');
-                return dirtyPaths.has(head);
-            })),
+            .filter((i) => isPrefixDirty(dirtyPaths, pathKey(i.path)))),
         $issues: computed(() => [...internalIssues.value, ...externalIssues.value]),
         $touch,
         $reset,

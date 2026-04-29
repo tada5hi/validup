@@ -6,10 +6,17 @@
  */
 
 import type {
-    ComputedRef, MaybeRef, Ref, WritableComputedRef,
+    ComputedRef, 
+    MaybeRef, 
+    Ref, 
+    WritableComputedRef,
 } from 'vue';
 import type {
-    IContainer, Issue, IssueItem, ObjectLiteral, Result,
+    IContainer, 
+    Issue, 
+    IssueItem, 
+    ObjectLiteral, 
+    Result,
 } from 'validup';
 
 export type ValidupSeverity = 'success' | 'warning' | 'error' | undefined;
