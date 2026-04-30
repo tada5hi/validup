@@ -67,3 +67,11 @@ Run: `npm run lint` (root, lints the whole workspace via flat config) or `npm ru
 3. Register the package in `release-please-config.json` under `packages` with a unique `component` name.
 4. Add an entry to `.release-please-manifest.json` with the initial version.
 5. Re-export everything via `src/index.ts`.
+
+## References
+External project references live in .agents/references/. When looking up source code in a referenced project (e.g., vuelidate), always update the corresponding reference file with:
+
+The source file path / function name in the external project
+The corresponding Validup file path / function name
+Any behavioral differences between the implementations
+This builds a cumulative mapping over time so future work can quickly find corresponding code without re-searching.

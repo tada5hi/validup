@@ -30,7 +30,7 @@ Most validation libraries make you choose between two extremes: a schema DSL tha
 
 ## Packages
 
-This monorepo publishes one core library and three adapters:
+This monorepo publishes one core library and four adapters:
 
 | Package                                                 | Version                                                                                | Description                                              |
 |---------------------------------------------------------|----------------------------------------------------------------------------------------|----------------------------------------------------------|
@@ -38,6 +38,7 @@ This monorepo publishes one core library and three adapters:
 | [`@validup/adapter-zod`](./packages/adapter-zod)        | [![npm][adapter-zod-npm-src]][adapter-zod-npm-href]                                    | Bridge to [zod](https://zod.dev) schemas                 |
 | [`@validup/adapter-validator`](./packages/adapter-validator) | [![npm][adapter-validator-npm-src]][adapter-validator-npm-href]                   | Bridge to [express-validator](https://express-validator.github.io) chains |
 | [`@validup/adapter-routup`](./packages/adapter-routup)  | [![npm][adapter-routup-npm-src]][adapter-routup-npm-href]                              | Run a `Container` against a [routup](https://routup.net) request |
+| [`@validup/adapter-vue`](./packages/adapter-vue)        | [![npm][adapter-vue-npm-src]][adapter-vue-npm-href]                                    | [Vue 3](https://vuejs.org) composable for client-side forms |
 
 ## Installation
 
@@ -53,6 +54,7 @@ Optionally add an adapter:
 npm install @validup/adapter-zod --save        # zod schemas
 npm install @validup/adapter-validator --save  # express-validator chains
 npm install @validup/adapter-routup --save     # routup HTTP requests
+npm install @validup/adapter-vue --save        # Vue 3 forms
 ```
 
 ## At a Glance
@@ -102,12 +104,13 @@ validup/
 │   ├── validup/              # Core library
 │   ├── adapter-zod/          # @validup/adapter-zod
 │   ├── adapter-validator/    # @validup/adapter-validator
-│   └── adapter-routup/       # @validup/adapter-routup
+│   ├── adapter-routup/       # @validup/adapter-routup
+│   └── adapter-vue/          # @validup/adapter-vue
 ├── nx.json                   # Nx caching for build / lint / test
 └── release-please-config.json
 ```
 
-The four packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Adapters depend on `validup`; the core has no peer dependencies.
+The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Adapters depend on `validup`; the core has no peer dependencies.
 
 ## Development
 
@@ -126,10 +129,11 @@ npm run lint
 npm run lint:fix
 ```
 
-- **Node.js**: `>=18.0.0` (CI runs on 20)
-- **Test runner**: Jest 30 with `@swc/jest`
-- **Bundler**: Rollup with `@rollup/plugin-swc` (dual CJS + ESM output)
-- **Releases**: managed by [release-please](https://github.com/googleapis/release-please) — one component per package
+- **Node.js**: `>=22.0.0` (CI runs on 22)
+- **Test runner**: [Vitest 4](https://vitest.dev)
+- **Bundler**: [tsdown](https://tsdown.dev) — ESM-only output (`dist/index.mjs` + `dist/index.d.mts`)
+- **Lint**: ESLint v10 flat config
+- **Releases**: managed by [release-please](https://github.com/googleapis/release-please) — one component per package; published via [`tada5hi/monoship`](https://github.com/tada5hi/monoship)
 
 ## Contributing
 
@@ -160,3 +164,5 @@ Published under [MIT License](./LICENSE).
 [adapter-validator-npm-href]: https://npmjs.com/package/@validup/adapter-validator
 [adapter-routup-npm-src]: https://badge.fury.io/js/@validup%2Fadapter-routup.svg
 [adapter-routup-npm-href]: https://npmjs.com/package/@validup/adapter-routup
+[adapter-vue-npm-src]: https://badge.fury.io/js/@validup%2Fadapter-vue.svg
+[adapter-vue-npm-href]: https://npmjs.com/package/@validup/adapter-vue

@@ -1,0 +1,59 @@
+{
+    "name": "@validup/adapter-vue",
+    "version": "0.1.0",
+    "type": "module",
+    "description": "A Vue 3 adapter for validup.",
+    "author": {
+        "name": "Peter Placzek",
+        "email": "contact@tada5hi.net",
+        "url": "https://github.com/tada5hi"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/tada5hi/validup.git"
+    },
+    "main": "dist/index.mjs",
+    "types": "dist/index.d.mts",
+    "exports": {
+        "./package.json": "./package.json",
+        ".": {
+            "types": "./dist/index.d.mts",
+            "import": "./dist/index.mjs"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "engines": {
+        "node": ">=22.0.0"
+    },
+    "scripts": {
+        "build:types": "tsc --noEmit",
+        "build:js": "tsdown",
+        "build": "npm run build:types && npm run build:js",
+        "test": "vitest --config test/vitest.config.ts --run",
+        "test:coverage": "vitest --config test/vitest.config.ts --run --coverage"
+    },
+    "keywords": [
+        "validation",
+        "vue",
+        "vue3",
+        "validup",
+        "composable"
+    ],
+    "license": "MIT",
+    "dependencies": {
+        "validup": "^0.2.2"
+    },
+    "devDependencies": {
+        "@vue/test-utils": "^2.4.6",
+        "happy-dom": "^15.11.7",
+        "vue": "^3.5.13"
+    },
+    "peerDependencies": {
+        "vue": "^3.3"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}
