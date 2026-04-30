@@ -8,7 +8,7 @@
 
 A composable, path-based validation library for TypeScript.
 
-Mount any validator function (or nested container) onto any path of your input, run them in groups, collect structured issues, and bridge to existing libraries via adapters. No decorators, no schema DSL, no metadata reflection.
+Mount any validator function (or nested container) onto any path of your input, run them in groups, collect structured issues, and bridge to existing libraries via integration packages. No decorators, no schema DSL, no metadata reflection.
 
 > 🚧 **Work in Progress**
 >
@@ -41,7 +41,7 @@ Mount any validator function (or nested container) onto any path of your input, 
   - [Container](#container)
   - [Issue Helpers](#issue-helpers)
   - [Type Guards](#type-guards)
-- [Adapters](#adapters)
+- [Integrations](#integrations)
 - [License](#license)
 
 ## Installation
@@ -200,7 +200,7 @@ For reusable, self-contained validators it's idiomatic to extend `Container<T>` 
 
 ```typescript
 import { Container } from 'validup';
-import { createValidator } from '@validup/adapter-zod';
+import { createValidator } from '@validup/zod';
 import { z } from 'zod';
 
 type Role = { name: string; description?: string };
@@ -461,15 +461,16 @@ class Container<T extends Record<string, any> = Record<string, any>> implements 
 | `isIssueItem(x)`      | `x is IssueItem`                                     |
 | `isIssueGroup(x)`     | `x is IssueGroup`                                    |
 
-## Adapters
+## Integrations
 
-Use one of the official adapters to bridge an existing validator library or framework into validup:
+Use one of the official integration packages to bridge an existing validator library, framework, or UI runtime into validup:
 
-| Adapter                                                               | Bridges to                                                               |
-|-----------------------------------------------------------------------|--------------------------------------------------------------------------|
-| [`@validup/adapter-zod`](https://npmjs.com/package/@validup/adapter-zod) | [zod](https://zod.dev) schemas                                          |
-| [`@validup/adapter-validator`](https://npmjs.com/package/@validup/adapter-validator) | [express-validator](https://express-validator.github.io) chains |
-| [`@validup/adapter-routup`](https://npmjs.com/package/@validup/adapter-routup) | [routup](https://routup.net) request inputs (body / query / cookies / params) |
+| Package                                                                              | Connects                                                                       |
+|--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
+| [`@validup/zod`](https://npmjs.com/package/@validup/zod)                             | [zod](https://zod.dev) schemas                                                 |
+| [`@validup/express-validator`](https://npmjs.com/package/@validup/express-validator) | [express-validator](https://express-validator.github.io) chains                |
+| [`@validup/routup`](https://npmjs.com/package/@validup/routup)                       | [routup](https://routup.net) request inputs (body / query / cookies / params)  |
+| [`@validup/vue`](https://npmjs.com/package/@validup/vue)                             | [Vue 3](https://vuejs.org) composable for reactive client-side form state      |
 
 ## License
 

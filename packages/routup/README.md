@@ -1,4 +1,4 @@
-# @validup/adapter-routup 🛡️
+# @validup/routup 🛡️
 
 [![npm version][npm-version-src]][npm-version-href]
 [![Master Workflow][workflow-src]][workflow-href]
@@ -6,7 +6,7 @@
 [![Known Vulnerabilities][snyk-src]][snyk-href]
 [![Conventional Commits][conventional-src]][conventional-href]
 
-A [routup](https://routup.net) adapter for [validup](https://www.npmjs.com/package/validup).
+A [validup](https://www.npmjs.com/package/validup) integration for [routup](https://routup.net) — wire a `Container` into HTTP request validation.
 
 Run a validup `Container` against a routup `Request`, picking up the input from the request body, query, params, or cookies — and falling through alternative locations until one validates.
 
@@ -29,7 +29,7 @@ Run a validup `Container` against a routup `Request`, picking up the input from 
 ## Installation
 
 ```bash
-npm install @validup/adapter-routup validup routup @routup/basic --save
+npm install @validup/routup validup routup @routup/basic --save
 ```
 
 | Peer dependency  | Supported versions |
@@ -44,7 +44,7 @@ npm install @validup/adapter-routup validup routup @routup/basic --save
 import { Router, coreHandler } from 'routup';
 import { basic } from '@routup/basic';
 import { Container, ValidupError } from 'validup';
-import { RoutupContainerAdapter } from '@validup/adapter-routup';
+import { RoutupContainerAdapter } from '@validup/routup';
 
 const tokenContainer = new Container<{ token: string }>();
 tokenContainer.mount('token', ({ value }) => {
@@ -76,7 +76,7 @@ By default the adapter pulls input from the **request body**. Use the `locations
 | `params`   | path parameters             | `useRequestParams(req)`               |
 
 ```typescript
-import { Location } from '@validup/adapter-routup';
+import { Location } from '@validup/routup';
 
 await adapter.run(req, { locations: [Location.QUERY] });
 await adapter.run(req, { locations: ['cookies'] });            // string literal also works
@@ -116,7 +116,7 @@ router.patch('/roles/:id', coreHandler(async (req) => adapter.run(req, { group: 
 In practice you typically pair this adapter with a subclassed `Container` validator (see [validup's subclassing pattern](https://www.npmjs.com/package/validup#subclassing)). The result is a controller that stays thin while validation rules live next to the entity they describe:
 
 ```typescript
-import { RoutupContainerAdapter } from '@validup/adapter-routup';
+import { RoutupContainerAdapter } from '@validup/routup';
 import { IdentityProviderValidator, IdentityProviderAttributesValidator } from './validators';
 
 router.post('/identity-providers', coreHandler(async (req) => {
@@ -184,8 +184,8 @@ Made with 💚
 
 Published under [MIT License](./LICENSE).
 
-[npm-version-src]: https://badge.fury.io/js/@validup%2Fadapter-routup.svg
-[npm-version-href]: https://npmjs.com/package/@validup/adapter-routup
+[npm-version-src]: https://badge.fury.io/js/@validup%2Froutup.svg
+[npm-version-href]: https://npmjs.com/package/@validup/routup
 [workflow-src]: https://github.com/tada5hi/validup/actions/workflows/main.yml/badge.svg
 [workflow-href]: https://github.com/tada5hi/validup/actions/workflows/main.yml
 [codeql-src]: https://github.com/tada5hi/validup/actions/workflows/codeql.yml/badge.svg

@@ -1,4 +1,4 @@
-# @validup/adapter-validator 🛡️
+# @validup/express-validator 🛡️
 
 [![npm version][npm-version-src]][npm-version-href]
 [![Master Workflow][workflow-src]][workflow-href]
@@ -6,7 +6,7 @@
 [![Known Vulnerabilities][snyk-src]][snyk-href]
 [![Conventional Commits][conventional-src]][conventional-href]
 
-An [express-validator](https://express-validator.github.io) adapter for [validup](https://www.npmjs.com/package/validup).
+A [validup](https://www.npmjs.com/package/validup) integration for [express-validator](https://express-validator.github.io) — turn any `ValidationChain` into a validup `Validator`.
 
 Wrap any express-validator `ValidationChain` as a validup `Validator`, mount it on a `Container` path, and let validup orchestrate path expansion, group filtering, and structured error reporting while express-validator drives the rule chain.
 
@@ -27,7 +27,7 @@ Wrap any express-validator `ValidationChain` as a validup `Validator`, mount it 
 ## Installation
 
 ```bash
-npm install @validup/adapter-validator validup express-validator --save
+npm install @validup/express-validator validup express-validator --save
 ```
 
 | Peer dependency     | Supported versions |
@@ -38,7 +38,7 @@ npm install @validup/adapter-validator validup express-validator --save
 
 ```typescript
 import { Container, ValidupError } from 'validup';
-import { createValidationChain, createValidator } from '@validup/adapter-validator';
+import { createValidationChain, createValidator } from '@validup/express-validator';
 
 const container = new Container<{ tags: string[] }>();
 
@@ -62,7 +62,7 @@ The dominant pattern is to subclass `Container<T>` and register chains inside `i
 
 ```typescript
 import { Container } from 'validup';
-import { createValidationChain, createValidator } from '@validup/adapter-validator';
+import { createValidationChain, createValidator } from '@validup/express-validator';
 
 type User = {
     name: string;
@@ -104,7 +104,7 @@ const valid = await new UserValidator().run(input);
 Pass a function to `createValidator` to build the chain from the validator context — for example, to switch rules based on the active group:
 
 ```typescript
-import { createValidationChain, createValidator } from '@validup/adapter-validator';
+import { createValidationChain, createValidator } from '@validup/express-validator';
 
 const tagsValidator = createValidator((ctx) => {
     const chain = createValidationChain().isArray({ min: 1, max: 10 });
@@ -167,8 +167,8 @@ Made with 💚
 
 Published under [MIT License](./LICENSE).
 
-[npm-version-src]: https://badge.fury.io/js/@validup%2Fadapter-validator.svg
-[npm-version-href]: https://npmjs.com/package/@validup/adapter-validator
+[npm-version-src]: https://badge.fury.io/js/@validup%2Fexpress-validator.svg
+[npm-version-href]: https://npmjs.com/package/@validup/express-validator
 [workflow-src]: https://github.com/tada5hi/validup/actions/workflows/main.yml/badge.svg
 [workflow-href]: https://github.com/tada5hi/validup/actions/workflows/main.yml
 [codeql-src]: https://github.com/tada5hi/validup/actions/workflows/codeql.yml/badge.svg

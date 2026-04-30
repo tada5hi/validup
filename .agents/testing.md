@@ -58,5 +58,5 @@ import { Container, type Validator } from '../../src';
 ```
 
 - Use `expect.assertions(n)` when asserting in `catch` blocks (see `module.spec.ts`) — the codebase is consistent about this.
-- Adapter tests use `supertest` (routup) or instantiate the foreign library inline (zod, express-validator).
+- Integration-package tests use `supertest` (routup) or instantiate the foreign library inline (zod, express-validator); `vue` uses `@vue/test-utils` + `happy-dom`.
 - Coverage is collected only from `src/**/*.{ts,tsx,js,jsx}`.

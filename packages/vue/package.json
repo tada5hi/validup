@@ -1,8 +1,8 @@
 {
-    "name": "@validup/adapter-routup",
-    "version": "0.2.2",
+    "name": "@validup/vue",
+    "version": "0.1.0",
     "type": "module",
-    "description": "A routup adapter for validup.",
+    "description": "A Vue 3 integration for validup.",
     "author": {
         "name": "Peter Placzek",
         "email": "contact@tada5hi.net",
@@ -34,19 +34,24 @@
         "test": "vitest --config test/vitest.config.ts --run",
         "test:coverage": "vitest --config test/vitest.config.ts --run --coverage"
     },
-    "keywords": [],
+    "keywords": [
+        "validation",
+        "vue",
+        "vue3",
+        "validup",
+        "composable"
+    ],
     "license": "MIT",
-    "devDependencies": {
-        "@routup/basic": "^1.4.3",
-        "@types/supertest": "^6.0.2",
-        "routup": "^4.1.0",
-        "supertest": "^7.2.2",
+    "dependencies": {
         "validup": "^0.2.2"
     },
+    "devDependencies": {
+        "@vue/test-utils": "^2.4.6",
+        "happy-dom": "^15.11.7",
+        "vue": "^3.5.13"
+    },
     "peerDependencies": {
-        "@routup/basic": "^1.4.3",
-        "routup": "^4.1.0",
-        "validup": "^0.2.2"
+        "vue": "^3.3"
     },
     "publishConfig": {
         "access": "public"

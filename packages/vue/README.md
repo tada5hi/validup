@@ -1,4 +1,4 @@
-# @validup/adapter-vue 🛡️
+# @validup/vue 🛡️
 
 [![npm version][npm-version-src]][npm-version-href]
 [![Master Workflow][workflow-src]][workflow-href]
@@ -6,9 +6,9 @@
 [![Known Vulnerabilities][snyk-src]][snyk-href]
 [![Conventional Commits][conventional-src]][conventional-href]
 
-A [Vue 3](https://vuejs.org) adapter for [validup](https://www.npmjs.com/package/validup).
+A [validup](https://www.npmjs.com/package/validup) integration for [Vue 3](https://vuejs.org) — drive reactive form state from a `Container<T>`.
 
-Drive form validation from a validup `Container<T>` with a vuelidate-shaped composable. The same validator runs **server-side** (via [`@validup/adapter-routup`](https://www.npmjs.com/package/@validup/adapter-routup)) and **client-side** (via this package) — no rule duplication, no schema drift.
+Drive form validation from a validup `Container<T>` with a vuelidate-shaped composable. The same validator runs **server-side** (via [`@validup/routup`](https://www.npmjs.com/package/@validup/routup)) and **client-side** (via this package) — no rule duplication, no schema drift.
 
 > 🚧 **Work in Progress**
 >
@@ -40,7 +40,7 @@ Drive form validation from a validup `Container<T>` with a vuelidate-shaped comp
 ## Installation
 
 ```bash
-npm install @validup/adapter-vue validup vue --save
+npm install @validup/vue validup vue --save
 ```
 
 | Peer dependency | Supported versions |
@@ -53,8 +53,8 @@ npm install @validup/adapter-vue validup vue --save
 ```typescript
 import { ref, reactive } from 'vue';
 import { Container, ValidupError } from 'validup';
-import { createValidator } from '@validup/adapter-zod';
-import { useValidup, getValidupSeverity } from '@validup/adapter-vue';
+import { createValidator } from '@validup/zod';
+import { useValidup, getValidupSeverity } from '@validup/vue';
 import { z } from 'zod';
 
 const userValidator = new Container<{ name: string; email: string }>();
@@ -91,7 +91,7 @@ The dominant pattern is a subclassed `Container<T>` you can reuse on both server
 ```typescript
 // shared validator (server + client)
 import { Container } from 'validup';
-import { createValidator } from '@validup/adapter-zod';
+import { createValidator } from '@validup/zod';
 import { z } from 'zod';
 
 type Role = { name: string; description?: string };
@@ -117,7 +117,7 @@ Then in any Vue form:
 
 ```typescript
 import { reactive, ref } from 'vue';
-import { useValidup } from '@validup/adapter-vue';
+import { useValidup } from '@validup/vue';
 import { RoleValidator } from '@my-app/validators';
 
 const form = reactive({ name: '', description: '' });
@@ -270,7 +270,7 @@ A parent form aggregates one or more child forms via `provide` / `inject`. Child
 
 ```typescript
 // parent.vue
-import { useValidup, extractValidupResultsFromChild } from '@validup/adapter-vue';
+import { useValidup, extractValidupResultsFromChild } from '@validup/vue';
 
 const $v = useValidup(new Container(), {}, { stopPropagation: true });
 
@@ -349,7 +349,7 @@ const widget = useValidup(widgetValidator, widgetForm, { detached: true });
 | `$dirty` + valid                         | `'success'`   |
 
 ```typescript
-import { getValidupSeverity } from '@validup/adapter-vue';
+import { getValidupSeverity } from '@validup/vue';
 
 buildFormGroup({
     validationSeverity: getValidupSeverity($v.fields.name),
@@ -411,7 +411,7 @@ The composable shape is intentionally vuelidate-compatible. For most templates y
 ```diff
 - import useVuelidate from '@vuelidate/core';
 - import { required, minLength, maxLength } from '@vuelidate/validators';
-+ import { useValidup } from '@validup/adapter-vue';
++ import { useValidup } from '@validup/vue';
 + import { RoleValidator } from '@my-app/validators';
 
   const form = reactive({ name: '' });
@@ -424,7 +424,7 @@ The composable shape is intentionally vuelidate-compatible. For most templates y
 
 Templates rarely change:
 
-| Vuelidate                                         | `@validup/adapter-vue`                                    |
+| Vuelidate                                         | `@validup/vue`                                    |
 |---------------------------------------------------|-----------------------------------------------------------|
 | `$v.value.$invalid`                               | `$v.$invalid.value`                                       |
 | `$v.value.<field>.$model`                         | `$v.fields.<field>.$model.value`                          |
@@ -453,8 +453,8 @@ Made with 💚
 
 Published under [MIT License](./LICENSE).
 
-[npm-version-src]: https://badge.fury.io/js/@validup%2Fadapter-vue.svg
-[npm-version-href]: https://npmjs.com/package/@validup/adapter-vue
+[npm-version-src]: https://badge.fury.io/js/@validup%2Fvue.svg
+[npm-version-href]: https://npmjs.com/package/@validup/vue
 [workflow-src]: https://github.com/tada5hi/validup/actions/workflows/main.yml/badge.svg
 [workflow-href]: https://github.com/tada5hi/validup/actions/workflows/main.yml
 [codeql-src]: https://github.com/tada5hi/validup/actions/workflows/codeql.yml/badge.svg

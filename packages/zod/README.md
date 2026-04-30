@@ -1,4 +1,4 @@
-# @validup/adapter-zod 🛡️
+# @validup/zod 🛡️
 
 [![npm version][npm-version-src]][npm-version-href]
 [![Master Workflow][workflow-src]][workflow-href]
@@ -6,7 +6,7 @@
 [![Known Vulnerabilities][snyk-src]][snyk-href]
 [![Conventional Commits][conventional-src]][conventional-href]
 
-A [zod](https://zod.dev) adapter for [validup](https://www.npmjs.com/package/validup).
+A [validup](https://www.npmjs.com/package/validup) integration for [zod](https://zod.dev) — turn any zod schema into a validup `Validator`.
 
 Wrap any zod schema as a validup `Validator`, mount it on a `Container` path, and let validup orchestrate path expansion, group filtering, and error aggregation while zod does the actual schema parsing.
 
@@ -28,7 +28,7 @@ Wrap any zod schema as a validup `Validator`, mount it on a `Container` path, an
 ## Installation
 
 ```bash
-npm install @validup/adapter-zod validup zod --save
+npm install @validup/zod validup zod --save
 ```
 
 | Peer dependency | Supported versions  |
@@ -39,7 +39,7 @@ npm install @validup/adapter-zod validup zod --save
 
 ```typescript
 import { Container, ValidupError } from 'validup';
-import { createValidator } from '@validup/adapter-zod';
+import { createValidator } from '@validup/zod';
 import { z } from 'zod';
 
 const user = new Container<{ email: string; age: number }>();
@@ -73,7 +73,7 @@ container.mount('opt',   { optional: true },  createValidator(z.number()));
 Pass a function instead of a schema to build the schema lazily from the validator context (e.g. depending on the active group, sibling values, or path):
 
 ```typescript
-import { createValidator } from '@validup/adapter-zod';
+import { createValidator } from '@validup/zod';
 import { z } from 'zod';
 
 const passwordValidator = createValidator((ctx) => {
@@ -127,7 +127,7 @@ Paths from the wrapped zod schema are merged with the parent container's path, s
 Going the other way, you can convert a `ValidupError` (or a single `Issue`) into zod's raw issue format — useful when integrating validup output into zod-driven pipelines such as form libraries:
 
 ```typescript
-import { buildZodIssuesForError, buildZodIssuesForIssue } from '@validup/adapter-zod';
+import { buildZodIssuesForError, buildZodIssuesForIssue } from '@validup/zod';
 
 try {
     await container.run(input);
@@ -159,8 +159,8 @@ Made with 💚
 
 Published under [MIT License](./LICENSE).
 
-[npm-version-src]: https://badge.fury.io/js/@validup%2Fadapter-zod.svg
-[npm-version-href]: https://npmjs.com/package/@validup/adapter-zod
+[npm-version-src]: https://badge.fury.io/js/@validup%2Fzod.svg
+[npm-version-href]: https://npmjs.com/package/@validup/zod
 [workflow-src]: https://github.com/tada5hi/validup/actions/workflows/main.yml/badge.svg
 [workflow-href]: https://github.com/tada5hi/validup/actions/workflows/main.yml
 [codeql-src]: https://github.com/tada5hi/validup/actions/workflows/codeql.yml/badge.svg

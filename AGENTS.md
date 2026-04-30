@@ -2,9 +2,9 @@
 
 # Validup — Agent Guide
 
-Validup is a TypeScript validation library that lets you compose domain-specific validators by mounting `Validator` functions (or nested `Container`s) onto paths of an input object. The runtime expands paths via [pathtrace](https://www.npmjs.com/package/pathtrace), runs each mounted unit, collects structured `Issue`s on failure, and throws a `ValidupError` (or returns a discriminated `Result` via `safeRun`). Adapter packages bridge external validators (zod, express-validator) and frameworks (routup) into this model.
+Validup is a TypeScript validation library that lets you compose domain-specific validators by mounting `Validator` functions (or nested `Container`s) onto paths of an input object. The runtime expands paths via [pathtrace](https://www.npmjs.com/package/pathtrace), runs each mounted unit, collects structured `Issue`s on failure, and throws a `ValidupError` (or returns a discriminated `Result` via `safeRun`). Integration packages bridge external validators (`@validup/zod`, `@validup/express-validator`) and frameworks (`@validup/routup`, `@validup/vue`) into this model.
 
-The repo is an **Nx-managed npm workspace monorepo** containing the core library and three adapters. The project is pre-1.0 and explicitly marked as work-in-progress.
+The repo is an **Nx-managed npm workspace monorepo** containing the core library and four integration packages (`@validup/zod`, `@validup/express-validator`, `@validup/routup`, `@validup/vue`). The project is pre-1.0 and explicitly marked as work-in-progress.
 
 ## Quick Reference
 
@@ -34,7 +34,7 @@ npm run lint:fix
 ## Detailed Guides
 
 - **[Project Structure](.agents/structure.md)** — Workspace layout, the four packages, and dependency layers
-- **[Architecture](.agents/architecture.md)** — Container/Validator/Issue model, mount semantics, and adapter contract
+- **[Architecture](.agents/architecture.md)** — Container/Validator/Issue model, mount semantics, and integration-package contract
 - **[Testing](.agents/testing.md)** — Per-package Vitest setup, coverage thresholds, and where specs live
 - **[Conventions](.agents/conventions.md)** — ESLint rules, Conventional Commits, copyright header, release tooling
 

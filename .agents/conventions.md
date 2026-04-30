@@ -46,7 +46,7 @@ Run: `npm run lint` (root, lints the whole workspace via flat config) or `npm ru
 - **Conventional Commits** enforced via `commitlint.config.mjs` extending `@tada5hi/commitlint-config`.
 - Common types in this repo's history: `feat`, `fix`, `chore`, `chore(deps)`, `fix(deps)`.
 - Scope is optional but used (e.g. `fix(deps)`, `feat: container safe-parse method`).
-- Releases are managed by **release-please** — do not edit `CHANGELOG.md` by hand. Each package is a release-please component (`validup`, `adapter-routup`, `adapter-validator`, `adapter-zod`).
+- Releases are managed by **release-please** — do not edit `CHANGELOG.md` by hand. Each package is a release-please component (`validup`, `routup`, `express-validator`, `vue`, `zod`).
 - Publishing is performed by [`tada5hi/monoship`](https://github.com/tada5hi/monoship) in the release workflow — it walks the workspace and publishes only packages whose version is missing from the registry.
 
 ## Branching & CI
@@ -62,7 +62,7 @@ Run: `npm run lint` (root, lints the whole workspace via flat config) or `npm ru
 
 ## Adding a New Package
 
-1. Create `packages/<name>/` mirroring an existing adapter: `src/{module,error,index}.ts`, `test/{vitest.config.ts,unit/}`, `package.json`, `tsconfig.json`, `tsdown.config.ts`.
+1. Create `packages/<name>/` mirroring an existing integration package: `src/{module,error,index}.ts`, `test/{vitest.config.ts,unit/}`, `package.json`, `tsconfig.json`, `tsdown.config.ts`.
 2. `package.json` essentials: `"type": "module"`, `main: "dist/index.mjs"`, `types: "dist/index.d.mts"`, `exports` with `import` + `types`, `engines.node: ">=22.0.0"`, build/test scripts identical to other packages so `nx run-many` picks them up.
 3. Register the package in `release-please-config.json` under `packages` with a unique `component` name.
 4. Add an entry to `.release-please-manifest.json` with the initial version.

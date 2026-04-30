@@ -1,8 +1,8 @@
 {
-    "name": "@validup/adapter-zod",
-    "version": "0.2.4",
+    "name": "@validup/express-validator",
+    "version": "0.3.2",
     "type": "module",
-    "description": "A validup adapter for zod.",
+    "description": "A validup integration for express-validator.",
     "author": {
         "name": "Peter Placzek",
         "email": "contact@tada5hi.net",
@@ -37,13 +37,14 @@
     "keywords": [],
     "license": "MIT",
     "dependencies": {
-        "validup": "^0.2.2"
+        "validup": "^0.2.2",
+        "smob": "^1.6.1"
     },
     "devDependencies": {
-        "zod": "^4.3.6"
+        "express-validator": "^7.3.1"
     },
     "peerDependencies": {
-        "zod": "^3.25.0 || ^4.0.0"
+        "express-validator": "^7.3.1"
     },
     "publishConfig": {
         "access": "public"

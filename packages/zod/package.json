@@ -1,8 +1,8 @@
 {
-    "name": "@validup/adapter-validator",
-    "version": "0.3.2",
+    "name": "@validup/zod",
+    "version": "0.2.4",
     "type": "module",
-    "description": "A validator.js adapter for validup.",
+    "description": "A validup integration for zod.",
     "author": {
         "name": "Peter Placzek",
         "email": "contact@tada5hi.net",
@@ -37,14 +37,13 @@
     "keywords": [],
     "license": "MIT",
     "dependencies": {
-        "validup": "^0.2.2",
-        "smob": "^1.6.1"
+        "validup": "^0.2.2"
     },
     "devDependencies": {
-        "express-validator": "^7.3.1"
+        "zod": "^4.3.6"
     },
     "peerDependencies": {
-        "express-validator": "^7.3.1"
+        "zod": "^3.25.0 || ^4.0.0"
     },
     "publishConfig": {
         "access": "public"

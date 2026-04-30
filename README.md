@@ -15,7 +15,7 @@ Mount validators and nested containers onto object paths, run them in groups, co
 
 ## Core Philosophy
 
-Most validation libraries make you choose between two extremes: a schema DSL that bakes in every rule, or a hand-rolled function that tangles parsing, validation, and transformation. Validup picks a different point — **mount any validator function onto any path of any input, compose containers, and let the runtime handle path expansion, error aggregation, and group filtering.** You bring the validators (or wrap an existing library via an adapter); validup orchestrates them.
+Most validation libraries make you choose between two extremes: a schema DSL that bakes in every rule, or a hand-rolled function that tangles parsing, validation, and transformation. Validup picks a different point — **mount any validator function onto any path of any input, compose containers, and let the runtime handle path expansion, error aggregation, and group filtering.** You bring the validators (or wrap an existing library via an integration package); validup orchestrates them.
 
 **Table of Contents**
 
@@ -30,15 +30,15 @@ Most validation libraries make you choose between two extremes: a schema DSL tha
 
 ## Packages
 
-This monorepo publishes one core library and four adapters:
+This monorepo publishes one core library and four integration packages:
 
-| Package                                                 | Version                                                                                | Description                                              |
-|---------------------------------------------------------|----------------------------------------------------------------------------------------|----------------------------------------------------------|
-| [`validup`](./packages/validup)                         | [![npm][validup-npm-src]][validup-npm-href]                                            | Core: `Container`, `Validator`, `Issue`, `ValidupError`  |
-| [`@validup/adapter-zod`](./packages/adapter-zod)        | [![npm][adapter-zod-npm-src]][adapter-zod-npm-href]                                    | Bridge to [zod](https://zod.dev) schemas                 |
-| [`@validup/adapter-validator`](./packages/adapter-validator) | [![npm][adapter-validator-npm-src]][adapter-validator-npm-href]                   | Bridge to [express-validator](https://express-validator.github.io) chains |
-| [`@validup/adapter-routup`](./packages/adapter-routup)  | [![npm][adapter-routup-npm-src]][adapter-routup-npm-href]                              | Run a `Container` against a [routup](https://routup.net) request |
-| [`@validup/adapter-vue`](./packages/adapter-vue)        | [![npm][adapter-vue-npm-src]][adapter-vue-npm-href]                                    | [Vue 3](https://vuejs.org) composable for client-side forms |
+| Package                                                      | Version                                       | Description                                                              |
+|--------------------------------------------------------------|-----------------------------------------------|--------------------------------------------------------------------------|
+| [`validup`](./packages/validup)                              | [![npm][validup-npm-src]][validup-npm-href]   | Core: `Container`, `Validator`, `Issue`, `ValidupError`                  |
+| [`@validup/zod`](./packages/zod)                             | [![npm][zod-npm-src]][zod-npm-href]           | Bridge to [zod](https://zod.dev) schemas                                 |
+| [`@validup/express-validator`](./packages/express-validator) | [![npm][ev-npm-src]][ev-npm-href]             | Bridge to [express-validator](https://express-validator.github.io) chains |
+| [`@validup/routup`](./packages/routup)                       | [![npm][routup-npm-src]][routup-npm-href]     | Run a `Container` against a [routup](https://routup.net) request         |
+| [`@validup/vue`](./packages/vue)                             | [![npm][vue-npm-src]][vue-npm-href]           | [Vue 3](https://vuejs.org) composable for client-side forms              |
 
 ## Installation
 
@@ -48,20 +48,20 @@ Install the core package:
 npm install validup --save
 ```
 
-Optionally add an adapter:
+Optionally add an integration:
 
 ```bash
-npm install @validup/adapter-zod --save        # zod schemas
-npm install @validup/adapter-validator --save  # express-validator chains
-npm install @validup/adapter-routup --save     # routup HTTP requests
-npm install @validup/adapter-vue --save        # Vue 3 forms
+npm install @validup/zod --save                # zod schemas
+npm install @validup/express-validator --save  # express-validator chains
+npm install @validup/routup --save             # routup HTTP requests
+npm install @validup/vue --save                # Vue 3 forms
 ```
 
 ## At a Glance
 
 ```typescript
 import { Container, ValidupError } from 'validup';
-import { createValidator } from '@validup/adapter-zod';
+import { createValidator } from '@validup/zod';
 import { z } from 'zod';
 
 const user = new Container<{ name: string; email: string; age: number }>();
@@ -89,7 +89,7 @@ try {
 |--------------------------|----------------------------------------------------------------------------------------------|
 | 🧩 **Composable**        | Mount validators and nested `Container`s on any path. Stay flat or nest as deep as you like. |
 | 🌐 **Universal**         | Pure JS — runs in Node.js, browsers, Deno, Bun, and edge runtimes.                            |
-| 🎭 **Adapter-friendly**  | First-class bridges to zod, express-validator, and routup. Trivial to add more.              |
+| 🎭 **Integration-ready** | First-class bridges to zod, express-validator, routup, and Vue. Trivial to add more.         |
 | 🛤️ **Path-based**        | Mount via dotted paths (`a.b.c`), brackets (`foo[0]`), or globs (`**.foo`).                    |
 | 🚦 **Group-aware**       | Run different validations for `create` / `update` / custom groups from the same container.   |
 | ❓ **Optional handling** | Per-mount control over `undefined` / `null` / falsy semantics.                                 |
@@ -102,15 +102,15 @@ try {
 validup/
 ├── packages/
 │   ├── validup/              # Core library
-│   ├── adapter-zod/          # @validup/adapter-zod
-│   ├── adapter-validator/    # @validup/adapter-validator
-│   ├── adapter-routup/       # @validup/adapter-routup
-│   └── adapter-vue/          # @validup/adapter-vue
+│   ├── zod/                  # @validup/zod
+│   ├── express-validator/    # @validup/express-validator
+│   ├── routup/               # @validup/routup
+│   └── vue/                  # @validup/vue
 ├── nx.json                   # Nx caching for build / lint / test
 └── release-please-config.json
 ```
 
-The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Adapters depend on `validup`; the core has no peer dependencies.
+The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Integration packages depend on `validup`; the core has no peer dependencies.
 
 ## Development
 
@@ -158,11 +158,11 @@ Published under [MIT License](./LICENSE).
 
 [validup-npm-src]: https://badge.fury.io/js/validup.svg
 [validup-npm-href]: https://npmjs.com/package/validup
-[adapter-zod-npm-src]: https://badge.fury.io/js/@validup%2Fadapter-zod.svg
-[adapter-zod-npm-href]: https://npmjs.com/package/@validup/adapter-zod
-[adapter-validator-npm-src]: https://badge.fury.io/js/@validup%2Fadapter-validator.svg
-[adapter-validator-npm-href]: https://npmjs.com/package/@validup/adapter-validator
-[adapter-routup-npm-src]: https://badge.fury.io/js/@validup%2Fadapter-routup.svg
-[adapter-routup-npm-href]: https://npmjs.com/package/@validup/adapter-routup
-[adapter-vue-npm-src]: https://badge.fury.io/js/@validup%2Fadapter-vue.svg
-[adapter-vue-npm-href]: https://npmjs.com/package/@validup/adapter-vue
+[zod-npm-src]: https://badge.fury.io/js/@validup%2Fzod.svg
+[zod-npm-href]: https://npmjs.com/package/@validup/zod
+[ev-npm-src]: https://badge.fury.io/js/@validup%2Fexpress-validator.svg
+[ev-npm-href]: https://npmjs.com/package/@validup/express-validator
+[routup-npm-src]: https://badge.fury.io/js/@validup%2Froutup.svg
+[routup-npm-href]: https://npmjs.com/package/@validup/routup
+[vue-npm-src]: https://badge.fury.io/js/@validup%2Fvue.svg
+[vue-npm-href]: https://npmjs.com/package/@validup/vue

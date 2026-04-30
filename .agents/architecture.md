@@ -1,6 +1,6 @@
 # Architecture
 
-Validup's model has three nouns — **Container**, **Validator**, **Issue** — and one verb: `Container.run(data)`. Adapters are thin functions that produce a `Validator` from a foreign validation library.
+Validup's model has three nouns — **Container**, **Validator**, **Issue** — and one verb: `Container.run(data)`. Integration packages either produce a `Validator` from a foreign validation library (`@validup/zod`, `@validup/express-validator`) or wire a `Container` into a runtime / framework (`@validup/routup`, `@validup/vue`).
 
 ## Core Types
 
@@ -97,9 +97,11 @@ interface IssueGroup extends IssueBase {
 - `ValidupError` (`error/base.ts`) is `Error` + `readonly issues: Issue[]`. Its `.message` is auto-built from issue paths via `buildErrorMessageForAttributes`.
 - `isValidupError(e)` is duck-typed (instanceof OR has a valid `issues` array). Use it across package boundaries — direct `instanceof ValidupError` may miss errors from a duplicate copy of the package.
 
-## Adapter Contract
+## Integration Package Contract
 
-An adapter exposes a function returning a `Validator`. The pattern from `adapter-zod`:
+Integration packages come in two shapes:
+
+1. **Validator adapters** (`@validup/zod`, `@validup/express-validator`) — expose a function that returns a `Validator`. The pattern from `@validup/zod`:
 
 ```ts
 export function createValidator(input: ZodCreateFn | ZodType): Validator {
@@ -112,9 +114,11 @@ export function createValidator(input: ZodCreateFn | ZodType): Validator {
 }
 ```
 
-Two contract points to preserve when writing or modifying adapters:
+   Two contract points to preserve when writing or modifying validator adapters:
 
-1. **Accept `T | (ctx: ValidatorContext) => T`** — letting users build per-context validators (e.g. depending on `ctx.data` or `ctx.group`).
-2. **Translate foreign errors into `Issue[]`** in a separate `error.ts` module, then throw `new ValidupError(issues)`. Use `defineIssueItem`/`defineIssueGroup` — never construct issue objects literally.
+   - **Accept `T | (ctx: ValidatorContext) => T`** — letting users build per-context validators (e.g. depending on `ctx.data` or `ctx.group`).
+   - **Translate foreign errors into `Issue[]`** in a separate `error.ts` module, then throw `new ValidupError(issues)`. Use `defineIssueItem`/`defineIssueGroup` — never construct issue objects literally.
 
-`adapter-routup` is structurally different: it wraps a `Container` rather than producing a `Validator`. It's the integration point for HTTP request inputs and tries each `Location` (`body` / `cookies` / `params` / `query`) until one succeeds, throwing the **last** `ValidupError` if all fail.
+2. **Framework / runtime integrations** (`@validup/routup`, `@validup/vue`) — consume a whole `Container<T>` and wire it into a host environment.
+   - `@validup/routup` wraps a `Container` for HTTP request inputs and tries each `Location` (`body` / `cookies` / `params` / `query`) until one succeeds, throwing the **last** `ValidupError` if all fail.
+   - `@validup/vue` exposes a `useValidup(container, state, options?)` composable that drives reactive form state from `Container.safeRun()`. Issues come pre-shaped from validup, so there is no `error.ts` module here.

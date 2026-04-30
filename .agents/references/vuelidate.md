@@ -1,6 +1,6 @@
 # Vuelidate Reference
 
-`@validup/adapter-vue` is **directly inspired by [Vuelidate](https://github.com/vuelidate/vuelidate)**. The composable shape (`$invalid`, `$dirty`, `$pending`, `$errors`, per-field `$model` writable computeds, parent/child auto-registration, severity gating on `$dirty`) is intentionally close to vuelidate so authup form components can migrate by swapping the call-site only. The key difference: vuelidate's per-field state is keyed by **rule name** (`required`, `minLength`) returned by `@vuelidate/validators` factories, while ours is keyed by **path** in the input object and powered by a validup `Container<T>` — meaning the same validator can run server-side via `RoutupContainerAdapter` and client-side via `useValidup()`.
+`@validup/vue` is **directly inspired by [Vuelidate](https://github.com/vuelidate/vuelidate)**. The composable shape (`$invalid`, `$dirty`, `$pending`, `$errors`, per-field `$model` writable computeds, parent/child auto-registration, severity gating on `$dirty`) is intentionally close to vuelidate so authup form components can migrate by swapping the call-site only. The key difference: vuelidate's per-field state is keyed by **rule name** (`required`, `minLength`) returned by `@vuelidate/validators` factories, while ours is keyed by **path** in the input object and powered by a validup `Container<T>` — meaning the same validator can run server-side via `RoutupContainerAdapter` and client-side via `useValidup()`.
 
 ## Version Snapshot (as of 2026-04-29)
 
@@ -16,13 +16,13 @@ Default branch: `next`
 
 > The npm-published `2.0.3` / `2.0.4` are old, but the `next` branch is the only line that supports Vue 3 and is the canonical reference for our adapter. authup currently consumes `^2.0.3` / `^2.0.4`.
 
-## Concept Mapping (Vuelidate → `@validup/adapter-vue`)
+## Concept Mapping (Vuelidate → `@validup/vue`)
 
-| Concept | Vuelidate | `@validup/adapter-vue` |
+| Concept | Vuelidate | `@validup/vue` |
 |---------|-----------|------------------------|
 | **Composable entry** | `useVuelidate(rules, state, options?)` | `useValidup(container, state, options?)` |
 | **Rules source** | Plain object literal of rule factories per field | A `Container<T>` (or `Ref<Container<T>>`) — same instance reused server/client |
-| **Built-in rule lib** | `@vuelidate/validators` (`required`, `email`, `minLength`, `helpers.regex`, …) | None. Bring your own validators (typically zod via `@validup/adapter-zod`) |
+| **Built-in rule lib** | `@vuelidate/validators` (`required`, `email`, `minLength`, `helpers.regex`, …) | None. Bring your own validators (typically zod via `@validup/zod`) |
 | **Whole-form invalid** | `v$.value.$invalid` | `$v.$invalid.value` |
 | **Per-field invalid** | `v$.value.<field>.$invalid` | `$v.fields.<field>.$invalid.value` |
 | **Per-field dirty** | `v$.value.<field>.$dirty` | `$v.fields.<field>.$dirty.value` |
@@ -36,11 +36,11 @@ Default branch: `next`
 | **Get child state** | `v$.value.$getResultsForChild(name)` | `$v.$getResultsForChild(name)` (returns the child `ValidupComposable`) |
 | **Lazy mode** | `useVuelidate(rules, state, { $lazy: true })` | Not implemented — always-eager internally; visibility gated on `$dirty` (Q3) |
 | **Severity helper** | `getSeverity(validation)` from `@ilingo/vuelidate` | `getValidupSeverity(state)` (this package) |
-| **Translation** | `@ilingo/vuelidate` (rule-keyed messages) | `@ilingo/validup` (issue-code-keyed messages) — separate package, see [`ilingo-adapter.md`](../plans/ilingo-adapter.md) |
+| **Translation** | `@ilingo/vuelidate` (rule-keyed messages) | `@ilingo/validup` (issue-code-keyed messages) — separate package, see [`ilingo.md`](../plans/ilingo.md) |
 
 ## Code Mapping
 
-| Concept | Vuelidate (`packages/vuelidate/src/`) | `@validup/adapter-vue` (`packages/adapter-vue/src/`) |
+| Concept | Vuelidate (`packages/vuelidate/src/`) | `@validup/vue` (`packages/vue/src/`) |
 |---------|---------------------------------------|------------------------------------------------------|
 | **Public composable** | `index.ts` → `useVuelidate()` | `module.ts` → `useValidup()` |
 | **Per-field state factory** | inline in `useVuelidate` (uses `setValidations`) | `module.ts` → `buildFieldState()` |
@@ -63,7 +63,7 @@ Default branch: `next`
 
 ### What we changed
 - **Rules come from a `Container<T>`, not a literal object.** Mounting / nesting / globs / groups / `oneOf` all live in the validup core, so the same validator runs server-side via `RoutupContainerAdapter` and client-side via `useValidup`.
-- **No bundled rule library.** Vuelidate ships `@vuelidate/validators` with `required`, `email`, etc. We don't — bring your own validator (zod is the default story via `@validup/adapter-zod`).
+- **No bundled rule library.** Vuelidate ships `@vuelidate/validators` with `required`, `email`, etc. We don't — bring your own validator (zod is the default story via `@validup/zod`).
 - **Per-field state is keyed by path, not by rule.** A field has a flat list of `IssueItem`s, not a per-rule sub-object. Templates that displayed "this rule failed" must shift to "this issue (with code `X`) was raised" — the `@ilingo/validup` plugin handles the translation.
 - **`Issue` carries structured metadata.** `IssueItem.expected` / `received` / `meta` make rich error rendering possible without a bespoke rule API. Vuelidate's `$params` is the rough analog.
 - **Group filtering replaces `$stopPropagation` for "different rules under different conditions".** Where vuelidate users encode create/update via two separate `useVuelidate` calls (or `validations()` returning different objects), validup mounts the same field twice with different `group: ['create']` / `group: ['update']` flags and we forward the active group via `options.group`.
@@ -83,13 +83,13 @@ Default branch: `next`
 When Vuelidate ships a new line, review for:
 - Changes to the `BaseValidation` shape (`$dirty`, `$pending`, `$errors` subkey changes) — our `FieldState` surface mirrors this and authup expects parity.
 - New `$externalResults` semantics — if Vuelidate adds field-level auto-clear or merge strategies, our `setExternalIssues` should track.
-- `$lazy` / `$autoDirty` changes — these affect the unwritten Q1/Q5 alternatives in [`vue-adapter.md`](../plans/vue-adapter.md).
+- `$lazy` / `$autoDirty` changes — these affect the unwritten Q1/Q5 alternatives in [`vue.md`](../plans/vue.md).
 - Async validator timing changes (debounce, cancellation patterns) — we currently mirror "no debounce, last-write-wins via run-id" (Q2). Vuelidate's choices are a useful sanity check.
 - Composition API parent/child injection key — our `PARENT_INJECTION_KEY` mirrors theirs; if vuelidate changes from `Symbol.for('vuelidate:children')` to a registry pattern we may want to follow.
 - Validation rule helpers (e.g. `withMessage`, `withParams`) — these have no analog in validup since rules come from a `Container`, but watch for patterns that do translate (e.g. async-with-cancellation).
 
 ## Cross-References
 
-- Plan: [`.agents/plans/vue-adapter.md`](../plans/vue-adapter.md) — full design and migration plan for `@validup/adapter-vue`.
-- Plan: [`.agents/plans/ilingo-adapter.md`](../plans/ilingo-adapter.md) — sibling translation package to replace `@ilingo/vuelidate`.
-- Architecture: [`.agents/architecture.md`](../architecture.md) — `Container` / `Validator` / `Issue` model that the Vue adapter consumes.
+- Plan: [`.agents/plans/vue.md`](../plans/vue.md) — full design and migration plan for `@validup/vue`.
+- Plan: [`.agents/plans/ilingo.md`](../plans/ilingo.md) — sibling translation package to replace `@ilingo/vuelidate`.
+- Architecture: [`.agents/architecture.md`](../architecture.md) — `Container` / `Validator` / `Issue` model that the Vue integration consumes.
