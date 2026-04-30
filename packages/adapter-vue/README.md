@@ -24,8 +24,14 @@ Drive form validation from a validup `Container<T>` with a vuelidate-shaped comp
 - [Groups](#groups)
 - [Optional Validation](#optional-validation)
 - [Async & Debouncing](#async--debouncing)
+- [Lazy Validation](#lazy-validation)
+- [Auto-Dirty (External State Mutations)](#auto-dirty-external-state-mutations)
 - [External (Server) Errors](#external-server-errors)
+- [Cross-Cutting Errors](#cross-cutting-errors)
 - [Nested Forms](#nested-forms)
+  - [How Children Register](#how-children-register)
+  - [Scoped Parent / Child Trees](#scoped-parent--child-trees)
+  - [`stopPropagation` vs `detached`](#stoppropagation-vs-detached)
 - [Severity](#severity)
 - [API Reference](#api-reference)
 - [Migrating from Vuelidate](#migrating-from-vuelidate)
@@ -125,10 +131,10 @@ const $v = useValidup(new RoleValidator(), form, { group });
 
 | Member         | Type                                  | Description                                                          |
 |----------------|---------------------------------------|----------------------------------------------------------------------|
-| `$model`       | `WritableComputedRef<V>`              | Two-way bound to `state[<key>]`. Writing flips `$dirty` automatically. |
+| `$model`       | `WritableComputedRef<V>`              | Two-way bound to `state[<key>]`. Writing flips `$dirty` automatically (no-op writes don't). |
 | `$invalid`     | `ComputedRef<boolean>`                | True iff one or more issues are at this path.                        |
-| `$dirty`       | `ComputedRef<boolean>`                | True after `$touch()` or first `$model` write.                       |
-| `$pending`     | `ComputedRef<boolean>`                | True while async validation is in flight.                            |
+| `$dirty`       | `ComputedRef<boolean>`                | True after `$touch()` or first non-no-op `$model` write.             |
+| `$pending`     | `ComputedRef<boolean>`                | Form-level pending — true while *any* run is in flight. validup runs the whole container in one pass, so per-field pending is impossible. |
 | `$errors`      | `ComputedRef<IssueItem[]>`            | Visible errors — gated on `$dirty`.                                  |
 | `$issues`      | `ComputedRef<Issue[]>`                | Raw issues at or below this path (groups + items), regardless of dirty state. |
 | `$touch()`     | `() => void`                          | Mark this field dirty.                                               |
@@ -171,11 +177,53 @@ Optional mounts on the container behave the same way they do server-side — pas
 
 By default, every state change triggers a fresh `safeRun()` on the container. Concurrent runs are coalesced via a run-id token so "last write wins" — older async results are dropped if newer state has already been written.
 
+A defensive `try/catch` wraps `safeRun` so a buggy `IContainer` implementation that throws (instead of returning `{ success: false, error }`) is surfaced as a synthetic path-less failure in `$crossCuttingErrors` rather than crashing the watcher.
+
 For expensive async validators (e.g. uniqueness checks against an HTTP endpoint), set `options.debounce`:
 
 ```typescript
 const $v = useValidup(uniqueUsernameValidator, form, { debounce: 300 });
 ```
+
+## Lazy Validation
+
+By default, `useValidup` runs validation **on mount** so `$invalid` reflects the initial state. For forms with expensive async validators (e.g. an HTTP-backed uniqueness check), this on-mount probe is wasteful. Pass `lazy: true` to skip it:
+
+```typescript
+const $v = useValidup(usernameValidator, form, { lazy: true });
+
+// At this point: no validation has run.
+// $v.$invalid.value === false, $v.$pending.value === false.
+
+// Validation kicks in on the first $model write…
+$v.fields.username.$model.value = 'peter';
+
+// …or on an explicit $touch() / $validate() call.
+await $v.$validate();
+```
+
+`lazy` does **not** affect what happens *after* the first interaction. Subsequent state changes still trigger validation as normal (subject to `debounce`).
+
+## Auto-Dirty (External State Mutations)
+
+When state is mutated **through `$model`**, `useValidup` flips the matching field's `$dirty` to `true` automatically. When state is mutated **outside** of `$model` — e.g. by a Pinia store action, a programmatic reset, or a parent-driven update — the field stays "clean" by default. This is intentional: it keeps form hydration via `Object.assign(state, entity)` from flashing errors on load.
+
+For Pinia-driven forms where the consumer wants store-action mutations to surface validation errors, opt in with `autoDirty: true`:
+
+```typescript
+const store = useFormStore();
+const $v = useValidup(validator, store.form, { autoDirty: true });
+
+// A store action that mutates store.form will now mark every top-level
+// field dirty (errors surface, severity flips). Without `autoDirty`, the
+// form would stay quiet until the user interacts via $model.
+```
+
+Notes:
+
+- `autoDirty` does **not** fire on the initial mount — only on subsequent state changes.
+- It marks every top-level field dirty (coarser than per-field). For wizard-style flows where this is too aggressive, use explicit `$v.fields.<name>.$touch()` calls instead.
+- Default-off keeps hydration semantics (`Object.assign(state, entity)` leaves the form clean).
 
 ## External (Server) Errors
 
@@ -198,8 +246,23 @@ async function submit() {
 External issues:
 
 - Surface via `$errors` at the matching path (assuming the field is `$dirty`).
-- Carry `meta.external = true` so themes can distinguish them from local validation errors.
-- **Auto-clear** the moment the user edits the affected field (`$model` write at the same path drops them).
+- Carry `meta.external = true` (deep — group children too) so themes can distinguish them from local validation errors.
+- **Auto-clear** the moment the user edits the affected field (`$model` write at the same path drops them — including any group descendants under that path).
+
+## Cross-Cutting Errors
+
+`$crossCuttingErrors` collects every path-less issue (`path: []`) — backend rate limits, CSRF failures, schema-level container errors, generic submit failures. Pulled from **both** internal validation runs and `setExternalIssues`, so the same accessor surfaces:
+
+- a synthetic failure produced when a buggy `IContainer` throws (auto-wrapped — see [Async & Debouncing](#async--debouncing));
+- a server-supplied path-less issue (`{ path: [], message: 'rate_limit' }`).
+
+Cross-cutting errors are **always visible** — no dirty gate, no field to attach to. External entries also carry `meta.external = true`. Cleared by `$reset()` (external) or overwritten by the next run (internal).
+
+```typescript
+<div v-for="err in $v.$crossCuttingErrors.value" :key="err.code">
+    {{ err.message }}
+</div>
+```
 
 ## Nested Forms
 
@@ -226,6 +289,53 @@ const $v = useValidup(new BasicFieldsValidator(), form, { name: 'basic' });
 ```
 
 `onScopeDispose` automatically unregisters children when their component unmounts.
+
+### How Children Register
+
+The composable wires up child forms with Vue's `provide` / `inject`. The flow:
+
+1. **Every** `useValidup(...)` call (unless `detached: true`) calls `provide(PARENT_INJECTION_KEY, ownRegistry)` — exposing itself as a potential parent for descendants.
+2. **Every** `useValidup(...)` call (unless `detached` or `stopPropagation` is set) calls `inject(PARENT_INJECTION_KEY, undefined)` — looking up the nearest ancestor.
+3. If a parent is found **and** the child specifies `options.name`, the child auto-registers with the parent's registry under that name.
+4. When the child component's setup scope disposes, `onScopeDispose` fires and the child unregisters automatically — no leaks, no manual cleanup.
+
+The injection key is exported as `PARENT_INJECTION_KEY` if you ever need to reach into the registry directly. Scoped trees use a per-scope `Symbol.for('validup:parent:<scope>')` key (see below).
+
+### Scoped Parent / Child Trees
+
+For multi-step wizards or tab panels where each section needs its own aggregation root, use `scope` on **both** the parent and its children. Same-scope children register only with same-scope parents; unscoped children attach only to the nearest unscoped parent.
+
+```typescript
+// Wizard parent — has two scoped collectors, one per tab.
+const tab1 = useValidup(new Container(), {}, { scope: 'tab1', stopPropagation: true });
+const tab2 = useValidup(new Container(), {}, { scope: 'tab2', stopPropagation: true });
+
+// Child component in tab 1
+const $v = useValidup(profileValidator, form, { scope: 'tab1', name: 'profile' });
+
+// tab1.$getResultsForChild('profile') → defined
+// tab2.$getResultsForChild('profile') → undefined  (different scope)
+```
+
+Without scopes, every nested `useValidup` call attaches to the single nearest parent collector — fine for forms with one aggregation root, restrictive for split-tab layouts.
+
+### `stopPropagation` vs `detached`
+
+Both flags break the default parent/child auto-attach, but they are **not** the same:
+
+| Flag                       | Calls `inject`? | Calls `provide`? | Use case                                                         |
+|----------------------------|-----------------|------------------|------------------------------------------------------------------|
+| (default — neither set)    | yes             | yes              | Ordinary nested form. Auto-attaches to the nearest parent and exposes itself as a parent for its own descendants. |
+| `stopPropagation: true`    | **no**          | yes              | Aggregation root. Doesn't attach to a higher-level collector, but its descendants still register with it. The dominant pattern for top-level forms. |
+| `detached: true`           | **no**          | **no**           | Self-contained widget rendered inside a collector tree but invisible to it (e.g. an embedded settings panel inside a wizard step). Neither attaches to a parent nor exposes itself as one. |
+
+```typescript
+// Aggregation root — collects children, ignores any outer parent.
+const root = useValidup(new Container(), {}, { stopPropagation: true });
+
+// Standalone widget — won't see `root` and `root` won't see it.
+const widget = useValidup(widgetValidator, widgetForm, { detached: true });
+```
 
 ## Severity
 
@@ -263,23 +373,28 @@ interface ValidupComposableOptions<T> {
     group?: MaybeRef<string | undefined>;
     debounce?: number;
     name?: string;
-    stopPropagation?: boolean;
-    detached?: boolean;
+    stopPropagation?: boolean;  // skip inject(), still provide() — aggregation root
+    detached?: boolean;         // skip both inject() and provide() — invisible
+    lazy?: boolean;             // skip the on-mount validation run
+    autoDirty?: boolean;        // mark dirty on any state change, not just $model writes
+    scope?: string;             // partition the parent/child collector tree
 }
 ```
 
 ### `ValidupComposable<T>`
 
-| Member                            | Description                                            |
-|-----------------------------------|--------------------------------------------------------|
-| `$invalid` / `$pending` / `$dirty`| Form-level computeds                                   |
-| `$errors`                         | Flat list of every leaf issue (dirty-gated)            |
-| `$issues`                         | Raw `Issue[]` for the whole form                       |
-| `$touch()` / `$reset()`           | Form-level dirty toggles                               |
-| `$validate()`                     | Touch every field, run, return the `Result<T>`         |
-| `setExternalIssues(issues)`       | Inject server-side issues                              |
-| `$getResultsForChild(name)`       | Resolve a registered child composable                  |
-| `fields[<key>]`                   | Per-field `FieldState` (dotted / bracketed paths)      |
+| Member                            | Description                                                                                                |
+|-----------------------------------|------------------------------------------------------------------------------------------------------------|
+| `$invalid` / `$pending` / `$dirty`| Form-level computeds. `$pending` is form-wide (one run per container).                                     |
+| `$errors`                         | Flat list of every leaf issue (dirty-gated, path-attached only).                                           |
+| `$issues`                         | Raw `Issue[]` for the whole form.                                                                          |
+| `$crossCuttingErrors`             | Path-less `IssueItem[]` (always visible). Sources: internal runs + `setExternalIssues`.                    |
+| `$groupErrors`                    | `IssueGroup[]` — group-level issues like `ONE_OF_FAILED`, dirty-gated.                                     |
+| `$touch()` / `$reset()`           | Form-level dirty toggles. `$reset` does **not** clear internal issues (they reflect current state).        |
+| `$validate()`                     | Touch every field, run, return the `Result<T>`. Cancels any pending debounced run first.                   |
+| `setExternalIssues(issues)`       | Inject server-side issues. Tagged `meta.external = true` (deep — group children too). Cleared by `$reset()`. |
+| `$getResultsForChild(name)`       | Resolve a registered child composable (only if `options.name` was set on the child).                       |
+| `fields[<key>]`                   | Per-field `FieldState` (dotted / bracketed paths).                                                         |
 
 ### Helpers
 
@@ -328,7 +443,9 @@ What changes substantively:
 
 - **Per-field error keys** — Vuelidate's `$errors` is a list of `{ $validator, $message, $params }` objects keyed by rule name. validup's `$errors` is a list of `IssueItem` (`{ code, path, message, expected, received, meta }`). If your template iterates `$v.value.<field>.$errors`, switch the loop variable to read `err.message` and `err.code`.
 - **Translation** — built-in messages live in [`@ilingo/validup`](https://www.npmjs.com/package/@ilingo/validup) (sibling to the existing `@ilingo/vuelidate`). The migration replaces `useTranslationsForNestedValidation($v.value)` with `useTranslationsForValidup($v)`.
-- **Async timing** — there's no `$lazy` mode. Validation runs eagerly internally, but per-field error rendering is gated on `$dirty` so the visible UX matches Vuelidate's `$lazy: true` default.
+- **Async timing** — `options.lazy` is the analog of Vuelidate's `$lazy: true`. By default, validation runs eagerly internally and per-field error rendering is gated on `$dirty`, so the visible UX matches Vuelidate's `$lazy: true`. Pass `lazy: true` to additionally skip the on-mount probe (useful for expensive async validators).
+- **`$autoDirty`** — set `options.autoDirty: true` when state is mutated outside of `$model` (e.g. via Pinia store actions). Default-off preserves silent hydration.
+- **`$scope`** — set `options.scope` on both parent and children to partition multiple aggregation roots (multi-step wizards, tab panels). Replaces Vuelidate's `$scope` config.
 
 ## License
 

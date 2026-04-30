@@ -27,7 +27,7 @@ async function flush() {
 }
 
 describe('external errors', () => {
-    it('surfaces path-less issues via $externalErrors with no dirty gate', async () => {
+    it('surfaces path-less issues via $crossCuttingErrors with no dirty gate', async () => {
         const container = new Container<{ name: string }>();
         container.mount('name', isString);
 
@@ -35,7 +35,7 @@ describe('external errors', () => {
         const $v = useValidup(container, state);
         await flush();
 
-        expect($v.$externalErrors.value).toEqual([]);
+        expect($v.$crossCuttingErrors.value).toEqual([]);
 
         $v.setExternalIssues([
             defineIssueItem({
@@ -47,9 +47,9 @@ describe('external errors', () => {
         await flush();
 
         // No field is dirty — but the cross-cutting error is still visible.
-        expect($v.$externalErrors.value).toHaveLength(1);
-        expect($v.$externalErrors.value[0]?.message).toBe('Rate limit exceeded');
-        expect($v.$externalErrors.value[0]?.meta?.external).toBe(true);
+        expect($v.$crossCuttingErrors.value).toHaveLength(1);
+        expect($v.$crossCuttingErrors.value[0]?.message).toBe('Rate limit exceeded');
+        expect($v.$crossCuttingErrors.value[0]?.meta?.external).toBe(true);
     });
 
     it('keeps path-less external issues separate from field-level $errors', async () => {
@@ -75,8 +75,8 @@ describe('external errors', () => {
         $v.fields.name.$touch();
         await flush();
 
-        expect($v.$externalErrors.value).toHaveLength(1);
-        expect($v.$externalErrors.value[0]?.message).toBe('something went wrong');
+        expect($v.$crossCuttingErrors.value).toHaveLength(1);
+        expect($v.$crossCuttingErrors.value[0]?.message).toBe('something went wrong');
 
         // Field-level $errors only carries the path-attached issue.
         expect($v.fields.name.$errors.value).toHaveLength(1);
@@ -102,11 +102,11 @@ describe('external errors', () => {
             }),
         ]);
         await flush();
-        expect($v.$externalErrors.value).toHaveLength(1);
+        expect($v.$crossCuttingErrors.value).toHaveLength(1);
 
         $v.$reset();
         await flush();
-        expect($v.$externalErrors.value).toEqual([]);
+        expect($v.$crossCuttingErrors.value).toEqual([]);
     });
 
     it('$invalid flips true when only path-less external issues are present', async () => {

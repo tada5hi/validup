@@ -158,7 +158,7 @@ describe('hydration', () => {
         const $v = useValidup(container, state);
         await flush();
 
-        $v.fields.name.$model.value = '';
+        $v.fields.name.$model.value = 'partial';
         await flush();
         expect($v.fields.name.$dirty.value).toBe(true);
 

@@ -15,6 +15,7 @@ import {
     provide,
     reactive,
     ref,
+    toRaw,
     unref,
     watch,
 } from 'vue';
@@ -25,9 +26,14 @@ import type {
     IssueItem,
     ObjectLiteral,
     Result,
-    ValidupError,
 } from 'validup';
-import { isIssueGroup, isIssueItem, isValidupError } from 'validup';
+import {
+    IssueCode,
+    ValidupError,
+    isIssueGroup,
+    isIssueItem,
+    isValidupError,
+} from 'validup';
 import { PARENT_INJECTION_KEY } from './helpers/child';
 import type {
     ContainerInput, 
@@ -44,6 +50,12 @@ function pathKey(path: PropertyKey[]): string {
 
 function pathFromKey(key: string): string[] {
     // Accepts dotted (`a.b.c`), bracketed (`a[0].b`), or mixed (`a.b[0].c`).
+    //
+    // Caveat: top-level keys that *contain a dot* (e.g. `state['user.email']`
+    // as a single literal key) are not addressable via this composable —
+    // they collide with the dotted path syntax. This is an acknowledged
+    // trade-off: vuelidate's path syntax has the same limitation, and form
+    // state with literal-dot keys is vanishingly rare in practice.
     return key
         .replace(/\[(\w+)\]/g, '.$1')
         .split('.')
@@ -136,7 +148,24 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         pending.value = true;
         try {
             const c = unref(containerRef);
-            const result = await c.safeRun(unref(stateRef) as Record<string, any>, { group: groupRef.value });
+            let result: Result<T>;
+            try {
+                result = await c.safeRun(unref(stateRef) as Record<string, any>, { group: groupRef.value });
+            } catch (rawError) {
+                // Defensive: `safeRun` is contractually never supposed to throw,
+                // but a buggy or wrapped `IContainer` implementation might.
+                // Surface the throw as a synthetic `Result` failure so the
+                // composable stays consistent (`$invalid`/`$errors` reflect it).
+                const error = isValidupError(rawError) ?
+                    rawError :
+                    new ValidupError([{
+                        type: 'item',
+                        code: IssueCode.VALUE_INVALID,
+                        path: [],
+                        message: rawError instanceof Error ? rawError.message : String(rawError),
+                    } as IssueItem]);
+                result = { success: false, error } as Result<T>;
+            }
             if (id !== runId) {
                 return result;
             }
@@ -167,8 +196,28 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         () => {
             schedule();
         },
-        { deep: true, immediate: true },
+        // `lazy` skips the on-mount probe — validation kicks in on the first
+        // state change (which is what `$model` writes trigger naturally).
+        { deep: true, immediate: !options.lazy },
     );
+
+    if (options.autoDirty) {
+        // Mark every top-level state key dirty whenever state changes from
+        // any source (Pinia store action, programmatic write, …). Excludes
+        // the initial mount because `immediate` is omitted.
+        watch(
+            stateRef,
+            () => {
+                const data = unref(stateRef) as Record<string, unknown> | null | undefined;
+                if (data && typeof data === 'object') {
+                    for (const key of Object.keys(data)) {
+                        dirtyPaths.add(key);
+                    }
+                }
+            },
+            { deep: true },
+        );
+    }
 
     // ---- nested form registry ----------------------------------------------
     // Plain Map (not reactive) — `$getResultsForChild` is consumed imperatively
@@ -186,14 +235,27 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         },
     };
 
+    // Scoped parent/child injection — same-scope parents see same-scope
+    // descendants; the unscoped key continues to behave as before.
+    const ownInjectionKey = options.scope ?
+        Symbol.for(`validup:parent:${options.scope}`) :
+        PARENT_INJECTION_KEY;
+
     // Only provide / inject within a component setup context.
+    //
+    // - `detached: true` skips BOTH `inject()` and `provide()` — the
+    //   composable is invisible to ancestors *and* descendants.
+    // - `stopPropagation: true` skips `inject()` (won't register with a
+    //   parent) but still calls `provide()` so descendants can register
+    //   with this composable. This is the common "this is the root of an
+    //   aggregation tree" flag.
     const inComponent = getCurrentInstance() !== null;
     let parent: ParentRegistry | undefined;
-    if (inComponent) {
-        if (!options.detached && !options.stopPropagation) {
-            parent = inject(PARENT_INJECTION_KEY, undefined);
+    if (inComponent && !options.detached) {
+        if (!options.stopPropagation) {
+            parent = inject(ownInjectionKey, undefined);
         }
-        provide(PARENT_INJECTION_KEY, ownRegistry);
+        provide(ownInjectionKey, ownRegistry);
     }
 
     // ---- per-path issue selection ------------------------------------------
@@ -221,14 +283,42 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         });
     }
 
+    function isUnderPath(itemPath: string, target: string): boolean {
+        return itemPath === target || itemPath.startsWith(`${target}.`);
+    }
+
+    function pruneExternalAtPath(issues: Issue[], target: string): Issue[] {
+        const output: Issue[] = [];
+        for (const issue of issues) {
+            const ip = pathKey(issue.path);
+            if (isIssueGroup(issue)) {
+                if (isUnderPath(ip, target)) {
+                    // Whole group sits under the cleared path — drop it.
+                    continue;
+                }
+                // The group itself is outside but its leaves may still match
+                // (e.g. a top-level `oneOf` group contains a leaf at `name`).
+                const inner = pruneExternalAtPath(issue.issues, target);
+                if (inner.length === issue.issues.length) {
+                    output.push(issue);
+                } else if (inner.length > 0) {
+                    output.push({ ...issue, issues: inner });
+                }
+                // empty group → drop entirely
+                continue;
+            }
+            if (!isUnderPath(ip, target)) {
+                output.push(issue);
+            }
+        }
+        return output;
+    }
+
     function clearExternalAtPath(path: string) {
         if (externalIssues.value.length === 0) {
             return;
         }
-        externalIssues.value = externalIssues.value.filter((i) => {
-            const ip = pathKey(i.path);
-            return ip !== path && !ip.startsWith(`${path}.`);
-        });
+        externalIssues.value = pruneExternalAtPath(externalIssues.value, path);
     }
 
     // ---- per-field state ---------------------------------------------------
@@ -240,6 +330,13 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         const $model = computed<V>({
             get: () => readNested(unref(stateRef), segments) as V,
             set: (value) => {
+                // Vuelidate parity: writing the same value back through `$model`
+                // is a no-op for dirty tracking. Object.is matches Vue's own
+                // change-detection (handles NaN === NaN, distinguishes ±0).
+                const prev = readNested(toRaw(unref(stateRef)), segments);
+                if (Object.is(prev, value)) {
+                    return;
+                }
                 writeNested(unref(stateRef), segments, value);
                 dirtyPaths.add(path);
                 clearExternalAtPath(path);
@@ -266,8 +363,20 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
     }
 
     const fieldsCache = new Map<string, FieldState<any>>();
+    function getOrBuildFieldState(prop: string): FieldState<any> {
+        let cached = fieldsCache.get(prop);
+        if (!cached) {
+            cached = buildFieldState(prop);
+            fieldsCache.set(prop, cached);
+        }
+        return cached;
+    }
     function liveStateKeys(): string[] {
-        const data = unref(stateRef) as Record<string, unknown> | null | undefined;
+        // Reads `stateRef.value` (not `toRaw`) so reactive effects that walk
+        // `Object.keys(fields)` re-run when the underlying state object's
+        // shape changes — adding/removing top-level keys is rare in form
+        // state but does happen with conditional sub-forms.
+        const data = stateRef.value as Record<string, unknown> | null | undefined;
         return data && typeof data === 'object' ? Object.keys(data) : [];
     }
 
@@ -276,12 +385,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
             if (typeof prop !== 'string') {
                 return undefined;
             }
-            let cached = fieldsCache.get(prop);
-            if (!cached) {
-                cached = buildFieldState(prop);
-                fieldsCache.set(prop, cached);
-            }
-            return cached;
+            return getOrBuildFieldState(prop);
         },
         has(_, prop) {
             return typeof prop === 'string' && liveStateKeys().includes(prop);
@@ -293,11 +397,15 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
             if (typeof prop !== 'string' || !liveStateKeys().includes(prop)) {
                 return undefined;
             }
+            // Returning a *data* descriptor with `value` (the field state) is
+            // what `Object.keys(fields)` and the spread operator rely on to
+            // surface the field. Reading `value` here goes through the proxy
+            // cache so the same `FieldState` instance is reused.
             return {
                 enumerable: true,
                 configurable: true,
                 writable: false,
-                value: undefined,
+                value: getOrBuildFieldState(prop),
             };
         },
     });
@@ -317,17 +425,28 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         }
     }
 
-    function $touch() {
+    function markStateKeysDirty() {
         const data = unref(stateRef) as Record<string, unknown> | null | undefined;
         if (data && typeof data === 'object') {
             for (const key of Object.keys(data)) {
                 dirtyPaths.add(key);
             }
         }
+    }
+
+    function $touch() {
+        markStateKeysDirty();
         markIssuePathsDirty();
     }
 
     function $reset() {
+        // Note: `internalIssues` is intentionally NOT cleared here.
+        // `$reset()` returns the form to a "clean" UX state (no dirty paths,
+        // no external errors), but the underlying invalidity is a property of
+        // the current state — clearing internal issues would let `$invalid`
+        // flicker false until the next run. Vuelidate behaves the same way.
+        // To re-run validation after a reset, the caller should `$validate()`
+        // (or wait for the next state change).
         dirtyPaths.clear();
         externalIssues.value = [];
     }
@@ -339,19 +458,30 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
             clearTimeout(debounceTimer);
             debounceTimer = undefined;
         }
-        $touch();
+        // Eagerly mark every known state key dirty so the upcoming run's
+        // results surface immediately. Issue paths from validation targets
+        // outside the state object (e.g. `address.city` against `state = {}`)
+        // are caught after the run completes via `markIssuePathsDirty()`.
+        markStateKeysDirty();
         const result = await runOnce();
-        // The run we just performed may have produced new issues for paths
-        // not previously known. Mark those dirty too so `$errors` reflects them.
         markIssuePathsDirty();
         return result;
     }
 
+    function tagExternal(issue: Issue): Issue {
+        const meta = { ...(issue.meta ?? {}), external: true };
+        if (isIssueGroup(issue)) {
+            return {
+                ...issue,
+                meta,
+                issues: issue.issues.map(tagExternal),
+            };
+        }
+        return { ...issue, meta };
+    }
+
     function setExternalIssues(issues: Issue[]) {
-        externalIssues.value = issues.map((i) => ({
-            ...i,
-            meta: { ...(i.meta ?? {}), external: true },
-        }));
+        externalIssues.value = issues.map(tagExternal);
     }
 
     const composable: ValidupComposable<T> = {
@@ -361,10 +491,14 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         $errors: computed(() => flattenIssueItems([...internalIssues.value, ...externalIssues.value])
             .filter((i) => i.path.length > 0 && isPrefixDirty(dirtyPaths, pathKey(i.path)))),
         $issues: computed(() => [...internalIssues.value, ...externalIssues.value]),
-        // Path-less issues (cross-cutting failures like rate limit, CSRF) are
-        // always visible — no dirty gate, no field to attach to.
-        $externalErrors: computed(() => flattenIssueItems(externalIssues.value)
-            .filter((i) => i.path.length === 0)),
+        // Path-less issues (cross-cutting failures like rate limit, CSRF, or
+        // schema-level container errors) — always visible, no dirty gate.
+        // Pulled from BOTH internal runs and `setExternalIssues` so a synthetic
+        // failure raised by a defensive `runOnce` catch surfaces here too.
+        $crossCuttingErrors: computed(() => flattenIssueItems([
+            ...internalIssues.value,
+            ...externalIssues.value,
+        ]).filter((i) => i.path.length === 0)),
         // Group-level issues (e.g. ONE_OF_FAILED). Empty-path groups surface
         // once any field is dirty; nested groups gate on prefix-dirty rules.
         $groupErrors: computed(() => flattenIssueGroups([...internalIssues.value, ...externalIssues.value])
@@ -392,5 +526,4 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
     return composable;
 }
 
-export { isValidupError };
-export type { ValidupError };
+export { ValidupError, isValidupError };
