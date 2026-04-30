@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.3](https://github.com/tada5hi/validup/compare/routup-v0.2.2...routup-v0.2.3) (2026-04-30)
+
+
+### Bug Fixes
+
+* nested pathsToInclude/Exclude forwarding and core/adapter bugs ([f95d2aa](https://github.com/tada5hi/validup/commit/f95d2aa732450f5022b32a7765867e5e1d6f146c))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * validup bumped from ^0.2.2 to ^0.2.3
+  * peerDependencies
+    * validup bumped from ^0.2.2 to ^0.2.3
+
 ## [0.2.2](https://github.com/tada5hi/validup/compare/adapter-routup-v0.2.1...adapter-routup-v0.2.2) (2026-02-17)
 
 

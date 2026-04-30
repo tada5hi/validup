@@ -1,7 +1,7 @@
 {
-    "packages/validup": "0.2.2",
-    "packages/routup": "0.2.2",
-    "packages/express-validator": "0.3.2",
-    "packages/vue": "0.1.0",
-    "packages/zod": "0.2.4"
+    "packages/validup": "0.2.3",
+    "packages/routup": "0.2.3",
+    "packages/express-validator": "0.3.3",
+    "packages/vue": "0.1.1",
+    "packages/zod": "0.2.5"
 }

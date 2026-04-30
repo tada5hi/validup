@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.3](https://github.com/tada5hi/validup/compare/validup-v0.2.2...validup-v0.2.3) (2026-04-30)
+
+
+### Bug Fixes
+
+* **deps:** bump the minorandpatch group across 1 directory with 8 updates ([#335](https://github.com/tada5hi/validup/issues/335)) ([8246912](https://github.com/tada5hi/validup/commit/8246912300fd35eb367072e0613424429668e894))
+* nested pathsToInclude/Exclude forwarding and core/adapter bugs ([f95d2aa](https://github.com/tada5hi/validup/commit/f95d2aa732450f5022b32a7765867e5e1d6f146c))
+
 ## [0.2.2](https://github.com/tada5hi/validup/compare/validup-v0.2.1...validup-v0.2.2) (2026-02-17)
 
 

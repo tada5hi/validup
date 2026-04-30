@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.3](https://github.com/tada5hi/validup/compare/express-validator-v0.3.2...express-validator-v0.3.3) (2026-04-30)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.2.2 to ^0.2.3
+
 ## [0.3.2](https://github.com/tada5hi/validup/compare/adapter-validator-v0.3.1...adapter-validator-v0.3.2) (2026-02-17)
 
 

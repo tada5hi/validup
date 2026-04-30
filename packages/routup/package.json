@@ -1,6 +1,6 @@
 {
     "name": "@validup/routup",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "type": "module",
     "description": "A validup integration for routup.",
     "author": {
@@ -41,12 +41,12 @@
         "@types/supertest": "^6.0.2",
         "routup": "^4.1.0",
         "supertest": "^7.2.2",
-        "validup": "^0.2.2"
+        "validup": "^0.2.3"
     },
     "peerDependencies": {
         "@routup/basic": "^1.4.3",
         "routup": "^4.1.0",
-        "validup": "^0.2.2"
+        "validup": "^0.2.3"
     },
     "publishConfig": {
         "access": "public"
