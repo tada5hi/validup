@@ -11,7 +11,7 @@ import { useRequestBody } from '@routup/basic/body';
 import { useRequestCookies } from '@routup/basic/cookie';
 import { useRequestQuery } from '@routup/basic/query';
 import type { Container, ObjectLiteral } from 'validup';
-import { ValidupError } from 'validup';
+import { ValidupError, isValidupError } from 'validup';
 import { Location } from './constants';
 import type { RoutupContainerRunOptions } from './types';
 
@@ -23,10 +23,9 @@ export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
     }
 
     async run(req: Request, options: RoutupContainerRunOptions<T> = {}) : Promise<T> {
-        const locations = options.locations || [];
-        if (locations.length === 0) {
-            locations.push(Location.BODY);
-        }
+        const locations = options.locations && options.locations.length > 0 ?
+            [...options.locations] :
+            [Location.BODY];
 
         let succeeded : boolean = false;
         let output = {} as T;
@@ -59,7 +58,7 @@ export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
                 succeeded = true;
                 break;
             } catch (e) {
-                if (e instanceof ValidupError) {
+                if (isValidupError(e)) {
                     error = e;
                 }
             }

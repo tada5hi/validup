@@ -14,7 +14,7 @@ export function defineIssueItem(data: Omit<PartialProps<IssueItem, 'code'>, 'typ
     return {
         type: 'item',
         ...data,
-        code: IssueCode.VALUE_INVALID || data.code,
+        code: data.code || IssueCode.VALUE_INVALID,
     };
 }
 

@@ -7,9 +7,10 @@
 
 import type { IssueGroup, IssueItem } from '../../src';
 import {
-    defineIssueGroup, 
-    defineIssueItem, 
-    isIssueGroup, 
+    IssueCode,
+    defineIssueGroup,
+    defineIssueItem,
+    isIssueGroup,
     isIssueItem,
 } from '../../src';
 
@@ -111,5 +112,24 @@ describe('issue', () => {
         };
 
         expect(isIssueGroup(input)).toBeFalsy();
+    });
+
+    it('should preserve user-provided code on issue item', () => {
+        const item = defineIssueItem({
+            path: ['email'],
+            message: 'Email is invalid',
+            code: 'email_invalid',
+        });
+
+        expect(item.code).toEqual('email_invalid');
+    });
+
+    it('should fall back to default code when none provided', () => {
+        const item = defineIssueItem({
+            path: ['email'],
+            message: 'Email is invalid',
+        });
+
+        expect(item.code).toEqual(IssueCode.VALUE_INVALID);
     });
 });

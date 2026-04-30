@@ -29,6 +29,91 @@ import type {
 import type { Issue } from '../issue';
 import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
 
+type PathFilterResolution = {
+    skip: boolean,
+    pathsToInclude: string[] | undefined,
+    pathsToExclude: string[] | undefined,
+};
+
+/**
+ * Resolve `pathsToInclude` / `pathsToExclude` against a single mounted item's
+ * (already-expanded) local `key`. Returns whether to skip the item, plus the
+ * filter sub-lists to forward into a child container — with the parent prefix
+ * stripped so the child can match purely against its own local keys.
+ *
+ * Semantics:
+ * - Un-keyed container mount (`key === ''`) shares the parent's namespace, so
+ *   filters are forwarded verbatim.
+ * - Exact match in `pathsToInclude` / `pathsToExclude` matches the whole mount.
+ * - Prefix match (`<key>.…`) only descends into container mounts; leaf
+ *   validators with deeper-target filters fall through (skipped for include,
+ *   kept for exclude).
+ */
+function resolvePathFilter(
+    pathsToInclude: string[] | undefined,
+    pathsToExclude: string[] | undefined,
+    key: string,
+    isContainer: boolean,
+): PathFilterResolution {
+    if (key.length === 0) {
+        return {
+            skip: false, 
+            pathsToInclude, 
+            pathsToExclude, 
+        };
+    }
+
+    let includeForward: string[] | undefined;
+    if (typeof pathsToInclude !== 'undefined') {
+        let exact = false;
+        const stripped: string[] = [];
+        for (const path of pathsToInclude) {
+            if (path === key) {
+                exact = true;
+            } else if (isContainer && path.startsWith(`${key}.`)) {
+                stripped.push(path.slice(key.length + 1));
+            }
+        }
+        if (exact) {
+            includeForward = undefined;
+        } else if (stripped.length > 0) {
+            includeForward = stripped;
+        } else {
+            return {
+                skip: true, 
+                pathsToInclude: undefined, 
+                pathsToExclude: undefined, 
+            };
+        }
+    }
+
+    let excludeForward: string[] | undefined;
+    if (typeof pathsToExclude !== 'undefined') {
+        const stripped: string[] = [];
+        for (const path of pathsToExclude) {
+            if (path === key) {
+                return {
+                    skip: true, 
+                    pathsToInclude: undefined, 
+                    pathsToExclude: undefined, 
+                };
+            }
+            if (isContainer && path.startsWith(`${key}.`)) {
+                stripped.push(path.slice(key.length + 1));
+            }
+        }
+        if (stripped.length > 0) {
+            excludeForward = stripped;
+        }
+    }
+
+    return {
+        skip: false, 
+        pathsToInclude: includeForward, 
+        pathsToExclude: excludeForward, 
+    };
+}
+
 export class Container<
     T extends Record<string, any> = Record<string, any>,
 > implements IContainer {
@@ -151,7 +236,7 @@ export class Container<
         let pathsToExclude : string[] | undefined;
         if (options.pathsToExclude) {
             pathsToExclude = options.pathsToExclude as string[];
-        } else if (this.options.pathsToInclude) {
+        } else if (this.options.pathsToExclude) {
             pathsToExclude = this.options.pathsToExclude as string[];
         }
 
@@ -198,18 +283,13 @@ export class Container<
                     value = data;
                 }
 
-                if (
-                    typeof pathsToInclude !== 'undefined' &&
-                    !pathsToInclude.includes(key)
-                ) {
-                    // todo: maybe add issue info
-                    continue;
-                }
-
-                if (
-                    typeof pathsToExclude !== 'undefined' &&
-                    pathsToExclude.includes(key)
-                ) {
+                const filter = resolvePathFilter(
+                    pathsToInclude,
+                    pathsToExclude,
+                    key,
+                    item.type === 'container',
+                );
+                if (filter.skip) {
                     // todo: maybe add issue info
                     continue;
                 }
@@ -229,7 +309,8 @@ export class Container<
                                 group: options.group,
                                 flat: true,
                                 path: pathAbsolute,
-                                pathsToInclude: options.pathsToInclude,
+                                pathsToInclude: filter.pathsToInclude,
+                                pathsToExclude: filter.pathsToExclude,
                                 // todo: extract defaults for container
                             },
                         );
