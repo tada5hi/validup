@@ -68,6 +68,30 @@ describe('oneOf group surfacing', () => {
         expect($v.$invalid.value).toBe(false);
     });
 
+    it('exposes leaves nested inside an IssueGroup via fields[<path>].$issues', async () => {
+        // Regression for CodeRabbit #5: rawIssuesAtPath only inspected
+        // top-level entries, so leaves wrapped inside an IssueGroup (e.g.
+        // ONE_OF_FAILED branches) never surfaced through fields.<path>.$issues.
+        const container = new Container<{ email: string; username: string }>({ oneOf: true });
+        container.mount('email', isString);
+        container.mount('username', isString);
+
+        const state = reactive({ email: 1 as unknown as string, username: 2 as unknown as string });
+        const $v = useValidup(container, state);
+        await flush();
+
+        // The whole-form $issues exposes the wrapping IssueGroup at path [].
+        expect($v.$issues.value.length).toBeGreaterThan(0);
+
+        // Per-field $issues: must walk into the group and pull the
+        // matching leaf even though the group itself sits at path [].
+        const emailIssues = $v.fields.email.$issues.value;
+        expect(emailIssues.length).toBeGreaterThan(0);
+        // The recursed result wraps matching leaves back inside the group
+        // shape so consumers can still distinguish item vs group context.
+        expect(emailIssues.some((issue) => issue.type === 'group')).toBe(true);
+    });
+
     it('keeps $errors as leaf-only — group messages live in $groupErrors', async () => {
         const container = new Container<{ email: string; username: string }>({ oneOf: true });
         container.mount('email', isString);

@@ -277,10 +277,33 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         if (path === '') {
             return all;
         }
-        return all.filter((i) => {
-            const ip = pathKey(i.path);
-            return ip === path || ip.startsWith(`${path}.`);
-        });
+        // Recurse through `IssueGroup` children — e.g. a root `oneOf` group
+        // (path `[]`) wraps leaves at `name`/`email`, and `fields.name.$issues`
+        // must surface those leaves even though the wrapping group itself
+        // doesn't sit at the requested path.
+        const collect = (issues: Issue[]): Issue[] => {
+            const output: Issue[] = [];
+            for (const issue of issues) {
+                const ip = pathKey(issue.path);
+                const matches = ip === path || ip.startsWith(`${path}.`);
+                if (isIssueGroup(issue)) {
+                    if (matches) {
+                        output.push(issue);
+                        continue;
+                    }
+                    const inner = collect(issue.issues);
+                    if (inner.length > 0) {
+                        output.push({ ...issue, issues: inner });
+                    }
+                    continue;
+                }
+                if (matches) {
+                    output.push(issue);
+                }
+            }
+            return output;
+        };
+        return collect(all);
     }
 
     function isUnderPath(itemPath: string, target: string): boolean {
@@ -437,6 +460,12 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
     function $touch() {
         markStateKeysDirty();
         markIssuePathsDirty();
+        // Schedule a run so `lazy: true` forms surface errors immediately
+        // after an explicit `$touch()` (matching the documented contract:
+        // "validation kicks in on the first $model write, $touch(), or
+        // $validate() call"). Under non-lazy mode the watcher has already
+        // run, so this is a low-cost re-run that the run-id token coalesces.
+        schedule();
     }
 
     function $reset() {

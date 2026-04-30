@@ -92,6 +92,26 @@ describe('options.lazy', () => {
         const result = await $v.$validate();
         expect(result.success).toBe(false);
     });
+
+    it('triggers validation on explicit $touch() under lazy', async () => {
+        const realContainer = new Container<{ name: string }>();
+        realContainer.mount('name', isNonEmptyString);
+
+        const state = reactive({ name: '' });
+        const $v = useValidup(realContainer, state, { lazy: true });
+        await flush();
+
+        // Pre-touch: lazy skipped the on-mount run, so no internal issues yet.
+        expect($v.$invalid.value).toBe(false);
+
+        $v.$touch();
+        await flush();
+
+        // $touch() must schedule a run — otherwise lazy forms stay silent
+        // even after the explicit dirty signal (contract documented in README).
+        expect($v.$invalid.value).toBe(true);
+        expect($v.fields.name.$errors.value.length).toBeGreaterThan(0);
+    });
 });
 
 describe('options.autoDirty', () => {
