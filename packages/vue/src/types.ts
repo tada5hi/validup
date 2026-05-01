@@ -82,9 +82,18 @@ export interface ValidupComposable<T extends ObjectLiteral = ObjectLiteral> {
     readonly fields: { readonly [K in keyof T]: FieldState<T[K]> } & Record<string, FieldState<any>>;
 }
 
-export interface ValidupComposableOptions<T extends ObjectLiteral> {
+export interface ValidupComposableOptions<T extends ObjectLiteral, C = unknown> {
     /** Active container group. Reactive when a ref is passed. */
     group?: MaybeRef<string | undefined>;
+
+    /**
+     * Caller-supplied context surfaced on every `ValidatorContext.context` for
+     * this run. Reactive — when wrapped in a `ref`, changes trigger re-validation
+     * the same way `state`/`group` do. Useful for request-scoped data (current
+     * user, locale, feature flags) that validators need but isn't part of the
+     * validated state.
+     */
+    context?: MaybeRef<C | undefined>;
 
     /** Debounce window in ms for re-running validation on state change. Default: 0. */
     debounce?: number;
@@ -143,4 +152,4 @@ export interface ParentRegistry {
 }
 
 export type StateInput<T extends ObjectLiteral> = T | Ref<T>;
-export type ContainerInput<T extends ObjectLiteral> = IContainer<T> | Ref<IContainer<T>>;
+export type ContainerInput<T extends ObjectLiteral, C = unknown> = IContainer<T, C> | Ref<IContainer<T, C>>;

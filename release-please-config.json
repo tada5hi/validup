@@ -8,7 +8,8 @@
         "packages/routup": {"component": "routup"},
         "packages/express-validator": {"component": "express-validator"},
         "packages/vue": {"component": "vue"},
-        "packages/zod": {"component": "zod"}
+        "packages/zod": {"component": "zod"},
+        "packages/standard-schema": {"component": "standard-schema"}
     },
     "plugins": [
         {

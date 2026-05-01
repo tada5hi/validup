@@ -5,6 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { describe, expect, it } from 'vitest';
 import { Container, OptionalValue } from '../../src';
 import { stringValidator } from '../data';
 
@@ -172,5 +173,38 @@ describe('optional', () => {
         } catch (e) {
             expect(e).toBeDefined();
         }
+    });
+
+    it('should treat empty string as missing via predicate while keeping 0', async () => {
+        // Predicate use case the FALSY enum can't express: drop empty strings,
+        // keep numeric zeros (0 must reach the validator).
+        const container = new Container<{ name: string, count: number }>();
+        container.mount(
+            'name',
+            { optional: (v) => v === '' || typeof v === 'undefined' },
+            stringValidator,
+        );
+        container.mount('count', (ctx) => {
+            if (typeof ctx.value !== 'number') {
+                throw new Error('Value is not a number');
+            }
+            return ctx.value;
+        });
+
+        const output = await container.run({ name: '', count: 0 });
+        expect(output.name).toBeUndefined();
+        expect(output.count).toEqual(0);
+    });
+
+    it('should pass through optionalInclude with a predicate', async () => {
+        const container = new Container<{ tag: string }>();
+        container.mount(
+            'tag',
+            { optional: (v) => typeof v !== 'string', optionalInclude: true },
+            stringValidator,
+        );
+
+        const output = await container.run({ tag: 42 } as any);
+        expect(output.tag).toEqual(42);
     });
 });

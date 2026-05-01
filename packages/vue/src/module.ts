@@ -22,7 +22,6 @@ import {
 import type { Ref } from 'vue';
 import type {
     Issue,
-    IssueGroup,
     IssueItem,
     ObjectLiteral,
     Result,
@@ -30,8 +29,9 @@ import type {
 import {
     IssueCode,
     ValidupError,
+    flattenIssueGroups,
+    flattenIssueItems,
     isIssueGroup,
-    isIssueItem,
     isValidupError,
 } from 'validup';
 import { PARENT_INJECTION_KEY } from './helpers/child';
@@ -101,39 +101,17 @@ function isPrefixDirty(dirtyPaths: ReadonlySet<string>, key: string): boolean {
     return false;
 }
 
-function flattenIssueItems(issues: Issue[]): IssueItem[] {
-    const output: IssueItem[] = [];
-    for (const issue of issues) {
-        if (isIssueItem(issue)) {
-            output.push(issue);
-        } else {
-            output.push(...flattenIssueItems(issue.issues));
-        }
-    }
-    return output;
-}
-
-function flattenIssueGroups(issues: Issue[]): IssueGroup[] {
-    const output: IssueGroup[] = [];
-    for (const issue of issues) {
-        if (isIssueGroup(issue)) {
-            output.push(issue);
-            output.push(...flattenIssueGroups(issue.issues));
-        }
-    }
-    return output;
-}
-
-export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
-    container: ContainerInput<T>,
+export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>(
+    container: ContainerInput<T, C>,
     state: StateInput<T>,
-    options: ValidupComposableOptions<T> = {},
+    options: ValidupComposableOptions<T, C> = {},
 ): ValidupComposable<T> {
     const containerRef = (isRef(container) ? container : ref(container)) as Ref<any>;
     const stateRef = (isRef(state) ? state : ref(state)) as Ref<T>;
     // Normalize MaybeRef explicitly — `toRef(maybeRef)` semantics shifted across
     // Vue 3.x minor versions; `isRef` keeps reactivity intact regardless.
     const groupRef = (isRef(options.group) ? options.group : ref(options.group)) as Ref<string | undefined>;
+    const contextRef = (isRef(options.context) ? options.context : ref(options.context)) as Ref<C | undefined>;
 
     const dirtyPaths = reactive<Set<string>>(new Set());
     const internalIssues = ref<Issue[]>([]);
@@ -142,20 +120,34 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
 
     let runId = 0;
     let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+    // Auto-cancellation for scheduled (state-driven) runs only — `$validate()`
+    // is intentionally non-cancellable so a submit-time check doesn't get
+    // stomped by a concurrent state change.
+    let scheduleAbortController: AbortController | undefined;
 
-    async function runOnce(): Promise<Result<T>> {
+    async function runOnce(signal?: AbortSignal): Promise<Result<T>> {
         const id = ++runId;
         pending.value = true;
         try {
             const c = unref(containerRef);
             let result: Result<T>;
             try {
-                result = await c.safeRun(unref(stateRef) as Record<string, any>, { group: groupRef.value });
+                result = await c.safeRun(
+                    unref(stateRef) as Record<string, any>,
+                    {
+                        group: groupRef.value, 
+                        context: contextRef.value, 
+                        signal, 
+                    },
+                );
             } catch (rawError) {
-                // Defensive: `safeRun` is contractually never supposed to throw,
-                // but a buggy or wrapped `IContainer` implementation might.
-                // Surface the throw as a synthetic `Result` failure so the
-                // composable stays consistent (`$invalid`/`$errors` reflect it).
+                // `safeRun` rethrows when `signal.aborted` — a fresher schedule
+                // is taking over, so silently drop this run's outcome. Any
+                // other throw is defensive (a buggy IContainer that breaks
+                // safeRun's contract): surface it as a synthetic failure.
+                if (signal?.aborted) {
+                    return { success: false, error: new ValidupError() } as Result<T>;
+                }
                 const error = isValidupError(rawError) ?
                     rawError :
                     new ValidupError([{
@@ -179,20 +171,23 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
     }
 
     function schedule() {
+        scheduleAbortController?.abort();
+        scheduleAbortController = new AbortController();
+        const { signal } = scheduleAbortController;
         if (options.debounce && options.debounce > 0) {
             if (debounceTimer) {
                 clearTimeout(debounceTimer);
             }
             debounceTimer = setTimeout(() => {
-                void runOnce();
+                void runOnce(signal);
             }, options.debounce);
             return;
         }
-        void runOnce();
+        void runOnce(signal);
     }
 
     watch(
-        [containerRef, groupRef, stateRef],
+        [containerRef, groupRef, stateRef, contextRef],
         () => {
             schedule();
         },
@@ -481,17 +476,22 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
     }
 
     async function $validate(): Promise<Result<T>> {
-        // Cancel any pending debounced run — `$validate` is the explicit
-        // submit-time check and must not race with a stale debounced result.
+        // Cancel any pending debounced run AND abort any in-flight scheduled
+        // run — `$validate` is the explicit submit-time check and must not
+        // race with a stale debounced result.
         if (debounceTimer) {
             clearTimeout(debounceTimer);
             debounceTimer = undefined;
         }
+        scheduleAbortController?.abort();
+        scheduleAbortController = undefined;
         // Eagerly mark every known state key dirty so the upcoming run's
         // results surface immediately. Issue paths from validation targets
         // outside the state object (e.g. `address.city` against `state = {}`)
         // are caught after the run completes via `markIssuePathsDirty()`.
         markStateKeysDirty();
+        // No signal — `$validate` is intentionally non-cancellable so an
+        // intervening state-change-driven schedule can't abort the submit.
         const result = await runOnce();
         markIssuePathsDirty();
         return result;
@@ -550,6 +550,16 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral>(
         if (getCurrentScope()) {
             onScopeDispose(() => parent!.unregister(options.name as string));
         }
+    }
+
+    if (inComponent && getCurrentScope()) {
+        // Abort in-flight scheduled runs when the owning effect scope tears
+        // down (component unmount, manual scope dispose). $validate runs are
+        // not aborted because they don't carry a signal.
+        onScopeDispose(() => {
+            scheduleAbortController?.abort();
+            scheduleAbortController = undefined;
+        });
     }
 
     return composable;

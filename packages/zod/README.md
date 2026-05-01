@@ -10,6 +10,10 @@ A [validup](https://www.npmjs.com/package/validup) integration for [zod](https:/
 
 Wrap any zod schema as a validup `Validator`, mount it on a `Container` path, and let validup orchestrate path expansion, group filtering, and error aggregation while zod does the actual schema parsing.
 
+> ℹ️ **Already on zod 3.24+ and don't need vendor-specific fields?**
+>
+> [`@validup/standard-schema`](https://npmjs.com/package/@validup/standard-schema) covers zod via the [Standard Schema](https://standardschema.dev) protocol and works the same against valibot, arktype, and effect-schema. Pick `@validup/zod` when you specifically need `expected`/`received` on issues or the bidirectional `validup ↔ zod` mapping.
+
 > 🚧 **Work in Progress**
 >
 > Validup is currently under active development and is not yet ready for production.
@@ -90,8 +94,10 @@ container.mount('password', { group: 'update' }, passwordValidator);
 The factory receives the full `ValidatorContext`:
 
 ```typescript
-type ZodCreateFn = (ctx: ValidatorContext) => ZodType;
+type ZodCreateFn<C = unknown> = (ctx: ValidatorContext<C>) => ZodType;
 ```
+
+`createValidator<C>(...)` is generic over the validup context type, so factories can read typed `ctx.context` when the parent container declares one (`Container<T, C>`).
 
 ## Error Mapping
 
@@ -150,7 +156,7 @@ try {
 | `ZodIssue`                   | Re-exported alias for `$ZodRawIssue` from `zod/v4/core`.                     |
 
 ```typescript
-function createValidator(input: ZodType | ((ctx: ValidatorContext) => ZodType)): Validator;
+function createValidator<C = unknown>(input: ZodType | ((ctx: ValidatorContext<C>) => ZodType)): Validator<C>;
 ```
 
 ## License

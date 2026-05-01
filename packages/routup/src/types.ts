@@ -8,7 +8,7 @@
 import type { ContainerRunOptions, ObjectLiteral } from 'validup';
 import type { Location } from './constants';
 
-export type RoutupContainerRunOptions<T extends ObjectLiteral> = ContainerRunOptions<T> & {
+export type RoutupContainerRunOptions<T extends ObjectLiteral, C = unknown> = ContainerRunOptions<T, C> & {
     /**
      * default: ['body']
      */

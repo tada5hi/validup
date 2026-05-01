@@ -14,112 +14,34 @@ import {
 } from 'pathtrace';
 import { GroupKey } from '../constants';
 import { ValidupError, isError, isValidupError } from '../error';
-import { buildErrorMessageForAttribute, isOptionalValue } from '../helpers';
+import {
+    buildErrorMessageForAttribute,
+    isOptionalValue,
+    resolveDefaults,
+    resolvePathFilter,
+} from '../helpers';
 import type { Validator } from '../types';
 import { hasOwnProperty, isObject } from '../utils';
 import { isContainer } from './check';
 import type {
-    ContainerOptions, 
-    ContainerRunOptions, 
-    IContainer, 
-    Mount, 
-    MountOptions, 
+    ContainerOptions,
+    ContainerRunOptions,
+    IContainer,
+    Mount,
+    MountOptions,
     Result,
 } from './types';
 import type { Issue } from '../issue';
 import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
-
-type PathFilterResolution = {
-    skip: boolean,
-    pathsToInclude: string[] | undefined,
-    pathsToExclude: string[] | undefined,
-};
-
-/**
- * Resolve `pathsToInclude` / `pathsToExclude` against a single mounted item's
- * (already-expanded) local `key`. Returns whether to skip the item, plus the
- * filter sub-lists to forward into a child container — with the parent prefix
- * stripped so the child can match purely against its own local keys.
- *
- * Semantics:
- * - Un-keyed container mount (`key === ''`) shares the parent's namespace, so
- *   filters are forwarded verbatim.
- * - Exact match in `pathsToInclude` / `pathsToExclude` matches the whole mount.
- * - Prefix match (`<key>.…`) only descends into container mounts; leaf
- *   validators with deeper-target filters fall through (skipped for include,
- *   kept for exclude).
- */
-function resolvePathFilter(
-    pathsToInclude: string[] | undefined,
-    pathsToExclude: string[] | undefined,
-    key: string,
-    isContainer: boolean,
-): PathFilterResolution {
-    if (key.length === 0) {
-        return {
-            skip: false, 
-            pathsToInclude, 
-            pathsToExclude, 
-        };
-    }
-
-    let includeForward: string[] | undefined;
-    if (typeof pathsToInclude !== 'undefined') {
-        let exact = false;
-        const stripped: string[] = [];
-        for (const path of pathsToInclude) {
-            if (path === key) {
-                exact = true;
-            } else if (isContainer && path.startsWith(`${key}.`)) {
-                stripped.push(path.slice(key.length + 1));
-            }
-        }
-        if (exact) {
-            includeForward = undefined;
-        } else if (stripped.length > 0) {
-            includeForward = stripped;
-        } else {
-            return {
-                skip: true, 
-                pathsToInclude: undefined, 
-                pathsToExclude: undefined, 
-            };
-        }
-    }
-
-    let excludeForward: string[] | undefined;
-    if (typeof pathsToExclude !== 'undefined') {
-        const stripped: string[] = [];
-        for (const path of pathsToExclude) {
-            if (path === key) {
-                return {
-                    skip: true, 
-                    pathsToInclude: undefined, 
-                    pathsToExclude: undefined, 
-                };
-            }
-            if (isContainer && path.startsWith(`${key}.`)) {
-                stripped.push(path.slice(key.length + 1));
-            }
-        }
-        if (stripped.length > 0) {
-            excludeForward = stripped;
-        }
-    }
-
-    return {
-        skip: false, 
-        pathsToInclude: includeForward, 
-        pathsToExclude: excludeForward, 
-    };
-}
+import { RunSyncViolationError, isRunSyncViolation } from './run-sync-violation';
 
 export class Container<
     T extends Record<string, any> = Record<string, any>,
-> implements IContainer {
+    C = unknown,
+> implements IContainer<T, C> {
     protected options : ContainerOptions<T>;
 
-    protected items : Mount[];
+    protected items : Mount<C>[];
 
     // ----------------------------------------------
 
@@ -132,22 +54,22 @@ export class Container<
 
     // ----------------------------------------------
 
-    mount(container: IContainer) : void;
+    mount(container: IContainer<any, any>) : void;
 
     mount(
         options: MountOptions,
-        container: IContainer
+        container: IContainer<any, any>
     ): void;
 
     mount(
         key: Path<T> | (string & {}),
-        data: IContainer | Validator
+        data: IContainer<any, any> | Validator<C>
     ) : void;
 
     mount(
         key: Path<T> | (string & {}),
         options: MountOptions,
-        data: IContainer | Validator
+        data: IContainer<any, any> | Validator<C>
     ) : void;
 
     mount(...args: any[]) : void {
@@ -157,7 +79,7 @@ export class Container<
 
         let path : string | undefined;
 
-        let data: IContainer | Validator | undefined;
+        let data: IContainer<any, any> | Validator<C> | undefined;
         let dataIsContainer : boolean = false;
 
         let options: MountOptions = {};
@@ -208,7 +130,7 @@ export class Container<
 
         this.items.push({
             options,
-            data,
+            data: data as Validator<C>,
             path,
             type: 'validator',
         });
@@ -224,46 +146,36 @@ export class Container<
      */
     async run(
         data: Record<string, any> = {},
-        options: ContainerRunOptions<T> = {},
+        options: ContainerRunOptions<T, C> = {},
     ): Promise<T> {
-        let pathsToInclude : string[] | undefined;
-        if (options.pathsToInclude) {
-            pathsToInclude = options.pathsToInclude as string[];
-        } else if (this.options.pathsToInclude) {
-            pathsToInclude = this.options.pathsToInclude as string[];
+        if (options.parallel) {
+            return this.runParallel(data, options);
         }
 
-        let pathsToExclude : string[] | undefined;
-        if (options.pathsToExclude) {
-            pathsToExclude = options.pathsToExclude as string[];
-        } else if (this.options.pathsToExclude) {
-            pathsToExclude = this.options.pathsToExclude as string[];
-        }
+        const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
 
         const output: Record<string, any> = {};
+        const issues: Issue[] = [];
 
-        const issues : Issue[] = [];
-
-        let itemCount : number = 0;
-        let errorCount : number = 0;
+        let itemCount = 0;
+        let errorCount = 0;
 
         for (let i = 0; i < this.items.length; i++) {
+            // Pre-mount abort check — cheap and short-circuits cleanly without
+            // entering the per-mount try/catch (so aborts don't get rewritten
+            // into validation issues).
+            options.signal?.throwIfAborted();
+
             const item = this.items[i];
 
             if (!this.isItemGroupIncluded(item, options.group)) {
-                // todo: maybe add issue info
                 continue;
             }
 
             let pathCount = 0;
             let pathFailed = false;
 
-            let keys : string[];
-            if (item.path) {
-                keys = expandPath(data, item.path);
-            } else {
-                keys = [''];
-            }
+            const keys: string[] = item.path ? expandPath(data, item.path) : [''];
 
             for (const key of keys) {
                 const keyParts = key ? pathToArray(key) : [];
@@ -274,7 +186,7 @@ export class Container<
                     ...keyParts,
                 ];
 
-                let value : unknown;
+                let value: unknown;
                 if (key.length > 0) {
                     value = hasOwnProperty(output, key) ?
                         output[key] :
@@ -290,15 +202,16 @@ export class Container<
                     item.type === 'container',
                 );
                 if (filter.skip) {
-                    // todo: maybe add issue info
                     continue;
                 }
 
                 try {
-                    if (
+                    const isOptional = typeof item.options.optional === 'function' ?
+                        item.options.optional(value) :
                         item.options.optional &&
-                        isOptionalValue(value, item.options.optionalValue)
-                    ) {
+                            isOptionalValue(value, item.options.optionalValue);
+
+                    if (isOptional) {
                         if (item.options.optionalInclude) {
                             output[key] = value;
                         }
@@ -311,7 +224,9 @@ export class Container<
                                 path: pathAbsolute,
                                 pathsToInclude: filter.pathsToInclude,
                                 pathsToExclude: filter.pathsToExclude,
-                                // todo: extract defaults for container
+                                defaults: resolveDefaults(options.defaults, key),
+                                context: options.context,
+                                signal: options.signal,
                             },
                         );
 
@@ -327,46 +242,12 @@ export class Container<
                             value,
                             data,
                             group: options.group,
+                            context: options.context as C,
+                            signal: options.signal,
                         });
                     }
                 } catch (e) {
-                    const childIssues : Issue[] = [];
-
-                    if (isValidupError(e)) {
-                        for (let i = 0; i < e.issues.length; i++) {
-                            const issue = e.issues[i];
-
-                            childIssues.push({
-                                ...issue,
-                                path: [
-                                    ...keyParts,
-                                    ...(issue.path || []),
-                                ],
-                            });
-                        }
-                    } else if (isError(e)) {
-                        childIssues.push(defineIssueItem({
-                            path: keyParts,
-                            message: e.message,
-                        }));
-                    }
-
-                    if (pathRelative) {
-                        if (item.type === 'container' || childIssues.length > 1) {
-                            const group = defineIssueGroup({
-                                message: buildErrorMessageForAttribute(pathRelative),
-                                path: keyParts,
-                                issues: childIssues,
-                            });
-
-                            issues.push(group);
-                        } else {
-                            issues.push(...childIssues);
-                        }
-                    } else {
-                        issues.push(...childIssues);
-                    }
-
+                    this.recordMountError(e, item, keyParts, pathRelative, issues, options.signal);
                     pathFailed = true;
                 }
 
@@ -382,6 +263,446 @@ export class Container<
             }
         }
 
+        return this.finalizeOutput(output, options, issues, errorCount, itemCount);
+    }
+
+    /**
+     * Parallel-execution variant of `run()`. All mounts kick off their
+     * promises eagerly and the results are merged after `Promise.allSettled`.
+     * See `ContainerRunOptions.parallel` for the trade-off note.
+     */
+    private async runParallel(
+        data: Record<string, any>,
+        options: ContainerRunOptions<T, C>,
+    ): Promise<T> {
+        const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
+
+        const output: Record<string, any> = {};
+        const issues: Issue[] = [];
+
+        type KeyTask = {
+            key: string,
+            keyParts: PropertyKey[],
+            pathRelative: PropertyKey | undefined,
+            promise: Promise<unknown>,
+            kind: 'container' | 'validator',
+        };
+
+        type ItemGroup = {
+            item: Mount<C>,
+            tasks: KeyTask[],
+            // optional/skip paths that completed inline still count toward
+            // the per-item pathCount used for oneOf / errorCount tracking.
+            syncPathCount: number,
+        };
+
+        const itemGroups: ItemGroup[] = [];
+
+        for (let i = 0; i < this.items.length; i++) {
+            options.signal?.throwIfAborted();
+
+            const item = this.items[i];
+            if (!this.isItemGroupIncluded(item, options.group)) {
+                continue;
+            }
+
+            const tasks: KeyTask[] = [];
+            let syncPathCount = 0;
+
+            const keys: string[] = item.path ? expandPath(data, item.path) : [''];
+            for (const key of keys) {
+                const keyParts = key ? pathToArray(key) : [];
+                const pathRelative = keyParts.at(-1);
+                const pathAbsolute = [
+                    ...(options.path ? options.path : []),
+                    ...keyParts,
+                ];
+
+                let value: unknown;
+                if (key.length > 0) {
+                    // Parallel mode reads `data` only — `output[key]` from a
+                    // sibling mount is intentionally NOT consulted (the
+                    // sibling may not have completed yet).
+                    value = getPathValue(data, key);
+                } else {
+                    value = data;
+                }
+
+                const filter = resolvePathFilter(
+                    pathsToInclude,
+                    pathsToExclude,
+                    key,
+                    item.type === 'container',
+                );
+                if (filter.skip) {
+                    continue;
+                }
+
+                const isOptional = typeof item.options.optional === 'function' ?
+                    item.options.optional(value) :
+                    item.options.optional &&
+                        isOptionalValue(value, item.options.optionalValue);
+
+                if (isOptional) {
+                    if (item.options.optionalInclude) {
+                        output[key] = value;
+                    }
+                    syncPathCount++;
+                    continue;
+                }
+
+                let promise: Promise<unknown>;
+                if (item.type === 'container') {
+                    promise = item.data.run(
+                        isObject(value) ? value : {},
+                        {
+                            group: options.group,
+                            flat: true,
+                            path: pathAbsolute,
+                            pathsToInclude: filter.pathsToInclude,
+                            pathsToExclude: filter.pathsToExclude,
+                            defaults: resolveDefaults(options.defaults, key),
+                            context: options.context,
+                            signal: options.signal,
+                            parallel: true,
+                        },
+                    );
+                } else {
+                    // Wrap sync validators in a microtask so the surrounding
+                    // `Promise.allSettled` always sees a thenable.
+                    const itemData = item.data;
+                    promise = (async () => itemData({
+                        key,
+                        path: pathAbsolute,
+                        value,
+                        data,
+                        group: options.group,
+                        context: options.context as C,
+                        signal: options.signal,
+                    }))();
+                }
+
+                tasks.push({
+                    key,
+                    keyParts,
+                    pathRelative,
+                    promise,
+                    kind: item.type,
+                });
+            }
+
+            if (tasks.length > 0 || syncPathCount > 0) {
+                itemGroups.push({
+                    item, 
+                    tasks, 
+                    syncPathCount, 
+                });
+            }
+        }
+
+        // Wait for all groups concurrently. Promises were already kicked off
+        // eagerly above; this just collects their settled state.
+        const settledByGroup = await Promise.all(itemGroups.map(
+            (group) => Promise.allSettled(group.tasks.map((t) => t.promise)),
+        ));
+
+        let itemCount = 0;
+        let errorCount = 0;
+
+        for (const [i, {
+            item, 
+            tasks, 
+            syncPathCount, 
+        }] of itemGroups.entries()) {
+            const settled = settledByGroup[i];
+
+            let pathFailed = false;
+            for (const [j, task] of tasks.entries()) {
+                const result = settled[j];
+
+                if (result.status === 'fulfilled') {
+                    if (task.kind === 'container') {
+                        const tmp = result.value as Record<string, any>;
+                        const tmpKeys = Object.keys(tmp);
+                        for (const tmpKey of tmpKeys) {
+                            output[this.mergePaths(task.key, tmpKey)] = tmp[tmpKey];
+                        }
+                    } else {
+                        output[task.key] = result.value;
+                    }
+                } else {
+                    this.recordMountError(
+                        result.reason,
+                        item,
+                        task.keyParts,
+                        task.pathRelative,
+                        issues,
+                        options.signal,
+                    );
+                    pathFailed = true;
+                }
+            }
+
+            if (tasks.length + syncPathCount > 0) {
+                itemCount++;
+                if (pathFailed) {
+                    errorCount++;
+                }
+            }
+        }
+
+        return this.finalizeOutput(output, options, issues, errorCount, itemCount);
+    }
+
+    async safeRun(input: Record<string, any> = {}, options: ContainerRunOptions<T, C> = {}): Promise<Result<T>> {
+        try {
+            const data = await this.run(input, options);
+            return { success: true, data };
+        } catch (e) {
+            return this.wrapSafeRunError(e, options);
+        }
+    }
+
+    /**
+     * @throws ValidupError
+     *
+     * Synchronous variant of `run()`. Throws synchronously if any validator
+     * returns a thenable, or if a nested container does not implement
+     * `runSync`. Use it for purely synchronous validator graphs where the
+     * microtask overhead of `await` per mount matters (e.g. driving a
+     * reactive UI without a `pending` flicker).
+     */
+    runSync(
+        data: Record<string, any> = {},
+        options: ContainerRunOptions<T, C> = {},
+    ): T {
+        const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
+
+        const output: Record<string, any> = {};
+        const issues: Issue[] = [];
+
+        let itemCount = 0;
+        let errorCount = 0;
+
+        for (let i = 0; i < this.items.length; i++) {
+            options.signal?.throwIfAborted();
+
+            const item = this.items[i];
+
+            if (!this.isItemGroupIncluded(item, options.group)) {
+                continue;
+            }
+
+            let pathCount = 0;
+            let pathFailed = false;
+
+            const keys: string[] = item.path ? expandPath(data, item.path) : [''];
+
+            for (const key of keys) {
+                const keyParts = key ? pathToArray(key) : [];
+
+                const pathRelative = keyParts.at(-1);
+                const pathAbsolute = [
+                    ...(options.path ? options.path : []),
+                    ...keyParts,
+                ];
+
+                let value: unknown;
+                if (key.length > 0) {
+                    value = hasOwnProperty(output, key) ?
+                        output[key] :
+                        getPathValue(data, key);
+                } else {
+                    value = data;
+                }
+
+                const filter = resolvePathFilter(
+                    pathsToInclude,
+                    pathsToExclude,
+                    key,
+                    item.type === 'container',
+                );
+                if (filter.skip) {
+                    continue;
+                }
+
+                try {
+                    const isOptional = typeof item.options.optional === 'function' ?
+                        item.options.optional(value) :
+                        item.options.optional &&
+                            isOptionalValue(value, item.options.optionalValue);
+
+                    if (isOptional) {
+                        if (item.options.optionalInclude) {
+                            output[key] = value;
+                        }
+                    } else if (item.type === 'container') {
+                        const childRunSync = (
+                            item.data as IContainer<any, any> & {
+                                runSync?: (...args: any[]) => any
+                            }
+                        ).runSync;
+                        if (typeof childRunSync !== 'function') {
+                            throw new RunSyncViolationError(`runSync: nested container at "${key || '<root>'}" does not implement runSync`);
+                        }
+
+                        const tmp = childRunSync.call(item.data, isObject(value) ? value : {}, {
+                            group: options.group,
+                            flat: true,
+                            path: pathAbsolute,
+                            pathsToInclude: filter.pathsToInclude,
+                            pathsToExclude: filter.pathsToExclude,
+                            defaults: resolveDefaults(options.defaults, key),
+                            context: options.context,
+                            signal: options.signal,
+                        });
+
+                        const tmpKeys = Object.keys(tmp);
+                        for (const tmpKey of tmpKeys) {
+                            output[this.mergePaths(key, tmpKey)] = tmp[tmpKey];
+                        }
+                    } else if (item.type === 'validator') {
+                        const result = item.data({
+                            key,
+                            path: pathAbsolute,
+
+                            value,
+                            data,
+                            group: options.group,
+                            context: options.context as C,
+                            signal: options.signal,
+                        });
+                        if (
+                            result !== null &&
+                            typeof result === 'object' &&
+                            typeof (result as { then?: unknown }).then === 'function'
+                        ) {
+                            throw new RunSyncViolationError(`runSync: validator at "${key || '<root>'}" returned a Promise`);
+                        }
+                        output[key] = result;
+                    }
+                } catch (e) {
+                    this.recordMountError(e, item, keyParts, pathRelative, issues, options.signal);
+                    pathFailed = true;
+                }
+
+                pathCount++;
+            }
+
+            if (pathCount > 0) {
+                itemCount++;
+
+                if (pathFailed) {
+                    errorCount++;
+                }
+            }
+        }
+
+        return this.finalizeOutput(output, options, issues, errorCount, itemCount);
+    }
+
+    safeRunSync(input: Record<string, any> = {}, options: ContainerRunOptions<T, C> = {}): Result<T> {
+        try {
+            const data = this.runSync(input, options);
+            return { success: true, data };
+        } catch (e) {
+            return this.wrapSafeRunError(e, options);
+        }
+    }
+
+    private resolveContainerFilters(options: ContainerRunOptions<T, C>): {
+        pathsToInclude: string[] | undefined,
+        pathsToExclude: string[] | undefined,
+    } {
+        let pathsToInclude: string[] | undefined;
+        if (options.pathsToInclude) {
+            pathsToInclude = options.pathsToInclude as string[];
+        } else if (this.options.pathsToInclude) {
+            pathsToInclude = this.options.pathsToInclude as string[];
+        }
+
+        let pathsToExclude: string[] | undefined;
+        if (options.pathsToExclude) {
+            pathsToExclude = options.pathsToExclude as string[];
+        } else if (this.options.pathsToExclude) {
+            pathsToExclude = this.options.pathsToExclude as string[];
+        }
+
+        return { pathsToInclude, pathsToExclude };
+    }
+
+    /**
+     * Translate a per-mount throw into accumulated `issues`. Re-throws when
+     * the run was aborted (signal-aware validators) so abort errors are not
+     * mangled into validation issues. `keyParts` is the current mount's
+     * expanded path (used to prepend to nested `ValidupError` issues).
+     */
+    private recordMountError(
+        e: unknown,
+        item: Mount<C>,
+        keyParts: PropertyKey[],
+        pathRelative: PropertyKey | undefined,
+        issues: Issue[],
+        signal: AbortSignal | undefined,
+    ): void {
+        if (signal?.aborted) {
+            throw e;
+        }
+        // Structural runSync violations are not validation outcomes — they
+        // mean the caller can't use runSync against this graph. Surface the
+        // diagnostic verbatim instead of wrapping it as "Property X is invalid".
+        if (isRunSyncViolation(e)) {
+            throw e;
+        }
+
+        const childIssues: Issue[] = [];
+
+        if (isValidupError(e)) {
+            for (let i = 0; i < e.issues.length; i++) {
+                const issue = e.issues[i];
+
+                childIssues.push({
+                    ...issue,
+                    path: [
+                        ...keyParts,
+                        ...(issue.path || []),
+                    ],
+                });
+            }
+        } else if (isError(e)) {
+            childIssues.push(defineIssueItem({
+                path: keyParts,
+                message: e.message,
+            }));
+        }
+
+        if (pathRelative) {
+            if (item.type === 'container' || childIssues.length > 1) {
+                issues.push(defineIssueGroup({
+                    message: buildErrorMessageForAttribute(String(pathRelative)),
+                    params: { name: String(pathRelative) },
+                    path: keyParts,
+                    issues: childIssues,
+                }));
+            } else {
+                issues.push(...childIssues);
+            }
+        } else {
+            issues.push(...childIssues);
+        }
+    }
+
+    /**
+     * Apply post-loop semantics: oneOf aggregation, error throw, defaults
+     * fill, and flat-vs-nested output expansion.
+     */
+    private finalizeOutput(
+        output: Record<string, any>,
+        options: ContainerRunOptions<T, C>,
+        issues: Issue[],
+        errorCount: number,
+        itemCount: number,
+    ): T {
         if (this.options.oneOf) {
             if (errorCount === itemCount) {
                 const group = defineIssueGroup({
@@ -390,7 +711,6 @@ export class Container<
                     issues,
                     path: options.path ? options.path : [],
                 });
-
                 throw new ValidupError([group]);
             }
         } else if (errorCount > 0) {
@@ -404,7 +724,7 @@ export class Container<
                     !hasOwnProperty(output, defaultKey) ||
                     typeof output[defaultKey] === 'undefined'
                 ) {
-                    output[defaultKey] = options.defaults[defaultKey as unknown as Path<T>];
+                    output[defaultKey] = (options.defaults as Record<string, any>)[defaultKey];
                 }
             }
         }
@@ -413,43 +733,47 @@ export class Container<
             return output as T;
         }
 
-        const temp : Record<string, any> = {};
-
+        const temp: Record<string, any> = {};
         const keys = Object.keys(output);
         for (const key of keys) {
             setPathValue(temp, key, output[key]);
         }
-
         return temp as T;
     }
 
-    async safeRun(input: Record<string, any> = {}, options: ContainerRunOptions<T> = {}): Promise<Result<T>> {
-        try {
-            const data = await this.run(input, options);
-            return { success: true, data };
-        } catch (e) {
-            if (isValidupError(e)) {
-                return { success: false, error: e };
-            }
-
-            if (isError(e)) {
-                return {
-                    success: false,
-                    error: new ValidupError([
-                        defineIssueItem({
-                            path: [],
-                            message: e.message,
-                        }),
-                    ]),
-                };
-            }
-
-            return { success: false, error: new ValidupError() };
+    private wrapSafeRunError(e: unknown, options: ContainerRunOptions<T, C>): Result<T> {
+        // Abort is not a validation outcome — propagate it. Wrapping it
+        // as a synthetic `Result.failure` would produce a misleading
+        // "AbortError" issue at path `[]`.
+        if (options.signal?.aborted) {
+            throw e;
         }
+        // Same reasoning for `runSync` structural violations.
+        if (isRunSyncViolation(e)) {
+            throw e;
+        }
+
+        if (isValidupError(e)) {
+            return { success: false, error: e };
+        }
+
+        if (isError(e)) {
+            return {
+                success: false,
+                error: new ValidupError([
+                    defineIssueItem({
+                        path: [],
+                        message: e.message,
+                    }),
+                ]),
+            };
+        }
+
+        return { success: false, error: new ValidupError() };
     }
 
     private isItemGroupIncluded(
-        item: Mount,
+        item: Mount<C>,
         group?: string,
     ) : boolean {
         if (group === GroupKey.WILDCARD) {
@@ -481,6 +805,13 @@ export class Container<
         return true;
     }
 
+    /**
+     * Join flat-output keys with `.` separators, preserving any pre-existing
+     * leading dot on the right-hand side. Note: keys containing a *literal*
+     * dot collide with the dotted-path syntax used for nested-output
+     * expansion (see `setPathValue` in `pathtrace`) and will produce
+     * ambiguous output when re-expanded — avoid mounting/returning such keys.
+     */
     private mergePaths(...args: (string | undefined)[]) {
         let output : string = '';
 

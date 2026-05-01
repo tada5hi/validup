@@ -8,4 +8,6 @@
 export * from './check';
 export * from './constants';
 export * from './define';
+export * from './flatten';
+export * from './format';
 export * from './types';

@@ -15,14 +15,14 @@ import { ValidupError, isValidupError } from 'validup';
 import { Location } from './constants';
 import type { RoutupContainerRunOptions } from './types';
 
-export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
-    protected container : Container<T>;
+export class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral, C = unknown> {
+    protected container : Container<T, C>;
 
-    constructor(container: Container<T>) {
+    constructor(container: Container<T, C>) {
         this.container = container;
     }
 
-    async run(req: Request, options: RoutupContainerRunOptions<T> = {}) : Promise<T> {
+    async run(req: Request, options: RoutupContainerRunOptions<T, C> = {}) : Promise<T> {
         const locations = options.locations && options.locations.length > 0 ?
             [...options.locations] :
             [Location.BODY];

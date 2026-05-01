@@ -1,8 +1,8 @@
 {
-    "name": "validup",
-    "version": "0.2.2",
+    "name": "@validup/standard-schema",
+    "version": "0.1.0",
     "type": "module",
-    "description": "A validation library.",
+    "description": "A validup integration for any Standard Schema validator (zod, valibot, arktype, effect-schema, …).",
     "author": {
         "name": "Peter Placzek",
         "email": "contact@tada5hi.net",
@@ -34,12 +34,21 @@
         "test": "vitest --config test/vitest.config.ts --run",
         "test:coverage": "vitest --config test/vitest.config.ts --run --coverage"
     },
-    "keywords": [],
+    "keywords": [
+        "validup",
+        "standard-schema",
+        "validation",
+        "zod",
+        "valibot",
+        "arktype"
+    ],
     "license": "MIT",
     "dependencies": {
-        "@ebec/core": "^1.0.1",
-        "pathtrace": "^2.1.2",
-        "smob": "^1.6.1"
+        "@standard-schema/spec": "^1.1.0",
+        "validup": "^0.2.2"
+    },
+    "devDependencies": {
+        "zod": "^4.3.6"
     },
     "publishConfig": {
         "access": "public"

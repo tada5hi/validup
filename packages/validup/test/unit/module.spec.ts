@@ -5,6 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { describe, expect, it } from 'vitest';
 import type { Validator } from '../../src';
 import { Container } from '../../src';
 
@@ -56,6 +57,50 @@ describe('src/module', () => {
 
         outcome = await container.run({}, { defaults: { foo: 'boz' } });
         expect(outcome.foo).toEqual('boz');
+    });
+
+    it('should forward sliced defaults into nested containers', async () => {
+        const childOptionsSeen: any[] = [];
+        const child = {
+            run: (async (input: any, opts: any = {}) => {
+                childOptionsSeen.push(opts);
+                return input;
+            }),
+            safeRun: (async () => ({ success: true, data: {} })),
+        };
+
+        const parent = new Container<{ nested: Record<string, unknown>, top: string }>();
+        parent.mount('nested', child as any);
+
+        await parent.run(
+            { nested: {} },
+            {
+                defaults: {
+                    'nested.foo': 'x',
+                    'nested.deep.bar': 'y',
+                    top: 'z',
+                } as any,
+            },
+        );
+
+        expect(childOptionsSeen).toHaveLength(1);
+        expect(childOptionsSeen[0].defaults).toEqual({
+            foo: 'x',
+            'deep.bar': 'y',
+        });
+    });
+
+    it('should fill nested defaults into the expanded output', async () => {
+        const child = new Container<{ foo: string }>();
+        const parent = new Container<{ nested: { foo: string } }>();
+        parent.mount('nested', child);
+
+        const outcome = await parent.run(
+            {},
+            { defaults: { 'nested.foo': 'fallback' } as any },
+        );
+
+        expect(outcome.nested?.foo).toEqual('fallback');
     });
 
     it('should not validate', async () => {
