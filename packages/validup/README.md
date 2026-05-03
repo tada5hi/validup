@@ -171,27 +171,27 @@ The builder mirrors `Container.mount`'s keyed forms — `.mount(key, target)` an
 | Target type                        | Effect on `T`                                                           |
 |------------------------------------|-------------------------------------------------------------------------|
 | `Validator<C, Out>`                | adds `{ [K]: Awaited<Out> }` (or `{ [K]?: Awaited<Out> }` when `options.optional`) |
-| `Builder<U, C>`                    | adds `{ [K]: U }` and auto-`.build()`s the child                        |
+| `IBuilder<U, C>`                   | adds `{ [K]: U }` and auto-`.build()`s the child                        |
 | `IContainer<U, C>` (e.g. `Container<U, C>`) | adds `{ [K]: U }`                                              |
 
-`Builder` is immutable — every method returns a new builder, so chains can fork without leaking state — and `.build()` materializes a `Container<T, C>`:
+Builders are immutable — every method returns a new instance, so chains can fork without leaking state — and `.build()` materializes a `Container<T, C>`:
 
 ```typescript
-interface Builder<T extends Record<string, any>, C = unknown> {
-    mount<K extends string, V extends Validator<C, any> | Builder<any, C> | IContainer<any, C>>(
+interface IBuilder<T extends Record<string, any>, C = unknown> {
+    mount<K extends string, V extends Validator<C, any> | IBuilder<any, C> | IContainer<any, C>>(
         key: K,
         target: V,
-    ): Builder<T & Mounted<K, V, undefined>, C>;
+    ): IBuilder<T & Mounted<K, V, undefined>, C>;
 
-    mount<K extends string, const O extends MountOptions, V extends Validator<C, any> | Builder<any, C> | IContainer<any, C>>(
+    mount<K extends string, const O extends MountOptions, V extends Validator<C, any> | IBuilder<any, C> | IContainer<any, C>>(
         key: K,
         options: O,
         target: V,
-    ): Builder<T & Mounted<K, V, O>, C>;
+    ): IBuilder<T & Mounted<K, V, O>, C>;
 
-    oneOf(): Builder<T, C>;
-    pathsToInclude(...paths: (keyof T & string)[]): Builder<T, C>;
-    pathsToExclude(...paths: (keyof T & string)[]): Builder<T, C>;
+    oneOf(): IBuilder<T, C>;
+    pathsToInclude(...paths: (keyof T & string)[]): IBuilder<T, C>;
+    pathsToExclude(...paths: (keyof T & string)[]): IBuilder<T, C>;
     build(): Container<T, C>;
 }
 ```
@@ -680,7 +680,7 @@ class Container<
 ### defineSchema
 
 ```typescript
-function defineSchema<C = unknown>(): Builder<{}, C>;
+function defineSchema<C = unknown>(): IBuilder<{}, C>;
 ```
 
 See [Builder API](#builder-api-compile-time-typing). Each `.field` / `.optional` / `.nest` call returns a new builder with the accumulated shape; `.build()` materializes a `Container<T, C>`.

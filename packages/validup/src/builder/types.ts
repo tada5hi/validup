@@ -20,7 +20,7 @@ export type Spread<T> = { [K in keyof T]: T[K] };
  * a nested builder (auto-`.build()`-ed), or an existing `Container`.
  */
 export type MountTarget<C> = Validator<C, any> |
-    Builder<any, C> |
+    IBuilder<any, C> |
     IContainer<any, C>;
 
 /**
@@ -41,7 +41,7 @@ export type IsOptional<O> = O extends { optional: true } ? true :
  * - Validator target → `{ [K]: Awaited<Out> }`, widened to `{ [K]?: Awaited<Out> }`
  *   when `IsOptional<O>` is `true`.
  */
-export type Mounted<K extends string, V, O> = V extends Builder<infer U, any> ?
+export type Mounted<K extends string, V, O> = V extends IBuilder<infer U, any> ?
     { [P in K]: U } :
     V extends IContainer<infer U, any> ?
         { [P in K]: U } :
@@ -62,7 +62,7 @@ export type Mounted<K extends string, V, O> = V extends Builder<infer U, any> ?
  * `(key, options, target)` — so transferring patterns between the imperative
  * and builder APIs is straightforward.
  */
-export interface Builder<T extends Record<string, any>, C = unknown> {
+export interface IBuilder<T extends Record<string, any>, C = unknown> {
     /**
      * Mount a leaf validator, nested builder, or existing container at `key`.
      * The accumulated shape gains the resolved type of `target`.
@@ -70,7 +70,7 @@ export interface Builder<T extends Record<string, any>, C = unknown> {
     mount<K extends string, V extends MountTarget<C>>(
         key: K,
         target: V,
-    ): Builder<Spread<T & Mounted<K, V, undefined>>, C>;
+    ): IBuilder<Spread<T & Mounted<K, V, undefined>>, C>;
 
     /**
      * Mount with `MountOptions`. When `options.optional` is `true` (or a
@@ -84,16 +84,16 @@ export interface Builder<T extends Record<string, any>, C = unknown> {
         key: K,
         options: O,
         target: V,
-    ): Builder<Spread<T & Mounted<K, V, O>>, C>;
+    ): IBuilder<Spread<T & Mounted<K, V, O>>, C>;
 
     /** Mark the resulting container as `oneOf` (only one branch must succeed). */
-    oneOf(): Builder<T, C>;
+    oneOf(): IBuilder<T, C>;
 
     /** Restrict the resulting container's `pathsToInclude`. */
-    pathsToInclude(...paths: (keyof T & string)[]): Builder<T, C>;
+    pathsToInclude(...paths: (keyof T & string)[]): IBuilder<T, C>;
 
     /** Restrict the resulting container's `pathsToExclude`. */
-    pathsToExclude(...paths: (keyof T & string)[]): Builder<T, C>;
+    pathsToExclude(...paths: (keyof T & string)[]): IBuilder<T, C>;
 
     /** Materialize a `Container<T, C>` and replay every accumulated mount. */
     build(): Container<T, C>;

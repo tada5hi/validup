@@ -12,7 +12,7 @@ import type {
     MountOptions,
 } from '../container/types';
 import type { Validator } from '../types';
-import type { Builder, MountTarget } from './types';
+import type { IBuilder, MountTarget } from './types';
 
 type ValidatorStep<C> = {
     kind: 'validator',
@@ -30,14 +30,14 @@ type NestStep<C> = {
 
 type Step<C> = ValidatorStep<C> | NestStep<C>;
 
-function isBuilder(value: unknown): value is Builder<Record<string, any>, unknown> {
+function isBuilder(value: unknown): value is IBuilder<Record<string, any>, unknown> {
     return typeof value === 'object' &&
         value !== null &&
         typeof (value as { build?: unknown }).build === 'function' &&
         typeof (value as { mount?: unknown }).mount === 'function';
 }
 
-class BuilderImpl<T extends Record<string, any>, C> implements Builder<T, C> {
+export class Builder<T extends Record<string, any>, C> implements IBuilder<T, C> {
     private readonly options: ContainerOptions<any>;
 
     private readonly steps: ReadonlyArray<Step<C>>;
@@ -63,7 +63,7 @@ class BuilderImpl<T extends Record<string, any>, C> implements Builder<T, C> {
             step = {
                 kind: 'nest',
                 key,
-                child: (target as Builder<any, C>).build(),
+                child: (target as IBuilder<any, C>).build(),
                 options,
             };
         } else if (isContainer(target)) {
@@ -82,18 +82,18 @@ class BuilderImpl<T extends Record<string, any>, C> implements Builder<T, C> {
             };
         }
 
-        return new BuilderImpl<any, C>(this.options, [...this.steps, step]);
+        return new Builder<any, C>(this.options, [...this.steps, step]);
     }
 
-    oneOf(): Builder<T, C> {
-        return new BuilderImpl<T, C>(
+    oneOf(): IBuilder<T, C> {
+        return new Builder<T, C>(
             { ...this.options, oneOf: true },
             this.steps,
         );
     }
 
-    pathsToInclude(...paths: (keyof T & string)[]): Builder<T, C> {
-        return new BuilderImpl<T, C>(
+    pathsToInclude(...paths: (keyof T & string)[]): IBuilder<T, C> {
+        return new Builder<T, C>(
             {
                 ...this.options,
                 pathsToInclude: [
@@ -105,8 +105,8 @@ class BuilderImpl<T extends Record<string, any>, C> implements Builder<T, C> {
         );
     }
 
-    pathsToExclude(...paths: (keyof T & string)[]): Builder<T, C> {
-        return new BuilderImpl<T, C>(
+    pathsToExclude(...paths: (keyof T & string)[]): IBuilder<T, C> {
+        return new Builder<T, C>(
             {
                 ...this.options,
                 pathsToExclude: [
@@ -140,6 +140,6 @@ class BuilderImpl<T extends Record<string, any>, C> implements Builder<T, C> {
  * Pass the context type as the generic parameter to flow it through nested
  * builders and validator factories: `defineSchema<MyContext>()`.
  */
-export function defineSchema<C = unknown>(): Builder<{}, C> {
-    return new BuilderImpl<{}, C>({}, []);
+export function defineSchema<C = unknown>(): IBuilder<{}, C> {
+    return new Builder<{}, C>({}, []);
 }

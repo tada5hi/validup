@@ -36,7 +36,7 @@ The builder mirrors `Container.mount`'s keyed forms — `(key, target)` and `(ke
 |---------------------------------------------|-------------------------------------------------------------------------------------|
 | `Validator<C, Out>`                         | adds `{ [K]: Awaited<Out> }`                                                        |
 | `Validator<C, Out>` with `options.optional` | adds `{ [K]?: Awaited<Out> }`                                                       |
-| `Builder<U, C>`                             | adds `{ [K]: U }` and auto-`.build()`s the child                                    |
+| `IBuilder<U, C>`                            | adds `{ [K]: U }` and auto-`.build()`s the child                                    |
 | `IContainer<U, C>` (e.g. `Container<U, C>`) | adds `{ [K]: U }`                                                                   |
 
 ```typescript
@@ -50,25 +50,25 @@ defineSchema()
 The same builder also exposes container-level switches that don't add fields:
 
 ```typescript
-interface Builder<T extends Record<string, any>, C = unknown> {
-    mount<K extends string, V extends Validator<C, any> | Builder<any, C> | IContainer<any, C>>(
+interface IBuilder<T extends Record<string, any>, C = unknown> {
+    mount<K extends string, V extends Validator<C, any> | IBuilder<any, C> | IContainer<any, C>>(
         key: K,
         target: V,
-    ): Builder<T & Mounted<K, V, undefined>, C>;
+    ): IBuilder<T & Mounted<K, V, undefined>, C>;
 
     mount<
         K extends string,
         const O extends MountOptions,
-        V extends Validator<C, any> | Builder<any, C> | IContainer<any, C>,
+        V extends Validator<C, any> | IBuilder<any, C> | IContainer<any, C>,
     >(
         key: K,
         options: O,
         target: V,
-    ): Builder<T & Mounted<K, V, O>, C>;
+    ): IBuilder<T & Mounted<K, V, O>, C>;
 
-    oneOf(): Builder<T, C>;
-    pathsToInclude(...paths: (keyof T & string)[]): Builder<T, C>;
-    pathsToExclude(...paths: (keyof T & string)[]): Builder<T, C>;
+    oneOf(): IBuilder<T, C>;
+    pathsToInclude(...paths: (keyof T & string)[]): IBuilder<T, C>;
+    pathsToExclude(...paths: (keyof T & string)[]): IBuilder<T, C>;
     build(): Container<T, C>;
 }
 ```
