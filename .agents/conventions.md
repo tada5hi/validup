@@ -1,5 +1,17 @@
 # Conventions
 
+## Documentation surfaces
+
+Three audiences read documentation in this repo. After any code, tooling, or API change, update every surface that mentions the changed thing — in the **same pass** as the code change, not as a follow-up.
+
+| Surface                                        | Audience                | Update when …                                                                                                |
+|------------------------------------------------|-------------------------|--------------------------------------------------------------------------------------------------------------|
+| Root `README.md` + each `packages/*/README.md` | npm / GitHub readers    | Public API, exports, install, scripts, supported Node versions, integration list, dependency layers change.  |
+| VitePress site under `docs/src/**`             | End users on the docs site | New / removed concepts, options, run modes, integrations; user-facing examples; signatures; cross-links.  |
+| `AGENTS.md` + `.agents/{structure,architecture,testing,conventions}.md` (this file) | Future agents & human contributors | Repo layout, package roles, runtime behavior, testing setup, lint/format rules, release/CI mechanics change. |
+
+When adding a new VitePress page, slot it into the sidebar in `docs/src/.vitepress/config.mts` and cross-link it from neighboring pages (the guide overview's "where to next" list, related-page `::: tip` blocks). When adding a new package or moving a module between packages, update `.agents/structure.md` and `.agents/architecture.md` so the dependency-layer diagram and per-package tables stay accurate. Stale docs are treated as a defect, not a separate task — verify all three surfaces before reporting the change as done.
+
 ## TypeScript
 
 - Each package has a single `tsconfig.json` extending the root. The root extends `@tada5hi/tsconfig` and overrides:
