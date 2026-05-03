@@ -54,6 +54,7 @@ Run: `npm run lint` (root, lints the whole workspace via flat config) or `npm ru
 - Tracked branches: `develop`, `master`, `next`, `beta`, `alpha`.
 - `.github/workflows/main.yml` runs `install → build → (lint, tests)` on push/PR to those branches with Node 22.
 - `.github/workflows/release.yml` runs release-please on push to `master`; on a release commit it builds and invokes the `tada5hi/monoship@v2` action to publish.
+- `.github/workflows/docs.yml` builds the VitePress site under `docs/` and deploys it to GitHub Pages on push to `master` (uses `actions/upload-pages-artifact@v3` + `actions/deploy-pages@v4`; needs Pages source set to "GitHub Actions" in repo settings).
 - CodeQL and snyk also gate the project (badges in `README.md`).
 
 ## Husky

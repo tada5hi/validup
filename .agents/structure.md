@@ -11,6 +11,7 @@ validup/
 │   ├── express-validator/    # express-validator bridge (npm: @validup/express-validator)
 │   ├── routup/               # routup HTTP request integration (npm: @validup/routup)
 │   └── vue/                  # Vue 3 composable (npm: @validup/vue)
+├── docs/                     # VitePress site (private workspace, npm: @validup/docs)
 ├── nx.json                   # Nx caching config (build, lint, test cacheable)
 ├── tsconfig.json             # Shared TS base — extends @tada5hi/tsconfig, noEmit
 ├── release-please-config.json
@@ -29,7 +30,9 @@ validup/
 | Routup integration             | `packages/routup`             | `@validup/routup`            | (none — `validup` is peer)          | `validup`, `routup`, `@routup/basic`            |
 | Vue integration                | `packages/vue`                | `@validup/vue`               | `validup`                           | `vue ^3.3`                                      |
 
-All packages are `"type": "module"` and publish **ESM-only** (`dist/index.mjs` + `dist/index.d.mts`). No CJS output.
+All packages are `"type": "module"` and publish **ESM-only** (`dist/index.mjs` + `dist/index.d.mts`). No CJS output. License: Apache-2.0 across the board (root + every package).
+
+The `docs/` workspace is `private: true` (excluded from `release-please-config.json` and from monoship). It depends on the local `validup` workspace package via `"validup": "*"` so the Hero playground can SSR a real `Container.safeRunSync(...)` against the current core.
 
 ## Dependency Layers
 

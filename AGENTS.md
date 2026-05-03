@@ -4,7 +4,7 @@
 
 Validup is a TypeScript validation library that lets you compose domain-specific validators by mounting `Validator` functions (or nested `Container`s) onto paths of an input object. The runtime expands paths via [pathtrace](https://www.npmjs.com/package/pathtrace), runs each mounted unit, collects structured `Issue`s on failure, and throws a `ValidupError` (extends `@ebec/core` `BaseError`; or returns a discriminated `Result` via `safeRun`). Integration packages bridge external validators (`@validup/standard-schema`, `@validup/zod`, `@validup/express-validator`) and frameworks (`@validup/routup`, `@validup/vue`) into this model.
 
-The repo is an **Nx-managed npm workspace monorepo** containing the core library and five integration packages (`@validup/standard-schema`, `@validup/zod`, `@validup/express-validator`, `@validup/routup`, `@validup/vue`). The project is pre-1.0 and explicitly marked as work-in-progress.
+The repo is an **Nx-managed npm workspace monorepo** containing the core library, five integration packages (`@validup/standard-schema`, `@validup/zod`, `@validup/express-validator`, `@validup/routup`, `@validup/vue`), and a private `docs/` workspace that builds the VitePress site published to GitHub Pages. The project is pre-1.0 and explicitly marked as work-in-progress. All packages are licensed Apache-2.0.
 
 ## Quick Reference
 
