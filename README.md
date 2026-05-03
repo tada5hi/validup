@@ -96,7 +96,7 @@ try {
 | 🚦 **Group-aware**       | Run different validations for `create` / `update` / custom groups from the same container.   |
 | ❓ **Optional handling** | Per-mount control over `undefined` / `null` / falsy semantics.                                 |
 | 📋 **Structured errors** | Discriminated `Issue` items and groups with code, path, message, expected, received.          |
-| 🛡️ **Type-safe**         | `Container<T>` propagates the output shape; mount paths are checked against `T`.              |
+| 🛡️ **Type-safe**         | `Container<T>` propagates the output shape; mount paths are checked against `T`. The opt-in `defineSchema()` builder accumulates `T` from the registered mounts so `run()`'s static return type matches what was registered. |
 
 ## Repository Layout
 

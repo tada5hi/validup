@@ -2,6 +2,10 @@
 
 `Container<T, C>` is the central type. It holds a list of mounts and exposes the `run` / `runSync` / `runParallel` / `safeRun` / `safeRunSync` methods.
 
+::: tip Looking for compile-time-typed schemas?
+[`defineSchema()`](/guide/builder) is an opt-in, type-accumulating wrapper around `Container` that derives `T` from the registered mounts — useful when the schema is fully static. The imperative `Container` API on this page remains the right tool when mounts depend on runtime conditions.
+:::
+
 ## Construction
 
 ```typescript

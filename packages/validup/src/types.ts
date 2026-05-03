@@ -49,4 +49,14 @@ export type ValidatorContext<C = unknown> = {
     signal?: AbortSignal
 };
 
-export type Validator<C = unknown> = (ctx: ValidatorContext<C>) => Promise<unknown> | unknown;
+/**
+ * A `Validator` either returns the (optionally transformed) value or throws.
+ *
+ * @typeParam C   - Caller-supplied context type, propagated from the parent
+ *                  `Container<T, C>` and surfaced on `ValidatorContext.context`.
+ * @typeParam Out - The validator's resolved output type. Defaults to `unknown`,
+ *                  so call sites that don't care about typed output compile
+ *                  unchanged. The builder API (`defineSchema`) uses this
+ *                  second generic to accumulate per-field types.
+ */
+export type Validator<C = unknown, Out = unknown> = (ctx: ValidatorContext<C>) => Out | Promise<Out>;

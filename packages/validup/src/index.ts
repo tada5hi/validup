@@ -10,5 +10,6 @@ export * from './constants';
 export * from './error';
 export * from './issue';
 export * from './container';
+export * from './builder';
 export * from './types';
 export * from './utils';

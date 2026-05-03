@@ -22,6 +22,7 @@ Mount any validator function (or nested container) onto any path of your input, 
   - [Validators](#validators)
   - [Containers](#containers)
   - [Issues & Errors](#issues--errors)
+- [Builder API (compile-time typing)](#builder-api-compile-time-typing)
 - [Mounting](#mounting)
   - [Path Patterns](#path-patterns)
   - [Nested Containers](#nested-containers)
@@ -44,6 +45,7 @@ Mount any validator function (or nested container) onto any path of your input, 
   - [Issue Codes](#issue-codes)
 - [API Reference](#api-reference)
   - [Container](#container)
+  - [defineSchema](#defineschema)
   - [Issue Helpers](#issue-helpers)
   - [Type Guards](#type-guards)
 - [Integrations](#integrations)
@@ -99,7 +101,7 @@ try {
 A validator is a (sync or async) function that receives a `ValidatorContext` and either returns the validated/transformed value or throws.
 
 ```typescript
-type Validator<C = unknown> = (ctx: ValidatorContext<C>) => Promise<unknown> | unknown;
+type Validator<C = unknown, Out = unknown> = (ctx: ValidatorContext<C>) => Out | Promise<Out>;
 
 type ValidatorContext<C = unknown> = {
     key: string;            // expanded mount path within the current container
@@ -112,7 +114,7 @@ type ValidatorContext<C = unknown> = {
 };
 ```
 
-A validator's **return value** becomes the output for that path — so validators double as transformers/sanitizers.
+A validator's **return value** becomes the output for that path — so validators double as transformers/sanitizers. The optional second generic `Out` lets callers (and the [Builder API](#builder-api-compile-time-typing)) infer per-field types from the validator's return type — `Out` defaults to `unknown`, so existing call sites compile unchanged.
 
 ### Containers
 
@@ -134,6 +136,76 @@ type Issue = IssueItem | IssueGroup;
 ```
 
 This recursive structure preserves the path of failure, so consumers can render rich field-level error messages.
+
+## Builder API (compile-time typing)
+
+`new Container<T>()` happily accepts mounts that don't cover every required key of `T`, and `run()` returns `T` regardless. The TypeScript shape is a promise the runtime can't keep:
+
+```typescript
+const c = new Container<{ foo: string; bar: number }>();
+c.mount('foo', isString);          // ⚠️  bar is never validated
+const out = await c.run({});       // out: { foo, bar } — bar is undefined at runtime
+```
+
+`defineSchema()` is an opt-in, type-accumulating wrapper around `Container` that derives `T` *from the registered mounts* — so `run()`'s static return type reflects exactly what was registered:
+
+```typescript
+import { defineSchema } from 'validup';
+import { createValidator } from '@validup/zod';
+import { z } from 'zod';
+
+const schema = defineSchema()
+    .field('foo', createValidator(z.string()))   // accumulated: { foo: string }
+    .field('age', createValidator(z.number()))   // accumulated: { foo: string; age: number }
+    .build();
+
+const out = await schema.run(input);
+// out: { foo: string; age: number } — inferred, not declared
+```
+
+The integration packages' `createValidator(...)` functions (`@validup/zod`, `@validup/standard-schema`) infer the per-field `Out` type from the underlying schema, so the builder pulls real types through. Hand-written validators participate too — annotate the return type via `Validator<C, Out>` (or just write the function inline so TypeScript can infer it).
+
+`Builder` is immutable — every method returns a new builder, so chains can fork without leaking state — and `.build()` materializes a `Container<T, C>`:
+
+```typescript
+interface Builder<T extends Record<string, any>, C = unknown> {
+    field<K extends string, Out>(key: K, validator: Validator<C, Out>, options?: MountOptions): Builder<T & { [P in K]: Awaited<Out> }, C>;
+    optional<K extends string, Out>(key: K, validator: Validator<C, Out>, options?: Omit<MountOptions, 'optional'>): Builder<T & { [P in K]?: Awaited<Out> }, C>;
+    nest<K extends string, U>(key: K, child: Builder<U, C> | IContainer<U, C>, options?: MountOptions): Builder<T & { [P in K]: U }, C>;
+    oneOf(): Builder<T, C>;
+    pathsToInclude(...paths: (keyof T & string)[]): Builder<T, C>;
+    pathsToExclude(...paths: (keyof T & string)[]): Builder<T, C>;
+    build(): Container<T, C>;
+}
+```
+
+Pass the context type as a generic to flow it through the chain:
+
+```typescript
+type AppContext = { userId: string };
+
+const schema = defineSchema<AppContext>()
+    .field('slug', async (ctx) => {
+        // ctx.context is typed as AppContext
+        await assertSlugAvailable(ctx.value, ctx.context.userId);
+        return ctx.value;
+    })
+    .build();
+
+await schema.run(input, { context: { userId: 'u-42' } });
+```
+
+When to reach for which API:
+
+| Goal                                                               | API                                |
+|--------------------------------------------------------------------|------------------------------------|
+| Static schema, want compile-time exhaustiveness                    | `defineSchema()` builder           |
+| Dynamic mounts (loops, conditional registration, `initialize()` hook) | `new Container<T>()`            |
+| Ship a domain-scoped, reusable validator class                     | `class extends Container<T>`       |
+
+The imperative `Container` API is **not** deprecated — it remains the runtime substrate (`.build()` calls `Container.mount(...)`) and the right tool whenever the schema isn't fully known up front.
+
+> **Note on `oneOf()`** — only one branch's keys actually appear in the runtime output, but the accumulated type stays as the intersection of every branch (honest about *possible* keys). Wrap the result with your own discriminated union when that fits better.
 
 ## Mounting
 
@@ -585,6 +657,14 @@ class Container<
 | `optional`                | `MountOptions`         | Skip this mount when value is "optional"                          |
 | `optionalValue`           | `MountOptions`         | What counts as optional: `'undefined'` / `'null'` / `'falsy'`     |
 | `optionalInclude`         | `MountOptions`         | Copy optional value into the output instead of dropping it        |
+
+### defineSchema
+
+```typescript
+function defineSchema<C = unknown>(): Builder<{}, C>;
+```
+
+See [Builder API](#builder-api-compile-time-typing). Each `.field` / `.optional` / `.nest` call returns a new builder with the accumulated shape; `.build()` materializes a `Container<T, C>`.
 
 ### Issue Helpers
 
