@@ -67,6 +67,7 @@ export default defineConfig({
                     items: [
                         { text: 'Overview', link: '/guide/' },
                         { text: 'Container', link: '/guide/container' },
+                        { text: 'Builder API', link: '/guide/builder' },
                         { text: 'Validator', link: '/guide/validator' },
                         { text: 'Issues & Errors', link: '/guide/issues' },
                     ],

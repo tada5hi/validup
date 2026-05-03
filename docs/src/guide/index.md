@@ -32,11 +32,11 @@ type ValidatorContext<C = unknown> = {
     signal?: AbortSignal;   // run-level cancellation signal
 };
 
-type Validator<C = unknown> =
-    (ctx: ValidatorContext<C>) => Promise<unknown> | unknown;
+type Validator<C = unknown, Out = unknown> =
+    (ctx: ValidatorContext<C>) => Out | Promise<Out>;
 ```
 
-A `Validator` either returns the (optionally transformed) value or throws. Any thrown `Error` becomes an `IssueItem`; a thrown `ValidupError` contributes its `.issues` re-pathed under the parent. Both generics default to `unknown`, so call sites that don't care about typed context compile unchanged.
+A `Validator` either returns the (optionally transformed) value or throws. Any thrown `Error` becomes an `IssueItem`; a thrown `ValidupError` contributes its `.issues` re-pathed under the parent. Both generics default to `unknown`, so call sites that don't care about typed context or typed output compile unchanged. The optional second generic `Out` lets the [Builder API](/guide/builder) accumulate per-field types from validators that declare their return type.
 
 ## Issue
 
@@ -82,6 +82,7 @@ See [Run Modes](/guide/run-modes) for the trade-offs.
 ## Where to next
 
 - [Container](/guide/container) — mount semantics, registration order, nested containers.
+- [Builder API](/guide/builder) — `defineSchema()`, the opt-in compile-time-typed wrapper around `Container`.
 - [Validator](/guide/validator) — context fields, transforms, lazy schemas.
 - [Issues & Errors](/guide/issues) — structured failures, `formatIssue`, `flattenIssueItems`.
 - [Groups](/guide/groups) — `create` / `update` / custom groups from one container.
