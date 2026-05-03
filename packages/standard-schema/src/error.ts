@@ -6,7 +6,7 @@
  */
 
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import { defineIssueItem } from 'validup';
+import { defineIssueItem, isObject } from 'validup';
 import type { Issue } from 'validup';
 
 /**
@@ -22,14 +22,10 @@ function normalizePath(
 
     const output: PropertyKey[] = [];
     for (const segment of path) {
-        if (
-            typeof segment === 'object' &&
-            segment !== null &&
-            'key' in segment
-        ) {
-            output.push(segment.key);
+        if (isObject(segment) && 'key' in segment) {
+            output.push(segment.key as PropertyKey);
         } else {
-            output.push(segment);
+            output.push(segment as PropertyKey);
         }
     }
     return output;
