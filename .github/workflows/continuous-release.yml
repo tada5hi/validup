@@ -1,0 +1,33 @@
+name: Continuous Release
+
+on:
+    push:
+        branches: [master, next, beta, alpha]
+    pull_request:
+        types: [opened, synchronize]
+
+permissions:
+    contents: read
+    pull-requests: write
+
+env:
+    PRIMARY_NODE_VERSION: 22
+
+jobs:
+    publish:
+        name: Publish preview release
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@v6
+
+            -   name: Install
+                uses: ./.github/actions/install
+                with:
+                    node-version: ${{ env.PRIMARY_NODE_VERSION }}
+
+            -   name: Build
+                uses: ./.github/actions/build
+
+            -   name: Publish preview release
+                run: npx pkg-pr-new publish './packages/*'
