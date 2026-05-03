@@ -32,7 +32,12 @@ Mount any validator function (or nested container) onto any path of your input, 
 - [oneOf Branches](#oneof-branches)
 - [Path Filtering](#path-filtering)
 - [Defaults](#defaults)
+- [Context](#context)
+- [Cancellation](#cancellation)
+- [Parallel Execution](#parallel-execution)
 - [Safe Run](#safe-run)
+- [Sync Fast Path](#sync-fast-path)
+- [Localized Messages](#localized-messages)
 - [Error Handling](#error-handling)
   - [ValidupError](#validuperror)
   - [Issue Shape](#issue-shape)
@@ -94,14 +99,16 @@ try {
 A validator is a (sync or async) function that receives a `ValidatorContext` and either returns the validated/transformed value or throws.
 
 ```typescript
-type Validator = (ctx: ValidatorContext) => Promise<unknown> | unknown;
+type Validator<C = unknown> = (ctx: ValidatorContext<C>) => Promise<unknown> | unknown;
 
-type ValidatorContext = {
+type ValidatorContext<C = unknown> = {
     key: string;            // expanded mount path within the current container
     path: PropertyKey[];    // global mount path including parent containers
     value: unknown;         // the value to validate
     data: Record<string, any>; // input of the current container
     group?: string;         // active execution group, if any
+    context: C;             // caller-supplied context (see [Context](#context))
+    signal?: AbortSignal;   // cancellation signal (see [Cancellation](#cancellation))
 };
 ```
 
@@ -109,7 +116,7 @@ A validator's **return value** becomes the output for that path — so validator
 
 ### Containers
 
-A `Container<T>` holds an ordered list of mounts and runs them against an input object. The optional generic `T` constrains mount keys and shapes the resolved output.
+A `Container<T, C>` holds an ordered list of mounts and runs them against an input object. The optional generic `T` constrains mount keys and shapes the resolved output; the optional `C` types the caller-supplied [context](#context).
 
 ```typescript
 const container = new Container<{ name: string; age: number }>();
@@ -284,6 +291,17 @@ container.mount('nickname',
 await container.run({});  // → { nickname: undefined }
 ```
 
+For cases the `optionalValue` enum can't express (e.g. "drop empty string but keep `0`"), pass `optional` as a predicate. Custom predicates win when present and `optionalValue` is ignored:
+
+```typescript
+container.mount('name',
+    { optional: (v) => v === '' || typeof v === 'undefined' },
+    isString,
+);
+
+await container.run({ name: '', count: 0 });  // ✅ name skipped, count validated
+```
+
 ## oneOf Branches
 
 A container created with `{ oneOf: true }` succeeds if **any one** of its mounts succeeds. Failures are aggregated into a single `IssueGroup` only when **all** branches fail.
@@ -323,6 +341,67 @@ await container.run({}, {
 // → { role: 'user', active: true }
 ```
 
+Dotted keys target nested-container output and are sliced through to the matching child:
+
+```typescript
+await parent.run({}, {
+    defaults: { 'profile.role': 'user' },
+});
+// → { profile: { role: 'user' } }
+```
+
+## Context
+
+Pass request-scoped data (current user, locale, DB connection, request id) to your validators without going through closures or globals. The `context` flows through every nested container unchanged.
+
+```typescript
+type AppContext = { userId: string };
+
+const container = new Container<{ slug: string }, AppContext>();
+
+container.mount('slug', async (ctx) => {
+    // ctx.context is typed as AppContext
+    const exists = await db.slugExists(ctx.value, ctx.context.userId);
+    if (exists) {
+        throw new Error('Slug already taken');
+    }
+    return ctx.value;
+});
+
+await container.run({ slug: 'my-post' }, { context: { userId: 'u-42' } });
+```
+
+The `C` parameter on `Container<T, C>`, `Validator<C>`, and `ValidatorContext<C>` defaults to `unknown`, so existing code without a context type compiles unchanged.
+
+## Cancellation
+
+Pass an `AbortSignal` to abort a run between mounts. The container checks `signal.aborted` before each mount and rethrows `signal.reason`; the signal is also forwarded into `ValidatorContext.signal` so async validators can cancel their own I/O (e.g. `fetch(url, { signal: ctx.signal })`).
+
+```typescript
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 100);
+
+try {
+    await container.run(input, { signal: controller.signal });
+} catch (e) {
+    // AbortError — not a ValidupError
+}
+```
+
+`safeRun()` rethrows the abort reason (it is never wrapped into a `Result.failure`) so callers can distinguish "validation failed" from "operation cancelled".
+
+## Parallel Execution
+
+By default mounts run sequentially in registration order. For containers whose mounts hit independent slow async resources (multiple DB lookups, HTTP calls), opt into parallel mode:
+
+```typescript
+await container.run(input, { parallel: true });
+```
+
+All mounts kick off concurrently and the results merge in registration order — `issues[]` ordering is unchanged. The flag is forwarded into nested containers so the whole tree runs concurrently.
+
+**Trade-off**: in parallel mode each mount captures its `value` from the input `data` *before* any sibling mount runs, so a later mount can no longer read an earlier mount's transformed `output[key]`. Stick with sequential mode (the default) for chained-key sanitize-then-validate patterns.
+
 ## Safe Run
 
 `safeRun()` returns a discriminated `Result<T>` instead of throwing — handy when you want to deal with errors without `try/catch`:
@@ -337,17 +416,59 @@ if (result.success) {
 }
 ```
 
+## Sync Fast Path
+
+When every mounted validator (and every nested container's `runSync`) is synchronous, use `runSync()` / `safeRunSync()` to skip the per-mount microtask overhead of `await`:
+
+```typescript
+const out = container.runSync(input);  // returns T directly, not Promise<T>
+```
+
+`runSync()` throws synchronously if a validator returns a Promise or if a nested container does not implement `runSync` — those are *structural* failures (not validation outcomes), so they're surfaced verbatim and never wrapped into `Result.failure` by `safeRunSync`. Use the async `run()` for any graph that mixes sync and async validators.
+
+## Localized Messages
+
+`Issue.message` is rendered eagerly in English at construction time. For i18n / custom locales, every issue also carries a structured `params?: Record<string, unknown>` field (populated by the runtime where the message references a non-trivial value — e.g. `{ name: 'email' }` on the wrapping group at a failing mount). Pair it with `formatIssue` and a `code → template` map to render at the consumer side:
+
+```typescript
+import { formatIssue, type IssueMessageTemplates } from 'validup';
+
+const de: IssueMessageTemplates = {
+    value_invalid: 'Feld {name} ist ungültig',
+    one_of_failed: 'Keine der Varianten war erfolgreich',
+};
+
+for (const issue of error.issues) {
+    console.log(formatIssue(issue, de));   // Feld email ist ungültig
+}
+```
+
+`formatIssue(issue, templates?, fallback?)`:
+
+1. If `templates[issue.code]` exists, returns `interpolate(template, issue.params)` (placeholders use the `{name}` syntax from `@ebec/core`).
+2. Otherwise returns `issue.message`.
+3. Otherwise returns `fallback`.
+
+Custom validators that want to participate in this flow should pass `params` through `defineIssueItem`/`defineIssueGroup` so consumer-side templates can reference field-specific values. The default `interpolate` is also re-exported for ad-hoc rendering.
+
 ## Error Handling
 
 ### ValidupError
 
 ```typescript
-class ValidupError extends Error {
+import type { BaseError } from '@ebec/core';
+
+class ValidupError extends BaseError {
+    readonly code: string;        // 'VALIDUP_ERROR' (auto-derived from class name)
     readonly issues: Issue[];
+    cause?: unknown;              // inherited from BaseError
+    toJSON(): { name, message, code, cause?, issues };
 }
 ```
 
-The `message` is auto-built from the failing paths (`Property foo is invalid`, `Properties foo, bar are invalid`).
+`ValidupError` extends [`@ebec/core`](https://github.com/tada5hi/ebec)'s `BaseError`, so it ships with a `code`, an optional `cause`, and a `toJSON()` for clean transport across HTTP/JSON boundaries. The `message` is auto-built from the failing paths (`Property foo is invalid`, `Properties foo, bar are invalid`).
+
+Subclass `ValidupError` (or `BaseError` directly) when you need a domain-specific code — ebec derives it from the class name automatically.
 
 Use `isValidupError(err)` to check across package boundaries. It is duck-typed (instanceof OR has a valid `issues` array), so it tolerates the case where two copies of `validup` exist in the dependency tree.
 
@@ -408,21 +529,43 @@ const group = defineIssueGroup({
 | `IssueCode.VALUE_INVALID`     | Default for any `defineIssueItem(...)` without a code |
 | `IssueCode.ONE_OF_FAILED`     | All branches of a `oneOf` container failed            |
 
+The `IssueCode` const exposes the well-known runtime values; the matching `IssueCode` *type* (declaration-merged with the `IssueCodeRegistry` interface) gives autocomplete on `IssueItem.code`. Third-party packages can register their own codes:
+
+```typescript
+declare module 'validup' {
+    interface IssueCodeRegistry {
+        EMAIL_TAKEN: 'email_taken';
+    }
+}
+
+defineIssueItem({ code: 'email_taken', path: ['email'], message: '…' });
+// → autocompletes 'email_taken' alongside the built-ins
+```
+
+Codes that don't need a registry entry still work — `IssueItem.code` is widened to `IssueCode | (string & {})` so ad-hoc strings stay valid.
+
 ## API Reference
 
 ### Container
 
 ```typescript
-class Container<T extends Record<string, any> = Record<string, any>> implements IContainer<T> {
+class Container<
+    T extends Record<string, any> = Record<string, any>,
+    C = unknown,
+> implements IContainer<T, C> {
     constructor(options?: ContainerOptions<T>);
 
     mount(container: IContainer): void;
     mount(options: MountOptions, container: IContainer): void;
-    mount(key: Path<T>, data: IContainer | Validator): void;
-    mount(key: Path<T>, options: MountOptions, data: IContainer | Validator): void;
+    mount(key: Path<T>, data: IContainer | Validator<C>): void;
+    mount(key: Path<T>, options: MountOptions, data: IContainer | Validator<C>): void;
 
-    run(input?: Record<string, any>, options?: ContainerRunOptions<T>): Promise<T>;
-    safeRun(input?: Record<string, any>, options?: ContainerRunOptions<T>): Promise<Result<T>>;
+    run(input?: Record<string, any>, options?: ContainerRunOptions<T, C>): Promise<T>;
+    safeRun(input?: Record<string, any>, options?: ContainerRunOptions<T, C>): Promise<Result<T>>;
+
+    // Sync variants — throw if any validator returns a Promise.
+    runSync(input?: Record<string, any>, options?: ContainerRunOptions<T, C>): T;
+    safeRunSync(input?: Record<string, any>, options?: ContainerRunOptions<T, C>): Result<T>;
 }
 ```
 
@@ -432,6 +575,9 @@ class Container<T extends Record<string, any> = Record<string, any>> implements 
 | `pathsToInclude`          | `ContainerOptions`, `ContainerRunOptions` | Only mount paths in this list are executed     |
 | `pathsToExclude`          | `ContainerOptions`, `ContainerRunOptions` | Mount paths in this list are skipped           |
 | `defaults`                | `ContainerRunOptions`  | Fallback values for missing/`undefined` keys                      |
+| `context`                 | `ContainerRunOptions`  | Caller-supplied value surfaced on `ValidatorContext.context`      |
+| `signal`                  | `ContainerRunOptions`  | `AbortSignal` — checked between mounts and forwarded to `ctx.signal` |
+| `parallel`                | `ContainerRunOptions`  | Run mounts concurrently (forwarded into nested containers)        |
 | `group`                   | `ContainerRunOptions`  | Active group (only matching mounts run; `'*'` runs everything)    |
 | `flat`                    | `ContainerRunOptions`  | When `true`, the output is a dotted-key map instead of nested     |
 | `path`                    | `ContainerRunOptions`  | Used internally when nesting; rarely set by hand                  |
@@ -467,7 +613,8 @@ Use one of the official integration packages to bridge an existing validator lib
 
 | Package                                                                              | Connects                                                                       |
 |--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
-| [`@validup/zod`](https://npmjs.com/package/@validup/zod)                             | [zod](https://zod.dev) schemas                                                 |
+| [`@validup/standard-schema`](https://npmjs.com/package/@validup/standard-schema)     | Any [Standard Schema](https://standardschema.dev) library — zod 3.24+, valibot, arktype, effect-schema, … |
+| [`@validup/zod`](https://npmjs.com/package/@validup/zod)                             | [zod](https://zod.dev) schemas (vendor-specific issue mapping with `expected` / `received`) |
 | [`@validup/express-validator`](https://npmjs.com/package/@validup/express-validator) | [express-validator](https://express-validator.github.io) chains                |
 | [`@validup/routup`](https://npmjs.com/package/@validup/routup)                       | [routup](https://routup.net) request inputs (body / query / cookies / params)  |
 | [`@validup/vue`](https://npmjs.com/package/@validup/vue)                             | [Vue 3](https://vuejs.org) composable for reactive client-side form state      |

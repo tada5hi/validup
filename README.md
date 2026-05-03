@@ -35,7 +35,8 @@ This monorepo publishes one core library and four integration packages:
 | Package                                                      | Version                                       | Description                                                              |
 |--------------------------------------------------------------|-----------------------------------------------|--------------------------------------------------------------------------|
 | [`validup`](./packages/validup)                              | [![npm][validup-npm-src]][validup-npm-href]   | Core: `Container`, `Validator`, `Issue`, `ValidupError`                  |
-| [`@validup/zod`](./packages/zod)                             | [![npm][zod-npm-src]][zod-npm-href]           | Bridge to [zod](https://zod.dev) schemas                                 |
+| [`@validup/standard-schema`](./packages/standard-schema)     | [![npm][ss-npm-src]][ss-npm-href]             | Bridge to any [Standard Schema](https://standardschema.dev) library (zod, valibot, arktype, …) |
+| [`@validup/zod`](./packages/zod)                             | [![npm][zod-npm-src]][zod-npm-href]           | Bridge to [zod](https://zod.dev) schemas (vendor-specific issue mapping) |
 | [`@validup/express-validator`](./packages/express-validator) | [![npm][ev-npm-src]][ev-npm-href]             | Bridge to [express-validator](https://express-validator.github.io) chains |
 | [`@validup/routup`](./packages/routup)                       | [![npm][routup-npm-src]][routup-npm-href]     | Run a `Container` against a [routup](https://routup.net) request         |
 | [`@validup/vue`](./packages/vue)                             | [![npm][vue-npm-src]][vue-npm-href]           | [Vue 3](https://vuejs.org) composable for client-side forms              |
@@ -51,7 +52,8 @@ npm install validup --save
 Optionally add an integration:
 
 ```bash
-npm install @validup/zod --save                # zod schemas
+npm install @validup/standard-schema --save    # Standard Schema (zod 3.24+, valibot, arktype, …)
+npm install @validup/zod --save                # zod-specific (richer issue mapping)
 npm install @validup/express-validator --save  # express-validator chains
 npm install @validup/routup --save             # routup HTTP requests
 npm install @validup/vue --save                # Vue 3 forms
@@ -102,6 +104,7 @@ try {
 validup/
 ├── packages/
 │   ├── validup/              # Core library
+│   ├── standard-schema/      # @validup/standard-schema
 │   ├── zod/                  # @validup/zod
 │   ├── express-validator/    # @validup/express-validator
 │   ├── routup/               # @validup/routup
@@ -110,7 +113,7 @@ validup/
 └── release-please-config.json
 ```
 
-The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Integration packages depend on `validup`; the core has no peer dependencies.
+The six packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Integration packages depend on `validup`; the core has a single runtime dep on `@ebec/core`.
 
 ## Development
 
@@ -158,6 +161,8 @@ Published under [MIT License](./LICENSE).
 
 [validup-npm-src]: https://badge.fury.io/js/validup.svg
 [validup-npm-href]: https://npmjs.com/package/validup
+[ss-npm-src]: https://badge.fury.io/js/@validup%2Fstandard-schema.svg
+[ss-npm-href]: https://npmjs.com/package/@validup/standard-schema
 [zod-npm-src]: https://badge.fury.io/js/@validup%2Fzod.svg
 [zod-npm-href]: https://npmjs.com/package/@validup/zod
 [ev-npm-src]: https://badge.fury.io/js/@validup%2Fexpress-validator.svg

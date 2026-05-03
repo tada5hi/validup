@@ -10,9 +10,9 @@ import { ValidupError } from 'validup';
 import type { ZodType } from 'zod';
 import { buildIssuesForZodError } from './error';
 
-type ZodCreateFn = (ctx: ValidatorContext) => ZodType;
+type ZodCreateFn<C = unknown> = (ctx: ValidatorContext<C>) => ZodType;
 
-export function createValidator(input: ZodCreateFn | ZodType) : Validator {
+export function createValidator<C = unknown>(input: ZodCreateFn<C> | ZodType) : Validator<C> {
     return async (ctx): Promise<unknown> => {
         let zod : ZodType;
         if (typeof input === 'function') {

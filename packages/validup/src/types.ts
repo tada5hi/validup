@@ -7,7 +7,7 @@
 
 export type ObjectLiteral = Record<string | number, any>;
 
-export type ValidatorContext = {
+export type ValidatorContext<C = unknown> = {
     /**
      * The expanded mount path in the current container.
      */
@@ -31,7 +31,22 @@ export type ValidatorContext = {
     /**
      * The group name for which the validator is executed.
      */
-    group?: string
+    group?: string,
+
+    /**
+     * Caller-supplied context, forwarded unchanged through nested containers.
+     * Useful for request-scoped data (current user, locale, DB connection,
+     * request id) that validators need but isn't part of the validated value.
+     */
+    context: C,
+
+    /**
+     * Cancellation signal forwarded from `ContainerRunOptions.signal`.
+     * Async validators (DB lookups, HTTP fetches) should pass it through to
+     * cancel I/O when the run is aborted. The container itself checks
+     * `signal.aborted` between mounts and rethrows the signal's `reason`.
+     */
+    signal?: AbortSignal
 };
 
-export type Validator = (ctx: ValidatorContext) => Promise<unknown> | unknown;
+export type Validator<C = unknown> = (ctx: ValidatorContext<C>) => Promise<unknown> | unknown;

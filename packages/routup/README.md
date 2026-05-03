@@ -154,13 +154,13 @@ If no location yielded a `ValidupError` (e.g. all fell through silently), the ad
 ## API Reference
 
 ```typescript
-class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral> {
-    constructor(container: Container<T>);
+class RoutupContainerAdapter<T extends ObjectLiteral = ObjectLiteral, C = unknown> {
+    constructor(container: Container<T, C>);
 
-    run(req: Request, options?: RoutupContainerRunOptions<T>): Promise<T>;
+    run(req: Request, options?: RoutupContainerRunOptions<T, C>): Promise<T>;
 }
 
-type RoutupContainerRunOptions<T> = ContainerRunOptions<T> & {
+type RoutupContainerRunOptions<T, C = unknown> = ContainerRunOptions<T, C> & {
     locations?: ('body' | 'cookies' | 'params' | 'query')[]; // default: ['body']
 };
 

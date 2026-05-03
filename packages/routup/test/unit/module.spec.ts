@@ -5,6 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { describe, expect, it } from 'vitest';
 import { basic } from '@routup/basic';
 import { Router, coreHandler, createNodeDispatcher } from 'routup';
 import { Container, ValidupError } from 'validup';

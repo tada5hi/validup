@@ -37,6 +37,7 @@
     "keywords": [],
     "license": "MIT",
     "dependencies": {
+        "@ebec/core": "^1.0.1",
         "pathtrace": "^2.1.2",
         "smob": "^1.6.1"
     },

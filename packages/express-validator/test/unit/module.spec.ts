@@ -5,6 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { describe, expect, it } from 'vitest';
 import { Container, ValidupError } from 'validup';
 import { createValidationChain, createValidator } from '../../src';
 import { UserValidator } from '../data/user';

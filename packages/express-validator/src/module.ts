@@ -11,13 +11,13 @@ import type { Issue, Validator, ValidatorContext } from 'validup';
 import { ValidupError } from 'validup';
 import { buildIssuesForErrors } from './error';
 
-type ContextRunnerCreateFn = (
-    ctx: ValidatorContext,
+type ContextRunnerCreateFn<C = unknown> = (
+    ctx: ValidatorContext<C>,
 ) => ContextRunner;
 
-export function createValidator(
-    input: ContextRunnerCreateFn | ContextRunner,
-) : Validator {
+export function createValidator<C = unknown>(
+    input: ContextRunnerCreateFn<C> | ContextRunner,
+) : Validator<C> {
     return async (ctx): Promise<unknown> => {
         let runner : ContextRunner;
         if (typeof input === 'function') {

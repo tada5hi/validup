@@ -28,7 +28,7 @@ Run: `npm run lint` (root, lints the whole workspace via flat config) or `npm ru
 - **Indent**: 4 spaces, LF line endings, UTF-8, final newline (`.editorconfig`).
 - **Single quotes**, trailing commas, semicolons (inherited from the shared config).
 - **`@stylistic/object-curly-newline`** from the shared config requires single-line braces for objects with fewer than 3 properties — `npm run lint:fix` handles this automatically.
-- **Copyright header** on every source file:
+- **Copyright header** on every `.ts` / `.tsx` / `.js` / `.jsx` / `.mjs` / `.cjs` file in the repo — this includes `src/`, `test/`, and build/test config files (`tsdown.config.ts`, `test/vitest.config.ts`, `eslint.config.js`, `commitlint.config.mjs`):
   ```ts
   /*
    * Copyright (c) <year>.
@@ -37,7 +37,7 @@ Run: `npm run lint` (root, lints the whole workspace via flat config) or `npm ru
    * view the LICENSE file that was distributed with this source code.
    */
   ```
-  New files should include this header. Update the year on substantive rewrites (existing files mix `2024`, `2025`, `2026`).
+  New files must include this header. Update the year on substantive rewrites (existing files mix `2024`, `2025`, `2026`).
 - **Index barrels**: every directory under `src/` has an `index.ts` re-exporting its members. Keep this pattern when adding modules — `src/index.ts` re-exports each subdir wholesale.
 - **Imports**: prefer `import type { ... }` for type-only imports. The codebase is consistent about this (see `container/module.ts`).
 

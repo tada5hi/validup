@@ -22,7 +22,7 @@ Specs reach package source via relative imports — `import { Container } from '
 
 ## Coverage Thresholds
 
-All four packages currently use the same thresholds (`coverage.thresholds` in `vitest.config.ts`):
+All five integration packages currently use the same thresholds (`coverage.thresholds` in `vitest.config.ts`):
 
 | Metric     | Threshold |
 |------------|-----------|

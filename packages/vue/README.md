@@ -185,6 +185,8 @@ For expensive async validators (e.g. uniqueness checks against an HTTP endpoint)
 const $v = useValidup(uniqueUsernameValidator, form, { debounce: 300 });
 ```
 
+When a state change schedules a new run, the previous in-flight run is aborted via `AbortSignal` — async validators that pass `ctx.signal` to their I/O (e.g. `fetch(url, { signal: ctx.signal })`) cancel cleanly instead of completing wasted work. The composable also aborts pending runs when the owning effect scope tears down (component unmount). `$validate()` is intentionally **not** auto-cancellable, so a submit-time check can't be aborted by an intervening keystroke.
+
 ## Lazy Validation
 
 By default, `useValidup` runs validation **on mount** so `$invalid` reflects the initial state. For forms with expensive async validators (e.g. an HTTP-backed uniqueness check), this on-mount probe is wasteful. Pass `lazy: true` to skip it:
@@ -363,14 +365,15 @@ buildFormGroup({
 ### `useValidup(container, state, options?)`
 
 ```ts
-function useValidup<T extends ObjectLiteral>(
-    container: IContainer<T> | Ref<IContainer<T>>,
+function useValidup<T extends ObjectLiteral, C = unknown>(
+    container: IContainer<T, C> | Ref<IContainer<T, C>>,
     state: T | Ref<T>,
-    options?: ValidupComposableOptions<T>,
+    options?: ValidupComposableOptions<T, C>,
 ): ValidupComposable<T>;
 
-interface ValidupComposableOptions<T> {
+interface ValidupComposableOptions<T, C = unknown> {
     group?: MaybeRef<string | undefined>;
+    context?: MaybeRef<C | undefined>; // forwarded as ValidatorContext.context; reactive
     debounce?: number;
     name?: string;
     stopPropagation?: boolean;  // skip inject(), still provide() — aggregation root

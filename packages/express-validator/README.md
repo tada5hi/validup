@@ -154,9 +154,9 @@ When the chain succeeds **without** transforming the value, the adapter returns 
 | `buildIssuesForErrors(es)`   | Convert an array of express-validator `ValidationError`s into validup `Issue`s. |
 
 ```typescript
-function createValidator(
-    input: ContextRunner | ((ctx: ValidatorContext) => ContextRunner),
-): Validator;
+function createValidator<C = unknown>(
+    input: ContextRunner | ((ctx: ValidatorContext<C>) => ContextRunner),
+): Validator<C>;
 
 function createValidationChain(): ValidationChain;
 ```
