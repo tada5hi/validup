@@ -37,14 +37,17 @@ export type IsOptional<O> = O extends { optional: true } ? true :
 /**
  * Resolved field shape produced by `mount(key, target, …)`.
  *
- * - Builder / Container target → `{ [K]: U }` where `U` is the child's shape.
- * - Validator target → `{ [K]: Awaited<Out> }`, widened to `{ [K]?: Awaited<Out> }`
- *   when `IsOptional<O>` is `true`.
+ * Builder / Container targets → `{ [K]: U }` where `U` is the child's shape.
+ * Validator targets → `{ [K]: Awaited<Out> }` based on the validator's return
+ * type. In all three cases, `IsOptional<O>` widens the property to
+ * `{ [K]?: … }` when `options.optional` is the literal `true` or a predicate —
+ * matching the runtime behavior that an optional mount may be skipped, leaving
+ * the key absent from the output.
  */
 export type Mounted<K extends string, V, O> = V extends IBuilder<infer U, any> ?
-    { [P in K]: U } :
+    IsOptional<O> extends true ? { [P in K]?: U } : { [P in K]: U } :
     V extends IContainer<infer U, any> ?
-        { [P in K]: U } :
+        IsOptional<O> extends true ? { [P in K]?: U } : { [P in K]: U } :
         V extends Validator<any, infer Out> ?
             IsOptional<O> extends true ?
                 { [P in K]?: Awaited<Out> } :
@@ -65,12 +68,14 @@ export type Mounted<K extends string, V, O> = V extends IBuilder<infer U, any> ?
 export interface IBuilder<T extends Record<string, any>, C = unknown> {
     /**
      * Mount a leaf validator, nested builder, or existing container at `key`.
-     * The accumulated shape gains the resolved type of `target`.
+     * The accumulated shape gains the resolved type of `target`. Re-mounting
+     * the same key overrides the previous registration's type (matching the
+     * runtime "last write wins" behavior of `Container.mount`).
      */
     mount<K extends string, V extends MountTarget<C>>(
         key: K,
         target: V,
-    ): IBuilder<Spread<T & Mounted<K, V, undefined>>, C>;
+    ): IBuilder<Spread<Omit<T, K> & Mounted<K, V, undefined>>, C>;
 
     /**
      * Mount with `MountOptions`. When `options.optional` is `true` (or a
@@ -84,7 +89,7 @@ export interface IBuilder<T extends Record<string, any>, C = unknown> {
         key: K,
         options: O,
         target: V,
-    ): IBuilder<Spread<T & Mounted<K, V, O>>, C>;
+    ): IBuilder<Spread<Omit<T, K> & Mounted<K, V, O>>, C>;
 
     /** Mark the resulting container as `oneOf` (only one branch must succeed). */
     oneOf(): IBuilder<T, C>;

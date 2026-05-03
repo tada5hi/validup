@@ -683,7 +683,7 @@ class Container<
 function defineSchema<C = unknown>(): IBuilder<{}, C>;
 ```
 
-See [Builder API](#builder-api-compile-time-typing). Each `.field` / `.optional` / `.nest` call returns a new builder with the accumulated shape; `.build()` materializes a `Container<T, C>`.
+See [Builder API](#builder-api-compile-time-typing). Each `.mount(...)` call returns a new builder with the accumulated shape; `.build()` materializes a `Container<T, C>`.
 
 ### Issue Helpers
 

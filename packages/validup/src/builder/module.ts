@@ -47,7 +47,7 @@ export class Builder<T extends Record<string, any>, C> implements IBuilder<T, C>
         this.steps = steps;
     }
 
-    mount(key: string, ...rest: unknown[]): any {
+    mount(key: string, ...rest: unknown[]): IBuilder<any, C> {
         let options: MountOptions = {};
         let target: MountTarget<C>;
 

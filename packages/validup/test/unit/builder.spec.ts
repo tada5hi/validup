@@ -243,6 +243,48 @@ describe('src/builder', () => {
         }
     });
 
+    it('widens optional nested builder to optional in T', () => {
+        const child = defineSchema()
+            .mount('city', stringValidator);
+
+        const schema = defineSchema()
+            .mount('address', { optional: true }, child)
+            .build();
+
+        type R = Awaited<ReturnType<typeof schema.run>>;
+        expectTypeOf<R>().toEqualTypeOf<{ address?: { city: string } }>();
+    });
+
+    it('widens optional nested Container to optional in T', () => {
+        const child = new Container<{ city: string }>();
+        child.mount('city', stringValidator);
+
+        const schema = defineSchema()
+            .mount('address', { optional: true }, child)
+            .build();
+
+        type R = Awaited<ReturnType<typeof schema.run>>;
+        expectTypeOf<R>().toEqualTypeOf<{ address?: { city: string } }>();
+    });
+
+    it('overrides previous mount type when remounting the same key (last write wins)', async () => {
+        // sanitize-then-validate: both mounts succeed; the second's Out becomes T[K]
+        const passthrough: Validator<unknown, string> = (ctx) => String(ctx.value);
+        const toNumber: Validator<unknown, number> = (ctx) => Number(ctx.value);
+
+        const schema = defineSchema()
+            .mount('foo', passthrough)  // would type foo as string
+            .mount('foo', toNumber)     // overrides — final type is number
+            .build();
+
+        type R = Awaited<ReturnType<typeof schema.run>>;
+        expectTypeOf<R>().toEqualTypeOf<{ foo: number }>();
+
+        // Runtime: second mount reads output[foo] from the first, writes last.
+        const out = await schema.run({ foo: '42' });
+        expect(out).toEqual({ foo: 42 });
+    });
+
     it('ignores keys that were not registered (no compile-time enforcement at runtime)', async () => {
         const schema = defineSchema()
             .mount('foo', stringValidator)

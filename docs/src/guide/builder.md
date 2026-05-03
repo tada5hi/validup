@@ -167,6 +167,20 @@ The imperative `Container` API is **not** deprecated — it remains the runtime 
 ## Caveats
 
 - **`oneOf()` and `T`.** A `oneOf` container's `T` stays as the **intersection** of branches, but only one branch's keys actually appear at runtime. The intersection is honest about *possible* keys; wrap with your own discriminated union when that fits better.
-- **Cross-field refinements** don't fit the per-field model. Continue to mount them either as a top-level validator on a non-content key (`.mount('_invariants', crossFieldValidator)`) or as a `oneOf` branch.
+- **Cross-field refinements** don't fit the per-field model. Mount them as a top-level validator on a synthetic key — `ctx.data` exposes every sibling value:
+
+    ```typescript
+    const schema = defineSchema()
+        .mount('email', emailValidator)
+        .mount('confirmEmail', emailValidator)
+        .mount('_crossField', (ctx) => {
+            if (ctx.data.email !== ctx.data.confirmEmail) {
+                throw new Error('emails must match');
+            }
+        })
+        .build();
+    ```
+
+  Avoid using `.oneOf()` for this — that toggles the entire container to "succeed if any branch passes," which is the wrong semantic for "all invariants must hold."
 - **Group exhaustiveness.** The builder guarantees every key in `T` was registered at *build time*. It does not guarantee that, e.g., `group: 'create'` covers every required field for that group — the runtime still skips group-mismatched mounts.
-- **Same-key remount.** Calling `.mount('name', ...)` twice with different groups (a pattern from the README's `RoleValidator`) is not expressible in the builder — the second call overrides the first's `Out` via intersection. Use the imperative `Container` for that case.
+- **Same-key remount.** Calling `.mount('foo', ...)` twice with different validators (e.g. sanitize-then-validate) is supported: the type accumulator follows the runtime's "last write wins" behavior, so the second call's `Out` overrides the first's. The imperative `Container` is still preferable when the *same key* needs different mounts per group (the `RoleValidator` pattern from the validup README), since the builder can't express two same-key mounts with disjoint `MountOptions.group` filters.
