@@ -53,13 +53,13 @@ describe('useValidup abort behaviour', () => {
             setTimeout(resolve, 50);
         });
 
-        // Only the latest scheduled run should reach completion; earlier ones
-        // are aborted before pushing into `seen`.
+        // Exactly one run — the final 'abc' — must complete within the
+        // 50 ms wait; earlier ones are aborted before pushing into `seen`.
+        // `toBe(1)` (vs. `toBeLessThanOrEqual(1)`) prevents a regression
+        // where the final run also gets aborted from silently passing.
         const completed = seen.filter((s) => !s.aborted);
-        expect(completed.length).toBeLessThanOrEqual(1);
-        if (completed.length === 1) {
-            expect(completed[0]?.value).toEqual('abc');
-        }
+        expect(completed.length).toBe(1);
+        expect(completed[0]?.value).toEqual('abc');
     });
 
     it('runs $validate without an abort signal', async () => {

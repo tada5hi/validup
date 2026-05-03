@@ -552,11 +552,17 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         }
     }
 
-    if (inComponent && getCurrentScope()) {
-        // Abort in-flight scheduled runs when the owning effect scope tears
-        // down (component unmount, manual scope dispose). $validate runs are
-        // not aborted because they don't carry a signal.
+    if (getCurrentScope()) {
+        // Abort in-flight scheduled runs AND drop any pending debounced
+        // schedule when the owning effect scope tears down (component unmount,
+        // manual `scope.stop()`, etc.). Without clearing the timer a queued
+        // `runOnce()` could still fire after teardown.
+        // `$validate` runs are not aborted because they don't carry a signal.
         onScopeDispose(() => {
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+                debounceTimer = undefined;
+            }
             scheduleAbortController?.abort();
             scheduleAbortController = undefined;
         });

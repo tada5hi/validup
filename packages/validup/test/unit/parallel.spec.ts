@@ -11,26 +11,51 @@ import { Container, ValidupError } from '../../src';
 
 describe('Container.run parallel mode', () => {
     it('should run independent async validators concurrently', async () => {
-        // Each validator stalls for 30ms; sequential = 60ms+, parallel ≈ 30ms.
-        const slow = (delay: number, label: string): Validator => async () => {
-            await new Promise((r) => {
-                setTimeout(r, delay);
-            });
-            return label;
+        // Barrier-style assertion: prove both validators have *started* before
+        // either is allowed to finish. If the runtime were sequential the
+        // second `started` resolution would block on the first validator's
+        // completion, which can't happen until the test releases it.
+        let releaseAll: (() => void) | undefined;
+        const release = new Promise<void>((resolve) => {
+            releaseAll = resolve;
+        });
+        const startedSignals: Promise<void>[] = [];
+        const startedResolvers: Array<() => void> = [];
+
+        const barrier = (label: string): Validator => {
+            const idx = startedSignals.length;
+            startedSignals.push(new Promise<void>((resolve) => {
+                startedResolvers[idx] = resolve;
+            }));
+            return async () => {
+                startedResolvers[idx]?.();
+                await release;
+                return label;
+            };
         };
 
         const container = new Container<{ a: string, b: string }>();
-        container.mount('a', slow(30, 'A'));
-        container.mount('b', slow(30, 'B'));
+        container.mount('a', barrier('A'));
+        container.mount('b', barrier('B'));
 
-        const start = Date.now();
-        const out = await container.run({ a: 1, b: 1 }, { parallel: true });
-        const elapsed = Date.now() - start;
+        const runPromise = container.run({ a: 1, b: 1 }, { parallel: true });
 
+        // If `parallel: true` is honored, both validators start before either
+        // is released — `Promise.all(startedSignals)` resolves immediately.
+        // In sequential mode this `await` would deadlock (the second
+        // validator hasn't been called yet), so we cap with a short timeout
+        // that clearly distinguishes the two.
+        await Promise.race([
+            Promise.all(startedSignals),
+            new Promise<void>((_, reject) => {
+                setTimeout(() => reject(new Error('timeout: validators did not start in parallel')), 200);
+            }),
+        ]);
+
+        releaseAll?.();
+        const out = await runPromise;
         expect(out.a).toEqual('A');
         expect(out.b).toEqual('B');
-        // Allow generous slack for slow CI; sequential would be >= 60ms.
-        expect(elapsed).toBeLessThan(55);
     });
 
     it('should aggregate failures from all parallel validators', async () => {
