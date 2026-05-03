@@ -5,14 +5,14 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { Container } from '../container';
+import { Container, isContainer } from '../container';
 import type {
     ContainerOptions,
     IContainer,
     MountOptions,
 } from '../container/types';
 import type { Validator } from '../types';
-import type { Builder } from './types';
+import type { Builder, MountTarget } from './types';
 
 type ValidatorStep<C> = {
     kind: 'validator',
@@ -34,7 +34,7 @@ function isBuilder(value: unknown): value is Builder<Record<string, any>, unknow
     return typeof value === 'object' &&
         value !== null &&
         typeof (value as { build?: unknown }).build === 'function' &&
-        typeof (value as { field?: unknown }).field === 'function';
+        typeof (value as { mount?: unknown }).mount === 'function';
 }
 
 class BuilderImpl<T extends Record<string, any>, C> implements Builder<T, C> {
@@ -47,59 +47,42 @@ class BuilderImpl<T extends Record<string, any>, C> implements Builder<T, C> {
         this.steps = steps;
     }
 
-    field<K extends string, Out>(
-        key: K,
-        validator: Validator<C, Out>,
-        options: MountOptions = {},
-    ): any {
-        return new BuilderImpl<any, C>(this.options, [
-            ...this.steps,
-            {
-                kind: 'validator',
-                key,
-                validator: validator as Validator<C>,
-                options,
-            },
-        ]);
-    }
+    mount(key: string, ...rest: unknown[]): any {
+        let options: MountOptions = {};
+        let target: MountTarget<C>;
 
-    optional<K extends string, Out>(
-        key: K,
-        validator: Validator<C, Out>,
-        options: Omit<MountOptions, 'optional'> = {},
-    ): any {
-        return new BuilderImpl<any, C>(this.options, [
-            ...this.steps,
-            {
-                kind: 'validator',
-                key,
-                validator: validator as Validator<C>,
-                options: { ...options, optional: true },
-            },
-        ]);
-    }
-
-    nest<K extends string, U extends Record<string, any>>(
-        key: K,
-        child: Builder<U, C> | IContainer<U, C>,
-        options: MountOptions = {},
-    ): any {
-        let container: IContainer<any, C>;
-        if (isBuilder(child)) {
-            container = (child as Builder<U, C>).build();
+        if (rest.length === 1) {
+            target = rest[0] as MountTarget<C>;
         } else {
-            container = child as IContainer<U, C>;
+            options = rest[0] as MountOptions;
+            target = rest[1] as MountTarget<C>;
         }
 
-        return new BuilderImpl<any, C>(this.options, [
-            ...this.steps,
-            {
+        let step: Step<C>;
+        if (isBuilder(target)) {
+            step = {
                 kind: 'nest',
                 key,
-                child: container,
+                child: (target as Builder<any, C>).build(),
                 options,
-            },
-        ]);
+            };
+        } else if (isContainer(target)) {
+            step = {
+                kind: 'nest',
+                key,
+                child: target as IContainer<any, C>,
+                options,
+            };
+        } else {
+            step = {
+                kind: 'validator',
+                key,
+                validator: target as Validator<C>,
+                options,
+            };
+        }
+
+        return new BuilderImpl<any, C>(this.options, [...this.steps, step]);
     }
 
     oneOf(): Builder<T, C> {
@@ -150,7 +133,7 @@ class BuilderImpl<T extends Record<string, any>, C> implements Builder<T, C> {
 
 /**
  * Entry point for the compile-time-typed schema builder. The accumulator
- * starts at `{}` and grows as `.field`/`.optional`/`.nest` calls are chained;
+ * starts at `{}` and grows as `.mount(...)` calls are chained;
  * `.build()` returns a `Container<T, C>` whose `run()` reflects the
  * accumulated shape.
  *

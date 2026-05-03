@@ -36,8 +36,8 @@ const numberValidator: Validator<unknown, number> = (ctx) => {
 describe('src/builder', () => {
     it('builds a Container that runs accumulated mounts', async () => {
         const schema = defineSchema()
-            .field('foo', stringValidator)
-            .field('bar', numberValidator)
+            .mount('foo', stringValidator)
+            .mount('bar', numberValidator)
             .build();
 
         expect(schema).toBeInstanceOf(Container);
@@ -49,8 +49,8 @@ describe('src/builder', () => {
     });
 
     it('treats every method call as immutable', () => {
-        const a = defineSchema().field('foo', stringValidator);
-        const b = a.field('bar', numberValidator);
+        const a = defineSchema().mount('foo', stringValidator);
+        const b = a.mount('bar', numberValidator);
 
         const aBuilt = a.build();
         const bBuilt = b.build();
@@ -61,10 +61,10 @@ describe('src/builder', () => {
         expect((bBuilt as any).items.length).toEqual(2);
     });
 
-    it('reflects the accumulated shape on optional() with `?` widening', async () => {
+    it('widens the accumulated shape when options.optional is true', async () => {
         const schema = defineSchema()
-            .field('foo', stringValidator)
-            .optional('bar', numberValidator)
+            .mount('foo', stringValidator)
+            .mount('bar', { optional: true }, numberValidator)
             .build();
 
         const present = await schema.run({ foo: 'x', bar: 1 });
@@ -76,23 +76,48 @@ describe('src/builder', () => {
         expect(missing).toEqual({ foo: 'x' });
     });
 
-    it('forwards optionalValue / optionalInclude through optional()', async () => {
+    it('forwards optionalValue / optionalInclude alongside optional', async () => {
         const schema = defineSchema()
-            .optional('bar', numberValidator, {
+            .mount('bar', {
+                optional: true,
                 optionalValue: 'null',
                 optionalInclude: true,
-            })
+            }, numberValidator)
             .build();
 
         const out = await schema.run({ bar: null });
         expect(out).toEqual({ bar: null });
     });
 
+    it('widens to optional when options.optional is a predicate function', async () => {
+        const schema = defineSchema()
+            .mount('bar', { optional: (v) => v === '' || typeof v === 'undefined' }, stringValidator)
+            .build();
+
+        const out = await schema.run({});
+        expect(out).toEqual({});
+        // Type-only: predicate optional should still surface as `bar?`
+        type R = Awaited<ReturnType<typeof schema.run>>;
+        expectTypeOf<R>().toEqualTypeOf<{ bar?: string }>();
+    });
+
+    it('keeps the accumulated key required when options.optional is omitted', async () => {
+        const schema = defineSchema()
+            .mount('bar', { group: 'create' }, stringValidator)
+            .build();
+
+        type R = Awaited<ReturnType<typeof schema.run>>;
+        expectTypeOf<R>().toEqualTypeOf<{ bar: string }>();
+
+        const out = await schema.run({ bar: 'x' }, { group: 'create' });
+        expect(out).toEqual({ bar: 'x' });
+    });
+
     it('nests a child builder and merges the shape', async () => {
         const parent = defineSchema()
-            .field('id', stringValidator)
-            .nest('child', defineSchema()
-                .field('age', numberValidator))
+            .mount('id', stringValidator)
+            .mount('child', defineSchema()
+                .mount('age', numberValidator))
             .build();
 
         const out = await parent.run({ id: 'p', child: { age: 30 } });
@@ -104,13 +129,13 @@ describe('src/builder', () => {
         }>();
     });
 
-    it('also accepts a Container as a nest() target', async () => {
+    it('also accepts a Container as a mount target', async () => {
         const child = new Container<{ age: number }>();
         child.mount('age', numberValidator);
 
         const parent = defineSchema()
-            .field('id', stringValidator)
-            .nest('child', child)
+            .mount('id', stringValidator)
+            .mount('child', child)
             .build();
 
         const out = await parent.run({ id: 'p', child: { age: 12 } });
@@ -119,8 +144,8 @@ describe('src/builder', () => {
 
     it('toggles oneOf and produces a single ONE_OF_FAILED group when every branch fails', async () => {
         const schema = defineSchema()
-            .field('foo', stringValidator)
-            .field('bar', numberValidator)
+            .mount('foo', stringValidator)
+            .mount('bar', numberValidator)
             .oneOf()
             .build();
 
@@ -150,8 +175,8 @@ describe('src/builder', () => {
 
     it('forwards pathsToInclude/pathsToExclude to the underlying Container', async () => {
         const included = defineSchema()
-            .field('foo', stringValidator)
-            .field('bar', numberValidator)
+            .mount('foo', stringValidator)
+            .mount('bar', numberValidator)
             .pathsToInclude('foo')
             .build();
 
@@ -161,8 +186,8 @@ describe('src/builder', () => {
         expect(out.foo).toEqual('a');
 
         const excluded = defineSchema()
-            .field('foo', stringValidator)
-            .field('bar', numberValidator)
+            .mount('foo', stringValidator)
+            .mount('bar', numberValidator)
             .pathsToExclude('bar')
             .build();
 
@@ -172,8 +197,8 @@ describe('src/builder', () => {
 
     it('infers Out from validators', () => {
         const schema = defineSchema()
-            .field('s', stringValidator)
-            .field('n', numberValidator)
+            .mount('s', stringValidator)
+            .mount('n', numberValidator)
             .build();
 
         // run() return type reflects the registered shape — type-only check.
@@ -181,7 +206,7 @@ describe('src/builder', () => {
         expectTypeOf<RunResult>().toEqualTypeOf<{ s: string, n: number }>();
     });
 
-    it('threads context through validators and nest()', async () => {
+    it('threads context through validators and nested builders', async () => {
         type AppCtx = { user: string };
 
         const validator: Validator<AppCtx, string> = (ctx) => {
@@ -190,9 +215,9 @@ describe('src/builder', () => {
         };
 
         const schema = defineSchema<AppCtx>()
-            .field('whoami', validator)
-            .nest('inner', defineSchema<AppCtx>()
-                .field('whoami', validator))
+            .mount('whoami', validator)
+            .mount('inner', defineSchema<AppCtx>()
+                .mount('whoami', validator))
             .build();
 
         const out = await schema.run({}, { context: { user: 'peter' } });
@@ -204,7 +229,7 @@ describe('src/builder', () => {
 
     it('produces a ValidupError when a registered field rejects', async () => {
         const schema = defineSchema()
-            .field('foo', stringValidator)
+            .mount('foo', stringValidator)
             .build();
 
         expect.assertions(2);
@@ -220,7 +245,7 @@ describe('src/builder', () => {
 
     it('ignores keys that were not registered (no compile-time enforcement at runtime)', async () => {
         const schema = defineSchema()
-            .field('foo', stringValidator)
+            .mount('foo', stringValidator)
             .build();
 
         // `bar` was never registered — runtime simply doesn't visit it.

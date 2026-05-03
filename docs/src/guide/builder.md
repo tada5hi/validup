@@ -18,56 +18,66 @@ import { createValidator } from '@validup/zod';
 import { z } from 'zod';
 
 const schema = defineSchema()
-    .field('foo', createValidator(z.string()))   // accumulated: { foo: string }
-    .field('age', createValidator(z.number()))   // accumulated: { foo: string; age: number }
+    .mount('foo', createValidator(z.string()))                            // { foo: string }
+    .mount('age', { optional: true }, createValidator(z.number().int()))  // { foo: string; age?: number }
     .build();
 
 const out = await schema.run(input);
-// out: { foo: string; age: number } — inferred, not declared
+// out: { foo: string; age?: number } — inferred, not declared
 ```
 
-`schema` is a regular `Container<{ foo: string; age: number }, unknown>`. `.build()` materializes the container; everything `Container` exposes (`run`, `safeRun`, `runSync`, `runParallel`, `safeRunSync`) is available.
+`schema` is a regular `Container<{ foo: string; age?: number }, unknown>`. `.build()` materializes the container; everything `Container` exposes (`run`, `safeRun`, `runSync`, `runParallel`, `safeRunSync`) is available.
 
-## Methods
+## `mount(...)`
+
+The builder mirrors `Container.mount`'s keyed forms — `(key, target)` and `(key, options, target)` — and dispatches on the target type:
+
+| Target type                                 | Effect on `T`                                                                       |
+|---------------------------------------------|-------------------------------------------------------------------------------------|
+| `Validator<C, Out>`                         | adds `{ [K]: Awaited<Out> }`                                                        |
+| `Validator<C, Out>` with `options.optional` | adds `{ [K]?: Awaited<Out> }`                                                       |
+| `Builder<U, C>`                             | adds `{ [K]: U }` and auto-`.build()`s the child                                    |
+| `IContainer<U, C>` (e.g. `Container<U, C>`) | adds `{ [K]: U }`                                                                   |
+
+```typescript
+defineSchema()
+    .mount('id', isString)                                       // T & { id: string }
+    .mount('email', { optional: true }, isString)                // T & { email?: string }
+    .mount('address', defineSchema().mount('city', isString))    // T & { address: { city: string } }
+    .build();
+```
+
+The same builder also exposes container-level switches that don't add fields:
 
 ```typescript
 interface Builder<T extends Record<string, any>, C = unknown> {
-    field<K extends string, Out>(
+    mount<K extends string, V extends Validator<C, any> | Builder<any, C> | IContainer<any, C>>(
         key: K,
-        validator: Validator<C, Out>,
-        options?: MountOptions,
-    ): Builder<T & { [P in K]: Awaited<Out> }, C>;
+        target: V,
+    ): Builder<T & Mounted<K, V, undefined>, C>;
 
-    optional<K extends string, Out>(
+    mount<
+        K extends string,
+        const O extends MountOptions,
+        V extends Validator<C, any> | Builder<any, C> | IContainer<any, C>,
+    >(
         key: K,
-        validator: Validator<C, Out>,
-        options?: Omit<MountOptions, 'optional'>,
-    ): Builder<T & { [P in K]?: Awaited<Out> }, C>;
-
-    nest<K extends string, U>(
-        key: K,
-        child: Builder<U, C> | IContainer<U, C>,
-        options?: MountOptions,
-    ): Builder<T & { [P in K]: U }, C>;
+        options: O,
+        target: V,
+    ): Builder<T & Mounted<K, V, O>, C>;
 
     oneOf(): Builder<T, C>;
     pathsToInclude(...paths: (keyof T & string)[]): Builder<T, C>;
     pathsToExclude(...paths: (keyof T & string)[]): Builder<T, C>;
-
     build(): Container<T, C>;
 }
 ```
 
-| Method                                                | Effect on `T`                                  | Notes                                                                                       |
-|-------------------------------------------------------|------------------------------------------------|---------------------------------------------------------------------------------------------|
-| `.field(key, validator, options?)`                    | adds `{ [K]: Awaited<Out> }`                   | Required field. `Out` is inferred from the validator's return type.                         |
-| `.optional(key, validator, options?)`                 | adds `{ [K]?: Awaited<Out> }`                  | Sets `optional: true`. `optionalValue` / `optionalInclude` can still be passed via options. |
-| `.nest(key, builder \| container, options?)`          | adds `{ [K]: U }`                              | If a `Builder` is given, it is `.build()`-ed automatically.                                 |
-| `.oneOf()`                                            | unchanged                                      | Container-level `oneOf` flag. See [One-Of](/guide/one-of).                                  |
-| `.pathsToInclude(...keys)` / `.pathsToExclude(...keys)` | unchanged                                    | Restrict execution to / from specific top-level keys.                                       |
-| `.build()`                                            | —                                              | Returns a `Container<T, C>`.                                                                |
-
 Builders are **immutable** — every method returns a new builder, so chains may fork without leaking state.
+
+::: tip Optional widening
+The `?`-widening only fires when TypeScript sees `optional` as the literal `true` (or a predicate function). The `const` modifier on the second overload preserves literal types from inline option objects, so `.mount('email', { optional: true }, isString)` just works. A pre-typed `MountOptions` variable whose `optional` is `boolean` keeps the field required.
+:::
 
 ## Inferring `Out`
 
@@ -87,7 +97,7 @@ const slug: Validator<unknown, string> = (ctx) => {
 };
 
 const schema = defineSchema()
-    .field('slug', slug)   // accumulated: { slug: string }
+    .mount('slug', slug)   // accumulated: { slug: string }
     .build();
 ```
 
@@ -95,7 +105,7 @@ const schema = defineSchema()
 
 ```typescript
 const schema = defineSchema()
-    .field('count', (ctx) => {
+    .mount('count', (ctx) => {
         const n = Number(ctx.value);
         if (!Number.isInteger(n)) throw new Error('not an int');
         return n;        // Out inferred as number
@@ -113,13 +123,13 @@ Pass the context type as the generic parameter to flow it through nested builder
 type AppContext = { userId: string };
 
 const schema = defineSchema<AppContext>()
-    .field('slug', async (ctx) => {
+    .mount('slug', async (ctx) => {
         // ctx.context is typed as AppContext
         await assertSlugAvailable(ctx.value, ctx.context.userId);
         return ctx.value;
     })
-    .nest('inner', defineSchema<AppContext>()
-        .field('whoami', (ctx) => ctx.context.userId))
+    .mount('inner', defineSchema<AppContext>()
+        .mount('whoami', (ctx) => ctx.context.userId))
     .build();
 
 await schema.run(input, { context: { userId: 'u-42' } });
@@ -127,22 +137,22 @@ await schema.run(input, { context: { userId: 'u-42' } });
 
 ## Nesting
 
-`nest(key, child, options?)` accepts either a `Builder` (auto-`.build()`-ed) or an existing `Container`. The child's accumulated shape becomes `T[K]`:
+Pass either a `Builder` (auto-`.build()`-ed) or an existing `Container` as the mount target. The child's accumulated shape becomes `T[K]`:
 
 ```typescript
 const address = defineSchema()
-    .field('city', isString)
-    .field('country', isString);
+    .mount('city', isString)
+    .mount('country', isString);
 
 const user = defineSchema()
-    .field('name', isString)
-    .nest('address', address)        // address auto-builds
+    .mount('name', isString)
+    .mount('address', address)        // address auto-builds
     .build();
 
 // user is Container<{ name: string; address: { city: string; country: string } }>
 ```
 
-For framework integrations (e.g. mounting a routup adapter) pass the underlying `Container` instance directly.
+For framework integrations (e.g. mounting a routup adapter) pass the underlying `Container` instance directly — same overload.
 
 ## When to use which API
 
@@ -157,5 +167,6 @@ The imperative `Container` API is **not** deprecated — it remains the runtime 
 ## Caveats
 
 - **`oneOf()` and `T`.** A `oneOf` container's `T` stays as the **intersection** of branches, but only one branch's keys actually appear at runtime. The intersection is honest about *possible* keys; wrap with your own discriminated union when that fits better.
-- **Cross-field refinements** don't fit the per-field model. Continue to mount them either as a top-level validator on a non-content key (`.field('_invariants', crossFieldValidator)`) or as a `oneOf` branch.
+- **Cross-field refinements** don't fit the per-field model. Continue to mount them either as a top-level validator on a non-content key (`.mount('_invariants', crossFieldValidator)`) or as a `oneOf` branch.
 - **Group exhaustiveness.** The builder guarantees every key in `T` was registered at *build time*. It does not guarantee that, e.g., `group: 'create'` covers every required field for that group — the runtime still skips group-mismatched mounts.
+- **Same-key remount.** Calling `.mount('name', ...)` twice with different groups (a pattern from the README's `RoleValidator`) is not expressible in the builder — the second call overrides the first's `Out` via intersection. Use the imperative `Container` for that case.

@@ -155,23 +155,40 @@ import { createValidator } from '@validup/zod';
 import { z } from 'zod';
 
 const schema = defineSchema()
-    .field('foo', createValidator(z.string()))   // accumulated: { foo: string }
-    .field('age', createValidator(z.number()))   // accumulated: { foo: string; age: number }
+    .mount('foo', createValidator(z.string()))                            // { foo: string }
+    .mount('age', { optional: true }, createValidator(z.number().int()))  // { foo: string; age?: number }
+    .mount('address', defineSchema().mount('city', isString))             // { …; address: { city: string } }
     .build();
 
 const out = await schema.run(input);
-// out: { foo: string; age: number } — inferred, not declared
+// out: { foo: string; age?: number; address: { city: string } } — inferred, not declared
 ```
 
 The integration packages' `createValidator(...)` functions (`@validup/zod`, `@validup/standard-schema`) infer the per-field `Out` type from the underlying schema, so the builder pulls real types through. Hand-written validators participate too — annotate the return type via `Validator<C, Out>` (or just write the function inline so TypeScript can infer it).
+
+The builder mirrors `Container.mount`'s keyed forms — `.mount(key, target)` and `.mount(key, options, target)` — and dispatches on the target type:
+
+| Target type                        | Effect on `T`                                                           |
+|------------------------------------|-------------------------------------------------------------------------|
+| `Validator<C, Out>`                | adds `{ [K]: Awaited<Out> }` (or `{ [K]?: Awaited<Out> }` when `options.optional`) |
+| `Builder<U, C>`                    | adds `{ [K]: U }` and auto-`.build()`s the child                        |
+| `IContainer<U, C>` (e.g. `Container<U, C>`) | adds `{ [K]: U }`                                              |
 
 `Builder` is immutable — every method returns a new builder, so chains can fork without leaking state — and `.build()` materializes a `Container<T, C>`:
 
 ```typescript
 interface Builder<T extends Record<string, any>, C = unknown> {
-    field<K extends string, Out>(key: K, validator: Validator<C, Out>, options?: MountOptions): Builder<T & { [P in K]: Awaited<Out> }, C>;
-    optional<K extends string, Out>(key: K, validator: Validator<C, Out>, options?: Omit<MountOptions, 'optional'>): Builder<T & { [P in K]?: Awaited<Out> }, C>;
-    nest<K extends string, U>(key: K, child: Builder<U, C> | IContainer<U, C>, options?: MountOptions): Builder<T & { [P in K]: U }, C>;
+    mount<K extends string, V extends Validator<C, any> | Builder<any, C> | IContainer<any, C>>(
+        key: K,
+        target: V,
+    ): Builder<T & Mounted<K, V, undefined>, C>;
+
+    mount<K extends string, const O extends MountOptions, V extends Validator<C, any> | Builder<any, C> | IContainer<any, C>>(
+        key: K,
+        options: O,
+        target: V,
+    ): Builder<T & Mounted<K, V, O>, C>;
+
     oneOf(): Builder<T, C>;
     pathsToInclude(...paths: (keyof T & string)[]): Builder<T, C>;
     pathsToExclude(...paths: (keyof T & string)[]): Builder<T, C>;
@@ -179,13 +196,15 @@ interface Builder<T extends Record<string, any>, C = unknown> {
 }
 ```
 
+> **Note** — the `?`-widening on `optional: true` only fires when TypeScript sees the value as the literal `true` (or a predicate function). The `const` modifier on the second overload preserves literals from inline option objects, so the common case (`mount('email', { optional: true }, ...)`) just works. A pre-typed `MountOptions` variable whose `optional` is `boolean` will keep the field required.
+
 Pass the context type as a generic to flow it through the chain:
 
 ```typescript
 type AppContext = { userId: string };
 
 const schema = defineSchema<AppContext>()
-    .field('slug', async (ctx) => {
+    .mount('slug', async (ctx) => {
         // ctx.context is typed as AppContext
         await assertSlugAvailable(ctx.value, ctx.context.userId);
         return ctx.value;
