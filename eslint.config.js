@@ -9,7 +9,7 @@ import config from '@tada5hi/eslint-config';
 
 export default [
     ...await config(),
-    { ignores: ['**/dist/**', '**/*.d.ts'] },
+    { ignores: ['**/dist/**', '**/*.d.ts', '**/.vitepress/cache/**'] },
     {
         languageOptions: { globals: { NodeJS: true } },
         rules: {

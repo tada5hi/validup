@@ -35,7 +35,7 @@
         "test:coverage": "vitest --config test/vitest.config.ts --run --coverage"
     },
     "keywords": [],
-    "license": "MIT",
+    "license": "Apache-2.0",
     "devDependencies": {
         "@routup/basic": "^1.4.3",
         "@types/supertest": "^6.0.2",

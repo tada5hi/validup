@@ -148,7 +148,7 @@ For security vulnerabilities, please email contact@tada5hi.net rather than openi
 
 Made with 💚
 
-Published under [MIT License](./LICENSE).
+Published under [Apache 2.0 License](./LICENSE).
 
 [workflow-src]: https://github.com/tada5hi/validup/actions/workflows/main.yml/badge.svg
 [workflow-href]: https://github.com/tada5hi/validup/actions/workflows/main.yml

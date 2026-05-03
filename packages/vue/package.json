@@ -41,7 +41,7 @@
         "validup",
         "composable"
     ],
-    "license": "MIT",
+    "license": "Apache-2.0",
     "dependencies": {
         "validup": "^0.2.2"
     },

@@ -165,7 +165,7 @@ function createValidationChain(): ValidationChain;
 
 Made with 💚
 
-Published under [MIT License](./LICENSE).
+Published under [Apache 2.0 License](./LICENSE).
 
 [npm-version-src]: https://badge.fury.io/js/@validup%2Fexpress-validator.svg
 [npm-version-href]: https://npmjs.com/package/@validup/express-validator

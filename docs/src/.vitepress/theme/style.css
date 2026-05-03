@@ -1,0 +1,82 @@
+/*
+ * Copyright (c) 2026.
+ * Author Peter Placzek (tada5hi)
+ * For the full copyright and license information,
+ * view the LICENSE file that was distributed with this source code.
+ */
+
+/*
+ * validup design tokens. The marketing components on the landing page
+ * read every color/border/radius through these custom properties so
+ * dark-mode flips and (in future) palette switching work without
+ * per-component overrides.
+ *
+ * VitePress's `--vp-c-brand-*` tokens are aliased to the validup
+ * primary scale so the docs chrome (sidebar accents, hero buttons,
+ * heading underlines) follows the marketing palette.
+ */
+:root {
+    --vu-color-bg: #ffffff;
+    --vu-color-bg-elevated: #f8fafc;
+    --vu-color-bg-muted: #f1f5f9;
+
+    --vu-color-fg: #0f172a;
+    --vu-color-fg-muted: #475569;
+
+    --vu-color-border: #e2e8f0;
+    --vu-color-border-muted: #f1f5f9;
+
+    --vu-color-primary-300: #86efac;
+    --vu-color-primary-400: #4ade80;
+    --vu-color-primary-500: #22c55e;
+    --vu-color-primary-600: #16a34a;
+    --vu-color-primary-700: #15803d;
+
+    --vu-color-info-500: #3b82f6;
+    --vu-color-info-600: #2563eb;
+
+    --vu-color-warning-500: #f59e0b;
+    --vu-color-error-500: #ef4444;
+    --vu-color-success-500: var(--vu-color-primary-500);
+
+    --vu-color-on-primary: #ffffff;
+
+    --vp-c-brand-1: var(--vu-color-primary-600);
+    --vp-c-brand-2: var(--vu-color-primary-700);
+    --vp-c-brand-3: var(--vu-color-primary-500);
+    --vp-c-brand-soft: color-mix(in oklab, var(--vu-color-primary-500) 15%, transparent);
+    --vp-c-brand-next: var(--vu-color-primary-500);
+
+    --vp-button-brand-bg: var(--vu-color-primary-600);
+    --vp-button-brand-hover-bg: var(--vu-color-primary-500);
+    --vp-button-brand-active-bg: var(--vu-color-primary-700);
+    --vp-button-brand-border: var(--vu-color-primary-600);
+    --vp-button-brand-hover-border: var(--vu-color-primary-500);
+    --vp-button-brand-active-border: var(--vu-color-primary-700);
+
+    --vp-home-hero-name-color: transparent;
+    --vp-home-hero-name-background: linear-gradient(120deg, var(--vu-color-primary-500), var(--vu-color-info-500));
+}
+
+.dark {
+    --vu-color-bg: #0f172a;
+    --vu-color-bg-elevated: #1e293b;
+    --vu-color-bg-muted: #1a2236;
+
+    --vu-color-fg: #f1f5f9;
+    --vu-color-fg-muted: #94a3b8;
+
+    --vu-color-border: #334155;
+    --vu-color-border-muted: #1e293b;
+
+    --vu-color-primary-300: #86efac;
+    --vu-color-primary-400: #4ade80;
+    --vu-color-primary-500: #22c55e;
+    --vu-color-primary-600: #16a34a;
+    --vu-color-primary-700: #15803d;
+
+    --vp-c-brand-1: var(--vu-color-primary-400);
+    --vp-c-brand-2: var(--vu-color-primary-300);
+    --vp-c-brand-3: var(--vu-color-primary-500);
+    --vp-c-brand-soft: color-mix(in oklab, var(--vu-color-primary-400) 18%, transparent);
+}

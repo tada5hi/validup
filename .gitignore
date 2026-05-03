@@ -17,3 +17,7 @@ cache
 .nx
 .agents/plans
 .claude/settings.local.json
+
+# VitePress
+docs/src/.vitepress/cache
+docs/src/.vitepress/dist

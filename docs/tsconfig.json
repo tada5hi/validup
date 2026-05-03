@@ -1,0 +1,11 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "noEmit": true,
+        "jsx": "preserve",
+        "skipLibCheck": true
+    },
+    "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.mts"]
+}
