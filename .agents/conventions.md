@@ -66,7 +66,7 @@ Run: `npm run lint` (root, lints the whole workspace via flat config) or `npm ru
 - Tracked branches: `develop`, `master`, `next`, `beta`, `alpha`.
 - `.github/workflows/main.yml` runs `install → build → (lint, tests)` on push/PR to those branches with Node 22.
 - `.github/workflows/release.yml` runs release-please on push to `master`; on a release commit it builds and invokes the `tada5hi/monoship@v2` action to publish.
-- `.github/workflows/docs.yml` builds the VitePress site under `docs/` and deploys it to GitHub Pages on push to `master` (uses `actions/upload-pages-artifact@v3` + `actions/deploy-pages@v4`; needs Pages source set to "GitHub Actions" in repo settings).
+- `.github/workflows/docs.yml` builds the VitePress site under `docs/` and deploys it to GitHub Pages on push to `master` (uses `peaceiris/actions-gh-pages@v4`, which pushes the built site to the `gh-pages` branch and writes a `CNAME` for `validup.tada5hi.net`; Pages source must be set to "Deploy from a branch" → `gh-pages` in repo settings).
 - `.github/workflows/continuous-release.yml` runs `npx pkg-pr-new publish './packages/*'` on push to tracked branches and on PR open/synchronize to publish per-commit preview packages via the [pkg-pr-new GitHub App](https://github.com/apps/pkg-pr-new). The App must be installed on the repo for the publish step to authenticate; it comments PRs with the preview install URLs.
 - CodeQL and snyk also gate the project (badges in `README.md`).
 

@@ -20,12 +20,15 @@ concurrency:
     group: docs-${{ github.ref }}
     cancel-in-progress: true
 
+env:
+    PRIMARY_NODE_VERSION: 22
+
 jobs:
-    build:
-        name: Build
+    docs:
+        name: Build & deploy docs
         runs-on: ubuntu-latest
         permissions:
-            contents: read
+            contents: write
         steps:
             -   name: Checkout
                 uses: actions/checkout@v6
@@ -33,7 +36,7 @@ jobs:
             -   name: Install
                 uses: ./.github/actions/install
                 with:
-                    node-version: 22
+                    node-version: ${{ env.PRIMARY_NODE_VERSION }}
 
             -   name: Build packages
                 uses: ./.github/actions/build
@@ -41,24 +44,16 @@ jobs:
             -   name: Build docs
                 run: npm run build -w @validup/docs
 
-            -   name: Upload artifact
-                if: ${{ github.event_name == 'push' }}
-                uses: actions/upload-pages-artifact@v3
-                with:
-                    path: ./docs/src/.vitepress/dist
+            -   name: CNAME
+                if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+                run: |
+                    cd ./docs/src/.vitepress/dist/
+                    touch CNAME
+                    echo "validup.tada5hi.net" > CNAME
 
-    deploy:
-        name: Deploy
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-        needs: build
-        runs-on: ubuntu-latest
-        permissions:
-            pages: write
-            id-token: write
-        environment:
-            name: github-pages
-            url: ${{ steps.deployment.outputs.page_url }}
-        steps:
-            -   name: Deploy to GitHub Pages
-                id: deployment
-                uses: actions/deploy-pages@v4
+            -   name: Deploy
+                if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+                uses: peaceiris/actions-gh-pages@v4
+                with:
+                    github_token: ${{ secrets.GITHUB_TOKEN }}
+                    publish_dir: ./docs/src/.vitepress/dist
