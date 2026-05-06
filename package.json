@@ -34,13 +34,13 @@
         "@tada5hi/eslint-config": "^2.3.0",
         "@tada5hi/tsconfig": "^0.7.2",
         "@vitest/coverage-v8": "^4.1.2",
-        "eslint": "^10.2.0",
-        "eslint-plugin-vue": "^10.9.0",
+        "eslint": "^10.3.0",
+        "eslint-plugin-vue": "^10.9.1",
         "husky": "^9.1.7",
         "nx": "^22.5.4",
         "tsdown": "^0.21.7",
         "typescript": "^5.9.3",
-        "typescript-eslint": "^8.58.0",
+        "typescript-eslint": "^8.59.2",
         "vitest": "^4.1.2"
     }
 }
