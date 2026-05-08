@@ -1,6 +1,6 @@
 {
     "name": "@validup/zod",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "type": "module",
     "description": "A validup integration for zod.",
     "author": {
@@ -37,7 +37,7 @@
     "keywords": [],
     "license": "Apache-2.0",
     "dependencies": {
-        "validup": "^0.2.2"
+        "validup": "^0.3.0"
     },
     "devDependencies": {
         "zod": "^4.4.3"

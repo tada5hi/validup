@@ -1,6 +1,6 @@
 {
     "name": "@validup/express-validator",
-    "version": "0.3.2",
+    "version": "0.3.3",
     "type": "module",
     "description": "A validup integration for express-validator.",
     "author": {
@@ -37,7 +37,7 @@
     "keywords": [],
     "license": "Apache-2.0",
     "dependencies": {
-        "validup": "^0.2.2",
+        "validup": "^0.3.0",
         "smob": "^1.6.1"
     },
     "devDependencies": {
