@@ -12,7 +12,6 @@ Optionally pick one or more integrations:
 npm install @validup/standard-schema --save    # Standard Schema (zod 3.24+, valibot, arktype, …)
 npm install @validup/zod --save                # zod-specific (richer issue mapping)
 npm install @validup/express-validator --save  # express-validator chains
-npm install @validup/routup --save             # routup HTTP requests
 npm install @validup/vue --save                # Vue 3 forms
 ```
 
@@ -34,7 +33,6 @@ All packages publish ESM-only (`dist/index.mjs` + `dist/index.d.mts`). There is 
 | `@validup/standard-schema`    | —                                               |
 | `@validup/zod`                | `zod ^3.25.0 \|\| ^4.0.0`                       |
 | `@validup/express-validator`  | `express-validator ^7.3.1`                      |
-| `@validup/routup`             | `validup`, `routup`, `@routup/basic`            |
 | `@validup/vue`                | `vue ^3.3`                                      |
 
 ## Verifying the install

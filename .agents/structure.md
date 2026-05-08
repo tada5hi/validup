@@ -9,7 +9,6 @@ validup/
 │   ├── standard-schema/      # Standard Schema bridge (npm: @validup/standard-schema)
 │   ├── zod/                  # zod bridge (npm: @validup/zod)
 │   ├── express-validator/    # express-validator bridge (npm: @validup/express-validator)
-│   ├── routup/               # routup HTTP request integration (npm: @validup/routup)
 │   └── vue/                  # Vue 3 composable (npm: @validup/vue)
 ├── docs/                     # VitePress site (private workspace, npm: @validup/docs)
 ├── nx.json                   # Nx caching config (build, lint, test cacheable)
@@ -27,7 +26,6 @@ validup/
 | Standard Schema integration    | `packages/standard-schema`    | `@validup/standard-schema`   | `@standard-schema/spec`, `validup`  | —                                               |
 | Zod integration                | `packages/zod`                | `@validup/zod`               | `validup`                           | `zod ^3.25.0 \|\| ^4.0.0`                       |
 | express-validator integration  | `packages/express-validator`  | `@validup/express-validator` | `validup`, `smob`                   | `express-validator ^7.3.1`                      |
-| Routup integration             | `packages/routup`             | `@validup/routup`            | (none — `validup` is peer)          | `validup`, `routup`, `@routup/basic`            |
 | Vue integration                | `packages/vue`                | `@validup/vue`               | `validup`                           | `vue ^3.3`                                      |
 
 All packages are `"type": "module"` and publish **ESM-only** (`dist/index.mjs` + `dist/index.d.mts`). No CJS output. License: Apache-2.0 across the board (root + every package).
@@ -39,8 +37,7 @@ The `docs/` workspace is `private: true` (excluded from `release-please-config.j
 ```
 standard-schema ──┐
 zod ──────────────┤
-express-validator ┤
-routup ───────────┼──► validup ──► @ebec/core, pathtrace, smob
+express-validator ┼──► validup ──► @ebec/core, pathtrace, smob
 vue ──────────────┘
 ```
 
@@ -93,14 +90,12 @@ src/
 ├── module.ts    # createValidator() or *Adapter class — the public entry
 ├── error.ts     # buildIssuesFor*Error() — translate foreign errors into validup Issues
 ├── types.ts     # (optional) package-specific option types
-├── constants.ts # (optional) e.g. Location enum in `@validup/routup`
 └── index.ts     # Barrel re-export
 ```
 
 - **@validup/standard-schema**: `createValidator(schema | (ctx) => schema)` calls `schema['~standard'].validate(ctx.value)` against any [Standard Schema](https://standardschema.dev) library (zod 3.24+, valibot, arktype, effect-schema, …). On failure each `StandardSchemaV1.Issue` becomes a validup `IssueItem`; `path` is normalized so `{ key }`-shape `PathSegment` entries are flattened to `PropertyKey[]`. Vendor-specific fields (zod's `expected`/`received`) are not surfaced — use `@validup/zod` if those matter.
 - **@validup/zod**: `createValidator(zod | (ctx) => zod)` calls `safeParseAsync`; on failure converts each `ZodIssue` (`$ZodRawIssue` from `zod/v4/core`) into a validup `IssueItem`, including `expected` / `received`. Also exports `buildZodIssuesForError` for the reverse direction. Choose this over `@validup/standard-schema` when you need vendor-specific issue fields or bidirectional conversion.
 - **@validup/express-validator**: `createValidator(chain | (ctx) => chain)` runs an express-validator `ContextRunner` with `body: ctx.value`, then translates `ValidationError` (`field` / `alternative` / `alternative_grouped`) into issues. Also exports `createValidationChain()`.
-- **@validup/routup**: `RoutupContainerAdapter` wraps a `Container`; `run(req, options)` reads from `Location` (`body` / `cookies` / `params` / `query`, default `body`) and tries each location until one succeeds.
 - **@validup/vue**: `useValidup(container, state, options?)` is a Vue 3 composable returning a vuelidate-shaped `ValidupComposable<T>` (`$invalid`, `$dirty`, `$pending`, `$errors`, per-field `$model`/`$touch`/`$reset`, plus `$crossCuttingErrors` and `$groupErrors`). Options: `group`, `debounce`, `name`, `stopPropagation`, `detached`, `lazy`, `autoDirty`, `scope`. `stopPropagation` skips upward `inject()` only; `detached` skips both `inject()` and `provide()` (invisible to ancestors *and* descendants). Layout differs slightly: `module.ts` (composable), `helpers/severity.ts` (`getValidupSeverity`), `helpers/child.ts` (`PARENT_INJECTION_KEY` + `extractValidupResultsFromChild`), `types.ts`. No `error.ts` — issues come pre-shaped from the wrapped `Container`.
 
 ## Tests

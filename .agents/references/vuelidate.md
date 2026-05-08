@@ -1,6 +1,6 @@
 # Vuelidate Reference
 
-`@validup/vue` is **directly inspired by [Vuelidate](https://github.com/vuelidate/vuelidate)**. The composable shape (`$invalid`, `$dirty`, `$pending`, `$errors`, per-field `$model` writable computeds, parent/child auto-registration, severity gating on `$dirty`) is intentionally close to vuelidate so authup form components can migrate by swapping the call-site only. The key difference: vuelidate's per-field state is keyed by **rule name** (`required`, `minLength`) returned by `@vuelidate/validators` factories, while ours is keyed by **path** in the input object and powered by a validup `Container<T>` — meaning the same validator can run server-side via `RoutupContainerAdapter` and client-side via `useValidup()`.
+`@validup/vue` is **directly inspired by [Vuelidate](https://github.com/vuelidate/vuelidate)**. The composable shape (`$invalid`, `$dirty`, `$pending`, `$errors`, per-field `$model` writable computeds, parent/child auto-registration, severity gating on `$dirty`) is intentionally close to vuelidate so authup form components can migrate by swapping the call-site only. The key difference: vuelidate's per-field state is keyed by **rule name** (`required`, `minLength`) returned by `@vuelidate/validators` factories, while ours is keyed by **path** in the input object and powered by a validup `Container<T>` — meaning the same validator can run server-side and client-side from a single source.
 
 ## Version Snapshot (as of 2026-04-29)
 
@@ -62,7 +62,7 @@ Default branch: `next`
 - Eager validation under the hood, visibility gated on `$dirty` per field.
 
 ### What we changed
-- **Rules come from a `Container<T>`, not a literal object.** Mounting / nesting / globs / groups / `oneOf` all live in the validup core, so the same validator runs server-side via `RoutupContainerAdapter` and client-side via `useValidup`.
+- **Rules come from a `Container<T>`, not a literal object.** Mounting / nesting / globs / groups / `oneOf` all live in the validup core, so the same validator runs server-side and client-side via `useValidup`.
 - **No bundled rule library.** Vuelidate ships `@vuelidate/validators` with `required`, `email`, etc. We don't — bring your own validator (zod is the default story via `@validup/zod`).
 - **Per-field state is keyed by path, not by rule.** A field has a flat list of `IssueItem`s, not a per-rule sub-object. Templates that displayed "this rule failed" must shift to "this issue (with code `X`) was raised" — the `@ilingo/validup` plugin handles the translation.
 - **`Issue` carries structured metadata.** `IssueItem.expected` / `received` / `meta` make rich error rendering possible without a bespoke rule API. Vuelidate's `$params` is the rough analog.

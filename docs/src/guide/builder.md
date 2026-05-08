@@ -152,7 +152,7 @@ const user = defineSchema()
 // user is Container<{ name: string; address: { city: string; country: string } }>
 ```
 
-For framework integrations (e.g. mounting a routup adapter) pass the underlying `Container` instance directly — same overload.
+For framework integrations pass the underlying `Container` instance directly — same overload.
 
 ## When to use which API
 

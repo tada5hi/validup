@@ -23,10 +23,9 @@ These come in three flavors today:
 
 **Framework / runtime integrations** consume a whole `Container<T, C>` and wire it into a host environment:
 
-| Package                         | Host                                              |
-|---------------------------------|---------------------------------------------------|
-| [`@validup/routup`](/integrations/routup) | [routup](https://routup.net) HTTP requests |
-| [`@validup/vue`](/integrations/vue)       | [Vue 3](https://vuejs.org) reactive forms  |
+| Package                             | Host                                       |
+|-------------------------------------|--------------------------------------------|
+| [`@validup/vue`](/integrations/vue) | [Vue 3](https://vuejs.org) reactive forms  |
 
 ## Writing your own
 
@@ -53,4 +52,4 @@ Three contract points to preserve:
 2. Make `createValidator<C>` generic over the validup context.
 3. Translate foreign errors into `Issue[]` using `defineIssueItem` / `defineIssueGroup` — never construct issue objects literally.
 
-For framework integrations, study `@validup/routup` (try-each-location HTTP adapter) or `@validup/vue` (reactive composable that drives form state from `safeRun()`).
+For framework integrations, study `@validup/vue` — a reactive composable that drives form state from `safeRun()`.

@@ -58,7 +58,7 @@ Run: `npm run lint` (root, lints the whole workspace via flat config) or `npm ru
 - **Conventional Commits** enforced via `commitlint.config.mjs` extending `@tada5hi/commitlint-config`.
 - Common types in this repo's history: `feat`, `fix`, `chore`, `chore(deps)`, `fix(deps)`.
 - Scope is optional but used (e.g. `fix(deps)`, `feat: container safe-parse method`).
-- Releases are managed by **release-please** — do not edit `CHANGELOG.md` by hand. Each package is a release-please component (`validup`, `routup`, `express-validator`, `vue`, `zod`).
+- Releases are managed by **release-please** — do not edit `CHANGELOG.md` by hand. Each package is a release-please component (`validup`, `express-validator`, `vue`, `zod`, `standard-schema`).
 - Publishing is performed by [`tada5hi/monoship`](https://github.com/tada5hi/monoship) in the release workflow — it walks the workspace and publishes only packages whose version is missing from the registry.
 
 ## Branching & CI

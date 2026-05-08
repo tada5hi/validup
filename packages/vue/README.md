@@ -8,7 +8,7 @@
 
 A [validup](https://www.npmjs.com/package/validup) integration for [Vue 3](https://vuejs.org) — drive reactive form state from a `Container<T>`.
 
-Drive form validation from a validup `Container<T>` with a vuelidate-shaped composable. The same validator runs **server-side** (via [`@validup/routup`](https://www.npmjs.com/package/@validup/routup)) and **client-side** (via this package) — no rule duplication, no schema drift.
+Drive form validation from a validup `Container<T>` with a vuelidate-shaped composable. The same validator runs on the **server** and the **client** — no rule duplication, no schema drift.
 
 > 🚧 **Work in Progress**
 >

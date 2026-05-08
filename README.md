@@ -7,7 +7,7 @@
 
 A composable, path-based validation library for TypeScript.
 
-Mount validators and nested containers onto object paths, run them in groups, collect structured issues, and bridge to your favorite validator (zod, express-validator) or framework (routup) — all without decorators or schema DSLs.
+Mount validators and nested containers onto object paths, run them in groups, collect structured issues, and bridge to your favorite validator (zod, express-validator) or framework (Vue) — all without decorators or schema DSLs.
 
 > 🚧 **Work in Progress**
 >
@@ -38,7 +38,6 @@ This monorepo publishes one core library and four integration packages:
 | [`@validup/standard-schema`](./packages/standard-schema)     | [![npm][ss-npm-src]][ss-npm-href]             | Bridge to any [Standard Schema](https://standardschema.dev) library (zod, valibot, arktype, …) |
 | [`@validup/zod`](./packages/zod)                             | [![npm][zod-npm-src]][zod-npm-href]           | Bridge to [zod](https://zod.dev) schemas (vendor-specific issue mapping) |
 | [`@validup/express-validator`](./packages/express-validator) | [![npm][ev-npm-src]][ev-npm-href]             | Bridge to [express-validator](https://express-validator.github.io) chains |
-| [`@validup/routup`](./packages/routup)                       | [![npm][routup-npm-src]][routup-npm-href]     | Run a `Container` against a [routup](https://routup.net) request         |
 | [`@validup/vue`](./packages/vue)                             | [![npm][vue-npm-src]][vue-npm-href]           | [Vue 3](https://vuejs.org) composable for client-side forms              |
 
 ## Installation
@@ -55,7 +54,6 @@ Optionally add an integration:
 npm install @validup/standard-schema --save    # Standard Schema (zod 3.24+, valibot, arktype, …)
 npm install @validup/zod --save                # zod-specific (richer issue mapping)
 npm install @validup/express-validator --save  # express-validator chains
-npm install @validup/routup --save             # routup HTTP requests
 npm install @validup/vue --save                # Vue 3 forms
 ```
 
@@ -91,7 +89,7 @@ try {
 |--------------------------|----------------------------------------------------------------------------------------------|
 | 🧩 **Composable**        | Mount validators and nested `Container`s on any path. Stay flat or nest as deep as you like. |
 | 🌐 **Universal**         | Pure JS — runs in Node.js, browsers, Deno, Bun, and edge runtimes.                            |
-| 🎭 **Integration-ready** | First-class bridges to zod, express-validator, routup, and Vue. Trivial to add more.         |
+| 🎭 **Integration-ready** | First-class bridges to Standard Schema, zod, express-validator, and Vue. Trivial to add more. |
 | 🛤️ **Path-based**        | Mount via dotted paths (`a.b.c`), brackets (`foo[0]`), or globs (`**.foo`).                    |
 | 🚦 **Group-aware**       | Run different validations for `create` / `update` / custom groups from the same container.   |
 | ❓ **Optional handling** | Per-mount control over `undefined` / `null` / falsy semantics.                                 |
@@ -107,13 +105,12 @@ validup/
 │   ├── standard-schema/      # @validup/standard-schema
 │   ├── zod/                  # @validup/zod
 │   ├── express-validator/    # @validup/express-validator
-│   ├── routup/               # @validup/routup
 │   └── vue/                  # @validup/vue
 ├── nx.json                   # Nx caching for build / lint / test
 └── release-please-config.json
 ```
 
-The six packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Integration packages depend on `validup`; the core has a single runtime dep on `@ebec/core`.
+The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Integration packages depend on `validup`; the core has a single runtime dep on `@ebec/core`.
 
 ## Development
 
@@ -167,7 +164,5 @@ Published under [Apache 2.0 License](./LICENSE).
 [zod-npm-href]: https://npmjs.com/package/@validup/zod
 [ev-npm-src]: https://badge.fury.io/js/@validup%2Fexpress-validator.svg
 [ev-npm-href]: https://npmjs.com/package/@validup/express-validator
-[routup-npm-src]: https://badge.fury.io/js/@validup%2Froutup.svg
-[routup-npm-href]: https://npmjs.com/package/@validup/routup
 [vue-npm-src]: https://badge.fury.io/js/@validup%2Fvue.svg
 [vue-npm-href]: https://npmjs.com/package/@validup/vue

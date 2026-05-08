@@ -5,7 +5,6 @@
     "initial-version": "0.1.0",
     "packages": {
         "packages/validup": {"component": "validup"},
-        "packages/routup": {"component": "routup"},
         "packages/express-validator": {"component": "express-validator"},
         "packages/vue": {"component": "vue"},
         "packages/zod": {"component": "zod"},

@@ -1,6 +1,6 @@
 # Architecture
 
-Validup's model has three nouns — **Container**, **Validator**, **Issue** — and one verb: `Container.run(data)` (with `runSync` / `runParallel` / `safeRun` / `safeRunSync` siblings). Integration packages either produce a `Validator` from a foreign validation library (`@validup/standard-schema`, `@validup/zod`, `@validup/express-validator`) or wire a `Container` into a runtime / framework (`@validup/routup`, `@validup/vue`).
+Validup's model has three nouns — **Container**, **Validator**, **Issue** — and one verb: `Container.run(data)` (with `runSync` / `runParallel` / `safeRun` / `safeRunSync` siblings). Integration packages either produce a `Validator` from a foreign validation library (`@validup/standard-schema`, `@validup/zod`, `@validup/express-validator`) or wire a `Container` into a runtime / framework (`@validup/vue`).
 
 ## Core Types
 
@@ -143,6 +143,5 @@ export function createValidator<C = unknown>(input: ZodCreateFn<C> | ZodType): V
    - **Make `createValidator<C>` generic over the validup context type** so the parent `Container<T, C>` keeps `ctx.context` typed end-to-end.
    - **Translate foreign errors into `Issue[]`** in a separate `error.ts` module, then throw `new ValidupError(issues)`. Use `defineIssueItem`/`defineIssueGroup` — never construct issue objects literally. (`@validup/standard-schema` is a special case: the spec only exposes `message + path`, so the resulting issues carry only the portable subset.)
 
-2. **Framework / runtime integrations** (`@validup/routup`, `@validup/vue`) — consume a whole `Container<T, C>` and wire it into a host environment.
-   - `@validup/routup` wraps a `Container` for HTTP request inputs and tries each `Location` (`body` / `cookies` / `params` / `query`) until one succeeds, throwing the **last** `ValidupError` if all fail. `RoutupContainerRunOptions<T, C>` extends `ContainerRunOptions<T, C>` so `signal`, `context`, and `parallel` flow through automatically.
+2. **Framework / runtime integrations** (`@validup/vue`) — consume a whole `Container<T, C>` and wire it into a host environment.
    - `@validup/vue` exposes a `useValidup<T, C>(container, state, options?)` composable that drives reactive form state from `Container.safeRun()`. Reactive `options.context` re-runs validation on change; an internal `AbortController` per scheduled run cancels the previous when state/group/context updates (and on `onScopeDispose`). `$validate()` deliberately runs *without* a signal so submit-time runs aren't aborted by intervening keystrokes. Issues come pre-shaped from validup, so there is no `error.ts` module here.

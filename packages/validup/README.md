@@ -715,7 +715,6 @@ Use one of the official integration packages to bridge an existing validator lib
 | [`@validup/standard-schema`](https://npmjs.com/package/@validup/standard-schema)     | Any [Standard Schema](https://standardschema.dev) library — zod 3.24+, valibot, arktype, effect-schema, … |
 | [`@validup/zod`](https://npmjs.com/package/@validup/zod)                             | [zod](https://zod.dev) schemas (vendor-specific issue mapping with `expected` / `received`) |
 | [`@validup/express-validator`](https://npmjs.com/package/@validup/express-validator) | [express-validator](https://express-validator.github.io) chains                |
-| [`@validup/routup`](https://npmjs.com/package/@validup/routup)                       | [routup](https://routup.net) request inputs (body / query / cookies / params)  |
 | [`@validup/vue`](https://npmjs.com/package/@validup/vue)                             | [Vue 3](https://vuejs.org) composable for reactive client-side form state      |
 
 ## License
