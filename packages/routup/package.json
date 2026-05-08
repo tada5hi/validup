@@ -37,15 +37,15 @@
     "keywords": [],
     "license": "Apache-2.0",
     "devDependencies": {
-        "@routup/basic": "^1.4.3",
-        "@types/supertest": "^6.0.2",
-        "routup": "^4.1.0",
+        "@routup/basic": "^2.1.0",
+        "@types/supertest": "^7.2.0",
+        "routup": "^5.0.1",
         "supertest": "^7.2.2",
         "validup": "^0.2.2"
     },
     "peerDependencies": {
-        "@routup/basic": "^1.4.3",
-        "routup": "^4.1.0",
+        "@routup/basic": "^2.1.0",
+        "routup": "^5.0.1",
         "validup": "^0.2.2"
     },
     "publishConfig": {

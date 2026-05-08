@@ -39,7 +39,7 @@
         "husky": "^9.1.7",
         "nx": "^22.5.4",
         "tsdown": "^0.22.0",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
         "typescript-eslint": "^8.59.2",
         "vitest": "^4.1.2"
     },
