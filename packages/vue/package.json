@@ -1,6 +1,6 @@
 {
     "name": "@validup/vue",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "type": "module",
     "description": "A Vue 3 integration for validup.",
     "author": {
@@ -43,7 +43,7 @@
     ],
     "license": "Apache-2.0",
     "dependencies": {
-        "validup": "^0.2.2"
+        "validup": "^0.3.0"
     },
     "devDependencies": {
         "@vue/test-utils": "^2.4.10",

@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.0](https://github.com/tada5hi/validup/compare/validup-v0.2.2...validup-v0.3.0) (2026-05-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* @validup/routup is no longer published. Replace RoutupContainerAdapter with a direct Container.run / safeRun call against useRequestBody / useRequestQuery / useRequestCookies / useRequestParams from routup + @routup/basic.
+
+### Features
+
+* add VitePress docs site and relicense to Apache-2.0 ([6b8e601](https://github.com/tada5hi/validup/commit/6b8e6017cae573e1290c971b6e699b97461fd0eb))
+* compile-time output typing (improvements plan item 11) ([#362](https://github.com/tada5hi/validup/issues/362)) ([fd6b610](https://github.com/tada5hi/validup/commit/fd6b61095fecfd9ec243d5dc7a462d29402a0efa))
+* drop @validup/routup integration package ([f0c1901](https://github.com/tada5hi/validup/commit/f0c1901538b4d22422c2b37aadec877bc6a95d98))
+* ship improvements plan items 4-10, 12-13 + ebec + Standard Schema ([#359](https://github.com/tada5hi/validup/issues/359)) ([d2f0c04](https://github.com/tada5hi/validup/commit/d2f0c042fe557ba192eb6d34ac6067f78c3bed67))
+
+
+### Bug Fixes
+
+* **deps:** bump the minorandpatch group across 1 directory with 8 updates ([#335](https://github.com/tada5hi/validup/issues/335)) ([8246912](https://github.com/tada5hi/validup/commit/8246912300fd35eb367072e0613424429668e894))
+* nested pathsToInclude/Exclude forwarding and core/adapter bugs ([f95d2aa](https://github.com/tada5hi/validup/commit/f95d2aa732450f5022b32a7765867e5e1d6f146c))
+
 ## [0.2.2](https://github.com/tada5hi/validup/compare/validup-v0.2.1...validup-v0.2.2) (2026-02-17)
 
 

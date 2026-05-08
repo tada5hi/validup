@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.2.5](https://github.com/tada5hi/validup/compare/zod-v0.2.4...zod-v0.2.5) (2026-05-08)
+
+
+### Features
+
+* add VitePress docs site and relicense to Apache-2.0 ([6b8e601](https://github.com/tada5hi/validup/commit/6b8e6017cae573e1290c971b6e699b97461fd0eb))
+* add zod & validator adapter + cleanup code base ([97311e0](https://github.com/tada5hi/validup/commit/97311e0217ae9b8e920506f26a0feedf057ad6d9))
+* better and simpler type/interface naming ([3859f36](https://github.com/tada5hi/validup/commit/3859f3693e4b8fa64c47cb193ee2879b94a69dfb))
+* change attribute error path type to string ([4df739b](https://github.com/tada5hi/validup/commit/4df739bd8d750cf9dce6384238305787a1a434f9))
+* compile-time output typing (improvements plan item 11) ([#362](https://github.com/tada5hi/validup/issues/362)) ([fd6b610](https://github.com/tada5hi/validup/commit/fd6b61095fecfd9ec243d5dc7a462d29402a0efa))
+* ship improvements plan items 4-10, 12-13 + ebec + Standard Schema ([#359](https://github.com/tada5hi/validup/issues/359)) ([d2f0c04](https://github.com/tada5hi/validup/commit/d2f0c042fe557ba192eb6d34ac6067f78c3bed67))
+* simplify mounting and executing validators ([b68a92f](https://github.com/tada5hi/validup/commit/b68a92fec598cd43c646908a13a3fd0e44c8310e))
+* simplify mounting child validators ([dcbc689](https://github.com/tada5hi/validup/commit/dcbc6898cd00450e490d80a499cd12993abe646c))
+
+
+### Bug Fixes
+
+* set path for zod errors ([7fe88f4](https://github.com/tada5hi/validup/commit/7fe88f49c51141a5a33463bd6d7ae0f373b2102e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * validup bumped from ^0.2.2 to ^0.3.0
+
 ## [0.2.4](https://github.com/tada5hi/validup/compare/adapter-zod-v0.2.3...adapter-zod-v0.2.4) (2026-02-17)
 
 
