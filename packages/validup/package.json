@@ -37,7 +37,7 @@
     "keywords": [],
     "license": "Apache-2.0",
     "dependencies": {
-        "@ebec/core": "^1.0.1",
+        "@ebec/core": "^1.1.0",
         "pathtrace": "^2.1.2",
         "smob": "^1.6.1"
     },
