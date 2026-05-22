@@ -389,13 +389,21 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         }
         return cached;
     }
-    function liveStateKeys(): string[] {
-        // Reads `stateRef.value` (not `toRaw`) so reactive effects that walk
-        // `Object.keys(fields)` re-run when the underlying state object's
-        // shape changes — adding/removing top-level keys is rare in form
-        // state but does happen with conditional sub-forms.
+
+    // Reactive-tracking helper for `Object.keys` / `key in fields` access.
+    // Routing the lookup through a `computed` guarantees Vue tracks the
+    // dependency on `stateRef` (and its reactive proxy's `ownKeys`) regardless
+    // of whether the consumer's effect walks the proxy via `has`, `ownKeys`,
+    // or `getOwnPropertyDescriptor`. Without this, code like
+    //   computed(() => Object.keys(v.fields))
+    // would not re-evaluate when state keys appeared or disappeared, breaking
+    // the documented "conditional sub-forms" use case.
+    const liveStateKeysRef = computed<string[]>(() => {
         const data = stateRef.value as Record<string, unknown> | null | undefined;
         return data && typeof data === 'object' ? Object.keys(data) : [];
+    });
+    function liveStateKeys(): string[] {
+        return liveStateKeysRef.value;
     }
 
     const fields = new Proxy({} as ValidupComposable<T>['fields'], {
