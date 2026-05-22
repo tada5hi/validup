@@ -129,7 +129,7 @@ npm run lint
 npm run lint:fix
 ```
 
-- **Node.js**: `>=22.0.0` (CI runs on 22)
+- **Node.js**: `>=24.0.0` (CI runs on 24)
 - **Test runner**: [Vitest 4](https://vitest.dev)
 - **Bundler**: [tsdown](https://tsdown.dev) — ESM-only output (`dist/index.mjs` + `dist/index.d.mts`)
 - **Lint**: ESLint v10 flat config

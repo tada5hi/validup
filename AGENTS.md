@@ -23,7 +23,7 @@ npm run lint
 npm run lint:fix
 ```
 
-- **Node.js**: `>=22.0.0` (CI runs on 22)
+- **Node.js**: `>=24.0.0` (CI runs on 24)
 - **Package manager**: `npm` workspaces (root `package.json` declares `workspaces: ["packages/*"]`)
 - **Build**: `tsc --noEmit` for typecheck, then `tsdown` for ESM-only JS + `.d.mts` bundles
 - **Test runner**: Vitest 4 (`globals: true`)
