@@ -406,6 +406,12 @@ export class Container<
             (group) => Promise.allSettled(group.tasks.map((t) => t.promise)),
         ));
 
+        // Re-check the abort signal after settling. Sequential `run`/`runSync`
+        // probe between every mount; the parallel variant can only check here
+        // and before `finalizeOutput`. Without this, validators that ignore
+        // `ctx.signal` would let an aborted run resolve to a successful result.
+        options.signal?.throwIfAborted();
+
         let itemCount = 0;
         let errorCount = 0;
 
@@ -450,6 +456,11 @@ export class Container<
                 }
             }
         }
+
+        // Final guard before returning a (potentially successful) value — if
+        // the run was aborted after the post-settle check but before the merge
+        // loop finished, propagate the abort instead of returning stale data.
+        options.signal?.throwIfAborted();
 
         return this.finalizeOutput(output, options, issues, errorCount, itemCount);
     }
@@ -632,6 +643,28 @@ export class Container<
     }
 
     /**
+     * Prepend `keyParts` to a child issue's `path` and — when the child is
+     * an `IssueGroup` — recurse into its nested issues so every leaf carries
+     * the parent prefix. Without recursion, a child container that already
+     * wrapped its own multi-issue mount in a group (or a `oneOf` child) would
+     * surface inner items with paths missing the parent segment, breaking
+     * downstream consumers that rely on `flattenIssueItems` for per-field
+     * lookup (e.g. `@validup/vue`).
+     */
+    private prefixIssuePath(issue: Issue, keyParts: PropertyKey[]): Issue {
+        const prefixed: Issue = {
+            ...issue,
+            path: [...keyParts, ...(issue.path || [])],
+        };
+        if (prefixed.type === 'group') {
+            prefixed.issues = prefixed.issues.map(
+                (nested) => this.prefixIssuePath(nested, keyParts),
+            );
+        }
+        return prefixed;
+    }
+
+    /**
      * Translate a per-mount throw into accumulated `issues`. Re-throws when
      * the run was aborted (signal-aware validators) so abort errors are not
      * mangled into validation issues. `keyParts` is the current mount's
@@ -659,15 +692,7 @@ export class Container<
 
         if (isValidupError(e)) {
             for (let i = 0; i < e.issues.length; i++) {
-                const issue = e.issues[i];
-
-                childIssues.push({
-                    ...issue,
-                    path: [
-                        ...keyParts,
-                        ...(issue.path || []),
-                    ],
-                });
+                childIssues.push(this.prefixIssuePath(e.issues[i], keyParts));
             }
         } else if (isError(e)) {
             childIssues.push(defineIssueItem({
@@ -704,7 +729,11 @@ export class Container<
         itemCount: number,
     ): T {
         if (this.options.oneOf) {
-            if (errorCount === itemCount) {
+            // Guard against the "all branches filtered out" case (group /
+            // pathsToInclude / pathsToExclude can leave itemCount === 0).
+            // Without it, a oneOf container with nothing to run would throw
+            // ONE_OF_FAILED with an empty issues list.
+            if (itemCount > 0 && errorCount === itemCount) {
                 const group = defineIssueGroup({
                     code: IssueCode.ONE_OF_FAILED,
                     message: 'None of the branches succeeded',

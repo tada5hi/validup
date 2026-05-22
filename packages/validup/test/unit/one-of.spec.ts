@@ -58,4 +58,30 @@ describe('oneOf', () => {
             }
         }
     });
+
+    it('should not throw when every branch is filtered out by group', async () => {
+        // Regression: oneOf compared errorCount === itemCount unconditionally,
+        // so a container whose branches were all filtered out (itemCount === 0)
+        // threw ONE_OF_FAILED with an empty issues list.
+        const container = new Container<{ foo: string, bar: string }>({ oneOf: true });
+        container.mount('foo', { group: 'create' }, stringValidator);
+        container.mount('bar', { group: 'create' }, stringValidator);
+
+        const output = await container.run({ foo: 'boz', bar: 'baz' }, { group: 'update' });
+
+        expect(output).toEqual({});
+    });
+
+    it('should not throw when every branch is filtered out by pathsToInclude', async () => {
+        const container = new Container<{ foo: string, bar: string }>({ oneOf: true });
+        container.mount('foo', stringValidator);
+        container.mount('bar', stringValidator);
+
+        const output = await container.run(
+            { foo: 'boz', bar: 'baz' },
+            { pathsToInclude: ['qux'] },
+        );
+
+        expect(output).toEqual({});
+    });
 });

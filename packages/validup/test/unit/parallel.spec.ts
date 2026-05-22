@@ -166,6 +166,36 @@ describe('Container.run parallel mode', () => {
         expect(out.b).toEqual('good');
     });
 
+    it('should honor abort even when validators ignore ctx.signal', async () => {
+        // Regression: runParallel only checked the signal at the gate before
+        // kicking off promises and via recordMountError on rejected tasks. A
+        // validator that ignored `ctx.signal` would let an aborted run resolve
+        // to a successful result. The fix adds explicit `throwIfAborted()`
+        // checks after `Promise.all` settles and before `finalizeOutput`.
+        const controller = new AbortController();
+        const signalDeaf: Validator = async (ctx) => {
+            // Abort lands while the validator is asleep — and the validator
+            // never observes ctx.signal. Mid-flight abort must still surface.
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, 20);
+            });
+            return ctx.value;
+        };
+
+        const container = new Container<{ a: string, b: string }>();
+        container.mount('a', signalDeaf);
+        container.mount('b', signalDeaf);
+
+        setTimeout(() => controller.abort(), 5);
+
+        try {
+            await container.run({ a: 1, b: 1 }, { parallel: true, signal: controller.signal });
+            expect.fail('expected abort');
+        } catch (e) {
+            expect((e as Error).name).toEqual('AbortError');
+        }
+    });
+
     it('should still honor group filtering in parallel mode', async () => {
         const seen: string[] = [];
         const tag = (name: string): Validator => async (ctx) => {
