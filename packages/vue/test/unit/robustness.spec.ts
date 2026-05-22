@@ -300,3 +300,49 @@ describe('$crossCuttingErrors surfaces internal path-less issues (F4)', () => {
         expect($v.$crossCuttingErrors.value[0]?.meta?.external).toBeUndefined();
     });
 });
+
+describe('Object.keys(fields) is reactive to state-shape changes', () => {
+    const noop: Validator = (ctx) => ctx.value;
+
+    it('re-runs a computed when a top-level state key is added or removed', async () => {
+        // Regression: the Proxy's `ownKeys`/`has`/`getOwnPropertyDescriptor`
+        // traps read `stateRef.value` directly inside each call, but consumers
+        // walking `Object.keys($v.fields)` inside a `computed` depended on Vue
+        // tracking those traps as reactive accesses. The fix routes key
+        // discovery through a `computed` so the dependency is always set up.
+        const container = new Container<Record<string, unknown>>();
+        container.mount('a', noop);
+        container.mount('b', noop);
+
+        const state = reactive<Record<string, unknown>>({ a: 'x' });
+        const $v = useValidup(container, state);
+        await flush();
+
+        const observed: string[][] = [];
+
+        // Mount a component that owns the `computed` so reactivity is
+        // exercised in the same setup-context useValidup expects.
+        const Comp = defineComponent({
+            setup() {
+                return { keys: () => Object.keys($v.fields) };
+            },
+            render() {
+                observed.push(this.keys());
+                return h('div');
+            },
+        });
+        const wrapper = mount(Comp);
+
+        expect(observed.at(-1)).toEqual(['a']);
+
+        state.b = 'y';
+        await nextTick();
+        expect(observed.at(-1)).toEqual(['a', 'b']);
+
+        delete state.a;
+        await nextTick();
+        expect(observed.at(-1)).toEqual(['b']);
+
+        wrapper.unmount();
+    });
+});
