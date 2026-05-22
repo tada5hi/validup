@@ -1,12 +1,11 @@
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2024-2026.
  * Author Peter Placzek (tada5hi)
  * For the full copyright and license information,
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { ContextRunner, FieldValidationError } from 'express-validator';
-import { distinctArray } from 'smob';
+import type { ContextRunner } from 'express-validator';
 import type { Issue, Validator, ValidatorContext } from 'validup';
 import { ValidupError } from 'validup';
 import { buildIssuesForErrors } from './error';
@@ -19,32 +18,31 @@ export function createValidator<C = unknown>(
     input: ContextRunnerCreateFn<C> | ContextRunner,
 ) : Validator<C> {
     return async (ctx): Promise<unknown> => {
-        let runner : ContextRunner;
-        if (typeof input === 'function') {
-            runner = input(ctx);
-        } else {
-            runner = input;
-        }
+        const runner: ContextRunner = typeof input === 'function' ? input(ctx) : input;
 
         const outcome = await runner.run({ body: ctx.value });
 
-        const issues : Issue[] = [];
+        // Translate every error reported by the chain — including `alternative`
+        // and `alternative_grouped` shapes, which the previous implementation
+        // filtered out by matching only `type === 'field'` against the first
+        // selected field.
+        const issues: Issue[] = buildIssuesForErrors(
+            outcome.context.errors as Parameters<typeof buildIssuesForErrors>[0],
+        );
 
-        const [field] = outcome.context.getData({ requiredOnly: false });
-        if (field) {
-            const errors = distinctArray(outcome.context.errors.filter(
-                (error) => error.type === 'field' &&
-                    error.location === field.location &&
-                    error.path === field.path,
-            ) as FieldValidationError[]);
-
-            if (errors.length > 0) {
-                issues.push(...buildIssuesForErrors(errors));
-            } else {
-                return field.value;
-            }
+        if (issues.length > 0) {
+            throw new ValidupError(issues);
         }
 
-        throw new ValidupError(issues);
+        // No errors — return the (possibly sanitized) value. Express-validator
+        // mutates `FieldInstance.value` in place as sanitizers run, so
+        // `field.value` reflects post-sanitizer state. When the chain selects a
+        // single field we forward that; otherwise the chain doesn't designate
+        // a primary value, so fall back to the original input.
+        const fields = outcome.context.getData({ requiredOnly: false });
+        if (fields.length === 1) {
+            return fields[0].value;
+        }
+        return ctx.value;
     };
 }
