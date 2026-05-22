@@ -38,7 +38,7 @@
     "license": "Apache-2.0",
     "dependencies": {
         "validup": "^0.2.2",
-        "smob": "^1.6.1"
+        "smob": "^1.6.2"
     },
     "devDependencies": {
         "express-validator": "^7.3.1"
