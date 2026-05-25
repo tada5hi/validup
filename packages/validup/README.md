@@ -49,6 +49,7 @@ Mount any validator function (or nested container) onto any path of your input, 
   - [Issue Helpers](#issue-helpers)
   - [Type Guards](#type-guards)
 - [Integrations](#integrations)
+- [Stability](#stability)
 - [License](#license)
 
 ## Installation
@@ -395,7 +396,7 @@ await container.run({ name: '', count: 0 });  // ✅ name skipped, count validat
 
 ## oneOf Branches
 
-A container created with `{ oneOf: true }` succeeds if **any one** of its mounts succeeds. Failures are aggregated into a single `IssueGroup` only when **all** branches fail.
+A container created with `{ oneOf: true }` succeeds if **any one** of its mounts succeeds. Failures are aggregated into a single `IssueGroup` (code `one_of_failed`) only when **all** branches fail, and each branch's contribution is wrapped in its own sub-group so consumers can recover per-branch identity.
 
 ```typescript
 const credential = new Container({ oneOf: true });
@@ -407,8 +408,19 @@ await credential.run({ email: 'peter@example.com' });
 // → { email: 'peter@example.com' } — username branch failure is ignored
 
 await credential.run({ email: 'not-an-email', username: 'invalid' });
-// → throws ValidupError with one IssueGroup (code: 'one_of_failed')
+// → throws ValidupError. error.issues is shaped:
+// [
+//   {
+//     type: 'group', code: 'one_of_failed', path: [],
+//     issues: [
+//       { type: 'group', path: [], params: { branch: 0, name: 'email' },    issues: [...] },
+//       { type: 'group', path: [], params: { branch: 1, name: 'username' }, issues: [...] },
+//     ],
+//   },
+// ]
 ```
+
+The per-branch sub-group's `params.branch` is the mount index (in registration order) and `params.name` is the mount path. Use `flattenIssueItems(error.issues)` for a flat list of leaf failures regardless of branch, or walk the sub-groups when you need to report which branch failed and why.
 
 ## Path Filtering
 
@@ -716,6 +728,30 @@ Use one of the official integration packages to bridge an existing validator lib
 | [`@validup/zod`](https://npmjs.com/package/@validup/zod)                             | [zod](https://zod.dev) schemas (vendor-specific issue mapping with `expected` / `received`) |
 | [`@validup/express-validator`](https://npmjs.com/package/@validup/express-validator) | [express-validator](https://express-validator.github.io) chains                |
 | [`@validup/vue`](https://npmjs.com/package/@validup/vue)                             | [Vue 3](https://vuejs.org) composable for reactive client-side form state      |
+
+## Stability
+
+What's covered by semver:
+
+- **Public exports** — everything re-exported from `validup`'s entry barrel (`Container`, `defineSchema`, `ValidupError`, `Issue` / factories / guards, `IssueCode`, `GroupKey`, `OptionalValue`, helpers in `formatIssue` / `flattenIssue*`).
+- **`Container` runtime contract** — `run` / `runSync` / `runParallel` (via `parallel: true`) / `safeRun` / `safeRunSync`, including their throw-contracts as documented on `IContainer` (`safeRun` throws only on abort).
+- **`Issue` and `ValidupError` shape** — the discriminated union (`type: 'item' | 'group'`), `params`, `meta`, `code` widening to `IssueCode | (string & {})`.
+- **Mount API** — variadic `mount(...)` argument forms listed in [Mounting](#mounting).
+- **`onefOf` aggregation shape** — `IssueCode.ONE_OF_FAILED` group wrapping per-branch sub-groups (see [oneOf Branches](#oneof-branches)).
+
+Extension points:
+
+- **`IssueCodeRegistry`** — declaration-merge in third-party packages to add typed codes (see [Issue Codes](#issue-codes)).
+- **`Validator<C, Out>`** — `C` (context) and `Out` (return type) generics participate in builder inference; defaults stay `unknown`.
+- **`IContainer`** — opt-in interface; integration packages can implement it to be mountable as a nested container.
+- **`isContainer` / `isValidupError`** — duck-typed guards that tolerate package duplicates and cross-realm throws. Prefer these over `instanceof` at boundaries.
+
+Internal (no semver guarantee):
+
+- Anything not re-exported from `src/index.ts`, including private helpers (`recordMountError`, `finalizeOutput`, etc.) and the `RunSyncViolationError` class.
+- Default English `Issue.message` strings — re-render via `formatIssue` and a `code → template` map if you depend on specific wording.
+
+Deprecation policy: a removal lands in at least one minor release as a deprecation (JSDoc `@deprecated` + console warning where feasible) before the next major drops it.
 
 ## License
 

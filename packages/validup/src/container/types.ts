@@ -94,11 +94,17 @@ export type ContainerRunOptions<
      * resources (DB lookups, HTTP calls). Forwarded unchanged into nested
      * `run()` calls.
      *
-     * Trade-off: in parallel mode each mount captures its `value` from the
-     * input `data` *before* any other mount runs, so a later mount can no
-     * longer read an earlier mount's transformed `output[key]`. Use
-     * sequential mode (the default) for chained-key sanitize-then-validate
-     * patterns.
+     * **Trade-off — chained-key reads are not supported in parallel mode.**
+     * Sequential `run()` reads each mount's `value` from `output[key]` when
+     * an earlier sibling mount already wrote there (so a sanitizer at
+     * `email` followed by a validator at `email` sees the sanitized output).
+     * Parallel mode reads `value` from the input `data` for every mount
+     * because siblings may not have completed yet. If you rely on chained
+     * sanitize-then-validate patterns, stay on sequential mode (the
+     * default). The behavior is intentional and consistent between
+     * `run({parallel: true})` and `safeRun({parallel: true})` — there is
+     * no diagnostic when a chained pattern is used in parallel mode; the
+     * later mount silently observes the un-sanitized input.
      */
     parallel?: boolean
 };
@@ -153,10 +159,9 @@ export type Result<T extends ObjectLiteral = ObjectLiteral> = ResultSuccess<T> |
 
 export interface IContainer<T extends ObjectLiteral = ObjectLiteral, C = unknown> {
     /**
-     * Run container with given input.
-     *
-     * @param input
-     * @param options
+     * Run the container against `input`. Throws `ValidupError` on validation
+     * failure; rethrows `signal.reason` when the run is aborted via
+     * `options.signal`.
      */
     run(
         input?: Record<string, any>,
@@ -164,10 +169,17 @@ export interface IContainer<T extends ObjectLiteral = ObjectLiteral, C = unknown
     ): Promise<T>
 
     /**
-     * Safe run container with given input.
+     * Run the container against `input` and return a discriminated `Result`
+     * instead of throwing on validation failure.
      *
-     * @param input
-     * @param options
+     * **Contract — when `safeRun` can still throw:**
+     * - The run is aborted via `options.signal` — `signal.reason` is
+     *   re-thrown verbatim so callers can distinguish "validation failed"
+     *   from "operation cancelled."
+     * - This is the **only** sanctioned reason. Implementations that throw
+     *   for any other reason violate the contract; consumers that wrap
+     *   `safeRun` in a defensive `try/catch` (e.g. `@validup/vue`) treat
+     *   such throws as a synthetic path-less failure.
      */
     safeRun(
         input?: Record<string, any>,
@@ -179,6 +191,11 @@ export interface IContainer<T extends ObjectLiteral = ObjectLiteral, C = unknown
      * this when their validators are inherently async. The default
      * `Container` provides it; nested containers without it cannot be
      * traversed by a parent's `runSync`.
+     *
+     * Throws `RunSyncViolationError` (structural — distinct from validation
+     * failures) when any validator returns a thenable or any nested
+     * container lacks `runSync`. Those throws bypass the issue-folding path
+     * and surface verbatim.
      */
     runSync?(
         input?: Record<string, any>,
@@ -187,6 +204,10 @@ export interface IContainer<T extends ObjectLiteral = ObjectLiteral, C = unknown
 
     /**
      * Synchronous variant of `safeRun()`. Optional — same caveat as `runSync`.
+     *
+     * Same throw-contract as `safeRun`, plus: `RunSyncViolationError`s are
+     * re-thrown (not wrapped into `Result.failure`) because they signal a
+     * structural mismatch, not a validation outcome.
      */
     safeRunSync?(
         input?: Record<string, any>,

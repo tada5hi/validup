@@ -11,15 +11,22 @@ export enum GroupKey {
 
 export enum OptionalValue {
     /**
-     * value: undefined
+     * Treats only `undefined` as optional. Default.
      */
     UNDEFINED = 'undefined',
     /**
-     * value: null & undefined
+     * Treats `null` and `undefined` as optional.
      */
     NULL = 'null',
     /**
-     * value: empty string, false, 0
+     * Treats any JS falsy value as optional — `undefined`, `null`, `false`,
+     * `0`, `''`, `NaN`.
+     *
+     * **Warning**: this includes `0` and `''`. For quantity / numeric fields
+     * where `0` is a meaningful value, prefer the predicate form
+     * `optional: (value) => boolean` so you keep control over what counts as
+     * missing (e.g. `optional: (v) => v === '' || v === undefined` drops the
+     * empty string but keeps `0`).
      */
     FALSY = 'falsy',
 }

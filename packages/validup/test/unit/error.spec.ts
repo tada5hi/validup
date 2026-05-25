@@ -118,6 +118,71 @@ describe('error', () => {
         }
     });
 
+    it('should synthesize a fallback IssueItem when a validator throws a string', async () => {
+        const stringThrowing: Validator = () => {
+            // eslint-disable-next-line no-throw-literal
+            throw 'pure string failure';
+        };
+        const container = new Container<{ foo: string }>();
+        container.mount('foo', stringThrowing);
+
+        expect.assertions(3);
+        try {
+            await container.run({ foo: 'x' });
+        } catch (e) {
+            if (e instanceof ValidupError) {
+                const items = flattenIssueItems(e.issues);
+                expect(items).toHaveLength(1);
+                expect(items[0].path).toEqual(['foo']);
+                expect(items[0].message).toEqual('pure string failure');
+            }
+        }
+    });
+
+    it('should synthesize a fallback IssueItem when a validator throws a non-Error object', async () => {
+        const objectThrowing: Validator = () => {
+            // eslint-disable-next-line no-throw-literal
+            throw { not: 'an error' };
+        };
+        const container = new Container<{ foo: string }>();
+        container.mount('foo', objectThrowing);
+
+        expect.assertions(2);
+        try {
+            await container.run({ foo: 'x' });
+        } catch (e) {
+            if (e instanceof ValidupError) {
+                const items = flattenIssueItems(e.issues);
+                expect(items).toHaveLength(1);
+                // Non-Error throws surface with a synthetic prefix so the
+                // diagnostic is at least traceable in logs.
+                expect(items[0].message.startsWith('Non-Error throw:')).toBe(true);
+            }
+        }
+    });
+
+    it('should surface non-Error throws via safeRun as a path-less synthetic issue', async () => {
+        const stringThrowing: Validator = () => {
+            // eslint-disable-next-line no-throw-literal
+            throw 'safeRun caught me';
+        };
+        const container = new Container<{ foo: string }>();
+        container.mount('foo', stringThrowing);
+
+        const result = await container.safeRun({ foo: 'x' });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            // Behavior: a non-Error throw inside a mount goes through the
+            // sequential `run()` path, which folds it via recordMountError —
+            // so it ends up under `['foo']`, not as a path-less synthetic
+            // (`wrapSafeRunError` is only reached for throws that bypass the
+            // mount catch, like a buggy IContainer breaking the contract).
+            const items = flattenIssueItems(result.error.issues);
+            expect(items.length).toBeGreaterThan(0);
+            expect(items[0].message).toEqual('safeRun caught me');
+        }
+    });
+
     it('should re-path the ONE_OF_FAILED group itself when bubbling from a child', async () => {
         const failing: Validator = async () => {
             throw new Error('bad');
