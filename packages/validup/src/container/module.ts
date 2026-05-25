@@ -314,6 +314,12 @@ export class Container<
 
         type ItemGroup = {
             item: Mount<C>,
+            // Original registration index in `this.items`. Tracked separately
+            // from the position in `itemGroups` because group-filtered mounts
+            // are dropped from `itemGroups` — without this, `params.branch`
+            // emitted by `wrapBranchForOneOf` would not match the
+            // registration order seen by the consumer.
+            mountIndex: number,
             tasks: KeyTask[],
             // optional/skip paths that completed inline still count toward
             // the per-item pathCount used for oneOf / errorCount tracking.
@@ -417,9 +423,10 @@ export class Container<
 
             if (tasks.length > 0 || syncPathCount > 0) {
                 itemGroups.push({
-                    item, 
-                    tasks, 
-                    syncPathCount, 
+                    item,
+                    mountIndex: i,
+                    tasks,
+                    syncPathCount,
                 });
             }
         }
@@ -441,6 +448,7 @@ export class Container<
 
         for (const [i, {
             item,
+            mountIndex,
             tasks,
             syncPathCount,
         }] of itemGroups.entries()) {
@@ -478,7 +486,11 @@ export class Container<
                 itemCount++;
                 if (pathFailed) {
                     errorCount++;
-                    this.wrapBranchForOneOf(issues, branchStart, item, i);
+                    // Use the original registration index so `params.branch`
+                    // matches the registration order regardless of group
+                    // filtering — sequential `run()` / `runSync()` already
+                    // pass the registration index directly.
+                    this.wrapBranchForOneOf(issues, branchStart, item, mountIndex);
                 }
             }
         }

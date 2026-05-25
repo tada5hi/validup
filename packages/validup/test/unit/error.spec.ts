@@ -161,7 +161,7 @@ describe('error', () => {
         }
     });
 
-    it('should surface non-Error throws via safeRun as a path-less synthetic issue', async () => {
+    it('should record non-Error throws under the mounted path via safeRun', async () => {
         const stringThrowing: Validator = () => {
             // eslint-disable-next-line no-throw-literal
             throw 'safeRun caught me';
@@ -172,13 +172,15 @@ describe('error', () => {
         const result = await container.safeRun({ foo: 'x' });
         expect(result.success).toBe(false);
         if (!result.success) {
-            // Behavior: a non-Error throw inside a mount goes through the
-            // sequential `run()` path, which folds it via recordMountError —
-            // so it ends up under `['foo']`, not as a path-less synthetic
-            // (`wrapSafeRunError` is only reached for throws that bypass the
-            // mount catch, like a buggy IContainer breaking the contract).
+            // A non-Error throw inside a mount goes through the sequential
+            // `run()` path, which folds it via recordMountError — so it ends
+            // up attached to the mount's path (`['foo']`), not as a path-less
+            // synthetic. (`wrapSafeRunError`'s path-less synthesis is reserved
+            // for throws that bypass the mount catch entirely — e.g. a buggy
+            // `IContainer` implementation breaking `safeRun`'s contract.)
             const items = flattenIssueItems(result.error.issues);
-            expect(items.length).toBeGreaterThan(0);
+            expect(items).toHaveLength(1);
+            expect(items[0].path).toEqual(['foo']);
             expect(items[0].message).toEqual('safeRun caught me');
         }
     });

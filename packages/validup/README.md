@@ -737,7 +737,7 @@ What's covered by semver:
 - **`Container` runtime contract** — `run` / `runSync` / `runParallel` (via `parallel: true`) / `safeRun` / `safeRunSync`, including their throw-contracts as documented on `IContainer` (`safeRun` throws only on abort).
 - **`Issue` and `ValidupError` shape** — the discriminated union (`type: 'item' | 'group'`), `params`, `meta`, `code` widening to `IssueCode | (string & {})`.
 - **Mount API** — variadic `mount(...)` argument forms listed in [Mounting](#mounting).
-- **`onefOf` aggregation shape** — `IssueCode.ONE_OF_FAILED` group wrapping per-branch sub-groups (see [oneOf Branches](#oneof-branches)).
+- **`oneOf` aggregation shape** — `IssueCode.ONE_OF_FAILED` group wrapping per-branch sub-groups (see [oneOf Branches](#oneof-branches)).
 
 Extension points:
 

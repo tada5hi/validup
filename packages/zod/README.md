@@ -169,7 +169,7 @@ function createValidator<C = unknown>(input: ZodType | ((ctx: ValidatorContext<C
 What's covered by semver:
 
 - **Public exports** — `createValidator`, `buildIssuesForZodError`, `buildZodIssuesForError`, `buildZodIssuesForIssue`, and the `ZodIssue` type alias.
-- **Error-mapping shape** — `IssueItem.path` mirrors the failing zod path; `IssueItem.expected` / `received` are populated when zod exposes them; vendor-specific zod fields (`code`, `params`, …) are intentionally not surfaced (use `@validup/zod`'s `buildZodIssuesForError` round-trip if you need the original zod data).
+- **Error-mapping shape** — `IssueItem.path` mirrors the failing zod path; `IssueItem.expected` / `received` are populated when zod exposes them. Other zod-only fields (`code`, `params`, …) are intentionally not surfaced. `buildZodIssuesForError` reconstructs a zod-shaped representation from a `ValidupError` (`code: 'custom'`, the message, the path, and the original `received` value as `input`) — it does **not** recover the dropped zod fields. If you need them end-to-end, keep the `ZodError` available alongside the `ValidupError`.
 - **Per-context schema factory** — `(ctx: ValidatorContext<C>) => ZodType` invocation contract.
 
 Known lossy behavior:

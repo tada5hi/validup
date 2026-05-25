@@ -166,9 +166,11 @@ describe('module/mount-key', () => {
 
     it('should reject mount() with multiple options objects', () => {
         const container = new Container();
-        const validator = (ctx: ValidatorContext) => ctx.value;
+        // Three args (path + two options objects) stays within the arity
+        // guard so the duplicate-options branch is the one that fires.
+        // Passing a fourth (validator) would trip the >3 args guard first.
         expect(
-            () => (container.mount as (...args: unknown[]) => void)('foo', { optional: true }, { group: 'a' }, validator),
-        ).toThrow(/at most 3 arguments/);
+            () => (container.mount as (...args: unknown[]) => void)('foo', { optional: true }, { group: 'a' }),
+        ).toThrow(/multiple options objects/);
     });
 });
