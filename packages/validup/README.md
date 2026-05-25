@@ -35,9 +35,10 @@ Mount any validator function (or nested container) onto any path of your input, 
 - [Defaults](#defaults)
 - [Context](#context)
 - [Cancellation](#cancellation)
-- [Parallel Execution](#parallel-execution)
-- [Safe Run](#safe-run)
-- [Sync Fast Path](#sync-fast-path)
+- [Run Modes](#run-modes)
+  - [Parallel Execution](#parallel-execution)
+  - [Safe Run](#safe-run)
+  - [Sync Fast Path](#sync-fast-path)
 - [Localized Messages](#localized-messages)
 - [Error Handling](#error-handling)
   - [ValidupError](#validuperror)
@@ -481,7 +482,26 @@ try {
 
 `safeRun()` rethrows the abort reason (it is never wrapped into a `Result.failure`) so callers can distinguish "validation failed" from "operation cancelled".
 
-## Parallel Execution
+## Run Modes
+
+Five methods cover three orthogonal axes — **sync vs async**, **throw vs no-throw `Result`**, and **sequential vs parallel** (async only):
+
+| Need                                              | Call                                          | Returns               |
+|---------------------------------------------------|-----------------------------------------------|-----------------------|
+| Async, throws on validation failure (default)     | `container.run(input, opts)`                  | `Promise<T>`          |
+| Async, throws, parallel mounts                    | `container.run(input, { parallel: true })`    | `Promise<T>`          |
+| Async, no-throw `Result`                          | `container.safeRun(input, opts)`              | `Promise<Result<T>>`  |
+| Async, no-throw, parallel mounts                  | `container.safeRun(input, { parallel: true })`| `Promise<Result<T>>`  |
+| Sync, throws on validation failure                | `container.runSync(input, opts)`              | `T`                   |
+| Sync, no-throw `Result`                           | `container.safeRunSync(input, opts)`          | `Result<T>`           |
+
+`sync + parallel` is intentionally not a combination — `Promise.allSettled` is async by definition, and sync graphs don't benefit from concurrency.
+
+**When `safe*` still throws:** the abort reason from `options.signal`, and the structural `RunSyncViolationError` from `safeRunSync` when a validator returns a Promise or a nested container doesn't implement `runSync`. Both bypass the issue-folding path so callers can distinguish them from validation outcomes.
+
+Details on each axis below.
+
+### Parallel Execution
 
 By default mounts run sequentially in registration order. For containers whose mounts hit independent slow async resources (multiple DB lookups, HTTP calls), opt into parallel mode:
 
@@ -493,7 +513,7 @@ All mounts kick off concurrently and the results merge in registration order —
 
 **Trade-off**: in parallel mode each mount captures its `value` from the input `data` *before* any sibling mount runs, so a later mount can no longer read an earlier mount's transformed `output[key]`. Stick with sequential mode (the default) for chained-key sanitize-then-validate patterns.
 
-## Safe Run
+### Safe Run
 
 `safeRun()` returns a discriminated `Result<T>` instead of throwing — handy when you want to deal with errors without `try/catch`:
 
@@ -507,7 +527,7 @@ if (result.success) {
 }
 ```
 
-## Sync Fast Path
+### Sync Fast Path
 
 When every mounted validator (and every nested container's `runSync`) is synchronous, use `runSync()` / `safeRunSync()` to skip the per-mount microtask overhead of `await`:
 
