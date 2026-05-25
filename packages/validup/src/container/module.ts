@@ -153,12 +153,18 @@ export class Container<
      *   variants for graphs where every validator (and every nested container's
      *   `runSync`) is synchronous.
      *
-     * Rethrows `options.signal.reason` when the run is aborted — abort is
-     * surfaced as the signal's reason, not folded into the issue tree, so
-     * callers can distinguish "validation failed" from "operation cancelled".
+     * Aborts surface verbatim — the abort is detected via `signal.throwIfAborted()`
+     * between mounts (which throws `signal.reason`), and any error raised by a
+     * mid-flight validator during an aborted run is re-thrown as-is rather than
+     * folded into the issue tree. Callers can therefore distinguish "validation
+     * failed" from "operation cancelled," but should not assume the thrown value
+     * is always `signal.reason` — a validator that throws its own error before
+     * the next abort check produces that error instead.
      *
      * @throws ValidupError on validation failure.
-     * @throws signal.reason when aborted via `options.signal`.
+     * @throws signal.reason when the abort check fires between mounts.
+     * @throws (mid-flight validator error) when a validator throws during an
+     *         already-aborted run — re-raised as-is rather than wrapped.
      */
     async run(
         data: Record<string, any> = {},
@@ -506,10 +512,18 @@ export class Container<
      * No `parallel` variant — synchronous graphs don't benefit from
      * concurrency, and `Promise.allSettled` is async by definition.
      *
+     * Aborts surface the same way as {@link Container.run}: the
+     * `signal.throwIfAborted()` check between mounts throws `signal.reason`,
+     * and a mid-flight validator throw during an already-aborted run is
+     * re-raised verbatim. Don't assume the thrown value is always
+     * `signal.reason`.
+     *
      * @throws ValidupError on validation failure.
      * @throws RunSyncViolationError when a validator returns a Promise or a
      *         nested container does not implement `runSync`.
-     * @throws signal.reason when aborted via `options.signal`.
+     * @throws signal.reason when the abort check fires between mounts.
+     * @throws (mid-flight validator error) when a validator throws during an
+     *         already-aborted run.
      */
     runSync(
         data: Record<string, any> = {},

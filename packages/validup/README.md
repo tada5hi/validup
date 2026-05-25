@@ -484,7 +484,7 @@ try {
 
 ## Run Modes
 
-Five methods cover three orthogonal axes — **sync vs async**, **throw vs no-throw `Result`**, and **sequential vs parallel** (async only):
+Four methods — `container.run` / `container.runSync` / `container.safeRun` / `container.safeRunSync` — plus a `parallel` flag on the async ones cover three orthogonal axes: **sync vs async**, **throw vs no-throw `Result`**, and **sequential vs parallel** (async only):
 
 | Need                                              | Call                                          | Returns               |
 |---------------------------------------------------|-----------------------------------------------|-----------------------|
