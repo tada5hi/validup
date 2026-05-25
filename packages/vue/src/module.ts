@@ -7,12 +7,9 @@
 
 import {
     computed,
-    getCurrentInstance,
     getCurrentScope,
-    inject,
     isRef,
     onScopeDispose,
-    provide,
     reactive,
     ref,
     toRaw,
@@ -34,13 +31,12 @@ import {
     isIssueGroup,
     isValidupError,
 } from 'validup';
-import { PARENT_INJECTION_KEY } from './helpers/child';
+import { useValidupCollector } from './helpers/collector';
 import type {
-    ContainerInput, 
-    FieldState, 
-    ParentRegistry, 
-    StateInput, 
-    ValidupComposable, 
+    ContainerInput,
+    FieldState,
+    StateInput,
+    ValidupComposable,
     ValidupComposableOptions,
 } from './types';
 
@@ -215,43 +211,17 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
     }
 
     // ---- nested form registry ----------------------------------------------
-    // Plain Map (not reactive) — `$getResultsForChild` is consumed imperatively
-    // (e.g. inside a submit handler), and Vue's `reactive()` would unwrap the
-    // child composable's refs, mangling the public type.
+    // Parent/child collector tree carved out into a private helper so the
+    // wiring (inject/provide, scope-keyed Symbol, attach-on-mount,
+    // unregister-on-dispose) lives in one place and `useValidup` stays
+    // focused on validation state. See helpers/collector.ts.
 
-    const childRegistry = new Map<string, ValidupComposable<any>>();
-
-    const ownRegistry: ParentRegistry = {
-        register(name, child) {
-            childRegistry.set(name, child);
-        },
-        unregister(name) {
-            childRegistry.delete(name);
-        },
-    };
-
-    // Scoped parent/child injection — same-scope parents see same-scope
-    // descendants; the unscoped key continues to behave as before.
-    const ownInjectionKey = options.scope ?
-        Symbol.for(`validup:parent:${options.scope}`) :
-        PARENT_INJECTION_KEY;
-
-    // Only provide / inject within a component setup context.
-    //
-    // - `detached: true` skips BOTH `inject()` and `provide()` — the
-    //   composable is invisible to ancestors *and* descendants.
-    // - `stopPropagation: true` skips `inject()` (won't register with a
-    //   parent) but still calls `provide()` so descendants can register
-    //   with this composable. This is the common "this is the root of an
-    //   aggregation tree" flag.
-    const inComponent = getCurrentInstance() !== null;
-    let parent: ParentRegistry | undefined;
-    if (inComponent && !options.detached) {
-        if (!options.stopPropagation) {
-            parent = inject(ownInjectionKey, undefined);
-        }
-        provide(ownInjectionKey, ownRegistry);
-    }
+    const collector = useValidupCollector({
+        name: options.name,
+        scope: options.scope,
+        detached: options.detached,
+        stopPropagation: options.stopPropagation,
+    });
 
     // ---- per-path issue selection ------------------------------------------
 
@@ -549,16 +519,12 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         $reset,
         $validate,
         setExternalIssues,
-        $getResultsForChild: <C extends ObjectLiteral = ObjectLiteral>(name: string) => childRegistry.get(name) as ValidupComposable<C> | undefined,
+        $getResultsForChild: <C extends ObjectLiteral = ObjectLiteral>(name: string) =>
+            collector.childRegistry.get(name) as ValidupComposable<C> | undefined,
         fields,
     };
 
-    if (inComponent && parent && options.name) {
-        parent.register(options.name, composable);
-        if (getCurrentScope()) {
-            onScopeDispose(() => parent!.unregister(options.name as string));
-        }
-    }
+    collector.attach(composable);
 
     if (getCurrentScope()) {
         // Abort in-flight scheduled runs AND drop any pending debounced
