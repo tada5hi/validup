@@ -35,6 +35,7 @@ Drive form validation from a validup `Container<T>` with a vuelidate-shaped comp
 - [Severity](#severity)
 - [API Reference](#api-reference)
 - [Migrating from Vuelidate](#migrating-from-vuelidate)
+- [Stability](#stability)
 - [License](#license)
 
 ## Installation
@@ -45,7 +46,7 @@ npm install @validup/vue validup vue --save
 
 | Peer dependency | Supported versions |
 |-----------------|--------------------|
-| `validup`       | `^0.2.2`           |
+| `validup`       | `^1.0.0`           |
 | `vue`           | `^3.3`             |
 
 ## Quick Start
@@ -449,6 +450,32 @@ What changes substantively:
 - **Async timing** — `options.lazy` is the analog of Vuelidate's `$lazy: true`. By default, validation runs eagerly internally and per-field error rendering is gated on `$dirty`, so the visible UX matches Vuelidate's `$lazy: true`. Pass `lazy: true` to additionally skip the on-mount probe (useful for expensive async validators).
 - **`$autoDirty`** — set `options.autoDirty: true` when state is mutated outside of `$model` (e.g. via Pinia store actions). Default-off preserves silent hydration.
 - **`$scope`** — set `options.scope` on both parent and children to partition multiple aggregation roots (multi-step wizards, tab panels). Replaces Vuelidate's `$scope` config.
+
+## Stability
+
+What's covered by semver:
+
+- **Public exports** — `useValidup`, `getValidupSeverity`, `extractValidupResultsFromChild`, `PARENT_INJECTION_KEY`, and the `ValidupComposable` / `FieldState` / `ValidupComposableOptions` / `ValidupSeverity` types.
+- **`ValidupComposable<T>` shape** — every documented member in the [API Reference](#api-reference) table, including the `$crossCuttingErrors` / `$groupErrors` accessors and the `setExternalIssues` / `$validate` / `$getResultsForChild` methods.
+- **Options contract** — `group`, `context`, `debounce`, `name`, `stopPropagation`, `detached`, `lazy`, `autoDirty`, `scope`. New options will be additive within a major.
+- **Parent / child collector protocol** — `PARENT_INJECTION_KEY` and per-scope `Symbol.for('validup:parent:<scope>')` are the wire format. Third-party composables can `provide` / `inject` the same key to participate.
+- **Dirty / external-issue semantics** — `$model` writes flip dirty + auto-clear external issues at the same path; `$reset` clears dirty + external but leaves internal issues (which reflect current state); `setExternalIssues` tags entries with `meta.external = true`.
+
+Extension points:
+
+- **Custom aggregation roots** — `stopPropagation: true` (collect descendants, ignore ancestors) and `detached: true` (invisible in both directions) are the two blessed shapes.
+- **Buggy `IContainer` safety net** — a defensive `try/catch` around `safeRun` surfaces a path-less synthetic `IssueItem` (`code: VALUE_INVALID`) in `$crossCuttingErrors` rather than crashing the watcher.
+
+Internal (no semver guarantee):
+
+- The `Proxy`-backed `fields` accessor's exact dispatch (`getOwnPropertyDescriptor` returning a data descriptor with `value`, etc.) — observable behavior (per-field state, reactive key tracking) is stable; the underlying mechanism is not.
+- The run-id / abort token internals.
+
+Peer dependency policy:
+
+- `validup ^1.0.0`, `vue ^3.3`, `@vueuse/core` (transitive).
+
+Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.
 
 ## License
 

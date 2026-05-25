@@ -16,6 +16,7 @@ Mount any Standard Schema as a validup `Validator` on a `Container` path; validu
 - [Error Mapping](#error-mapping)
 - [Choosing Between `@validup/zod` and `@validup/standard-schema`](#choosing-between-validupzod-and-validupstandard-schema)
 - [API Reference](#api-reference)
+- [Stability](#stability)
 - [License](#license)
 
 ## Installation
@@ -93,9 +94,8 @@ The adapter then throws a `ValidupError` with those issues; validup's container 
 | Vendor-portable adapter — swap libraries without touching mounts | `@validup/standard-schema` |
 | Surface zod's `expected` / `received` on issues       | `@validup/zod`             |
 | Bidirectional `validup ↔ zod` issue conversion        | `@validup/zod`             |
-| zod 3.x (< 3.24, no Standard Schema support)          | `@validup/zod`             |
 
-Both packages can coexist in the same project.
+Both packages can coexist in the same project. (`@validup/zod` requires `zod ^4.0.0` since 1.0; for zod 3.24+ via Standard Schema, use this package.)
 
 ## API Reference
 
@@ -108,6 +108,20 @@ function buildIssuesForStandardSchemaIssues(
     issues: ReadonlyArray<StandardSchemaV1.Issue>,
 ): Issue[];
 ```
+
+## Stability
+
+What's covered by semver:
+
+- **Public exports** — `createValidator` and `buildIssuesForStandardSchemaIssues`.
+- **Spec-portable issue mapping** — `message` and `path` are carried verbatim; `code` defaults to `IssueCode.VALUE_INVALID`. Vendor-specific fields are **not** part of the spec and never surface here.
+- **Per-context schema factory** — `(ctx: ValidatorContext<C>) => StandardSchemaV1` invocation contract.
+
+If you need vendor-specific fields like zod's `expected` / `received`, use [`@validup/zod`](https://npmjs.com/package/@validup/zod) instead — both packages can coexist.
+
+Peer dependency policy: no runtime peer deps. The adapter operates against the `@standard-schema/spec` types only and works against any spec-compatible schema instance (zod 3.24+, valibot, arktype, effect-schema, …).
+
+Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.
 
 ## License
 

@@ -22,6 +22,7 @@ Wrap any express-validator `ValidationChain` as a validup `Validator`, mount it 
 - [Per-Context Chains](#per-context-chains)
 - [Error Mapping](#error-mapping)
 - [API Reference](#api-reference)
+- [Stability](#stability)
 - [License](#license)
 
 ## Installation
@@ -160,6 +161,24 @@ function createValidator<C = unknown>(
 
 function createValidationChain(): ValidationChain;
 ```
+
+## Stability
+
+What's covered by semver:
+
+- **Public exports** — `createValidator`, `createValidationChain`, and `buildIssuesForErrors`.
+- **Error-mapping shape** — all three express-validator error types (`field`, `alternative`, `alternative_grouped`) are mapped:
+  - `field` → flat `IssueItem` with the failing field name parsed into `path: PropertyKey[]` (numeric bracket indices become numbers).
+  - `alternative` and `alternative_grouped` → `IssueGroup` with `code: IssueCode.ONE_OF_FAILED`.
+  - `unknown_fields` → path-less `IssueItem` carrying the message.
+- **Return-value contract** — when the chain selects a single field and no errors are reported, the **sanitized** field value is returned; otherwise the original `ctx.value` passes through. This shape-shift is intentional so chains like `.toInt().trim()` carry through to the validup output. Callers that need the original value regardless can read `ctx.value` from outside the validator.
+- **Per-context chain factory** — `(ctx: ValidatorContext<C>) => ContextRunner` invocation contract.
+
+Peer dependency policy:
+
+- `express-validator ^7.3.1`.
+
+Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.
 
 ## License
 
