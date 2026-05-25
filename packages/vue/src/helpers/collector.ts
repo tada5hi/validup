@@ -90,7 +90,12 @@ export function useValidupCollector(options: CollectorOptions): ValidupCollector
 
     // Scoped parent/child injection — same-scope parents see same-scope
     // descendants; the unscoped key continues to behave as before.
-    const ownInjectionKey = options.scope ?
+    //
+    // Test for `undefined` explicitly rather than truthy — an empty-string
+    // scope is unusual but the consumer has clearly opted in to scoping by
+    // passing the option, and it should get its own `Symbol.for()` key rather
+    // than being silently collapsed back to the unscoped default.
+    const ownInjectionKey = options.scope !== undefined ?
         Symbol.for(`validup:parent:${options.scope}`) :
         PARENT_INJECTION_KEY;
 
