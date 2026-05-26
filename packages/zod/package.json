@@ -36,13 +36,11 @@
     },
     "keywords": [],
     "license": "Apache-2.0",
-    "dependencies": {
-        "validup": "^0.3.0"
-    },
     "devDependencies": {
         "zod": "^4.4.3"
     },
     "peerDependencies": {
+        "validup": "^0.3.0",
         "zod": "^4.0.0"
     },
     "publishConfig": {

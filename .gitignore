@@ -16,7 +16,7 @@ db.sqlite
 cache
 .nx
 .agents/plans
-.claude/settings.local.json
+.claude/
 
 # VitePress
 docs/src/.vitepress/cache

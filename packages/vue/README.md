@@ -10,10 +10,6 @@ A [validup](https://www.npmjs.com/package/validup) integration for [Vue 3](https
 
 Drive form validation from a validup `Container<T>` with a vuelidate-shaped composable. The same validator runs on the **server** and the **client** — no rule duplication, no schema drift.
 
-> 🚧 **Work in Progress**
->
-> Validup is currently under active development and is not yet ready for production.
-
 **Table of Contents**
 
 - [Installation](#installation)
@@ -44,10 +40,10 @@ Drive form validation from a validup `Container<T>` with a vuelidate-shaped comp
 npm install @validup/vue validup vue --save
 ```
 
-| Dependency      | Supported versions |
+| Peer dependency | Supported versions |
 |-----------------|--------------------|
-| `validup`       | `^0.3.0` (runtime `dependencies` entry, not peer — will move to peer + `^1.0.0` at the coordinated 1.0 cut) |
-| `vue`           | `^3.3` (peer)      |
+| `validup`       | `^1.0.0`           |
+| `vue`           | `^3.3`             |
 
 ## Quick Start
 
@@ -471,10 +467,9 @@ Internal (no semver guarantee):
 - The `Proxy`-backed `fields` accessor's exact dispatch (`getOwnPropertyDescriptor` returning a data descriptor with `value`, etc.) — observable behavior (per-field state, reactive key tracking) is stable; the underlying mechanism is not.
 - The run-id / abort token internals.
 
-Dependency policy:
+Peer dependency policy:
 
-- `validup` — currently bundled as a runtime `dependencies` entry at `^0.3.0`. At the coordinated 1.0 cut this moves to `peerDependencies` at `^1.0.0` so consumers don't carry two copies of the core.
-- `vue` — peer dependency, `^3.3`.
+- `validup ^1.0.0`, `vue ^3.3`. Both must be installed by the consumer; `@validup/vue` does not bundle either.
 - `@vueuse/core` — transitive runtime dependency.
 
 Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.

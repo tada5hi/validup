@@ -14,10 +14,6 @@ Wrap any zod schema as a validup `Validator`, mount it on a `Container` path, an
 >
 > [`@validup/standard-schema`](https://npmjs.com/package/@validup/standard-schema) covers zod via the [Standard Schema](https://standardschema.dev) protocol and works the same against valibot, arktype, and effect-schema. Pick `@validup/zod` when you specifically need `expected`/`received` on issues or the bidirectional `validup ↔ zod` mapping.
 
-> 🚧 **Work in Progress**
->
-> Validup is currently under active development and is not yet ready for production.
-
 **Table of Contents**
 
 - [Installation](#installation)
@@ -38,6 +34,7 @@ npm install @validup/zod validup zod --save
 
 | Peer dependency | Supported versions  |
 |-----------------|---------------------|
+| `validup`       | `^1.0.0`            |
 | `zod`           | `^4.0.0`            |
 
 > ℹ️ **zod 3 support was dropped in `@validup/zod@1.0`.** The adapter's `ZodIssue` type alias resolves to `zod/v4/core`'s `$ZodRawIssue`, which is not available in zod 3. Stay on `@validup/zod@<1` if you cannot upgrade zod; otherwise upgrade zod to `^4.0.0` alongside this package.
@@ -178,7 +175,7 @@ Known lossy behavior:
 
 Peer dependency policy:
 
-- `zod ^4.0.0`. zod 3.x was dropped in `@validup/zod@1.0` because the adapter's `ZodIssue` type alias resolves to `zod/v4/core`, which is not available in zod 3.
+- `validup ^1.0.0`, `zod ^4.0.0`. zod 3.x was dropped in `@validup/zod@1.0` because the adapter's `ZodIssue` type alias resolves to `zod/v4/core`, which is not available in zod 3.
 
 Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.
 

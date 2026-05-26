@@ -44,11 +44,13 @@
     ],
     "license": "Apache-2.0",
     "dependencies": {
-        "@standard-schema/spec": "^1.1.0",
-        "validup": "^0.3.0"
+        "@standard-schema/spec": "^1.1.0"
     },
     "devDependencies": {
         "zod": "^4.4.3"
+    },
+    "peerDependencies": {
+        "validup": "^0.3.0"
     },
     "publishConfig": {
         "access": "public"
