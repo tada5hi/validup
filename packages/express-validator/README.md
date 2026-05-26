@@ -56,6 +56,8 @@ const valid = await container.run({ tags: ['typescript', 'validation'] });
 
 `createValidationChain()` returns an express-validator `body()` chain — pre-bound to read the value validup hands the validator. Build your rules on top of it like any other express-validator chain.
 
+> ℹ️ **Deliberate alias.** `createValidationChain()` is a thin wrapper around express-validator's `body()` and adds no behavior on top of it. The function is kept for stylistic consistency with the rest of the `@validup/express-validator` API; calling `body()` from `express-validator` directly is equivalent and fully supported. Pick whichever spelling you find clearer for your codebase.
+
 ## Real-World Pattern
 
 The dominant pattern is to subclass `Container<T>` and register chains inside `initialize()`:
