@@ -27,6 +27,7 @@ Wrap any zod schema as a validup `Validator`, mount it on a `Container` path, an
   - [Zod → Validup](#zod--validup)
   - [Validup → Zod](#validup--zod)
 - [API Reference](#api-reference)
+- [Stability](#stability)
 - [License](#license)
 
 ## Installation
@@ -37,7 +38,9 @@ npm install @validup/zod validup zod --save
 
 | Peer dependency | Supported versions  |
 |-----------------|---------------------|
-| `zod`           | `^3.25.0 \|\| ^4.0.0` |
+| `zod`           | `^4.0.0`            |
+
+> ℹ️ **zod 3 support was dropped in `@validup/zod@1.0`.** The adapter's `ZodIssue` type alias resolves to `zod/v4/core`'s `$ZodRawIssue`, which is not available in zod 3. Stay on `@validup/zod@<1` if you cannot upgrade zod; otherwise upgrade zod to `^4.0.0` alongside this package.
 
 ## Quick Start
 
@@ -145,6 +148,8 @@ try {
 }
 ```
 
+> ⚠️ **`IssueGroup` round-trip is lossy.** validup's `Issue` is a discriminated union of `IssueItem` and `IssueGroup`. zod has no group equivalent, so `buildZodIssuesForIssue` recursively flattens every `IssueGroup` into its constituent `IssueItem`s when emitting zod issues — group-level metadata (`code: 'one_of_failed'`, `params.name`, etc.) is dropped. The reverse direction (zod → validup) never produces groups, so a `zod ← validup` round-trip on a flat issue list is preserved; a round-trip that involves grouped errors is not.
+
 ## API Reference
 
 | Export                       | Description                                                                  |
@@ -158,6 +163,24 @@ try {
 ```typescript
 function createValidator<C = unknown>(input: ZodType | ((ctx: ValidatorContext<C>) => ZodType)): Validator<C>;
 ```
+
+## Stability
+
+What's covered by semver:
+
+- **Public exports** — `createValidator`, `buildIssuesForZodError`, `buildZodIssuesForError`, `buildZodIssuesForIssue`, and the `ZodIssue` type alias.
+- **Error-mapping shape** — `IssueItem.path` mirrors the failing zod path; `IssueItem.expected` / `received` are populated when zod exposes them. Other zod-only fields (`code`, `params`, …) are intentionally not surfaced. `buildZodIssuesForError` reconstructs a zod-shaped representation from a `ValidupError` (`code: 'custom'`, the message, the path, and the original `received` value as `input`) — it does **not** recover the dropped zod fields. If you need them end-to-end, keep the `ZodError` available alongside the `ValidupError`.
+- **Per-context schema factory** — `(ctx: ValidatorContext<C>) => ZodType` invocation contract.
+
+Known lossy behavior:
+
+- `buildZodIssuesForIssue` flattens `IssueGroup`s when emitting zod issues (zod has no group concept) — group-level `code` and `params` are dropped.
+
+Peer dependency policy:
+
+- `zod ^4.0.0`. zod 3.x was dropped in `@validup/zod@1.0` because the adapter's `ZodIssue` type alias resolves to `zod/v4/core`, which is not available in zod 3.
+
+Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.
 
 ## License
 

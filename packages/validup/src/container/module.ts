@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025.
+ * Copyright (c) 2024-2026.
  * Author Peter Placzek (tada5hi)
  * For the full copyright and license information,
  * view the LICENSE file that was distributed with this source code.
@@ -76,32 +76,54 @@ export class Container<
         if (args.length < 1) {
             throw new SyntaxError('The mount method requires at least one argument');
         }
+        if (args.length > 3) {
+            throw new SyntaxError(`mount() accepts at most 3 arguments, got ${args.length}`);
+        }
 
         let path : string | undefined;
+        let pathSeen = false;
 
         let data: IContainer<any, any> | Validator<C> | undefined;
+        let dataSeen = false;
         let dataIsContainer : boolean = false;
 
         let options: MountOptions = {};
+        let optionsSeen = false;
 
         for (const arg of args) {
             if (typeof arg === 'string') {
+                if (pathSeen) {
+                    throw new SyntaxError('mount() received multiple string arguments — only one path is supported.');
+                }
+                pathSeen = true;
                 path = arg;
                 continue;
             }
 
             if (typeof arg === 'function') {
+                if (dataSeen) {
+                    throw new SyntaxError('mount() received multiple validator/container arguments.');
+                }
+                dataSeen = true;
                 data = arg;
                 continue;
             }
 
             if (isContainer(arg)) {
+                if (dataSeen) {
+                    throw new SyntaxError('mount() received multiple validator/container arguments.');
+                }
+                dataSeen = true;
                 data = arg;
                 dataIsContainer = true;
                 continue;
             }
 
             if (isObject(arg)) {
+                if (optionsSeen) {
+                    throw new SyntaxError('mount() received multiple options objects.');
+                }
+                optionsSeen = true;
                 options = arg;
             }
         }
@@ -196,6 +218,7 @@ export class Container<
 
             let pathCount = 0;
             let pathFailed = false;
+            const branchStart = issues.length;
 
             const keys: string[] = item.path ? expandPath(data, item.path) : [''];
 
@@ -281,6 +304,7 @@ export class Container<
 
                 if (pathFailed) {
                     errorCount++;
+                    this.wrapBranchForOneOf(issues, branchStart, item, i);
                 }
             }
         }
@@ -312,6 +336,12 @@ export class Container<
 
         type ItemGroup = {
             item: Mount<C>,
+            // Original registration index in `this.items`. Tracked separately
+            // from the position in `itemGroups` because group-filtered mounts
+            // are dropped from `itemGroups` — without this, `params.branch`
+            // emitted by `wrapBranchForOneOf` would not match the
+            // registration order seen by the consumer.
+            mountIndex: number,
             tasks: KeyTask[],
             // optional/skip paths that completed inline still count toward
             // the per-item pathCount used for oneOf / errorCount tracking.
@@ -415,9 +445,10 @@ export class Container<
 
             if (tasks.length > 0 || syncPathCount > 0) {
                 itemGroups.push({
-                    item, 
-                    tasks, 
-                    syncPathCount, 
+                    item,
+                    mountIndex: i,
+                    tasks,
+                    syncPathCount,
                 });
             }
         }
@@ -438,13 +469,15 @@ export class Container<
         let errorCount = 0;
 
         for (const [i, {
-            item, 
-            tasks, 
-            syncPathCount, 
+            item,
+            mountIndex,
+            tasks,
+            syncPathCount,
         }] of itemGroups.entries()) {
             const settled = settledByGroup[i];
 
             let pathFailed = false;
+            const branchStart = issues.length;
             for (const [j, task] of tasks.entries()) {
                 const result = settled[j];
 
@@ -475,6 +508,11 @@ export class Container<
                 itemCount++;
                 if (pathFailed) {
                     errorCount++;
+                    // Use the original registration index so `params.branch`
+                    // matches the registration order regardless of group
+                    // filtering — sequential `run()` / `runSync()` already
+                    // pass the registration index directly.
+                    this.wrapBranchForOneOf(issues, branchStart, item, mountIndex);
                 }
             }
         }
@@ -548,6 +586,7 @@ export class Container<
 
             let pathCount = 0;
             let pathFailed = false;
+            const branchStart = issues.length;
 
             const keys: string[] = item.path ? expandPath(data, item.path) : [''];
 
@@ -647,6 +686,7 @@ export class Container<
 
                 if (pathFailed) {
                     errorCount++;
+                    this.wrapBranchForOneOf(issues, branchStart, item, i);
                 }
             }
         }
@@ -741,6 +781,17 @@ export class Container<
                 path: keyParts,
                 message: e.message,
             }));
+        } else {
+            // Non-`Error` throw (string, plain object, null, …). Without a
+            // synthetic issue here, the run would still flag the mount as
+            // failed but the resulting `ValidupError.issues` would not
+            // mention the throw at all — caller sees "validation failed"
+            // with no diagnostic. Surface the stringified value so the
+            // failure is at least traceable.
+            childIssues.push(defineIssueItem({
+                path: keyParts,
+                message: typeof e === 'string' && e.length > 0 ? e : `Non-Error throw: ${String(e)}`,
+            }));
         }
 
         if (pathRelative) {
@@ -757,6 +808,43 @@ export class Container<
         } else {
             issues.push(...childIssues);
         }
+    }
+
+    /**
+     * For `oneOf` containers, wrap the issues produced by a single branch
+     * (slice from `branchStart` to the end of `issues`) into one sub-group
+     * so per-branch identity is preserved in the final aggregate. Non-oneOf
+     * containers leave the issue list untouched — they don't need branch
+     * partitioning.
+     *
+     * The wrapping group's `path` is `[]` (the branch wraps everything
+     * inside it; per-leaf paths are unchanged); `params.branch` is the
+     * mount index; and `params.name` (when set) is the mount path so
+     * consumers can label "branch X failed" without recomputing the
+     * registration order.
+     */
+    private wrapBranchForOneOf(
+        issues: Issue[],
+        branchStart: number,
+        item: Mount<C>,
+        branchIndex: number,
+    ): void {
+        if (!this.options.oneOf) {
+            return;
+        }
+        const branchIssues = issues.splice(branchStart);
+        const params: Record<string, unknown> = { branch: branchIndex };
+        if (item.path) {
+            params.name = item.path;
+        }
+        issues.push(defineIssueGroup({
+            message: item.path ?
+                `Branch "${item.path}" failed` :
+                `Branch ${branchIndex} failed`,
+            params,
+            path: [],
+            issues: branchIssues,
+        }));
     }
 
     /**
@@ -840,7 +928,20 @@ export class Container<
             };
         }
 
-        return { success: false, error: new ValidupError() };
+        // Non-`Error` throw (string, plain object, null, …). Surface a
+        // stringified diagnostic so `Result.error.issues` is never empty —
+        // an empty issue list with `success: false` is a confusing API
+        // signal ("validation failed" with no diagnostic) and is what
+        // landed in 0.x for non-Error throws.
+        return {
+            success: false,
+            error: new ValidupError([
+                defineIssueItem({
+                    path: [],
+                    message: typeof e === 'string' && e.length > 0 ? e : `Non-Error throw: ${String(e)}`,
+                }),
+            ]),
+        };
     }
 
     private isItemGroupIncluded(

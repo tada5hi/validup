@@ -7,12 +7,14 @@
 
 /**
  * Registry of well-known issue codes. Third-party packages can extend the
- * union via TypeScript declaration merging:
+ * union via TypeScript declaration merging. Keys are conventionally
+ * `UPPER_SNAKE_CASE` (matching the built-ins below); values are the runtime
+ * literal strings used on `IssueItem.code` (conventionally lowercase):
  *
  * ```ts
  * declare module 'validup' {
  *     interface IssueCodeRegistry {
- *         email_taken: 'email_taken';
+ *         EMAIL_TAKEN: 'email_taken';
  *     }
  * }
  * ```

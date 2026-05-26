@@ -1,12 +1,18 @@
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2024-2026.
  * Author Peter Placzek (tada5hi)
  * For the full copyright and license information,
  * view the LICENSE file that was distributed with this source code.
  */
 
 import { describe, expect, it } from 'vitest';
-import { Container, ValidupError } from '../../src';
+import {
+    Container,
+    IssueCode,
+    ValidupError,
+    flattenIssueItems,
+    isIssueGroup,
+} from '../../src';
 import { stringValidator } from '../data';
 
 describe('oneOf', () => {
@@ -83,5 +89,38 @@ describe('oneOf', () => {
         );
 
         expect(output).toEqual({});
+    });
+
+    it('should wrap each failing branch in its own sub-group inside ONE_OF_FAILED', async () => {
+        const container = new Container<{ foo: string, bar: string }>({ oneOf: true });
+        container.mount('foo', stringValidator);
+        container.mount('bar', stringValidator);
+
+        expect.assertions(7);
+        try {
+            await container.run({ foo: 1, bar: 2 });
+        } catch (e) {
+            if (e instanceof ValidupError) {
+                expect(e.issues).toHaveLength(1);
+
+                const [outer] = e.issues;
+                expect(isIssueGroup(outer)).toBe(true);
+                if (!isIssueGroup(outer)) return;
+                expect(outer.code).toEqual(IssueCode.ONE_OF_FAILED);
+
+                // Two sub-groups, one per branch — per-branch identity preserved.
+                expect(outer.issues).toHaveLength(2);
+                expect(outer.issues.every(isIssueGroup)).toBe(true);
+
+                const branchNames = outer.issues
+                    .filter(isIssueGroup)
+                    .map((g) => g.params?.name);
+                expect(branchNames).toEqual(['foo', 'bar']);
+
+                // Leaves still flatten to the original two failures.
+                const items = flattenIssueItems(e.issues);
+                expect(items.map((i) => i.path.join('.')).sort()).toEqual(['bar', 'foo']);
+            }
+        }
     });
 });

@@ -133,4 +133,44 @@ describe('module/mount-key', () => {
             value: 2,
         } satisfies Partial<ValidatorContext>);
     });
+
+    it('should reject mount() with no arguments', () => {
+        const container = new Container();
+        // @ts-expect-error — testing runtime validation, not type-level
+        expect(() => container.mount()).toThrow(SyntaxError);
+    });
+
+    it('should reject mount() with more than three arguments', () => {
+        const container = new Container();
+        const validator = (ctx: ValidatorContext) => ctx.value;
+        expect(
+            () => (container.mount as (...args: unknown[]) => void)('foo', { optional: true }, validator, 'extra'),
+        ).toThrow(/at most 3 arguments/);
+    });
+
+    it('should reject mount() with multiple string arguments', () => {
+        const container = new Container();
+        const validator = (ctx: ValidatorContext) => ctx.value;
+        expect(
+            () => (container.mount as (...args: unknown[]) => void)('foo', 'bar', validator),
+        ).toThrow(/multiple string arguments/);
+    });
+
+    it('should reject mount() with multiple validator/container arguments', () => {
+        const container = new Container();
+        const validator = (ctx: ValidatorContext) => ctx.value;
+        expect(
+            () => (container.mount as (...args: unknown[]) => void)('foo', validator, validator),
+        ).toThrow(/multiple validator\/container arguments/);
+    });
+
+    it('should reject mount() with multiple options objects', () => {
+        const container = new Container();
+        // Three args (path + two options objects) stays within the arity
+        // guard so the duplicate-options branch is the one that fires.
+        // Passing a fourth (validator) would trip the >3 args guard first.
+        expect(
+            () => (container.mount as (...args: unknown[]) => void)('foo', { optional: true }, { group: 'a' }),
+        ).toThrow(/multiple options objects/);
+    });
 });
