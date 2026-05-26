@@ -139,10 +139,32 @@ export class Container<
     // ----------------------------------------------
 
     /**
-     * @throws ValidupError
+     * Run the container against `data`. Default execution mode — async,
+     * sequential, throws `ValidupError` on validation failure.
      *
-     * @param data
-     * @param options
+     * Variants for the other execution modes:
+     * - `run(data, { parallel: true })` — async, sequential→concurrent. Each
+     *   mount captures `value` from `data` before any sibling runs, so chained
+     *   sanitize-then-validate patterns are not supported.
+     * - {@link Container.safeRun} — same as `run` but returns a discriminated
+     *   `Result<T>` instead of throwing on validation failure (still rethrows
+     *   on abort).
+     * - {@link Container.runSync} / {@link Container.safeRunSync} — synchronous
+     *   variants for graphs where every validator (and every nested container's
+     *   `runSync`) is synchronous.
+     *
+     * Aborts surface verbatim — the abort is detected via `signal.throwIfAborted()`
+     * between mounts (which throws `signal.reason`), and any error raised by a
+     * mid-flight validator during an aborted run is re-thrown as-is rather than
+     * folded into the issue tree. Callers can therefore distinguish "validation
+     * failed" from "operation cancelled," but should not assume the thrown value
+     * is always `signal.reason` — a validator that throws its own error before
+     * the next abort check produces that error instead.
+     *
+     * @throws ValidupError on validation failure.
+     * @throws signal.reason when the abort check fires between mounts.
+     * @throws (mid-flight validator error) when a validator throws during an
+     *         already-aborted run — re-raised as-is rather than wrapped.
      */
     async run(
         data: Record<string, any> = {},
@@ -475,13 +497,33 @@ export class Container<
     }
 
     /**
-     * @throws ValidupError
+     * Synchronous variant of {@link Container.run}. Use it for purely
+     * synchronous validator graphs where the microtask overhead of `await`
+     * per mount matters (e.g. driving a reactive UI without a `pending`
+     * flicker on every keystroke).
      *
-     * Synchronous variant of `run()`. Throws synchronously if any validator
-     * returns a thenable, or if a nested container does not implement
-     * `runSync`. Use it for purely synchronous validator graphs where the
-     * microtask overhead of `await` per mount matters (e.g. driving a
-     * reactive UI without a `pending` flicker).
+     * Each mounted validator's return value MUST NOT be a thenable, and every
+     * nested container MUST implement `runSync`. Either violation throws
+     * `RunSyncViolationError` (structural — distinct from validation
+     * failures), so the diagnostic is surfaced verbatim rather than wrapped
+     * into a `ValidupError`. The companion {@link Container.safeRunSync}
+     * still rethrows these for the same reason.
+     *
+     * No `parallel` variant — synchronous graphs don't benefit from
+     * concurrency, and `Promise.allSettled` is async by definition.
+     *
+     * Aborts surface the same way as {@link Container.run}: the
+     * `signal.throwIfAborted()` check between mounts throws `signal.reason`,
+     * and a mid-flight validator throw during an already-aborted run is
+     * re-raised verbatim. Don't assume the thrown value is always
+     * `signal.reason`.
+     *
+     * @throws ValidupError on validation failure.
+     * @throws RunSyncViolationError when a validator returns a Promise or a
+     *         nested container does not implement `runSync`.
+     * @throws signal.reason when the abort check fires between mounts.
+     * @throws (mid-flight validator error) when a validator throws during an
+     *         already-aborted run.
      */
     runSync(
         data: Record<string, any> = {},
