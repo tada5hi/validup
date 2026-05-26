@@ -29,7 +29,6 @@ import type {
 import {
     IssueCode,
     ValidupError,
-    flattenIssueGroups,
     flattenIssueItems,
     isIssueGroup,
     isValidupError,
@@ -538,7 +537,14 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         ]).filter((i) => i.path.length === 0)),
         // Group-level issues (e.g. ONE_OF_FAILED). Empty-path groups surface
         // once any field is dirty; nested groups gate on prefix-dirty rules.
-        $groupErrors: computed(() => flattenIssueGroups([...internalIssues.value, ...externalIssues.value])
+        //
+        // Top-level groups only — `oneOf` containers wrap each failing branch
+        // in its own sub-group inside ONE_OF_FAILED to preserve per-branch
+        // identity (`params.branch` / `params.name`). Those sub-groups are
+        // not themselves `$groupErrors` targets; consumers that need the
+        // per-branch detail walk `$issues` instead.
+        $groupErrors: computed(() => [...internalIssues.value, ...externalIssues.value]
+            .filter(isIssueGroup)
             .filter((g) => {
                 if (g.path.length === 0) {
                     return dirtyPaths.size > 0;
