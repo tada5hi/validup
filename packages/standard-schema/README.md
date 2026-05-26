@@ -4,10 +4,6 @@ A [validup](https://www.npmjs.com/package/validup) integration for any [Standard
 
 Mount any Standard Schema as a validup `Validator` on a `Container` path; validup handles path expansion, group filtering, optional/default semantics, and error aggregation while the underlying library does the actual parsing.
 
-> 🚧 **Work in Progress**
->
-> Validup is currently under active development and is not yet ready for production.
-
 **Table of Contents**
 
 - [Installation](#installation)
@@ -119,7 +115,7 @@ What's covered by semver:
 
 If you need vendor-specific fields like zod's `expected` / `received`, use [`@validup/zod`](https://npmjs.com/package/@validup/zod) instead — both packages can coexist.
 
-Peer dependency policy: no runtime peer deps. The adapter operates against the `@standard-schema/spec` types only and works against any spec-compatible schema instance (zod 3.24+, valibot, arktype, effect-schema, …).
+Peer dependency policy: `validup ^1.0.0`. No peer dep on a specific schema library — the adapter operates against the `@standard-schema/spec` types and works against any spec-compatible schema instance (zod 3.24+, valibot, arktype, effect-schema, …).
 
 Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.
 

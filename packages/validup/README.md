@@ -10,10 +10,6 @@ A composable, path-based validation library for TypeScript.
 
 Mount any validator function (or nested container) onto any path of your input, run them in groups, collect structured issues, and bridge to existing libraries via integration packages. No decorators, no schema DSL, no metadata reflection.
 
-> 🚧 **Work in Progress**
->
-> Validup is currently under active development and is not yet ready for production.
-
 **Table of Contents**
 
 - [Installation](#installation)

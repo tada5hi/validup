@@ -9,10 +9,6 @@ A composable, path-based validation library for TypeScript.
 
 Mount validators and nested containers onto object paths, run them in groups, collect structured issues, and bridge to your favorite validator (zod, express-validator) or framework (Vue) — all without decorators or schema DSLs.
 
-> 🚧 **Work in Progress**
->
-> Validup is currently under active development and is not yet ready for production.
-
 ## Core Philosophy
 
 Most validation libraries make you choose between two extremes: a schema DSL that bakes in every rule, or a hand-rolled function that tangles parsing, validation, and transformation. Validup picks a different point — **mount any validator function onto any path of any input, compose containers, and let the runtime handle path expansion, error aggregation, and group filtering.** You bring the validators (or wrap an existing library via an integration package); validup orchestrates them.

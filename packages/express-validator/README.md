@@ -10,10 +10,6 @@ A [validup](https://www.npmjs.com/package/validup) integration for [express-vali
 
 Wrap any express-validator `ValidationChain` as a validup `Validator`, mount it on a `Container` path, and let validup orchestrate path expansion, group filtering, and structured error reporting while express-validator drives the rule chain.
 
-> 🚧 **Work in Progress**
->
-> Validup is currently under active development and is not yet ready for production.
-
 **Table of Contents**
 
 - [Installation](#installation)
@@ -33,6 +29,7 @@ npm install @validup/express-validator validup express-validator --save
 
 | Peer dependency     | Supported versions |
 |---------------------|--------------------|
+| `validup`           | `^1.0.0`           |
 | `express-validator` | `^7.3.1`           |
 
 ## Quick Start
@@ -178,7 +175,7 @@ What's covered by semver:
 
 Peer dependency policy:
 
-- `express-validator ^7.3.1`.
+- `validup ^1.0.0`, `express-validator ^7.3.1`.
 
 Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.
 
