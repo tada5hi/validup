@@ -20,7 +20,7 @@ import type {
     Result,
 } from 'validup';
 
-export type Severity = 'warning' | 'error' | undefined;
+export type Severity = 'success' | 'warning' | 'error' | undefined;
 
 export type FieldState<V = unknown> = {
     readonly $model: WritableComputedRef<V>;

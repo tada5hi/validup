@@ -129,18 +129,24 @@ The composable owns *state* — `$model`, `$dirty`, `$pending`, `$errors`. The v
 
 ## Severity mapping
 
-`@validup/vue` already ships a per-field severity helper, [`getSeverity`](/integrations/vue#severity), that returns `'warning' | 'error' | undefined` based on `$dirty` / `$pending` / `$invalid`, and downgrades to `'warning'` when every issue at the field came from a mount declared `optional: true` (via `meta.optional`). `<VCValidationGroup>` accepts exactly `'error' | 'warning'`, so `getSeverity` lines up directly — no mapping needed:
+`@validup/vue` already ships a per-field severity helper, [`getSeverity`](/integrations/vue#severity), that returns `'success' | 'warning' | 'error' | undefined` based on `$dirty` / `$pending` / `$invalid`, and downgrades to `'warning'` when every issue at the field came from a mount declared `optional: true` (via `meta.optional`). `<VCValidationGroup>` only accepts `'error' | 'warning'`, so map the unsupported values to `undefined` (skip rendering):
 
 ```typescript
 import { getSeverity } from '@validup/vue';
+import type { FieldState } from '@validup/vue';
+
+function vcSeverity(field: FieldState<unknown>): 'error' | 'warning' | undefined {
+    const sev = getSeverity(field);
+    return sev === 'error' || sev === 'warning' ? sev : undefined;
+}
 ```
 
-Then hide the group when there's no severity to show:
+Then conditionally hide the group on `success`:
 
 ```vue
 <VCValidationGroup
-    v-if="getSeverity(v.fields.email)"
-    :severity="getSeverity(v.fields.email)"
+    v-if="vcSeverity(v.fields.email)"
+    :severity="vcSeverity(v.fields.email)"
     :messages="emailMessages"
 />
 ```
