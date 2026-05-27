@@ -349,6 +349,40 @@ describe('optional', () => {
             expect(leaf.meta?.optional).toBeUndefined();
         });
 
+        it('does not mutate the validator\'s original error.issues[i].meta', async () => {
+            // Regression guard: an earlier implementation mutated
+            // `issue.meta.optional = true` in place. Because the bubbled-up
+            // issue's `meta` is a shallow reference to the validator's
+            // original `ValidupError.issues[i].meta`, that mutation leaked
+            // back — and a validator that caches/replays its error would
+            // accumulate stale `optional` flags. The fix is to reassign
+            // `issue.meta` to a fresh object; the validator's own object
+            // must stay untouched.
+            const originalMeta = { source: 'unit-test' };
+            const validatorError = new ValidupError([{
+                type: 'item',
+                code: 'CUSTOM',
+                path: [],
+                message: 'boom',
+                meta: originalMeta,
+            } as IssueItem]);
+
+            const container = new Container<{ tag: string }>();
+            container.mount('tag', { optional: true }, () => {
+                throw validatorError;
+            });
+
+            try {
+                await container.run({ tag: 'anything' });
+            } catch (e) {
+                if (!isValidupError(e)) throw e;
+            }
+
+            // The validator's original meta object must be untouched.
+            expect(originalMeta).toEqual({ source: 'unit-test' });
+            expect((originalMeta as Record<string, unknown>).optional).toBeUndefined();
+        });
+
         it('preserves existing meta when stamping (merge, not overwrite)', async () => {
             // A validator that throws ValidupError directly (e.g. an
             // integration adapter shape) with pre-existing meta — the

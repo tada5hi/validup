@@ -7,9 +7,9 @@
 
 import type { Path } from 'pathtrace';
 import {
-    expandPath, 
-    getPathValue, 
-    pathToArray, 
+    expandPath,
+    getPathValue,
+    pathToArray,
     setPathValue,
 } from 'pathtrace';
 import { GroupKey } from '../constants';
@@ -37,11 +37,11 @@ import { RunSyncViolationError, isRunSyncViolation } from './run-sync-violation'
 
 /**
  * Bundle of state the error path needs from the surrounding run loop.
- * Grouped to keep `recordMountError`'s signature readable and to make
+ * Grouped to keep `collectExecutionFailure`'s signature readable and to make
  * additions (e.g. extra provenance fields for meta stamping) a one-line
  * change at every call site instead of a positional-arg shuffle.
  */
-type RecordMountErrorContext<C> = {
+type ExecutionFailureContext<C> = {
     error: unknown,
     item: Mount<C>,
     /**
@@ -318,7 +318,7 @@ export class Container<
                         });
                     }
                 } catch (e) {
-                    this.recordMountError({
+                    this.collectExecutionFailure({
                         error: e,
                         item,
                         value,
@@ -364,7 +364,7 @@ export class Container<
             key: string,
             keyParts: PropertyKey[],
             pathRelative: PropertyKey | undefined,
-            // Retained for `recordMountError` so it can re-evaluate
+            // Retained for `collectExecutionFailure` so it can re-evaluate
             // predicate-optional mounts at error time.
             value: unknown,
             promise: Promise<unknown>,
@@ -530,7 +530,7 @@ export class Container<
                         output[task.key] = result.value;
                     }
                 } else {
-                    this.recordMountError({
+                    this.collectExecutionFailure({
                         error: result.reason,
                         item,
                         value: task.value,
@@ -713,7 +713,7 @@ export class Container<
                         output[key] = result;
                     }
                 } catch (e) {
-                    this.recordMountError({
+                    this.collectExecutionFailure({
                         error: e,
                         item,
                         value,
@@ -794,12 +794,17 @@ export class Container<
     }
 
     /**
-     * Translate a per-mount throw into accumulated `issues`. Re-throws when
+     * Translate a throw raised by one execution step (one validator or
+     * nested-container invocation, from the surrounding `run` loop) into
+     * accumulated issues and push them onto `context.issues`. Re-throws when
      * the run was aborted (signal-aware validators) so abort errors are not
      * mangled into validation issues.
      *
-     * The context object captures *everything the error path needs to know
-     * about the failing mount*: the thrown value (`error`), the mount
+     * "Mount" is the *setup-time* verb (`container.mount(...)`); what failed
+     * here is the *execution* of an already-mounted unit — hence the name.
+     *
+     * The context object captures everything the error path needs to know
+     * about the failing step: the thrown value (`error`), the mount
      * descriptor (`item`), the current input (`value` — kept around so we
      * can re-evaluate predicate-optional declarations at error time), the
      * expanded path (`keyParts` — used to prepend to nested `ValidupError`
@@ -807,17 +812,20 @@ export class Container<
      * multi-issue or container emissions into an `IssueGroup`). The
      * destination accumulator (`issues`) and the abort `signal` round out
      * what's needed to handle the failure.
+     *
+     * @modifies context.issues — appends one or more entries per call.
      */
-    private recordMountError(context: RecordMountErrorContext<C>): void {
+    private collectExecutionFailure(context: ExecutionFailureContext<C>): void {
         const {
-            error, 
-            item, 
-            value, 
-            keyParts, 
-            pathRelative, 
-            issues, 
+            error,
+            item,
+            value,
+            keyParts,
+            pathRelative,
+            issues,
             signal,
         } = context;
+
         if (signal?.aborted) {
             throw error;
         }
@@ -852,13 +860,27 @@ export class Container<
         // required-on-its-own-mount field stays unmarked even if its parent
         // mount was optional. This matches the "if you DO provide a role, the
         // role's required fields are still required" semantics.
-        const fromOptionalMount = typeof item.options.optional === 'function' ?
+        const isOptionalMount = typeof item.options.optional === 'function' ?
             Boolean(item.options.optional(value)) :
-            item.options.optional === true;
-        const stampOptional = <I extends Issue>(issue: I): I => (fromOptionalMount ? {
-            ...issue,
-            meta: { ...(issue.meta ?? {}), optional: true },
-        } : issue);
+            item.options.optional === true
+        ;
+        const markOptional = <I extends Issue>(issue: I): I => {
+            if (!isOptionalMount) {
+                return issue;
+            }
+
+            // Reassign `issue.meta` to a FRESH object rather than mutating
+            // the existing one. The top-level `issue` is always safe to
+            // mutate here (it's a fresh object from `prefixIssuePath`'s
+            // shallow spread or one of the `defineIssue*` factories), but
+            // the inner `meta` object can be shared with the validator's
+            // original `ValidupError.issues[i].meta` — mutating in place
+            // would leak `optional: true` back into the validator's own
+            // (possibly cached/replayed) error.
+            issue.meta = { ...(issue.meta ?? {}), optional: true };
+
+            return issue;
+        };
 
         const childIssues: Issue[] = [];
 
@@ -869,10 +891,10 @@ export class Container<
                 // (e.g. an integration adapter like `@validup/zod` reshaping
                 // a foreign error into validup issues). For child Container
                 // runs, leave the bubbled tree alone — see comment above.
-                childIssues.push(item.type === 'validator' ? stampOptional(prefixed) : prefixed);
+                childIssues.push(item.type === 'validator' ? markOptional(prefixed) : prefixed);
             }
         } else if (isError(error)) {
-            childIssues.push(stampOptional(defineIssueItem({
+            childIssues.push(markOptional(defineIssueItem({
                 path: keyParts,
                 message: error.message,
             })));
@@ -883,7 +905,7 @@ export class Container<
             // mention the throw at all — caller sees "validation failed"
             // with no diagnostic. Surface the stringified value so the
             // failure is at least traceable.
-            childIssues.push(stampOptional(defineIssueItem({
+            childIssues.push(markOptional(defineIssueItem({
                 path: keyParts,
                 message: typeof error === 'string' && error.length > 0 ? error : `Non-Error throw: ${String(error)}`,
             })));
@@ -896,7 +918,7 @@ export class Container<
                 // signal at the group level (the leaves inside follow the
                 // "no inheritance" rule and stay untouched for container
                 // mounts).
-                issues.push(stampOptional(defineIssueGroup({
+                issues.push(markOptional(defineIssueGroup({
                     message: buildErrorMessageForAttribute(String(pathRelative)),
                     params: { name: String(pathRelative) },
                     path: keyParts,
