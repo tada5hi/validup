@@ -133,4 +133,61 @@ describe('issue', () => {
 
         expect(item.code).toEqual(IssueCode.VALUE_INVALID);
     });
+
+    describe('IssueCode vocabulary', () => {
+        // The vocabulary is the contract adapters map onto and i18n catalogs
+        // translate from — both depend on the const and the registry staying
+        // in lock-step (UPPER_SNAKE key, lower_snake_case value, no drift
+        // between the type-level union and the runtime const).
+
+        it('exposes every registered code on the const', () => {
+            // `IssueCode` is declared with `satisfies` against the registry,
+            // so a missing key is a compile error. This test guards against
+            // accidental runtime-only changes (e.g. removing an entry from
+            // the const without removing it from the interface).
+            const codes = Object.values(IssueCode);
+            expect(codes).toContain('value_invalid');
+            expect(codes).toContain('one_of_failed');
+            expect(codes).toContain('required');
+            expect(codes).toContain('min_length');
+            expect(codes).toContain('max_length');
+            expect(codes).toContain('min_value');
+            expect(codes).toContain('max_value');
+            expect(codes).toContain('between');
+            expect(codes).toContain('alpha');
+            expect(codes).toContain('alpha_num');
+            expect(codes).toContain('numeric');
+            expect(codes).toContain('integer');
+            expect(codes).toContain('decimal');
+            expect(codes).toContain('email');
+            expect(codes).toContain('url');
+            expect(codes).toContain('ip_address');
+            expect(codes).toContain('mac_address');
+            expect(codes).toContain('not_uuid');
+            expect(codes).toContain('invalid_date');
+            expect(codes).toContain('pattern_mismatch');
+            expect(codes).toContain('same_as');
+        });
+
+        it('uses lower_snake_case for every runtime code value', () => {
+            // Adapters and i18n catalogs key off the runtime string. Anchor the
+            // casing so a future PR adding `MyNewCode: 'myNewCode'` would fail
+            // here instead of silently shipping the inconsistency.
+            const snakeCase = /^[a-z]+(?:_[a-z0-9]+)*$/;
+            for (const value of Object.values(IssueCode)) {
+                expect(value, `IssueCode value "${value}" must be lower_snake_case`)
+                    .toMatch(snakeCase);
+            }
+        });
+
+        it('aligns const keys 1:1 with their runtime values (UPPER_SNAKE ↔ lower_snake)', () => {
+            // The convention documented in the IssueCodeRegistry JSDoc — a
+            // dropped or renamed entry would diverge the two sides without
+            // this guard.
+            for (const [key, value] of Object.entries(IssueCode)) {
+                expect(key, `key "${key}" must be the UPPER_SNAKE form of value "${value}"`)
+                    .toBe(value.toUpperCase());
+            }
+        });
+    });
 });

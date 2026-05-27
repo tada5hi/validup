@@ -643,10 +643,33 @@ const group = defineIssueGroup({
 
 ### Issue Codes
 
-| Code                          | When                                                  |
-|-------------------------------|-------------------------------------------------------|
-| `IssueCode.VALUE_INVALID`     | Default for any `defineIssueItem(...)` without a code |
-| `IssueCode.ONE_OF_FAILED`     | All branches of a `oneOf` container failed            |
+validup ships a vocabulary of well-known issue codes that adapter packages (`@validup/zod`, `@validup/express-validator`, …) map onto and that i18n catalogs (`@ilingo/validup`) translate from. The vocabulary tracks the common ground across vuelidate, zod, joi, and yup — enough that a translation catalog can ship one localized string per code instead of a generic "invalid value" fallback.
+
+| Theme | Code | When | `params` |
+|-------|------|------|----------|
+| **Generic / structural** | `VALUE_INVALID` | Default for any `defineIssueItem(...)` without a code | — |
+|                          | `ONE_OF_FAILED` | All branches of a `oneOf` container failed (the wrapping group; per-branch sub-groups carry `{ branch, name }`) | — |
+| **Presence**             | `REQUIRED` | Value is missing, `undefined`, `null`, or empty | — |
+| **Type assertions**      | `ALPHA` | Value contains characters outside the alphabetical set | — |
+|                          | `ALPHA_NUM` | Value contains characters outside the alphanumeric set | — |
+|                          | `NUMERIC` | Value is not a number | — |
+|                          | `INTEGER` | Value is not an integer | — |
+|                          | `DECIMAL` | Value is not a decimal number | — |
+| **Length** (strings, arrays) | `MIN_LENGTH` | Value is shorter than the configured minimum | `{ min: number }` |
+|                              | `MAX_LENGTH` | Value is longer than the configured maximum | `{ max: number }` |
+| **Numeric range**        | `MIN_VALUE` | Numeric value is below the configured minimum | `{ min: number }` |
+|                          | `MAX_VALUE` | Numeric value is above the configured maximum | `{ max: number }` |
+|                          | `BETWEEN` | Numeric value falls outside `[min, max]` | `{ min: number, max: number }` |
+| **String format**        | `EMAIL` | Value is not a valid email address | — |
+|                          | `URL` | Value is not a valid URL | — |
+|                          | `IP_ADDRESS` | Value is not a valid IP address | — |
+|                          | `MAC_ADDRESS` | Value is not a valid MAC address | — |
+|                          | `NOT_UUID` | Value is not a valid UUID | — |
+|                          | `INVALID_DATE` | Value is not a valid / parseable date | — |
+|                          | `PATTERN_MISMATCH` | Value does not match the expected regex | `{ pattern: string }` |
+| **Comparison**           | `SAME_AS` | Value must equal another named field's value (e.g. password-confirm) | `{ other: string }` |
+
+Adapters are responsible for mapping foreign codes onto the vocabulary — e.g. `@validup/zod`'s adapter translates zod's `too_small` (string variant) onto `IssueCode.MIN_LENGTH`. When a foreign code has no direct match, the adapter falls back to `IssueCode.VALUE_INVALID` and the consumer-side template uses the eagerly-rendered English `issue.message`.
 
 The `IssueCode` const exposes the well-known runtime values; the matching `IssueCode` *type* (declaration-merged with the `IssueCodeRegistry` interface) gives autocomplete on `IssueItem.code`. Third-party packages can register their own codes:
 
