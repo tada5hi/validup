@@ -129,7 +129,7 @@ The composable owns *state* — `$model`, `$dirty`, `$pending`, `$errors`. The v
 
 ## Severity mapping
 
-`@validup/vue` already ships a per-field severity helper, [`getSeverity`](/integrations/vue#severity), that returns `'success' | 'warning' | 'error' | undefined` based on `$dirty` / `$pending` / `$invalid`. `<VCValidationGroup>` only accepts `'error' | 'warning'`, so map the unsupported values to `undefined` (skip rendering):
+`@validup/vue` already ships a per-field severity helper, [`getSeverity`](/integrations/vue#severity), that returns `'success' | 'warning' | 'error' | undefined` based on `$dirty` / `$pending` / `$invalid`, and downgrades to `'warning'` when every issue at the field came from a mount declared `optional: true` (via `meta.optional`). `<VCValidationGroup>` only accepts `'error' | 'warning'`, so map the unsupported values to `undefined` (skip rendering):
 
 ```typescript
 import { getSeverity } from '@validup/vue';
