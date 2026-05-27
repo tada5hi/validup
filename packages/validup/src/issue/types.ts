@@ -14,13 +14,24 @@ export interface IssueBase {
      *
      * Library-owned keys (stable, semver-protected):
      *
-     * - `optional?: true` — set by the runtime when the originating mount
-     *   declared `optional` config (boolean or predicate). Reflects only the
-     *   most-local mount, never inherited from a parent: a leaf inside an
-     *   optional child container does NOT carry the flag unless its own mount
-     *   was also declared optional. Set on direct leaf emissions and on the
-     *   wrapping `IssueGroup` produced for the mount itself; never set on
-     *   issues that bubbled up unchanged through `prefixIssuePath`.
+     * - `optional?: true` — set by the runtime when the originating mount's
+     *   `optional` declaration resolves truthy for the current value:
+     *
+     *   - `optional: true`  → tagged
+     *   - `optional: false` → not tagged (matches the runtime's truthy filter)
+     *   - `optional: (v) => boolean` → predicate is invoked with the current
+     *     value; tagged iff it returns truthy. In practice the run loop only
+     *     enters the error path when the predicate has already returned
+     *     false (otherwise the validator would have been skipped), so
+     *     predicate-optional issues effectively never carry the flag today.
+     *   - `optional: undefined` → not tagged
+     *
+     *   Reflects only the most-local mount, never inherited from a parent:
+     *   a leaf inside an optional child container does NOT carry the flag
+     *   unless its own mount also evaluated truthy. Set on direct leaf
+     *   emissions and on the wrapping `IssueGroup` produced for the mount
+     *   itself; never set on issues that bubbled up unchanged through
+     *   `prefixIssuePath`.
      * - `external?: true` — set by frameworks that inject server-side issues
      *   (e.g. `@validup/vue`'s `setExternalIssues`). Distinguishes
      *   server-supplied from validator-supplied so consumers can render the

@@ -62,7 +62,7 @@ Two keys are library-owned today:
 
 | Key             | Set by                                                          | What it means                                                                                       |
 |-----------------|-----------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| `optional?: true` | Core runtime, when the originating mount declared `optional` config (boolean or predicate). | The mount permits this field being skipped. Useful for downgrading UX severity (e.g. show a warning instead of an error when an optional field's content is invalid). |
+| `optional?: true` | Core runtime, when the originating mount's `optional` declaration resolves truthy for the current value. `optional: true` always tags; `optional: false` and `undefined` never do; `optional: (v) => boolean` is invoked with the value and tags iff truthy (in practice always false at error time, since the validator would have been skipped otherwise). | The mount permits this field being skipped. Useful for downgrading UX severity (e.g. show a warning instead of an error when an optional field's content is invalid). |
 | `external?: true` | Frameworks injecting server-side issues (e.g. `@validup/vue`'s `setExternalIssues`).        | Distinguishes server-supplied from validator-supplied so themes can render the distinction.        |
 
 ### `meta.optional` — no inheritance

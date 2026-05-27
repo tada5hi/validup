@@ -35,6 +35,32 @@ import type { Issue } from '../issue';
 import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
 import { RunSyncViolationError, isRunSyncViolation } from './run-sync-violation';
 
+/**
+ * Bundle of state the error path needs from the surrounding run loop.
+ * Grouped to keep `recordMountError`'s signature readable and to make
+ * additions (e.g. extra provenance fields for meta stamping) a one-line
+ * change at every call site instead of a positional-arg shuffle.
+ */
+type RecordMountErrorContext<C> = {
+    error: unknown,
+    item: Mount<C>,
+    /**
+     * The input value handed to the failing mount — retained so we can
+     * re-evaluate predicate-optional declarations at error time without
+     * relying on a "predicate already returned false in the run loop"
+     * invariant.
+     */
+    value: unknown,
+    /** Expanded mount path. Prepended to nested `ValidupError` issues. */
+    keyParts: PropertyKey[],
+    /** Trailing path segment. Drives the wrapping `IssueGroup` shape. */
+    pathRelative: PropertyKey | undefined,
+    /** Accumulator the error path writes into. */
+    issues: Issue[],
+    /** Per-run abort signal. If aborted, the throw is re-raised verbatim. */
+    signal: AbortSignal | undefined,
+};
+
 export class Container<
     T extends Record<string, any> = Record<string, any>,
     C = unknown,
@@ -292,7 +318,15 @@ export class Container<
                         });
                     }
                 } catch (e) {
-                    this.recordMountError(e, item, keyParts, pathRelative, issues, options.signal);
+                    this.recordMountError({
+                        error: e,
+                        item,
+                        value,
+                        keyParts,
+                        pathRelative,
+                        issues,
+                        signal: options.signal,
+                    });
                     pathFailed = true;
                 }
 
@@ -330,6 +364,9 @@ export class Container<
             key: string,
             keyParts: PropertyKey[],
             pathRelative: PropertyKey | undefined,
+            // Retained for `recordMountError` so it can re-evaluate
+            // predicate-optional mounts at error time.
+            value: unknown,
             promise: Promise<unknown>,
             kind: 'container' | 'validator',
         };
@@ -438,6 +475,7 @@ export class Container<
                     key,
                     keyParts,
                     pathRelative,
+                    value,
                     promise,
                     kind: item.type,
                 });
@@ -492,14 +530,15 @@ export class Container<
                         output[task.key] = result.value;
                     }
                 } else {
-                    this.recordMountError(
-                        result.reason,
+                    this.recordMountError({
+                        error: result.reason,
                         item,
-                        task.keyParts,
-                        task.pathRelative,
+                        value: task.value,
+                        keyParts: task.keyParts,
+                        pathRelative: task.pathRelative,
                         issues,
-                        options.signal,
-                    );
+                        signal: options.signal,
+                    });
                     pathFailed = true;
                 }
             }
@@ -674,7 +713,15 @@ export class Container<
                         output[key] = result;
                     }
                 } catch (e) {
-                    this.recordMountError(e, item, keyParts, pathRelative, issues, options.signal);
+                    this.recordMountError({
+                        error: e,
+                        item,
+                        value,
+                        keyParts,
+                        pathRelative,
+                        issues,
+                        signal: options.signal,
+                    });
                     pathFailed = true;
                 }
 
@@ -749,31 +796,55 @@ export class Container<
     /**
      * Translate a per-mount throw into accumulated `issues`. Re-throws when
      * the run was aborted (signal-aware validators) so abort errors are not
-     * mangled into validation issues. `keyParts` is the current mount's
-     * expanded path (used to prepend to nested `ValidupError` issues).
+     * mangled into validation issues.
+     *
+     * The context object captures *everything the error path needs to know
+     * about the failing mount*: the thrown value (`error`), the mount
+     * descriptor (`item`), the current input (`value` — kept around so we
+     * can re-evaluate predicate-optional declarations at error time), the
+     * expanded path (`keyParts` — used to prepend to nested `ValidupError`
+     * issues) and the trailing segment (`pathRelative` — used when wrapping
+     * multi-issue or container emissions into an `IssueGroup`). The
+     * destination accumulator (`issues`) and the abort `signal` round out
+     * what's needed to handle the failure.
      */
-    private recordMountError(
-        e: unknown,
-        item: Mount<C>,
-        keyParts: PropertyKey[],
-        pathRelative: PropertyKey | undefined,
-        issues: Issue[],
-        signal: AbortSignal | undefined,
-    ): void {
+    private recordMountError(context: RecordMountErrorContext<C>): void {
+        const {
+            error, 
+            item, 
+            value, 
+            keyParts, 
+            pathRelative, 
+            issues, 
+            signal,
+        } = context;
         if (signal?.aborted) {
-            throw e;
+            throw error;
         }
         // Structural runSync violations are not validation outcomes — they
         // mean the caller can't use runSync against this graph. Surface the
         // diagnostic verbatim instead of wrapping it as "Property X is invalid".
-        if (isRunSyncViolation(e)) {
-            throw e;
+        if (isRunSyncViolation(error)) {
+            throw error;
         }
 
-        // Mounts that declare any `optional` config (boolean or predicate)
-        // stamp their *own* emissions with `meta.optional: true` so consumers
-        // (e.g. `@validup/vue`'s severity helper) can downgrade UX gating for
-        // fields the schema permits to be blank.
+        // Mounts whose `optional` declaration resolves truthy for the current
+        // `value` stamp their own emissions with `meta.optional: true`, so
+        // consumers (e.g. `@validup/vue`'s severity helper) can downgrade UX
+        // gating for fields the schema permits to be blank.
+        //
+        // Resolution mirrors the run-loop check (e.g. lines 254-256):
+        //
+        // - `optional: true`  → tag
+        // - `optional: false` → don't tag (matches runtime's truthy filter)
+        // - `optional: (v) => boolean` → invoke the predicate with the
+        //    current value and tag iff it returns truthy. Today the run
+        //    loop only enters this error path when the predicate returned
+        //    false (otherwise the validator would have been skipped), so
+        //    this branch is effectively "don't tag" — but the explicit
+        //    re-evaluation keeps the code's intent self-evident and
+        //    decouples it from that invariant.
+        // - `optional: undefined` → don't tag
         //
         // Per the "no inheritance" decision: issues bubbled up unchanged from
         // a child Container's own `ValidupError` are NOT stamped here — the
@@ -781,7 +852,9 @@ export class Container<
         // required-on-its-own-mount field stays unmarked even if its parent
         // mount was optional. This matches the "if you DO provide a role, the
         // role's required fields are still required" semantics.
-        const fromOptionalMount = item.options.optional !== undefined;
+        const fromOptionalMount = typeof item.options.optional === 'function' ?
+            Boolean(item.options.optional(value)) :
+            item.options.optional === true;
         const stampOptional = <I extends Issue>(issue: I): I => (fromOptionalMount ? {
             ...issue,
             meta: { ...(issue.meta ?? {}), optional: true },
@@ -789,19 +862,19 @@ export class Container<
 
         const childIssues: Issue[] = [];
 
-        if (isValidupError(e)) {
-            for (let i = 0; i < e.issues.length; i++) {
-                const prefixed = this.prefixIssuePath(e.issues[i], keyParts);
+        if (isValidupError(error)) {
+            for (let i = 0; i < error.issues.length; i++) {
+                const prefixed = this.prefixIssuePath(error.issues[i], keyParts);
                 // Stamp only when a *validator* threw `ValidupError` directly
                 // (e.g. an integration adapter like `@validup/zod` reshaping
                 // a foreign error into validup issues). For child Container
                 // runs, leave the bubbled tree alone — see comment above.
                 childIssues.push(item.type === 'validator' ? stampOptional(prefixed) : prefixed);
             }
-        } else if (isError(e)) {
+        } else if (isError(error)) {
             childIssues.push(stampOptional(defineIssueItem({
                 path: keyParts,
-                message: e.message,
+                message: error.message,
             })));
         } else {
             // Non-`Error` throw (string, plain object, null, …). Without a
@@ -812,7 +885,7 @@ export class Container<
             // failure is at least traceable.
             childIssues.push(stampOptional(defineIssueItem({
                 path: keyParts,
-                message: typeof e === 'string' && e.length > 0 ? e : `Non-Error throw: ${String(e)}`,
+                message: typeof error === 'string' && error.length > 0 ? error : `Non-Error throw: ${String(error)}`,
             })));
         }
 

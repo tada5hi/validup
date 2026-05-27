@@ -250,9 +250,11 @@ describe('optional', () => {
             expect(leaf.meta?.optional).toBe(true);
         });
 
-        it('tags leaf issues from a predicate-optional mount when the predicate returns false', async () => {
-            // Predicate optionality: any-form optional gets the flag, per
-            // the user-facing intent "this mount permits optionality."
+        it('does NOT tag issues from a predicate-optional mount', async () => {
+            // Predicate optionality is a fine-grained per-value statement;
+            // when the validator fires, the predicate already returned false
+            // (otherwise the validator would have been skipped), so the
+            // blanket "this mount is optional" claim isn't accurate.
             const container = new Container<{ tag: string }>();
             container.mount(
                 'tag',
@@ -261,12 +263,27 @@ describe('optional', () => {
             );
 
             // Value is 42 — predicate returns false, so the validator runs
-            // and throws. The mount still declared optional, so the issue
-            // should be tagged.
+            // and throws. Tag should NOT be present.
             const issues = await runAndCollectIssues(container, { tag: 42 });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
-            expect(leaf.meta?.optional).toBe(true);
+            expect(leaf.meta?.optional).toBeUndefined();
+        });
+
+        it('does NOT tag issues when optional is explicitly false', async () => {
+            // `optional: false` matches the runtime's truthy check elsewhere
+            // — treated as not optional — so the tag must NOT be set.
+            const container = new Container<{ tag: string }>();
+            container.mount(
+                'tag',
+                { optional: false },
+                stringValidator,
+            );
+
+            const issues = await runAndCollectIssues(container, { tag: 42 });
+            const leaves = flattenIssueItems(issues);
+            const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+            expect(leaf.meta?.optional).toBeUndefined();
         });
 
         it('does NOT tag leaves inside a child container mounted as optional (no inheritance)', async () => {
