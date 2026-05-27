@@ -54,6 +54,37 @@ const group = defineIssueGroup({
 });
 ```
 
+## `meta` conventions
+
+`meta` is an open `Record<string, unknown>` because issues travel across package boundaries — integration adapters, frameworks, and apps each have provenance the core can't know about. To keep the bag focused, **library-owned `meta` keys are limited to provenance the consumer cannot reconstruct from `path` + container config.** Presentation tokens (e.g. severity) and reconstructible facts (e.g. the active `group`) don't qualify.
+
+Two keys are library-owned today:
+
+| Key             | Set by                                                          | What it means                                                                                       |
+|-----------------|-----------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| `optional?: true` | Core runtime, when the originating mount's `optional` declaration resolves truthy for the current value. `optional: true` always tags; `optional: false` and `undefined` never do; `optional: (v) => boolean` is invoked with the value and tags iff truthy (in practice always false at error time, since the validator would have been skipped otherwise). | The mount permits this field being skipped. Useful for downgrading UX severity (e.g. show a warning instead of an error when an optional field's content is invalid). |
+| `external?: true` | Frameworks injecting server-side issues (e.g. `@validup/vue`'s `setExternalIssues`).        | Distinguishes server-supplied from validator-supplied so themes can render the distinction.        |
+
+### `meta.optional` — no inheritance
+
+`meta.optional` reflects only the **most-local** mount's config. Inside a child container mounted as optional, the child's own mounts retain their own `optional` status independently:
+
+```typescript
+const role = new Container<{ name: string }>();
+role.mount('name', stringValidator);                  // required inside Role
+
+const user = new Container();
+user.mount('role', { optional: true }, role);         // role itself is optional
+
+await user.run({ role: { name: 42 } });               // throws ValidupError
+// - issue at ['role']: type 'group', meta: { optional: true }   ← parent's optional config
+// - leaf at ['role', 'name']: meta: undefined                   ← child's own mount was required
+```
+
+The rationale: "role is optional" means *you don't have to provide a role*. Once you do, the role's own required fields stay required. The wrapping group at `['role']` carries the parent's optional flag; the leaf at `['role', 'name']` does not, because its own mount declared no optional config.
+
+Apps and third-party validators may add their own `meta` keys (e.g. `meta.componentId: 'role-name-input'`) — the open shape is intentional. Naming clashes are the responsibility of the producer.
+
 ## `ValidupError`
 
 ```typescript

@@ -6,7 +6,15 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Container, OptionalValue } from '../../src';
+import {
+    Container,
+    OptionalValue,
+    ValidupError,
+    flattenIssueItems,
+    isIssueGroup,
+    isValidupError,
+} from '../../src';
+import type { Issue, IssueItem } from '../../src';
 import { stringValidator } from '../data';
 
 describe('optional', () => {
@@ -206,5 +214,245 @@ describe('optional', () => {
 
         const output = await container.run({ tag: 42 } as any);
         expect(output.tag).toEqual(42);
+    });
+
+    describe('meta.optional tagging', () => {
+        // Helper — runs a container, throws if the run unexpectedly succeeded,
+        // returns the ValidupError's issues otherwise.
+        async function runAndCollectIssues(
+            container: Container<any>,
+            input: Record<string, unknown>,
+        ): Promise<Issue[]> {
+            try {
+                await container.run(input);
+            } catch (e) {
+                if (!isValidupError(e)) {
+                    throw e;
+                }
+                return (e as ValidupError).issues;
+            }
+            throw new Error('expected ValidupError');
+        }
+
+        it('tags leaf issues from a boolean-optional mount with present invalid value', async () => {
+            const container = new Container<{ tag: string }>();
+            container.mount(
+                'tag',
+                { optional: true },
+                stringValidator,
+            );
+
+            // Value is present (number, not undefined) → optional doesn't
+            // short-circuit; the validator runs and throws.
+            const issues = await runAndCollectIssues(container, { tag: 42 });
+            const leaves = flattenIssueItems(issues);
+            const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+            expect(leaf).toBeDefined();
+            expect(leaf.meta?.optional).toBe(true);
+        });
+
+        it('does NOT tag issues from a predicate-optional mount', async () => {
+            // Predicate optionality is a fine-grained per-value statement;
+            // when the validator fires, the predicate already returned false
+            // (otherwise the validator would have been skipped), so the
+            // blanket "this mount is optional" claim isn't accurate.
+            const container = new Container<{ tag: string }>();
+            container.mount(
+                'tag',
+                { optional: (v) => v === 'skipme' },
+                stringValidator,
+            );
+
+            // Value is 42 — predicate returns false, so the validator runs
+            // and throws. Tag should NOT be present.
+            const issues = await runAndCollectIssues(container, { tag: 42 });
+            const leaves = flattenIssueItems(issues);
+            const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+            expect(leaf).toBeDefined();
+            expect(leaf.meta?.optional).toBeUndefined();
+        });
+
+        it('does NOT tag issues when optional is explicitly false', async () => {
+            // `optional: false` matches the runtime's truthy check elsewhere
+            // — treated as not optional — so the tag must NOT be set.
+            const container = new Container<{ tag: string }>();
+            container.mount(
+                'tag',
+                { optional: false },
+                stringValidator,
+            );
+
+            const issues = await runAndCollectIssues(container, { tag: 42 });
+            const leaves = flattenIssueItems(issues);
+            const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+            expect(leaf).toBeDefined();
+            expect(leaf.meta?.optional).toBeUndefined();
+        });
+
+        it('does NOT tag leaves inside a child container mounted as optional (no inheritance)', async () => {
+            // Parent → child is optional; child → name is required.
+            // If the consumer provides a child object, the child's required
+            // fields stay required. The leaf at `child.foo` must not carry
+            // meta.optional — only the wrapping group at `child` does.
+            const child = new Container<{ foo: string }>();
+            child.mount('foo', stringValidator);
+
+            const parent = new Container();
+            parent.mount(
+                'child',
+                { optional: true },
+                child,
+            );
+
+            // Child is provided (an object) but its required `foo` is a number.
+            const issues = await runAndCollectIssues(parent, { child: { foo: 42 } });
+
+            // Wrapping group at ['child'] should carry meta.optional.
+            const group = issues.find((i): i is Issue & { type: 'group' } => isIssueGroup(i) && i.path.length === 1 && i.path[0] === 'child');
+            expect(group).toBeDefined();
+            expect(group!.meta?.optional).toBe(true);
+
+            // Leaf at ['child', 'foo'] should NOT carry meta.optional —
+            // the child's own mount for `foo` was not optional.
+            const leaves = flattenIssueItems(issues);
+            const leaf = leaves.find((i) => i.path.length === 2 && i.path[0] === 'child' && i.path[1] === 'foo') as IssueItem;
+            expect(leaf).toBeDefined();
+            expect(leaf.meta?.optional).toBeUndefined();
+        });
+
+        it('tags leaves whose own child mount is also optional, independent of parent', async () => {
+            // Both parent's `child` mount AND child's `foo` mount are optional.
+            // Leaf at ['child', 'foo'] should carry meta.optional from its
+            // OWN mount (not propagated from the parent — the parent's
+            // optionality is captured by the wrapping group's meta).
+            const child = new Container<{ foo: string }>();
+            child.mount('foo', { optional: true }, stringValidator);
+
+            const parent = new Container();
+            parent.mount(
+                'child',
+                { optional: true },
+                child,
+            );
+
+            const issues = await runAndCollectIssues(parent, { child: { foo: 42 } });
+            const leaves = flattenIssueItems(issues);
+            const leaf = leaves.find((i) => i.path.length === 2 && i.path[0] === 'child' && i.path[1] === 'foo') as IssueItem;
+            expect(leaf).toBeDefined();
+            expect(leaf.meta?.optional).toBe(true);
+        });
+
+        it('does not stamp issues from a mount without optional config', async () => {
+            const container = new Container<{ tag: string }>();
+            container.mount('tag', stringValidator);
+
+            const issues = await runAndCollectIssues(container, { tag: 42 });
+            const leaves = flattenIssueItems(issues);
+            const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+            expect(leaf).toBeDefined();
+            expect(leaf.meta?.optional).toBeUndefined();
+        });
+
+        it('recursively tags leaves inside an IssueGroup thrown by a validator', async () => {
+            // Some integration adapters might throw `ValidupError([
+            //   defineIssueGroup({ issues: [leaf1, leaf2] }),
+            // ])`. Without deep stamping, `flattenIssueItems` reaches in,
+            // pulls the leaves, and they'd surface to consumers WITHOUT
+            // meta.optional — breaking severity gating downstream.
+            const container = new Container<{ tag: string }>();
+            container.mount(
+                'tag',
+                { optional: true },
+                () => {
+                    throw new ValidupError([{
+                        type: 'group',
+                        path: [],
+                        message: 'two-leaf group',
+                        issues: [
+                            {
+                                type: 'item', 
+                                code: 'A', 
+                                path: ['inner-a'], 
+                                message: 'a', 
+                            } as IssueItem,
+                            {
+                                type: 'item', 
+                                code: 'B', 
+                                path: ['inner-b'], 
+                                message: 'b', 
+                            } as IssueItem,
+                        ],
+                    } as Issue]);
+                },
+            );
+
+            const issues = await runAndCollectIssues(container, { tag: 'anything' });
+            const leaves = flattenIssueItems(issues);
+            expect(leaves.length).toBeGreaterThanOrEqual(2);
+            for (const leaf of leaves) {
+                expect(leaf.meta?.optional).toBe(true);
+            }
+        });
+
+        it('does not mutate the validator\'s original error.issues[i].meta', async () => {
+            // Regression guard: an earlier implementation mutated
+            // `issue.meta.optional = true` in place. Because the bubbled-up
+            // issue's `meta` is a shallow reference to the validator's
+            // original `ValidupError.issues[i].meta`, that mutation leaked
+            // back — and a validator that caches/replays its error would
+            // accumulate stale `optional` flags. The fix is to reassign
+            // `issue.meta` to a fresh object; the validator's own object
+            // must stay untouched.
+            const originalMeta = { source: 'unit-test' };
+            const validatorError = new ValidupError([{
+                type: 'item',
+                code: 'CUSTOM',
+                path: [],
+                message: 'boom',
+                meta: originalMeta,
+            } as IssueItem]);
+
+            const container = new Container<{ tag: string }>();
+            container.mount('tag', { optional: true }, () => {
+                throw validatorError;
+            });
+
+            try {
+                await container.run({ tag: 'anything' });
+            } catch (e) {
+                if (!isValidupError(e)) throw e;
+            }
+
+            // The validator's original meta object must be untouched.
+            expect(originalMeta).toEqual({ source: 'unit-test' });
+            expect((originalMeta as Record<string, unknown>).optional).toBeUndefined();
+        });
+
+        it('preserves existing meta when stamping (merge, not overwrite)', async () => {
+            // A validator that throws ValidupError directly (e.g. an
+            // integration adapter shape) with pre-existing meta — the
+            // stamping must merge, not clobber.
+            const container = new Container<{ tag: string }>();
+            container.mount(
+                'tag',
+                { optional: true },
+                () => {
+                    throw new ValidupError([{
+                        type: 'item',
+                        code: 'CUSTOM',
+                        path: [],
+                        message: 'boom',
+                        meta: { source: 'unit-test' },
+                    } as IssueItem]);
+                },
+            );
+
+            const issues = await runAndCollectIssues(container, { tag: 'anything' });
+            const leaves = flattenIssueItems(issues);
+            const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+            expect(leaf).toBeDefined();
+            expect(leaf.meta?.optional).toBe(true);
+            expect(leaf.meta?.source).toBe('unit-test');
+        });
     });
 });
