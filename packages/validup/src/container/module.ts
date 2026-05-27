@@ -770,17 +770,39 @@ export class Container<
             throw e;
         }
 
+        // Mounts that declare any `optional` config (boolean or predicate)
+        // stamp their *own* emissions with `meta.optional: true` so consumers
+        // (e.g. `@validup/vue`'s severity helper) can downgrade UX gating for
+        // fields the schema permits to be blank.
+        //
+        // Per the "no inheritance" decision: issues bubbled up unchanged from
+        // a child Container's own `ValidupError` are NOT stamped here — the
+        // child's own per-mount tagging is authoritative, and a leaf inside a
+        // required-on-its-own-mount field stays unmarked even if its parent
+        // mount was optional. This matches the "if you DO provide a role, the
+        // role's required fields are still required" semantics.
+        const fromOptionalMount = item.options.optional !== undefined;
+        const stampOptional = <I extends Issue>(issue: I): I => (fromOptionalMount ? {
+            ...issue,
+            meta: { ...(issue.meta ?? {}), optional: true },
+        } : issue);
+
         const childIssues: Issue[] = [];
 
         if (isValidupError(e)) {
             for (let i = 0; i < e.issues.length; i++) {
-                childIssues.push(this.prefixIssuePath(e.issues[i], keyParts));
+                const prefixed = this.prefixIssuePath(e.issues[i], keyParts);
+                // Stamp only when a *validator* threw `ValidupError` directly
+                // (e.g. an integration adapter like `@validup/zod` reshaping
+                // a foreign error into validup issues). For child Container
+                // runs, leave the bubbled tree alone — see comment above.
+                childIssues.push(item.type === 'validator' ? stampOptional(prefixed) : prefixed);
             }
         } else if (isError(e)) {
-            childIssues.push(defineIssueItem({
+            childIssues.push(stampOptional(defineIssueItem({
                 path: keyParts,
                 message: e.message,
-            }));
+            })));
         } else {
             // Non-`Error` throw (string, plain object, null, …). Without a
             // synthetic issue here, the run would still flag the mount as
@@ -788,20 +810,25 @@ export class Container<
             // mention the throw at all — caller sees "validation failed"
             // with no diagnostic. Surface the stringified value so the
             // failure is at least traceable.
-            childIssues.push(defineIssueItem({
+            childIssues.push(stampOptional(defineIssueItem({
                 path: keyParts,
                 message: typeof e === 'string' && e.length > 0 ? e : `Non-Error throw: ${String(e)}`,
-            }));
+            })));
         }
 
         if (pathRelative) {
             if (item.type === 'container' || childIssues.length > 1) {
-                issues.push(defineIssueGroup({
+                // The wrapping group is itself an emission of *this* mount —
+                // stamp it so a tree-walking consumer can read the optional
+                // signal at the group level (the leaves inside follow the
+                // "no inheritance" rule and stay untouched for container
+                // mounts).
+                issues.push(stampOptional(defineIssueGroup({
                     message: buildErrorMessageForAttribute(String(pathRelative)),
                     params: { name: String(pathRelative) },
                     path: keyParts,
                     issues: childIssues,
-                }));
+                })));
             } else {
                 issues.push(...childIssues);
             }

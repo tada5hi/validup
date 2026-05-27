@@ -8,9 +8,29 @@
 import type { IssueCode } from './constants';
 
 export interface IssueBase {
-
     /**
-     * Context in which the issue occurred.
+     * Out-of-band provenance about how this issue came to exist — context the
+     * consumer cannot reconstruct from `path` + the container's mount config.
+     *
+     * Library-owned keys (stable, semver-protected):
+     *
+     * - `optional?: true` — set by the runtime when the originating mount
+     *   declared `optional` config (boolean or predicate). Reflects only the
+     *   most-local mount, never inherited from a parent: a leaf inside an
+     *   optional child container does NOT carry the flag unless its own mount
+     *   was also declared optional. Set on direct leaf emissions and on the
+     *   wrapping `IssueGroup` produced for the mount itself; never set on
+     *   issues that bubbled up unchanged through `prefixIssuePath`.
+     * - `external?: true` — set by frameworks that inject server-side issues
+     *   (e.g. `@validup/vue`'s `setExternalIssues`). Distinguishes
+     *   server-supplied from validator-supplied so consumers can render the
+     *   distinction.
+     *
+     * Apps and third-party validators may add their own keys (e.g.
+     * `app.componentId`) — the open-shape `Record<string, unknown>` is
+     * intentional. New library-owned keys must pass the bar above:
+     * provenance, not derivable from path + container config. Presentation
+     * tokens (e.g. `severity`) do not qualify and live in consumer code.
      */
     meta?: Record<string, unknown>,
 
