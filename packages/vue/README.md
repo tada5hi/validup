@@ -346,7 +346,9 @@ const widget = useValidup(widgetValidator, widgetForm, { detached: true });
 | `$dirty` + `$pending`                                             | `'warning'`   |
 | `$dirty` + `$invalid` + at least one issue from a required mount  | `'error'`     |
 | `$dirty` + `$invalid` + all issues from optional mounts           | `'warning'`   |
-| `$dirty` + valid                                                  | `'success'`   |
+| `$dirty` + valid                                                  | `undefined`   |
+
+There's no `'success'` token — a field with no issues has no severity signal to render. Consumers that want an explicit success affordance (e.g. a green checkmark) should derive it themselves: `$v.fields.x.$dirty.value && !$v.fields.x.$invalid.value && !$v.fields.x.$pending.value`.
 
 The required-vs-optional split is driven by `IssueItem.meta.optional`, which the validup runtime stamps on issues emitted from mounts declared as `optional: true`. The rationale: if the schema permits a field to be blank, invalid content shouldn't gate the user as hard as a required-field failure. Mixed bags (one required + one optional issue on the same path) surface as `'error'` — the required one wins.
 
@@ -405,7 +407,7 @@ interface ComposableOptions<T, C = unknown> {
 
 | Export                            | Purpose                                                |
 |-----------------------------------|--------------------------------------------------------|
-| `getSeverity(field)`       | `'success' \| 'warning' \| 'error' \| undefined` — optional-aware (see [Severity](#severity)) |
+| `getSeverity(field)`       | `'warning' \| 'error' \| undefined` — optional-aware (see [Severity](#severity)) |
 | `extractResultsFromChild`  | Splice a child composable's `$model` values into one object |
 | `PARENT_INJECTION_KEY`            | The `provide`/`inject` key used for parent collectors  |
 

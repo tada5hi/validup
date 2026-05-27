@@ -58,8 +58,8 @@ describe('getSeverity', () => {
         expect(getSeverity(buildFieldState({ dirty: false, invalid: true }))).toBeUndefined();
     });
 
-    it('returns success when dirty and valid', () => {
-        expect(getSeverity(buildFieldState({ dirty: true }))).toBe('success');
+    it('returns undefined when dirty and valid (no issue → no signal to render)', () => {
+        expect(getSeverity(buildFieldState({ dirty: true }))).toBeUndefined();
     });
 
     it('returns warning while validation is pending', () => {

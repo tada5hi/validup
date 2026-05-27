@@ -19,7 +19,9 @@ import type { FieldState, Severity } from '../types';
  *     - all errors from optional mounts     → `'warning'` (soft failure —
  *       the user could have left the field blank; surfaced as a hint rather
  *       than a blocker)
- * - `$dirty` + valid             → `'success'`
+ * - `$dirty` + valid             → `undefined` (no issue → no signal to
+ *   render; consumers who want an explicit "success" affordance should
+ *   derive it themselves from `$dirty && !$invalid && !$pending`)
  *
  * "Optional" is inferred from `IssueItem.meta.optional`, which the validup
  * runtime stamps on issues emitted from mounts declared as `optional: true`.
@@ -40,5 +42,5 @@ export function getSeverity(state: FieldState<any>): Severity {
         const hasRequiredError = errors.some((e) => !e.meta?.optional);
         return hasRequiredError ? 'error' : 'warning';
     }
-    return 'success';
+    return undefined;
 }
