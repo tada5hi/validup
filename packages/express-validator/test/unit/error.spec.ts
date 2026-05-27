@@ -130,4 +130,50 @@ describe('error translation', () => {
         const outcome = await container.run({ name: '  Peter  ' });
         expect(outcome.name).toEqual('Peter');
     });
+
+    describe('structured msg → vocabulary code mapping', () => {
+        // express-validator doesn't preserve the failing validator's identity
+        // through ValidationError, so the adapter can't auto-derive a code.
+        // The opt-in path: pass `{ code, msg }` to .withMessage() — adapter
+        // detects the structured shape and lifts `code` onto IssueItem.
+
+        it('lifts a structured { code, msg } payload from .withMessage onto IssueItem', async () => {
+            const container = new Container<{ email: string }>();
+            container.mount('email', createValidator(() => body()
+                .isEmail()
+                .withMessage({ code: IssueCode.EMAIL, msg: 'Invalid email' })));
+
+            expect.assertions(3);
+            try {
+                await container.run({ email: 'not-an-email' });
+            } catch (e) {
+                if (e instanceof ValidupError) {
+                    const items = flattenIssueItems(e.issues);
+                    expect(items).toHaveLength(1);
+                    expect(items[0]?.code).toBe(IssueCode.EMAIL);
+                    expect(items[0]?.message).toBe('Invalid email');
+                }
+            }
+        });
+
+        it('falls back to VALUE_INVALID when .withMessage receives a plain string', async () => {
+            // Backward compatibility: the pre-vocabulary shape (plain string
+            // message) still works and defaults to VALUE_INVALID.
+            const container = new Container<{ name: string }>();
+            container.mount('name', createValidator(() => body()
+                .isLength({ min: 3 })
+                .withMessage('Name too short')));
+
+            expect.assertions(2);
+            try {
+                await container.run({ name: 'a' });
+            } catch (e) {
+                if (e instanceof ValidupError) {
+                    const items = flattenIssueItems(e.issues);
+                    expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
+                    expect(items[0]?.message).toBe('Name too short');
+                }
+            }
+        });
+    });
 });

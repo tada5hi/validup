@@ -6,35 +6,35 @@
  */
 
 /**
- * Registry of well-known issue codes. Third-party packages can extend the
- * union via TypeScript declaration merging. Keys are conventionally
- * `UPPER_SNAKE_CASE` (matching the built-ins below); values are the runtime
- * literal strings used on `IssueItem.code` (conventionally lowercase):
+ * Vocabulary of well-known issue codes. Adapter packages map foreign
+ * validator codes onto these so consumer-side translation catalogs
+ * (e.g. `@ilingo/validup`) can ship one localized message per code
+ * instead of falling back to a generic "invalid value" fallback.
+ *
+ * Tracks the common ground between vuelidate, zod, joi, and yup — 16
+ * codes lift directly from vuelidate's catalog (snake_cased to match
+ * validup's convention); 3 modern additions (`PATTERN_MISMATCH`,
+ * `NOT_UUID`, `INVALID_DATE`) cover ground vuelidate predates.
+ *
+ * Ad-hoc / project-specific codes still work — `IssueItem.code` is
+ * widened to `IssueCode | (string & {})`, so `defineIssueItem({ code:
+ * 'email_taken', ... })` is valid. If you want a typed const for your
+ * own codes, define one alongside this one:
  *
  * ```ts
- * declare module 'validup' {
- *     interface IssueCodeRegistry {
- *         EMAIL_TAKEN: 'email_taken';
- *     }
- * }
+ * import { IssueCode } from 'validup';
+ *
+ * export const AppCode = {
+ *     ...IssueCode,
+ *     EMAIL_TAKEN: 'email_taken',
+ * } as const;
  * ```
  *
- * After augmentation, `IssueCode` widens to include the new literal so
- * `defineIssueItem({ code: 'email_taken', ... })` is type-checked.
- *
- * The shipped vocabulary tracks the common ground between
- * vuelidate, zod, joi, and yup — enough that adapter packages can map
- * foreign codes onto these without inventing per-library variants, and
- * enough that i18n catalogs (e.g. `@ilingo/validup`) can ship one
- * translation per code instead of falling back to a generic "invalid"
- * message.
- *
  * Each entry's JSDoc documents the structured `params` adapters should
- * attach when constructing the issue — consumer-side templates can rely
- * on those placeholders being present (`{{min}}`, `{{max}}`, `{{other}}`,
- * etc.).
+ * attach when constructing the issue — templates can rely on those
+ * placeholders being present (`{{min}}`, `{{max}}`, `{{other}}`, etc.).
  */
-export interface IssueCodeRegistry {
+export const IssueCode = {
     // ──────────────────────────── Generic / structural ────────────────────────────
     /** Generic fallback when no more-specific code applies. `params`: — */
     VALUE_INVALID: 'value_invalid',
@@ -86,8 +86,8 @@ export interface IssueCodeRegistry {
     INVALID_DATE: 'invalid_date',
     /**
      * Value does not match the expected regex pattern. `params`:
-     * `{ pattern: string }` (source of the regex, without flags — adapters
-     * should pass the human-readable form so catalogs can quote it).
+     * `{ pattern: string }` — source of the regex without flags so
+     * catalogs can quote it in human-readable form.
      */
     PATTERN_MISMATCH: 'pattern_mismatch',
 
@@ -98,30 +98,6 @@ export interface IssueCodeRegistry {
      * the field being compared against.
      */
     SAME_AS: 'same_as',
-}
+} as const;
 
-export type IssueCode = IssueCodeRegistry[keyof IssueCodeRegistry];
-
-export const IssueCode = {
-    VALUE_INVALID: 'value_invalid',
-    ONE_OF_FAILED: 'one_of_failed',
-    REQUIRED: 'required',
-    ALPHA: 'alpha',
-    ALPHA_NUM: 'alpha_num',
-    NUMERIC: 'numeric',
-    INTEGER: 'integer',
-    DECIMAL: 'decimal',
-    MIN_LENGTH: 'min_length',
-    MAX_LENGTH: 'max_length',
-    MIN_VALUE: 'min_value',
-    MAX_VALUE: 'max_value',
-    BETWEEN: 'between',
-    EMAIL: 'email',
-    URL: 'url',
-    IP_ADDRESS: 'ip_address',
-    MAC_ADDRESS: 'mac_address',
-    NOT_UUID: 'not_uuid',
-    INVALID_DATE: 'invalid_date',
-    PATTERN_MISMATCH: 'pattern_mismatch',
-    SAME_AS: 'same_as',
-} as const satisfies { [K in keyof IssueCodeRegistry]: IssueCodeRegistry[K] };
+export type IssueCode = typeof IssueCode[keyof typeof IssueCode];

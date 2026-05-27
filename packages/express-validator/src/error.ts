@@ -7,7 +7,12 @@
 
 import type { ValidationError } from 'express-validator/lib/base';
 import type { Issue } from 'validup';
-import { IssueCode, defineIssueGroup, defineIssueItem } from 'validup';
+import { 
+    IssueCode, 
+    defineIssueGroup, 
+    defineIssueItem, 
+    isObject, 
+} from 'validup';
 
 /**
  * Split express-validator's dotted/bracketed path string (`"address.city"`,
@@ -60,13 +65,46 @@ function splitPath(path: string): PropertyKey[] {
     return segments;
 }
 
+/**
+ * express-validator surfaces a single `msg` per `ValidationError` and
+ * doesn't preserve the failing validator's identity through the chain
+ * (no `.isEmail()` → `'email'` propagation). Callers who want a code
+ * mapped onto the validup vocabulary can opt in by passing a structured
+ * object to `.withMessage(...)`:
+ *
+ * ```ts
+ * import { IssueCode } from 'validup';
+ *
+ * chain.isEmail().withMessage({ code: IssueCode.EMAIL, msg: 'Invalid email' });
+ * ```
+ *
+ * The adapter detects the `{ code, msg }` shape and forwards the code
+ * + message onto the resulting `IssueItem`. Without the structured
+ * payload, the issue falls back to `VALUE_INVALID` plus the raw `msg`
+ * string — same behavior as pre-vocabulary versions.
+ */
+function extractCodeAndMessage(msg: unknown): { code: string, message: string } {
+    if (isObject(msg) && typeof msg.code === 'string' && msg.code.length > 0) {
+        const message = typeof msg.msg === 'string' ?
+            msg.msg :
+            String(msg.msg ?? '');
+        return { code: msg.code, message };
+    }
+    return {
+        code: IssueCode.VALUE_INVALID,
+        message: typeof msg === 'string' ? msg : String(msg),
+    };
+}
+
 function buildIssuesForError(error: ValidationError): Issue[] {
     switch (error.type) {
         case 'field': {
+            const { code, message } = extractCodeAndMessage(error.msg);
             return [defineIssueItem({
                 path: splitPath(error.path),
                 received: error.value,
-                message: typeof error.msg === 'string' ? error.msg : String(error.msg),
+                message,
+                code,
             })];
         }
         case 'alternative': {

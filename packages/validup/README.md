@@ -671,20 +671,26 @@ validup ships a vocabulary of well-known issue codes that adapter packages (`@va
 
 Adapters are responsible for mapping foreign codes onto the vocabulary — e.g. `@validup/zod`'s adapter translates zod's `too_small` (string variant) onto `IssueCode.MIN_LENGTH`. When a foreign code has no direct match, the adapter falls back to `IssueCode.VALUE_INVALID` and the consumer-side template uses the eagerly-rendered English `issue.message`.
 
-The `IssueCode` const exposes the well-known runtime values; the matching `IssueCode` *type* (declaration-merged with the `IssueCodeRegistry` interface) gives autocomplete on `IssueItem.code`. Third-party packages can register their own codes:
+The `IssueCode` const exposes the runtime values; the matching `IssueCode` *type* (a derived `typeof IssueCode[keyof typeof IssueCode]`) gives autocomplete on `IssueItem.code`. For project-specific codes — `'email_taken'`, `'rate_limited'` — `IssueItem.code` is widened to `IssueCode | (string & {})` so the literal string is accepted without ceremony:
 
 ```typescript
-declare module 'validup' {
-    interface IssueCodeRegistry {
-        EMAIL_TAKEN: 'email_taken';
-    }
-}
-
 defineIssueItem({ code: 'email_taken', path: ['email'], message: '…' });
-// → autocompletes 'email_taken' alongside the built-ins
+// → accepted; downstream code paths treat it like any other code
 ```
 
-Codes that don't need a registry entry still work — `IssueItem.code` is widened to `IssueCode | (string & {})` so ad-hoc strings stay valid.
+If you want a typed const for your own codes (so `AppCode.EMAIL_TAKEN` autocompletes alongside `AppCode.REQUIRED`), define one alongside the shipped vocabulary:
+
+```typescript
+import { IssueCode } from 'validup';
+
+export const AppCode = {
+    ...IssueCode,
+    EMAIL_TAKEN: 'email_taken',
+    RATE_LIMITED: 'rate_limited',
+} as const;
+
+export type AppCode = typeof AppCode[keyof typeof AppCode];
+```
 
 ## API Reference
 
@@ -780,7 +786,7 @@ What's covered by semver:
 
 Extension points:
 
-- **`IssueCodeRegistry`** — declaration-merge in third-party packages to add typed codes (see [Issue Codes](#issue-codes)).
+- **`IssueCode` widening** — `IssueItem.code` accepts any `string & {}` so consumers can use project-specific codes without ceremony. Define your own const that spreads `IssueCode` for typed autocomplete on your codes (see [Issue Codes](#issue-codes)).
 - **`Validator<C, Out>`** — `C` (context) and `Out` (return type) generics participate in builder inference; defaults stay `unknown`.
 - **`IContainer`** — opt-in interface; integration packages can implement it to be mountable as a nested container.
 - **`isContainer` / `isValidupError`** — duck-typed guards that tolerate package duplicates and cross-realm throws. Prefer these over `instanceof` at boundaries.

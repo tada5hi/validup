@@ -67,9 +67,10 @@ export interface IssueBase {
 
 export interface IssueItem extends IssueBase {
     /**
-     * Code identifying the issue. Known codes come from `IssueCodeRegistry`
-     * (extensible via declaration merging); the `string` widening leaves the
-     * door open for ad-hoc codes that don't need a registry entry.
+     * Code identifying the issue. Known codes come from the `IssueCode`
+     * vocabulary const; the `string` widening leaves the door open for
+     * ad-hoc / project-specific codes that aren't part of the shipped
+     * vocabulary.
      */
     code: IssueCode | (string & {}),
 
@@ -91,8 +92,8 @@ export interface IssueItem extends IssueBase {
 
 export interface IssueGroup extends IssueBase {
     /**
-     * Code identifying the issue. See `IssueItem.code` for the registry
-     * extension mechanism.
+     * Code identifying the issue. See `IssueItem.code` for the
+     * vocabulary + ad-hoc widening conventions.
      */
     code?: IssueCode | (string & {}),
 

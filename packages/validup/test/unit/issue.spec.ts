@@ -136,15 +136,13 @@ describe('issue', () => {
 
     describe('IssueCode vocabulary', () => {
         // The vocabulary is the contract adapters map onto and i18n catalogs
-        // translate from — both depend on the const and the registry staying
-        // in lock-step (UPPER_SNAKE key, lower_snake_case value, no drift
-        // between the type-level union and the runtime const).
+        // translate from. These tests anchor the convention: UPPER_SNAKE keys,
+        // lower_snake_case values, no drift between the docs and the const.
 
-        it('exposes every registered code on the const', () => {
-            // `IssueCode` is declared with `satisfies` against the registry,
-            // so a missing key is a compile error. This test guards against
-            // accidental runtime-only changes (e.g. removing an entry from
-            // the const without removing it from the interface).
+        it('exposes every documented code on the const', () => {
+            // Regression guard: every code mentioned in the README's Issue
+            // Codes table must be reachable on the runtime const. If a code
+            // is renamed or removed without updating the test, this catches it.
             const codes = Object.values(IssueCode);
             expect(codes).toContain('value_invalid');
             expect(codes).toContain('one_of_failed');
@@ -181,9 +179,9 @@ describe('issue', () => {
         });
 
         it('aligns const keys 1:1 with their runtime values (UPPER_SNAKE ↔ lower_snake)', () => {
-            // The convention documented in the IssueCodeRegistry JSDoc — a
-            // dropped or renamed entry would diverge the two sides without
-            // this guard.
+            // Anchors the documented convention — every UPPER_SNAKE key must
+            // be the literal-uppercase form of its lower_snake_case value.
+            // Catches accidental drift like adding `MyNewCode: 'myNewCode'`.
             for (const [key, value] of Object.entries(IssueCode)) {
                 expect(key, `key "${key}" must be the UPPER_SNAKE form of value "${value}"`)
                     .toBe(value.toUpperCase());
