@@ -11,7 +11,7 @@ import {
     hasOwnProperty,
     isIssueItem,
 } from 'validup';
-import type { $ZodRawIssue } from 'zod/v4/core';
+import type { $ZodIssue, $ZodRawIssue } from 'zod/v4/core';
 import type { ZodError } from 'zod';
 import type { Issue, ValidupError } from 'validup';
 
@@ -35,19 +35,10 @@ const LENGTH_LIKE_ORIGINS = new Set(['string', 'array', 'set', 'file']);
  * resulting validup `IssueItem.message` so consumer-side rendering still
  * has something to display.
  */
-function mapZodIssue(issue: unknown): {
+function mapZodIssue(raw: ZodIssue | $ZodIssue): {
     code: string,
     params?: Record<string, unknown>,
 } {
-    // zod's `error.issues[i]` is a `$ZodIssue` (refined discriminated
-    // union) while our `ZodIssue` alias points at `$ZodRawIssue` (the
-    // broader inbound shape). The two have meaningful structural
-    // differences across versions, so the parameter stays `unknown` and
-    // every field read goes through a `Record<string, any>` cast — that
-    // keeps the switch readable and shields us from upstream zod-type
-    // changes that only touch refinements.
-    const raw = issue as Record<string, any>;
-
     switch (raw.code) {
         case 'invalid_type': {
             // zod 4 collapses "missing key" and "wrong type" into a single
@@ -63,7 +54,7 @@ function mapZodIssue(issue: unknown): {
             return { code: IssueCode.VALUE_INVALID };
         }
         case 'too_small': {
-            const origin = String(raw.origin ?? raw.type ?? '');
+            const origin = String(raw.origin ?? '');
             const min = Number(raw.minimum);
             if (LENGTH_LIKE_ORIGINS.has(origin)) {
                 return { code: IssueCode.MIN_LENGTH, params: { min } };
@@ -71,7 +62,7 @@ function mapZodIssue(issue: unknown): {
             return { code: IssueCode.MIN_VALUE, params: { min } };
         }
         case 'too_big': {
-            const origin = String(raw.origin ?? raw.type ?? '');
+            const origin = String(raw.origin ?? '');
             const max = Number(raw.maximum);
             if (LENGTH_LIKE_ORIGINS.has(origin)) {
                 return { code: IssueCode.MAX_LENGTH, params: { max } };
