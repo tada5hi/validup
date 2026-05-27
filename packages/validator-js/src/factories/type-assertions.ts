@@ -13,15 +13,19 @@ import { throwValidupError, toValidatorString } from '../module';
 
 /**
  * Factory: validator.js `isAlpha`. Emits `IssueCode.ALPHA` on failure.
+ *
+ * `locale` (validator.js's positional second arg) is promoted into the
+ * flat options object; everything else passes through as `IsAlphaOptions`.
  */
-export function isAlpha<C = unknown>(options: BaseFactoryOptions & {
-    locale?: validator.AlphaLocale,
-    options?: validator.IsAlphaOptions,
-} = {}): Validator<C> {
+export function isAlpha<C = unknown>(
+    options: BaseFactoryOptions & validator.IsAlphaOptions & {
+        locale?: validator.AlphaLocale,
+    } = {},
+): Validator<C> {
     const message = options.message ?? 'The value is not alphabetical';
     return (ctx) => {
         const s = toValidatorString(ctx.value);
-        if (validator.isAlpha(s, options.locale, options.options)) return ctx.value;
+        if (validator.isAlpha(s, options.locale, options)) return ctx.value;
         return throwValidupError(ctx.value, IssueCode.ALPHA, message);
     };
 }
@@ -29,14 +33,15 @@ export function isAlpha<C = unknown>(options: BaseFactoryOptions & {
 /**
  * Factory: validator.js `isAlphanumeric`. Emits `IssueCode.ALPHA_NUM` on failure.
  */
-export function isAlphanumeric<C = unknown>(options: BaseFactoryOptions & {
-    locale?: validator.AlphanumericLocale,
-    options?: validator.IsAlphanumericOptions,
-} = {}): Validator<C> {
+export function isAlphanumeric<C = unknown>(
+    options: BaseFactoryOptions & validator.IsAlphanumericOptions & {
+        locale?: validator.AlphanumericLocale,
+    } = {},
+): Validator<C> {
     const message = options.message ?? 'The value must be alphanumeric';
     return (ctx) => {
         const s = toValidatorString(ctx.value);
-        if (validator.isAlphanumeric(s, options.locale, options.options)) return ctx.value;
+        if (validator.isAlphanumeric(s, options.locale, options)) return ctx.value;
         return throwValidupError(ctx.value, IssueCode.ALPHA_NUM, message);
     };
 }
@@ -44,13 +49,13 @@ export function isAlphanumeric<C = unknown>(options: BaseFactoryOptions & {
 /**
  * Factory: validator.js `isNumeric`. Emits `IssueCode.NUMERIC` on failure.
  */
-export function isNumeric<C = unknown>(options: BaseFactoryOptions & {
-    options?: validator.IsNumericOptions,
-} = {}): Validator<C> {
+export function isNumeric<C = unknown>(
+    options: BaseFactoryOptions & validator.IsNumericOptions = {},
+): Validator<C> {
     const message = options.message ?? 'The value must be numeric';
     return (ctx) => {
         const s = toValidatorString(ctx.value);
-        if (validator.isNumeric(s, options.options)) return ctx.value;
+        if (validator.isNumeric(s, options)) return ctx.value;
         return throwValidupError(ctx.value, IssueCode.NUMERIC, message);
     };
 }
@@ -58,13 +63,13 @@ export function isNumeric<C = unknown>(options: BaseFactoryOptions & {
 /**
  * Factory: validator.js `isDecimal`. Emits `IssueCode.DECIMAL` on failure.
  */
-export function isDecimal<C = unknown>(options: BaseFactoryOptions & {
-    options?: validator.IsDecimalOptions,
-} = {}): Validator<C> {
+export function isDecimal<C = unknown>(
+    options: BaseFactoryOptions & validator.IsDecimalOptions = {},
+): Validator<C> {
     const message = options.message ?? 'The value must be a decimal number';
     return (ctx) => {
         const s = toValidatorString(ctx.value);
-        if (validator.isDecimal(s, options.options)) return ctx.value;
+        if (validator.isDecimal(s, options)) return ctx.value;
         return throwValidupError(ctx.value, IssueCode.DECIMAL, message);
     };
 }
@@ -76,17 +81,15 @@ export function isDecimal<C = unknown>(options: BaseFactoryOptions & {
  * - Value isn't an integer at all → `IssueCode.INTEGER`.
  * - Value is an integer but below `min` → `IssueCode.MIN_VALUE` (params: `{ min }`).
  * - Value is an integer but above `max` → `IssueCode.MAX_VALUE` (params: `{ max }`).
- *
- * Mirrors validator.js's `{ min, max, lt, gt, allow_leading_zeroes }`
- * options on the underlying call but distinguishes "type" from "range"
- * failures on output.
  */
-export function isInt<C = unknown>(options: BaseFactoryOptions & {
-    options?: validator.IsIntOptions,
-} = {}): Validator<C> {
+export function isInt<C = unknown>(
+    options: BaseFactoryOptions & validator.IsIntOptions = {},
+): Validator<C> {
     return (ctx) => {
         const s = toValidatorString(ctx.value);
-        const isInteger = validator.isInt(s, { allow_leading_zeroes: options.options?.allow_leading_zeroes });
+        // Type check first — strip range bounds so a non-integer always
+        // surfaces as INTEGER instead of being swallowed by a range failure.
+        const isInteger = validator.isInt(s, { allow_leading_zeroes: options.allow_leading_zeroes });
         if (!isInteger) {
             return throwValidupError(
                 ctx.value,
@@ -94,11 +97,8 @@ export function isInt<C = unknown>(options: BaseFactoryOptions & {
                 options.message ?? 'The value must be an integer',
             );
         }
-        // Type check passed; now check range bounds separately so we emit
-        // a meaningful code instead of collapsing back onto INTEGER.
         const numeric = Number(s);
-        const min = options.options?.min;
-        const max = options.options?.max;
+        const { min, max } = options;
         if (typeof min === 'number' && numeric < min) {
             return throwValidupError(
                 ctx.value,
@@ -115,8 +115,8 @@ export function isInt<C = unknown>(options: BaseFactoryOptions & {
                 { max },
             );
         }
-        // Final pass with the original options to cover gt/lt/etc.
-        if (!validator.isInt(s, options.options)) {
+        // Final pass with the full options to cover lt / gt / etc.
+        if (!validator.isInt(s, options)) {
             return throwValidupError(
                 ctx.value,
                 IssueCode.INTEGER,
@@ -132,13 +132,12 @@ export function isInt<C = unknown>(options: BaseFactoryOptions & {
  * numbers — type failure emits `IssueCode.DECIMAL`; range bounds emit
  * `MIN_VALUE` / `MAX_VALUE`.
  */
-export function isFloat<C = unknown>(options: BaseFactoryOptions & {
-    options?: validator.IsFloatOptions,
-} = {}): Validator<C> {
+export function isFloat<C = unknown>(
+    options: BaseFactoryOptions & validator.IsFloatOptions = {},
+): Validator<C> {
     return (ctx) => {
         const s = toValidatorString(ctx.value);
-        const isDecimal = validator.isFloat(s);
-        if (!isDecimal) {
+        if (!validator.isFloat(s)) {
             return throwValidupError(
                 ctx.value,
                 IssueCode.DECIMAL,
@@ -146,8 +145,7 @@ export function isFloat<C = unknown>(options: BaseFactoryOptions & {
             );
         }
         const numeric = Number(s);
-        const min = options.options?.min;
-        const max = options.options?.max;
+        const { min, max } = options;
         if (typeof min === 'number' && numeric < min) {
             return throwValidupError(
                 ctx.value,
@@ -164,7 +162,7 @@ export function isFloat<C = unknown>(options: BaseFactoryOptions & {
                 { max },
             );
         }
-        if (!validator.isFloat(s, options.options)) {
+        if (!validator.isFloat(s, options)) {
             return throwValidupError(
                 ctx.value,
                 IssueCode.DECIMAL,

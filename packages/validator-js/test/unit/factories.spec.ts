@@ -148,7 +148,7 @@ describe('isBase64', () => {
 
 describe('isStrongPassword', () => {
     it('rejects weak passwords with IssueCode.STRONG_PASSWORD', async () => {
-        const items = await fail(isStrongPassword({ options: { minLength: 12, minNumbers: 2 } }), 'short');
+        const items = await fail(isStrongPassword({ minLength: 12, minNumbers: 2 }), 'short');
         expect(items[0]?.code).toBe(IssueCode.STRONG_PASSWORD);
         expect(items[0]?.params).toMatchObject({ minLength: 12, minNumbers: 2 });
     });
@@ -179,17 +179,17 @@ describe('isInt', () => {
         expect(items[0]?.code).toBe(IssueCode.INTEGER);
     });
     it('emits IssueCode.MIN_VALUE when below min', async () => {
-        const items = await fail(isInt({ options: { min: 18 } }), 5);
+        const items = await fail(isInt({ min: 18 }), 5);
         expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
         expect(items[0]?.params).toEqual({ min: 18 });
     });
     it('emits IssueCode.MAX_VALUE when above max', async () => {
-        const items = await fail(isInt({ options: { max: 120 } }), 999);
+        const items = await fail(isInt({ max: 120 }), 999);
         expect(items[0]?.code).toBe(IssueCode.MAX_VALUE);
         expect(items[0]?.params).toEqual({ max: 120 });
     });
     it('accepts valid integers in range', async () => {
-        expect(await pass(isInt({ options: { min: 18, max: 120 } }), 42)).toBe(42);
+        expect(await pass(isInt({ min: 18, max: 120 }), 42)).toBe(42);
     });
 });
 
@@ -199,26 +199,26 @@ describe('isFloat', () => {
         expect(items[0]?.code).toBe(IssueCode.DECIMAL);
     });
     it('emits IssueCode.MIN_VALUE / MAX_VALUE for range failures', async () => {
-        const low = await fail(isFloat({ options: { min: 1 } }), 0.5);
+        const low = await fail(isFloat({ min: 1 }), 0.5);
         expect(low[0]?.code).toBe(IssueCode.MIN_VALUE);
-        const high = await fail(isFloat({ options: { max: 10 } }), 11.5);
+        const high = await fail(isFloat({ max: 10 }), 11.5);
         expect(high[0]?.code).toBe(IssueCode.MAX_VALUE);
     });
 });
 
 describe('isLength', () => {
     it('emits IssueCode.MIN_LENGTH when too short', async () => {
-        const items = await fail(isLength({ options: { min: 3 } }), 'hi');
+        const items = await fail(isLength({ min: 3 }), 'hi');
         expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
         expect(items[0]?.params).toEqual({ min: 3 });
     });
     it('emits IssueCode.MAX_LENGTH when too long', async () => {
-        const items = await fail(isLength({ options: { max: 3 } }), 'toolong');
+        const items = await fail(isLength({ max: 3 }), 'toolong');
         expect(items[0]?.code).toBe(IssueCode.MAX_LENGTH);
         expect(items[0]?.params).toEqual({ max: 3 });
     });
     it('accepts values inside the range', async () => {
-        expect(await pass(isLength({ options: { min: 3, max: 10 } }), 'hello')).toBe('hello');
+        expect(await pass(isLength({ min: 3, max: 10 }), 'hello')).toBe('hello');
     });
 });
 

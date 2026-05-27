@@ -40,9 +40,9 @@ const container = new Container<{
 }>();
 
 container.mount('email',   isEmail());
-container.mount('name',    isLength({ options: { min: 3, max: 50 } }));
-container.mount('age',     isInt({ options: { min: 18, max: 120 } }));
-container.mount('site',    isURL({ options: { require_protocol: true } }));
+container.mount('name',    isLength({ min: 3, max: 50 }));
+container.mount('age',     isInt({ min: 18, max: 120 }));
+container.mount('site',    isURL({ require_protocol: true }));
 container.mount('zip',     matches(/^\d{5}$/));
 container.mount('confirm', equals('password'));
 
@@ -58,29 +58,40 @@ const valid = await container.run({
 
 ## Factories
 
-Every factory follows the same shape — `{ message?, ...validatorJsOptions }` — and emits a single `IssueCode` on failure:
+Every factory takes a **flat options object** — the validup-side `message` override sits alongside the validator.js options for that rule (`BaseFactoryOptions & validator.Is*Options`). No nesting; one shape per call site.
 
-| Factory | Emits | `params` payload |
-|---------|-------|------------------|
-| `isEmail({ message?, options? })` | `EMAIL` | — |
-| `isURL({ message?, options? })` | `URL` | — |
-| `isUUID({ message?, version? })` | `UUID` | — |
-| `isIP({ message?, version? })` | `IP_ADDRESS` | — |
-| `isMACAddress({ message?, options? })` | `MAC_ADDRESS` | — |
-| `isDate({ message?, options? })` | `DATE` | — |
-| `isISO8601({ message?, options? })` | `DATE` | — |
-| `isJSON({ message?, options? })` | `JSON` | — |
-| `isBase64({ message?, options? })` | `BASE64` | — |
-| `isStrongPassword({ message?, options? })` | `STRONG_PASSWORD` | `{ minLength?, minLowercase?, minUppercase?, minNumbers?, minSymbols? }` |
-| `isAlpha({ message?, locale?, options? })` | `ALPHA` | — |
-| `isAlphanumeric({ message?, locale?, options? })` | `ALPHA_NUM` | — |
-| `isNumeric({ message?, options? })` | `NUMERIC` | — |
-| `isDecimal({ message?, options? })` | `DECIMAL` | — |
-| `isInt({ message?, options? })` | `INTEGER` *or* `MIN_VALUE` / `MAX_VALUE` (range bounds) | `{ min }` / `{ max }` when range fails |
-| `isFloat({ message?, options? })` | `DECIMAL` *or* `MIN_VALUE` / `MAX_VALUE` | `{ min }` / `{ max }` when range fails |
-| `isLength({ message?, options? })` | `MIN_LENGTH` *or* `MAX_LENGTH` (detects which bound failed) | `{ min }` / `{ max }` |
-| `matches(pattern, { message?, modifiers? })` | `PATTERN` | `{ pattern: string }` |
-| `equals(comparison, { message?, expectedValue? })` | `SAME_AS` | `{ other: string }` |
+| Factory | Options type | Emits | `params` payload |
+|---------|--------------|-------|------------------|
+| `isEmail(opts?)` | `BaseFactoryOptions & validator.IsEmailOptions` | `EMAIL` | — |
+| `isURL(opts?)` | `BaseFactoryOptions & validator.IsURLOptions` | `URL` | — |
+| `isUUID(opts?)` | `BaseFactoryOptions & { version? }` | `UUID` | — |
+| `isIP(opts?)` | `BaseFactoryOptions & { version? }` | `IP_ADDRESS` | — |
+| `isMACAddress(opts?)` | `BaseFactoryOptions & validator.IsMACAddressOptions` | `MAC_ADDRESS` | — |
+| `isDate(opts?)` | `BaseFactoryOptions & validator.IsDateOptions` | `DATE` | — |
+| `isISO8601(opts?)` | `BaseFactoryOptions & validator.IsISO8601Options` | `DATE` | — |
+| `isJSON(opts?)` | `BaseFactoryOptions & validator.IsJSONOptions` | `JSON` | — |
+| `isBase64(opts?)` | `BaseFactoryOptions & validator.IsBase64Options` | `BASE64` | — |
+| `isStrongPassword(opts?)` | `BaseFactoryOptions & validator.StrongPasswordOptions` | `STRONG_PASSWORD` | `{ minLength?, minLowercase?, minUppercase?, minNumbers?, minSymbols? }` |
+| `isAlpha(opts?)` | `BaseFactoryOptions & validator.IsAlphaOptions & { locale? }` | `ALPHA` | — |
+| `isAlphanumeric(opts?)` | `BaseFactoryOptions & validator.IsAlphanumericOptions & { locale? }` | `ALPHA_NUM` | — |
+| `isNumeric(opts?)` | `BaseFactoryOptions & validator.IsNumericOptions` | `NUMERIC` | — |
+| `isDecimal(opts?)` | `BaseFactoryOptions & validator.IsDecimalOptions` | `DECIMAL` | — |
+| `isInt(opts?)` | `BaseFactoryOptions & validator.IsIntOptions` | `INTEGER` *or* `MIN_VALUE` / `MAX_VALUE` | `{ min }` / `{ max }` on range failure |
+| `isFloat(opts?)` | `BaseFactoryOptions & validator.IsFloatOptions` | `DECIMAL` *or* `MIN_VALUE` / `MAX_VALUE` | `{ min }` / `{ max }` on range failure |
+| `isLength(opts?)` | `BaseFactoryOptions & validator.IsLengthOptions` | `MIN_LENGTH` *or* `MAX_LENGTH` | `{ min }` / `{ max }` |
+| `matches(pattern, opts?)` | `BaseFactoryOptions & { modifiers? }` | `PATTERN` | `{ pattern: string }` |
+| `equals(comparison, opts?)` | `BaseFactoryOptions & { expectedValue? }` | `SAME_AS` | `{ other: string }` |
+
+Examples:
+
+```ts
+isEmail({ require_display_name: true, message: 'Must include name' });
+isInt({ min: 18, max: 120, message: 'Must be 18–120' });
+isLength({ min: 3, max: 50 });
+isURL({ require_protocol: true, protocols: ['https'] });
+isAlpha({ locale: 'de-DE', ignore: '-' });
+isStrongPassword({ minLength: 12, minNumbers: 2 });
+```
 
 **`isInt` / `isFloat` / `isLength` are intentionally split.** A failure can be either a type mismatch (`'abc'` for an integer) or a range mismatch (`5` when min is `18`). Validator.js collapses both into a single boolean, so the factory checks them in order and emits the most specific code for each case — that's what makes the i18n story useful ("must be between 18 and 120" vs. "must be an integer" are different messages).
 
@@ -122,7 +133,7 @@ Every factory accepts `{ message }` to override the default:
 
 ```typescript
 container.mount('email', isEmail({ message: 'Bad email' }));
-container.mount('name',  isLength({ options: { min: 3 }, message: 'Name too short' }));
+container.mount('name',  isLength({ min: 3, message: 'Name too short' }));
 ```
 
 Defaults match `@ilingo/validup`'s `en` catalog wording, so consumers without i18n see consistent strings.
@@ -140,7 +151,7 @@ express-validator wraps validator.js in a chain API meant for Express middleware
 - container.mount('name', createValidator(() => body()
 -     .isLength({ min: 3 })
 -     .withMessage({ code: IssueCode.MIN_LENGTH, message: 'Too short' })));
-+ container.mount('name', isLength({ options: { min: 3 }, message: 'Too short' }));
++ container.mount('name', isLength({ min: 3, message: 'Too short' }));
 ```
 
 ## License

@@ -20,19 +20,16 @@ import { throwValidupError, toValidatorString } from '../module';
  * - Too long → `IssueCode.MAX_LENGTH` (params: `{ max }`).
  *
  * Calling without `min` / `max` is allowed but degenerate — every value
- * passes. `options.message` overrides the default English string for both
- * bound failures.
+ * passes. `message` overrides the default English string for both bound
+ * failures.
  */
-export function isLength<C = unknown>(options: BaseFactoryOptions & {
-    options?: validator.IsLengthOptions,
-} = {}): Validator<C> {
-    const min = options.options?.min;
-    const max = options.options?.max;
+export function isLength<C = unknown>(
+    options: BaseFactoryOptions & validator.IsLengthOptions = {},
+): Validator<C> {
+    const { min, max } = options;
     return (ctx) => {
         const s = toValidatorString(ctx.value);
-        if (validator.isLength(s, options.options)) return ctx.value;
-        // Distinguish which bound failed so the IssueCode is useful for
-        // i18n — `MIN_LENGTH` and `MAX_LENGTH` get separate catalog entries.
+        if (validator.isLength(s, options)) return ctx.value;
         if (typeof min === 'number' && s.length < min) {
             return throwValidupError(
                 ctx.value,
@@ -49,7 +46,7 @@ export function isLength<C = unknown>(options: BaseFactoryOptions & {
                 { max },
             );
         }
-        // Fallback (should not normally hit — `isLength` returned false but
+        // Fallback (shouldn't normally hit — `isLength` returned false but
         // neither bound was crossed). Surface as MIN_LENGTH with the
         // configured min as the most informative shape.
         return throwValidupError(
