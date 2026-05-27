@@ -30,13 +30,13 @@ import {
     isIssueGroup,
     isValidupError,
 } from 'validup';
-import { useValidupCollector } from './helpers/collector';
+import { useCollector } from './helpers/collector';
 import type {
+    Composable,
+    ComposableOptions,
     ContainerInput,
     FieldState,
     StateInput,
-    ValidupComposable,
-    ValidupComposableOptions,
 } from './types';
 
 function pathKey(path: PropertyKey[]): string {
@@ -99,8 +99,8 @@ function isPrefixDirty(dirtyPaths: ReadonlySet<string>, key: string): boolean {
 export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>(
     container: ContainerInput<T, C>,
     state: StateInput<T>,
-    options: ValidupComposableOptions<T, C> = {},
-): ValidupComposable<T> {
+    options: ComposableOptions<T, C> = {},
+): Composable<T> {
     const containerRef = (isRef(container) ? container : ref(container)) as Ref<any>;
     const stateRef = (isRef(state) ? state : ref(state)) as Ref<T>;
     // Normalize MaybeRef explicitly — `toRef(maybeRef)` semantics shifted across
@@ -215,7 +215,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
     // unregister-on-dispose) lives in one place and `useValidup` stays
     // focused on validation state. See helpers/collector.ts.
 
-    const collector = useValidupCollector({
+    const collector = useCollector({
         name: options.name,
         scope: options.scope,
         detached: options.detached,
@@ -375,7 +375,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         return liveStateKeysRef.value;
     }
 
-    const fields = new Proxy({} as ValidupComposable<T>['fields'], {
+    const fields = new Proxy({} as Composable<T>['fields'], {
         get(_, prop) {
             if (typeof prop !== 'string') {
                 return undefined;
@@ -490,7 +490,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         externalIssues.value = issues.map(tagExternal);
     }
 
-    const composable: ValidupComposable<T> = {
+    const composable: Composable<T> = {
         $invalid: computed(() => internalIssues.value.length > 0 || externalIssues.value.length > 0),
         $pending: computed(() => pending.value),
         $dirty: computed(() => dirtyPaths.size > 0),
@@ -526,7 +526,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         $validate,
         setExternalIssues,
         $getResultsForChild: <C extends ObjectLiteral = ObjectLiteral>(name: string) =>
-            collector.childRegistry.get(name) as ValidupComposable<C> | undefined,
+            collector.childRegistry.get(name) as Composable<C> | undefined,
         fields,
     };
 

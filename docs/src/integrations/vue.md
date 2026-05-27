@@ -49,7 +49,7 @@ async function submit() {
 ## Public shape
 
 ```typescript
-type ValidupComposable<T> = {
+type Composable<T> = {
     $invalid: ComputedRef<boolean>;
     $pending: ComputedRef<boolean>;
     $dirty:   ComputedRef<boolean>;
@@ -62,7 +62,7 @@ type ValidupComposable<T> = {
     $reset:    () => void;
     $validate: () => Promise<Result<T>>;
     setExternalIssues: (issues: Issue[]) => void;
-    $getResultsForChild: <C>(name: string) => ValidupComposable<C> | undefined;
+    $getResultsForChild: <C>(name: string) => Composable<C> | undefined;
 
     fields: Record<string, FieldState<unknown>>;
 };
@@ -84,7 +84,7 @@ type FieldState<V> = {
 ## Options
 
 ```typescript
-type ValidupComposableOptions<T, C> = {
+type ComposableOptions<T, C> = {
     group?: MaybeRef<string>;
     debounce?: number;            // ms — schedule next run after debounce idle
     name?: string;                // register with parent composable under this name

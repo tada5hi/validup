@@ -24,7 +24,7 @@ import {
 import { Container, ValidupError, defineIssueItem } from 'validup';
 import type { Validator } from 'validup';
 import { useValidup } from '../../src';
-import type { ValidupComposable } from '../../src';
+import type { Composable } from '../../src';
 
 const isNonEmptyString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string' || ctx.value.length === 0) {
@@ -175,7 +175,7 @@ describe('detached vs stopPropagation (F1)', () => {
         const wrapper = mount(Parent);
         await flush();
 
-        const { $v } = wrapper.vm as unknown as { $v: ValidupComposable };
+        const { $v } = wrapper.vm as unknown as { $v: Composable };
         expect($v.$getResultsForChild('leaf')).toBeUndefined();
 
         wrapper.unmount();
@@ -219,7 +219,7 @@ describe('detached vs stopPropagation (F1)', () => {
         const wrapper = mount(Outer);
         await flush();
 
-        const outer = (wrapper.vm as unknown as { $v: ValidupComposable }).$v;
+        const outer = (wrapper.vm as unknown as { $v: Composable }).$v;
         // Outer doesn't see Inner because Inner stopPropagation'd.
         expect(outer.$getResultsForChild('inner')).toBeUndefined();
 

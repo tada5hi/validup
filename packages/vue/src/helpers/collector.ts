@@ -13,16 +13,16 @@ import {
     onScopeDispose,
     provide,
 } from 'vue';
-import type { ParentRegistry, ValidupComposable } from '../types';
+import type { Composable, ParentRegistry } from '../types';
 import { PARENT_INJECTION_KEY } from './child';
 
 /**
- * Subset of `ValidupComposableOptions` that drives parent/child collector
+ * Subset of `ComposableOptions` that drives parent/child collector
  * behaviour. Carved out so the collector helper has a focused signature and
  * is testable in isolation; the public composable surface continues to
  * accept the full options object.
  */
-export interface CollectorOptions {
+export type CollectorOptions = {
     /** Identifier under which this composable registers with an ancestor collector. */
     name?: string;
     /** Partition key — same-scope parents collect same-scope descendants only. */
@@ -38,15 +38,15 @@ export interface CollectorOptions {
      * shape.
      */
     stopPropagation?: boolean;
-}
+};
 
 /**
- * Internal — return shape of `useValidupCollector`. The composable uses
+ * Internal — return shape of `useCollector`. The composable uses
  * `childRegistry` to satisfy `$getResultsForChild` and calls `attach(self)`
  * once its own object literal is built so parent registration sees the
  * already-shaped composable rather than a half-constructed reference.
  */
-export interface ValidupCollector {
+export type Collector = {
     /**
      * Live map of name → composable for child forms that registered with
      * this collector. Plain `Map` (not `reactive()`) on purpose — children
@@ -54,7 +54,7 @@ export interface ValidupCollector {
      * reactive wrapper would unwrap nested refs in the child composable's
      * public type.
      */
-    readonly childRegistry: Map<string, ValidupComposable<ObjectLiteral>>;
+    readonly childRegistry: Map<string, Composable<ObjectLiteral>>;
 
     /**
      * Register `composable` with the parent collector (if any) under
@@ -63,8 +63,8 @@ export interface ValidupCollector {
      * `onScopeDispose` to auto-unregister when the owning effect scope tears
      * down.
      */
-    attach(composable: ValidupComposable<ObjectLiteral>): void;
-}
+    attach(composable: Composable<ObjectLiteral>): void;
+};
 
 /**
  * Carves the parent/child collector concern out of `useValidup`. Builds the
@@ -76,8 +76,8 @@ export interface ValidupCollector {
  * Promote to a public export only when an external consumer surfaces a
  * concrete need for the split.
  */
-export function useValidupCollector(options: CollectorOptions): ValidupCollector {
-    const childRegistry = new Map<string, ValidupComposable<ObjectLiteral>>();
+export function useCollector(options: CollectorOptions): Collector {
+    const childRegistry = new Map<string, Composable<ObjectLiteral>>();
 
     const ownRegistry: ParentRegistry = {
         register(name, child) {

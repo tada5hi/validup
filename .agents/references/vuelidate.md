@@ -33,9 +33,9 @@ Default branch: `next`
 | **Per-field errors list** | `$errors` (rule-keyed `{$validator, $message, $params, $pending, $invalid}`) | `$errors: IssueItem[]` (validup `Issue` shape — `{code, path, message, expected, received, meta}`) |
 | **External (server) errors** | `$externalResults` (Vue 3 `next` branch) | `$v.setExternalIssues(issues)` (Q4 decision) |
 | **Parent/child auto-register** | `useVuelidate({ $stopPropagation: true })` parent + nested `useVuelidate(rules, form)` children | `useValidup(parent, ..., { stopPropagation })` + child `useValidup(child, ..., { name: 'foo' })` via `provide` / `inject` (`PARENT_INJECTION_KEY`) |
-| **Get child state** | `v$.value.$getResultsForChild(name)` | `$v.$getResultsForChild(name)` (returns the child `ValidupComposable`) |
+| **Get child state** | `v$.value.$getResultsForChild(name)` | `$v.$getResultsForChild(name)` (returns the child `Composable`) |
 | **Lazy mode** | `useVuelidate(rules, state, { $lazy: true })` | Not implemented — always-eager internally; visibility gated on `$dirty` (Q3) |
-| **Severity helper** | `getSeverity(validation)` from `@ilingo/vuelidate` | `getValidupSeverity(state)` (this package) |
+| **Severity helper** | `getSeverity(validation)` from `@ilingo/vuelidate` | `getSeverity(state)` (this package) |
 | **Translation** | `@ilingo/vuelidate` (rule-keyed messages) | `@ilingo/validup` (issue-code-keyed messages) — separate package, see [`ilingo.md`](../plans/ilingo.md) |
 
 ## Code Mapping
@@ -48,8 +48,8 @@ Default branch: `next`
 | **Stale-result cancellation** | Async validators tracked per-rule | `module.ts` → `runId` token in `runOnce()` (Q2 decision) |
 | **Parent injection key** | Internal `VuelidateInjectChildResults` symbol | `helpers/child.ts` → `PARENT_INJECTION_KEY` |
 | **Child registration** | `setValidations` walks `provides` to find parent | `module.ts` — `inject(PARENT_INJECTION_KEY)` + `provide()` of own registry |
-| **Severity helper** | (lives in `@ilingo/vuelidate/src/helpers/severity.ts`) | `helpers/severity.ts` → `getValidupSeverity()` |
-| **Extract child results** | `$getResultsForChild(name)` reads `nestedResults` map | `helpers/child.ts` → `extractValidupResultsFromChild()` walks `child.fields[].$model.value` |
+| **Severity helper** | (lives in `@ilingo/vuelidate/src/helpers/severity.ts`) | `helpers/severity.ts` → `getSeverity()` |
+| **Extract child results** | `$getResultsForChild(name)` reads `nestedResults` map | `helpers/child.ts` → `extractResultsFromChild()` walks `child.fields[].$model.value` |
 | **External error injection** | `$externalResults` two-way ref | `module.ts` → `setExternalIssues()` (with `meta.external = true` flag) |
 
 ## Architectural Divergences Worth Knowing

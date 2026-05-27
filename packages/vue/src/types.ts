@@ -6,9 +6,9 @@
  */
 
 import type {
-    ComputedRef, 
-    MaybeRef, 
-    Ref, 
+    ComputedRef,
+    MaybeRef,
+    Ref,
     WritableComputedRef,
 } from 'vue';
 import type {
@@ -20,9 +20,9 @@ import type {
     Result,
 } from 'validup';
 
-export type ValidupSeverity = 'success' | 'warning' | 'error' | undefined;
+export type Severity = 'success' | 'warning' | 'error' | undefined;
 
-export interface FieldState<V = unknown> {
+export type FieldState<V = unknown> = {
     readonly $model: WritableComputedRef<V>;
     readonly $invalid: ComputedRef<boolean>;
     /**
@@ -38,9 +38,9 @@ export interface FieldState<V = unknown> {
     readonly $issues: ComputedRef<Issue[]>;
     $touch(): void;
     $reset(): void;
-}
+};
 
-export interface ValidupComposable<T extends ObjectLiteral = ObjectLiteral> {
+export type Composable<T extends ObjectLiteral = ObjectLiteral> = {
     readonly $invalid: ComputedRef<boolean>;
     readonly $pending: ComputedRef<boolean>;
     readonly $dirty: ComputedRef<boolean>;
@@ -72,7 +72,7 @@ export interface ValidupComposable<T extends ObjectLiteral = ObjectLiteral> {
     setExternalIssues(issues: Issue[]): void;
 
     /** Resolve a registered child composable by `options.name`. */
-    $getResultsForChild<C extends ObjectLiteral = ObjectLiteral>(name: string): ValidupComposable<C> | undefined;
+    $getResultsForChild<C extends ObjectLiteral = ObjectLiteral>(name: string): Composable<C> | undefined;
 
     /**
      * Per-field accessor. Top-level keys narrow to `FieldState<T[K]>`;
@@ -80,9 +80,9 @@ export interface ValidupComposable<T extends ObjectLiteral = ObjectLiteral> {
      * `FieldState<any>` since their value type can't be derived structurally.
      */
     readonly fields: { readonly [K in keyof T]: FieldState<T[K]> } & Record<string, FieldState<any>>;
-}
+};
 
-export interface ValidupComposableOptions<T extends ObjectLiteral, C = unknown> {
+export type ComposableOptions<T extends ObjectLiteral, C = unknown> = {
     /** Active container group. Reactive when a ref is passed. */
     group?: MaybeRef<string | undefined>;
 
@@ -144,12 +144,12 @@ export interface ValidupComposableOptions<T extends ObjectLiteral, C = unknown> 
      * needs its own aggregation root.
      */
     scope?: string;
-}
+};
 
-export interface ParentRegistry {
-    register(name: string, child: ValidupComposable<any>): void;
+export type ParentRegistry = {
+    register(name: string, child: Composable<any>): void;
     unregister(name: string): void;
-}
+};
 
 export type StateInput<T extends ObjectLiteral> = T | Ref<T>;
 export type ContainerInput<T extends ObjectLiteral, C = unknown> = IContainer<T, C> | Ref<IContainer<T, C>>;

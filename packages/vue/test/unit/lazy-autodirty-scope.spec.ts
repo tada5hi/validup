@@ -21,7 +21,7 @@ import {
 import { Container } from 'validup';
 import type { Validator } from 'validup';
 import { useValidup } from '../../src';
-import type { ValidupComposable } from '../../src';
+import type { Composable } from '../../src';
 
 /* eslint-disable vue/one-component-per-file -- test fixtures defined alongside the spec */
 
@@ -197,8 +197,8 @@ describe('options.scope', () => {
         await flush();
 
         const { tab1, tab2 } = wrapper.vm as unknown as {
-            tab1: ValidupComposable;
-            tab2: ValidupComposable;
+            tab1: Composable;
+            tab2: Composable;
         };
 
         expect(tab1.$getResultsForChild('a')).toBeDefined();
@@ -233,8 +233,8 @@ describe('options.scope', () => {
         await flush();
 
         const { scoped, unscoped } = wrapper.vm as unknown as {
-            scoped: ValidupComposable;
-            unscoped: ValidupComposable;
+            scoped: Composable;
+            unscoped: Composable;
         };
 
         // Child has no scope → only registers with unscoped parent.

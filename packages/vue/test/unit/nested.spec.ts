@@ -17,8 +17,8 @@ import {
 } from 'vue';
 import { Container } from 'validup';
 import type { Validator } from 'validup';
-import { extractValidupResultsFromChild, useValidup } from '../../src';
-import type { ValidupComposable } from '../../src';
+import { extractResultsFromChild, useValidup } from '../../src';
+import type { Composable } from '../../src';
 
 const isNonEmptyString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string' || ctx.value.length === 0) {
@@ -72,7 +72,7 @@ describe('nested forms', () => {
         const wrapper = mount(Parent);
         await flush();
 
-        const { $v } = (wrapper.vm as unknown as { $v: ValidupComposable });
+        const { $v } = (wrapper.vm as unknown as { $v: Composable });
 
         expect($v.$getResultsForChild('basic')).toBeDefined();
         expect($v.$getResultsForChild('credentials')).toBeDefined();
@@ -85,7 +85,7 @@ describe('nested forms', () => {
         const wrapper = mount(Parent);
         await flush();
 
-        const { $v } = (wrapper.vm as unknown as { $v: ValidupComposable });
+        const { $v } = (wrapper.vm as unknown as { $v: Composable });
         const basic = $v.$getResultsForChild<{ name: string }>('basic')!;
 
         // children start invalid (empty fields)
@@ -101,11 +101,11 @@ describe('nested forms', () => {
         wrapper.unmount();
     });
 
-    it('extractValidupResultsFromChild collects child $model values', async () => {
+    it('extractResultsFromChild collects child $model values', async () => {
         const wrapper = mount(Parent);
         await flush();
 
-        const { $v } = (wrapper.vm as unknown as { $v: ValidupComposable });
+        const { $v } = (wrapper.vm as unknown as { $v: Composable });
 
         const basic = $v.$getResultsForChild<{ name: string }>('basic')!;
         const credentials = $v.$getResultsForChild<{ password: string }>('credentials')!;
@@ -115,8 +115,8 @@ describe('nested forms', () => {
         await flush();
 
         const merged = {
-            ...extractValidupResultsFromChild<{ name: string }>($v, 'basic'),
-            ...extractValidupResultsFromChild<{ password: string }>($v, 'credentials'),
+            ...extractResultsFromChild<{ name: string }>($v, 'basic'),
+            ...extractResultsFromChild<{ password: string }>($v, 'credentials'),
         };
 
         expect(merged).toEqual({ name: 'peter', password: 'secret' });
@@ -127,7 +127,7 @@ describe('nested forms', () => {
         const wrapper = mount(Parent);
         await flush();
 
-        const { $v } = (wrapper.vm as unknown as { $v: ValidupComposable });
+        const { $v } = (wrapper.vm as unknown as { $v: Composable });
         expect($v.$getResultsForChild('basic')).toBeDefined();
 
         wrapper.unmount();
