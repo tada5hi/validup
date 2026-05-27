@@ -161,9 +161,12 @@ describe('issue', () => {
             expect(codes).toContain('url');
             expect(codes).toContain('ip_address');
             expect(codes).toContain('mac_address');
-            expect(codes).toContain('not_uuid');
-            expect(codes).toContain('invalid_date');
-            expect(codes).toContain('pattern_mismatch');
+            expect(codes).toContain('uuid');
+            expect(codes).toContain('date');
+            expect(codes).toContain('pattern');
+            expect(codes).toContain('json');
+            expect(codes).toContain('base64');
+            expect(codes).toContain('strong_password');
             expect(codes).toContain('same_as');
         });
 
@@ -171,7 +174,7 @@ describe('issue', () => {
             // Adapters and i18n catalogs key off the runtime string. Anchor the
             // casing so a future PR adding `MyNewCode: 'myNewCode'` would fail
             // here instead of silently shipping the inconsistency.
-            const snakeCase = /^[a-z]+(?:_[a-z0-9]+)*$/;
+            const snakeCase = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
             for (const value of Object.values(IssueCode)) {
                 expect(value, `IssueCode value "${value}" must be lower_snake_case`)
                     .toMatch(snakeCase);

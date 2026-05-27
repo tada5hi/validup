@@ -5,11 +5,11 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { 
-    IssueCode, 
-    defineIssueItem, 
-    hasOwnProperty, 
-    isIssueItem, 
+import {
+    IssueCode,
+    defineIssueItem,
+    hasOwnProperty,
+    isIssueItem,
 } from 'validup';
 import type { $ZodRawIssue } from 'zod/v4/core';
 import type { ZodError } from 'zod';
@@ -88,22 +88,27 @@ function mapZodIssue(issue: unknown): {
                 case 'uuid':
                 case 'guid':
                 case 'nanoid':
-                    return { code: IssueCode.NOT_UUID };
+                    return { code: IssueCode.UUID };
                 case 'date':
                 case 'time':
                 case 'datetime':
                 case 'duration':
-                    return { code: IssueCode.INVALID_DATE };
+                    return { code: IssueCode.DATE };
                 case 'ipv4':
                 case 'ipv6':
                 case 'cidrv4':
                 case 'cidrv6':
                     return { code: IssueCode.IP_ADDRESS };
+                case 'base64':
+                case 'base64url':
+                    return { code: IssueCode.BASE64 };
+                case 'json_string':
+                    return { code: IssueCode.JSON };
                 case 'regex': {
                     const pattern = typeof raw.pattern === 'string' ?
                         raw.pattern :
                         String(raw.pattern ?? '');
-                    return { code: IssueCode.PATTERN_MISMATCH, params: { pattern } };
+                    return { code: IssueCode.PATTERN, params: { pattern } };
                 }
                 default:
                     return { code: IssueCode.VALUE_INVALID };

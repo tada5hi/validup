@@ -81,15 +81,27 @@ export const IssueCode = {
     /** Value is not a valid MAC address. `params`: — */
     MAC_ADDRESS: 'mac_address',
     /** Value is not a valid UUID. `params`: — */
-    NOT_UUID: 'not_uuid',
+    UUID: 'uuid',
     /** Value is not a valid date / cannot be parsed as a date. `params`: — */
-    INVALID_DATE: 'invalid_date',
+    DATE: 'date',
     /**
      * Value does not match the expected regex pattern. `params`:
      * `{ pattern: string }` — source of the regex without flags so
      * catalogs can quote it in human-readable form.
      */
-    PATTERN_MISMATCH: 'pattern_mismatch',
+    PATTERN: 'pattern',
+    /** Value is not valid JSON. `params`: — */
+    JSON: 'json',
+    /** Value is not valid base64. `params`: — */
+    BASE64: 'base64',
+    /**
+     * Value does not meet the configured strong-password rules. `params`:
+     * `{ minLength?: number, minLowercase?: number, minUppercase?: number,
+     * minNumbers?: number, minSymbols?: number }` — only the keys the
+     * adapter chose to surface; missing keys mean "the default for that
+     * setting wasn't configured."
+     */
+    STRONG_PASSWORD: 'strong_password',
 
     // ──────────────────────────── Comparison ────────────────────────────
     /**

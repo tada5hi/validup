@@ -7,7 +7,7 @@
 
 A composable, path-based validation library for TypeScript.
 
-Mount validators and nested containers onto object paths, run them in groups, collect structured issues, and bridge to your favorite validator (zod, express-validator) or framework (Vue) — all without decorators or schema DSLs.
+Mount validators and nested containers onto object paths, run them in groups, collect structured issues, and bridge to your favorite validator (zod, validator.js) or framework (Vue) — all without decorators or schema DSLs.
 
 ## Core Philosophy
 
@@ -33,7 +33,7 @@ This monorepo publishes one core library and four integration packages:
 | [`validup`](./packages/validup)                              | [![npm][validup-npm-src]][validup-npm-href]   | Core: `Container`, `Validator`, `Issue`, `ValidupError`                  |
 | [`@validup/standard-schema`](./packages/standard-schema)     | [![npm][ss-npm-src]][ss-npm-href]             | Bridge to any [Standard Schema](https://standardschema.dev) library (zod, valibot, arktype, …) |
 | [`@validup/zod`](./packages/zod)                             | [![npm][zod-npm-src]][zod-npm-href]           | Bridge to [zod](https://zod.dev) schemas (vendor-specific issue mapping) |
-| [`@validup/express-validator`](./packages/express-validator) | [![npm][ev-npm-src]][ev-npm-href]             | Bridge to [express-validator](https://express-validator.github.io) chains |
+| [`@validup/validator-js`](./packages/validator-js)           | [![npm][vjs-npm-src]][vjs-npm-href]           | Pre-baked factories for [validator.js](https://github.com/validatorjs/validator.js) (`isEmail()`, `isLength()`, …) + a generic wrap |
 | [`@validup/vue`](./packages/vue)                             | [![npm][vue-npm-src]][vue-npm-href]           | [Vue 3](https://vuejs.org) composable for client-side forms              |
 
 ## Installation
@@ -47,10 +47,10 @@ npm install validup --save
 Optionally add an integration:
 
 ```bash
-npm install @validup/standard-schema --save    # Standard Schema (zod 3.24+, valibot, arktype, …)
-npm install @validup/zod --save                # zod-specific (richer issue mapping)
-npm install @validup/express-validator --save  # express-validator chains
-npm install @validup/vue --save                # Vue 3 forms
+npm install @validup/standard-schema --save           # Standard Schema (zod 3.24+, valibot, arktype, …)
+npm install @validup/zod --save                       # zod-specific (richer issue mapping)
+npm install @validup/validator-js validator --save    # validator.js string validators
+npm install @validup/vue --save                       # Vue 3 forms
 ```
 
 ## At a Glance
@@ -85,7 +85,7 @@ try {
 |--------------------------|----------------------------------------------------------------------------------------------|
 | 🧩 **Composable**        | Mount validators and nested `Container`s on any path. Stay flat or nest as deep as you like. |
 | 🌐 **Universal**         | Pure JS — runs in Node.js, browsers, Deno, Bun, and edge runtimes.                            |
-| 🎭 **Integration-ready** | First-class bridges to Standard Schema, zod, express-validator, and Vue. Trivial to add more. |
+| 🎭 **Integration-ready** | First-class bridges to Standard Schema, zod, validator.js, and Vue. Trivial to add more. |
 | 🛤️ **Path-based**        | Mount via dotted paths (`a.b.c`), brackets (`foo[0]`), or globs (`**.foo`).                    |
 | 🚦 **Group-aware**       | Run different validations for `create` / `update` / custom groups from the same container.   |
 | ❓ **Optional handling** | Per-mount control over `undefined` / `null` / falsy semantics.                                 |
@@ -100,7 +100,7 @@ validup/
 │   ├── validup/              # Core library
 │   ├── standard-schema/      # @validup/standard-schema
 │   ├── zod/                  # @validup/zod
-│   ├── express-validator/    # @validup/express-validator
+│   ├── validator-js/         # @validup/validator-js
 │   └── vue/                  # @validup/vue
 ├── nx.json                   # Nx caching for build / lint / test
 └── release-please-config.json
@@ -158,7 +158,7 @@ Published under [Apache 2.0 License](./LICENSE).
 [ss-npm-href]: https://npmjs.com/package/@validup/standard-schema
 [zod-npm-src]: https://badge.fury.io/js/@validup%2Fzod.svg
 [zod-npm-href]: https://npmjs.com/package/@validup/zod
-[ev-npm-src]: https://badge.fury.io/js/@validup%2Fexpress-validator.svg
-[ev-npm-href]: https://npmjs.com/package/@validup/express-validator
+[vjs-npm-src]: https://badge.fury.io/js/@validup%2Fvalidator-js.svg
+[vjs-npm-href]: https://npmjs.com/package/@validup/validator-js
 [vue-npm-src]: https://badge.fury.io/js/@validup%2Fvue.svg
 [vue-npm-href]: https://npmjs.com/package/@validup/vue

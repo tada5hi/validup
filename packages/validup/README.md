@@ -643,7 +643,7 @@ const group = defineIssueGroup({
 
 ### Issue Codes
 
-validup ships a vocabulary of well-known issue codes that adapter packages (`@validup/zod`, `@validup/express-validator`, …) map onto and that i18n catalogs (`@ilingo/validup`) translate from. The vocabulary tracks the common ground across vuelidate, zod, joi, and yup — enough that a translation catalog can ship one localized string per code instead of a generic "invalid value" fallback.
+validup ships a vocabulary of well-known issue codes that adapter packages (`@validup/zod`, `@validup/validator-js`, …) map onto and that i18n catalogs (`@ilingo/validup`) translate from. The vocabulary tracks the common ground across vuelidate, zod, joi, and yup — enough that a translation catalog can ship one localized string per code instead of a generic "invalid value" fallback.
 
 | Theme | Code | When | `params` |
 |-------|------|------|----------|
@@ -664,9 +664,12 @@ validup ships a vocabulary of well-known issue codes that adapter packages (`@va
 |                          | `URL` | Value is not a valid URL | — |
 |                          | `IP_ADDRESS` | Value is not a valid IP address | — |
 |                          | `MAC_ADDRESS` | Value is not a valid MAC address | — |
-|                          | `NOT_UUID` | Value is not a valid UUID | — |
-|                          | `INVALID_DATE` | Value is not a valid / parseable date | — |
-|                          | `PATTERN_MISMATCH` | Value does not match the expected regex | `{ pattern: string }` |
+|                          | `UUID` | Value is not a valid UUID | — |
+|                          | `DATE` | Value is not a valid / parseable date | — |
+|                          | `PATTERN` | Value does not match the expected regex | `{ pattern: string }` |
+|                          | `JSON` | Value is not valid JSON | — |
+|                          | `BASE64` | Value is not valid base64 | — |
+|                          | `STRONG_PASSWORD` | Value doesn't meet the configured strength rules | `{ minLength?, minLowercase?, minUppercase?, minNumbers?, minSymbols? }` |
 | **Comparison**           | `SAME_AS` | Value must equal another named field's value (e.g. password-confirm) | `{ other: string }` |
 
 Adapters are responsible for mapping foreign codes onto the vocabulary — e.g. `@validup/zod`'s adapter translates zod's `too_small` (string variant) onto `IssueCode.MIN_LENGTH`. When a foreign code has no direct match, the adapter falls back to `IssueCode.VALUE_INVALID` and the consumer-side template uses the eagerly-rendered English `issue.message`.
@@ -771,7 +774,7 @@ Use one of the official integration packages to bridge an existing validator lib
 |--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
 | [`@validup/standard-schema`](https://npmjs.com/package/@validup/standard-schema)     | Any [Standard Schema](https://standardschema.dev) library — zod 3.24+, valibot, arktype, effect-schema, … |
 | [`@validup/zod`](https://npmjs.com/package/@validup/zod)                             | [zod](https://zod.dev) schemas (vendor-specific issue mapping with `expected` / `received`) |
-| [`@validup/express-validator`](https://npmjs.com/package/@validup/express-validator) | [express-validator](https://express-validator.github.io) chains                |
+| [`@validup/validator-js`](https://npmjs.com/package/@validup/validator-js)           | [validator.js](https://github.com/validatorjs/validator.js) string validators — pre-baked factories per common rule, plus a generic `createValidator(fn, {...})` for the long tail |
 | [`@validup/vue`](https://npmjs.com/package/@validup/vue)                             | [Vue 3](https://vuejs.org) composable for reactive client-side form state      |
 
 ## Stability
