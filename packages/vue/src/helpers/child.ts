@@ -7,12 +7,12 @@
 
 import type { InjectionKey, Ref } from 'vue';
 import type { ObjectLiteral } from 'validup';
-import type { ParentRegistry, ValidupComposable } from '../types';
+import type { Composable, ParentRegistry } from '../types';
 
 export const PARENT_INJECTION_KEY: InjectionKey<ParentRegistry> = Symbol.for('validup:parent');
 
-export function extractValidupResultsFromChild<T extends ObjectLiteral = ObjectLiteral>(
-    composable: ValidupComposable<any> | Ref<ValidupComposable<any>>,
+export function extractResultsFromChild<T extends ObjectLiteral = ObjectLiteral>(
+    composable: Composable<any> | Ref<Composable<any>>,
     name: string,
 ): Partial<T> {
     const $v = 'value' in composable ? composable.value : composable;

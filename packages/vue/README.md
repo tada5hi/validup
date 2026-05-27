@@ -51,7 +51,7 @@ npm install @validup/vue validup vue --save
 import { ref, reactive } from 'vue';
 import { Container, ValidupError } from 'validup';
 import { createValidator } from '@validup/zod';
-import { useValidup, getValidupSeverity } from '@validup/vue';
+import { useValidup, getSeverity } from '@validup/vue';
 import { z } from 'zod';
 
 const userValidator = new Container<{ name: string; email: string }>();
@@ -77,7 +77,7 @@ export default {
 In the template:
 
 ```vue
-<input v-model="$v.fields.name.$model" :class="getValidupSeverity($v.fields.name)" />
+<input v-model="$v.fields.name.$model" :class="getSeverity($v.fields.name)" />
 <small v-for="err in $v.fields.name.$errors" :key="err.code">{{ err.message }}</small>
 ```
 
@@ -269,14 +269,14 @@ A parent form aggregates one or more child forms via `provide` / `inject`. Child
 
 ```typescript
 // parent.vue
-import { useValidup, extractValidupResultsFromChild } from '@validup/vue';
+import { useValidup, extractResultsFromChild } from '@validup/vue';
 
 const $v = useValidup(new Container(), {}, { stopPropagation: true });
 
 async function submit() {
     const data = {
-        ...extractValidupResultsFromChild($v, 'basic'),
-        ...extractValidupResultsFromChild($v, 'connection'),
+        ...extractResultsFromChild($v, 'basic'),
+        ...extractResultsFromChild($v, 'connection'),
     };
     await api.create(data);
 }
@@ -338,7 +338,7 @@ const widget = useValidup(widgetValidator, widgetForm, { detached: true });
 
 ## Severity
 
-`getValidupSeverity(field)` returns a literal that drops straight into design-system components (e.g. `@vuecs/form-controls`):
+`getSeverity(field)` returns a literal that drops straight into design-system components (e.g. `@vuecs/form-controls`):
 
 | Field state                              | Severity      |
 |------------------------------------------|---------------|
@@ -348,10 +348,10 @@ const widget = useValidup(widgetValidator, widgetForm, { detached: true });
 | `$dirty` + valid                         | `'success'`   |
 
 ```typescript
-import { getValidupSeverity } from '@validup/vue';
+import { getSeverity } from '@validup/vue';
 
 buildFormGroup({
-    validationSeverity: getValidupSeverity($v.fields.name),
+    validationSeverity: getSeverity($v.fields.name),
     validationMessages: $v.fields.name.$errors.value.map((i) => i.message),
     // …
 });
@@ -365,10 +365,10 @@ buildFormGroup({
 function useValidup<T extends ObjectLiteral, C = unknown>(
     container: IContainer<T, C> | Ref<IContainer<T, C>>,
     state: T | Ref<T>,
-    options?: ValidupComposableOptions<T, C>,
-): ValidupComposable<T>;
+    options?: ComposableOptions<T, C>,
+): Composable<T>;
 
-interface ValidupComposableOptions<T, C = unknown> {
+interface ComposableOptions<T, C = unknown> {
     group?: MaybeRef<string | undefined>;
     context?: MaybeRef<C | undefined>; // forwarded as ValidatorContext.context; reactive
     debounce?: number;
@@ -381,7 +381,7 @@ interface ValidupComposableOptions<T, C = unknown> {
 }
 ```
 
-### `ValidupComposable<T>`
+### `Composable<T>`
 
 | Member                            | Description                                                                                                |
 |-----------------------------------|------------------------------------------------------------------------------------------------------------|
@@ -400,8 +400,8 @@ interface ValidupComposableOptions<T, C = unknown> {
 
 | Export                            | Purpose                                                |
 |-----------------------------------|--------------------------------------------------------|
-| `getValidupSeverity(field)`       | `'success' \| 'warning' \| 'error' \| undefined`       |
-| `extractValidupResultsFromChild`  | Splice a child composable's `$model` values into one object |
+| `getSeverity(field)`       | `'success' \| 'warning' \| 'error' \| undefined`       |
+| `extractResultsFromChild`  | Splice a child composable's `$model` values into one object |
 | `PARENT_INJECTION_KEY`            | The `provide`/`inject` key used for parent collectors  |
 
 ## Migrating from Vuelidate
@@ -433,11 +433,11 @@ Templates rarely change:
 | `$v.value.<field>.$errors`                        | `$v.fields.<field>.$errors.value` (validup `IssueItem[]`) |
 | `$v.value.$touch()`                               | `$v.$touch()`                                             |
 | `$v.value.$reset()`                               | `$v.$reset()`                                             |
-| `getSeverity($v.value.<field>)` (`@ilingo/vuelidate`) | `getValidupSeverity($v.fields.<field>)`               |
+| `getSeverity($v.value.<field>)` (`@ilingo/vuelidate`) | `getSeverity($v.fields.<field>)`               |
 | `useVuelidate({ $stopPropagation: true })` parent | `useValidup(container, state, { stopPropagation: true })` |
 | nested child `useVuelidate(rules, form)`          | nested child `useValidup(container, form, { name })`      |
 | `$v.value.$getResultsForChild(name)`              | `$v.$getResultsForChild(name)`                            |
-| `extractVuelidateResultsFromChild(...)` (custom)  | `extractValidupResultsFromChild($v, name)`                |
+| `extractVuelidateResultsFromChild(...)` (custom)  | `extractResultsFromChild($v, name)`                |
 
 What changes substantively:
 
@@ -451,8 +451,8 @@ What changes substantively:
 
 What's covered by semver:
 
-- **Public exports** — `useValidup`, `getValidupSeverity`, `extractValidupResultsFromChild`, `PARENT_INJECTION_KEY`, and the `ValidupComposable` / `FieldState` / `ValidupComposableOptions` / `ValidupSeverity` types.
-- **`ValidupComposable<T>` shape** — every documented member in the [API Reference](#api-reference) table, including the `$crossCuttingErrors` / `$groupErrors` accessors and the `setExternalIssues` / `$validate` / `$getResultsForChild` methods.
+- **Public exports** — `useValidup`, `getSeverity`, `extractResultsFromChild`, `PARENT_INJECTION_KEY`, and the `Composable` / `FieldState` / `ComposableOptions` / `Severity` types.
+- **`Composable<T>` shape** — every documented member in the [API Reference](#api-reference) table, including the `$crossCuttingErrors` / `$groupErrors` accessors and the `setExternalIssues` / `$validate` / `$getResultsForChild` methods.
 - **Options contract** — `group`, `context`, `debounce`, `name`, `stopPropagation`, `detached`, `lazy`, `autoDirty`, `scope`. New options will be additive within a major.
 - **Parent / child collector protocol** — `PARENT_INJECTION_KEY` and per-scope `Symbol.for('validup:parent:<scope>')` are the wire format. Third-party composables can `provide` / `inject` the same key to participate.
 - **Dirty / external-issue semantics** — `$model` writes flip dirty + auto-clear external issues at the same path; `$reset` clears dirty + external but leaves internal issues (which reflect current state); `setExternalIssues` tags entries with `meta.external = true`.

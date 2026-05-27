@@ -5,9 +5,9 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { FieldState, ValidupSeverity } from '../types';
+import type { FieldState, Severity } from '../types';
 
-export function getValidupSeverity(state: FieldState<any>): ValidupSeverity {
+export function getSeverity(state: FieldState<any>): Severity {
     if (!state.$dirty.value) {
         return undefined;
     }
