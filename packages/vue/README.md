@@ -340,12 +340,17 @@ const widget = useValidup(widgetValidator, widgetForm, { detached: true });
 
 `getSeverity(field)` returns a literal that drops straight into design-system components (e.g. `@vuecs/form-controls`):
 
-| Field state                              | Severity      |
-|------------------------------------------|---------------|
-| not yet `$dirty`                         | `undefined`   |
-| `$dirty` + `$pending`                    | `'warning'`   |
-| `$dirty` + `$invalid`                    | `'error'`     |
-| `$dirty` + valid                         | `'success'`   |
+| Field state                                                       | Severity      |
+|-------------------------------------------------------------------|---------------|
+| not yet `$dirty`                                                  | `undefined`   |
+| `$dirty` + `$pending`                                             | `'warning'`   |
+| `$dirty` + `$invalid` + at least one issue from a required mount  | `'error'`     |
+| `$dirty` + `$invalid` + all issues from optional mounts           | `'warning'`   |
+| `$dirty` + valid                                                  | `'success'`   |
+
+The required-vs-optional split is driven by `IssueItem.meta.optional`, which the validup runtime stamps on issues emitted from mounts declared as `optional: true`. The rationale: if the schema permits a field to be blank, invalid content shouldn't gate the user as hard as a required-field failure. Mixed bags (one required + one optional issue on the same path) surface as `'error'` — the required one wins.
+
+`meta.optional` reflects only the most-local mount, so a required leaf inside an optional sub-form still surfaces as `'error'`. ("Role is optional" means *you don't have to provide a role*; once you do, the role's required fields stay required.)
 
 ```typescript
 import { getSeverity } from '@validup/vue';
@@ -400,7 +405,7 @@ interface ComposableOptions<T, C = unknown> {
 
 | Export                            | Purpose                                                |
 |-----------------------------------|--------------------------------------------------------|
-| `getSeverity(field)`       | `'success' \| 'warning' \| 'error' \| undefined`       |
+| `getSeverity(field)`       | `'success' \| 'warning' \| 'error' \| undefined` — optional-aware (see [Severity](#severity)) |
 | `extractResultsFromChild`  | Splice a child composable's `$model` values into one object |
 | `PARENT_INJECTION_KEY`            | The `provide`/`inject` key used for parent collectors  |
 
