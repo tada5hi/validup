@@ -70,25 +70,26 @@ function splitPath(path: string): PropertyKey[] {
  * doesn't preserve the failing validator's identity through the chain
  * (no `.isEmail()` → `'email'` propagation). Callers who want a code
  * mapped onto the validup vocabulary can opt in by passing a structured
- * object to `.withMessage(...)`:
+ * payload to `.withMessage(...)`:
  *
  * ```ts
  * import { IssueCode } from 'validup';
  *
- * chain.isEmail().withMessage({ code: IssueCode.EMAIL, msg: 'Invalid email' });
+ * chain.isEmail().withMessage({ code: IssueCode.EMAIL, message: 'Invalid email' });
  * ```
  *
- * The adapter detects the `{ code, msg }` shape and forwards the code
- * + message onto the resulting `IssueItem`. Without the structured
- * payload, the issue falls back to `VALUE_INVALID` plus the raw `msg`
- * string — same behavior as pre-vocabulary versions.
+ * The adapter detects the `{ code, message }` shape and forwards both
+ * onto the resulting `IssueItem`. Plain-string `.withMessage('…')` still
+ * works and falls back to `VALUE_INVALID` — backward-compatible with
+ * pre-vocabulary versions.
  */
 function extractCodeAndMessage(msg: unknown): { code: string, message: string } {
-    if (isObject(msg) && typeof msg.code === 'string' && msg.code.length > 0) {
-        const message = typeof msg.msg === 'string' ?
-            msg.msg :
-            String(msg.msg ?? '');
-        return { code: msg.code, message };
+    if (
+        isObject(msg) &&
+        typeof msg.code === 'string' && msg.code.length > 0 &&
+        typeof msg.message === 'string'
+    ) {
+        return { code: msg.code, message: msg.message };
     }
     return {
         code: IssueCode.VALUE_INVALID,

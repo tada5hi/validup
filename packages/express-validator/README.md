@@ -145,6 +145,30 @@ try {
 
 When the chain succeeds **without** transforming the value, the adapter returns the sanitized field value from express-validator's context — so chains like `.toInt()` or `.trim()` carry through to the validup output.
 
+### Mapping a code onto the validup vocabulary
+
+express-validator doesn't preserve the failing validator's identity through `ValidationError` (no `.isEmail()` → `'email'` propagation), so the adapter can't auto-derive a code. By default every `field` failure surfaces as `IssueCode.VALUE_INVALID` with the raw `msg` string as the displayable message.
+
+Callers who want one of validup's vocabulary codes ([see the table](https://www.npmjs.com/package/validup#issue-codes)) can opt in by passing a structured `{ code, message }` payload to `.withMessage(...)`:
+
+```typescript
+import { body } from 'express-validator';
+import { createValidator } from '@validup/express-validator';
+import { IssueCode } from 'validup';
+
+container.mount('email', createValidator(() => body()
+    .isEmail()
+    .withMessage({ code: IssueCode.EMAIL, message: 'Invalid email' })));
+
+container.mount('name', createValidator(() => body()
+    .isLength({ min: 3 })
+    .withMessage({ code: IssueCode.MIN_LENGTH, message: 'Too short' })));
+```
+
+The adapter detects the `{ code, message }` shape and lifts both onto the resulting `IssueItem`. Plain-string `.withMessage('Name too short')` is fully backward-compatible and falls back to `VALUE_INVALID`.
+
+The `alternative` / `alternative_grouped` cases produce an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` regardless of the `.withMessage(...)` payload — there's only one outer code per `oneOf` chain and the adapter knows it.
+
 ## API Reference
 
 | Export                       | Description                                                                  |

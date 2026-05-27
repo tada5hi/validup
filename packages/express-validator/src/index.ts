@@ -6,4 +6,5 @@
  */
 
 export * from './chain';
+export * from './error';
 export * from './module';

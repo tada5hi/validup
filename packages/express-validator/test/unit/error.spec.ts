@@ -134,14 +134,14 @@ describe('error translation', () => {
     describe('structured msg → vocabulary code mapping', () => {
         // express-validator doesn't preserve the failing validator's identity
         // through ValidationError, so the adapter can't auto-derive a code.
-        // The opt-in path: pass `{ code, msg }` to .withMessage() — adapter
-        // detects the structured shape and lifts `code` onto IssueItem.
+        // The opt-in path: pass `{ code, message }` to .withMessage() — the
+        // adapter detects the structured shape and lifts both onto IssueItem.
 
-        it('lifts a structured { code, msg } payload from .withMessage onto IssueItem', async () => {
+        it('lifts a structured { code, message } payload from .withMessage onto IssueItem', async () => {
             const container = new Container<{ email: string }>();
             container.mount('email', createValidator(() => body()
                 .isEmail()
-                .withMessage({ code: IssueCode.EMAIL, msg: 'Invalid email' })));
+                .withMessage({ code: IssueCode.EMAIL, message: 'Invalid email' })));
 
             expect.assertions(3);
             try {
@@ -172,6 +172,26 @@ describe('error translation', () => {
                     const items = flattenIssueItems(e.issues);
                     expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
                     expect(items[0]?.message).toBe('Name too short');
+                }
+            }
+        });
+
+        it('falls back to VALUE_INVALID for a partial payload missing `message`', async () => {
+            // Guard against accidental shapes like `{ code: 'x' }` without a
+            // `message` — silently dropping these would surface the cryptic
+            // `[object Object]` string. Treat them as plain-message instead.
+            const container = new Container<{ name: string }>();
+            container.mount('name', createValidator(() => body()
+                .isLength({ min: 3 })
+                .withMessage({ code: 'something' } as never)));
+
+            expect.assertions(1);
+            try {
+                await container.run({ name: 'a' });
+            } catch (e) {
+                if (e instanceof ValidupError) {
+                    const items = flattenIssueItems(e.issues);
+                    expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
                 }
             }
         });
