@@ -247,6 +247,7 @@ describe('optional', () => {
             const issues = await runAndCollectIssues(container, { tag: 42 });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+            expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBe(true);
         });
 
@@ -267,6 +268,7 @@ describe('optional', () => {
             const issues = await runAndCollectIssues(container, { tag: 42 });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+            expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBeUndefined();
         });
 
@@ -283,6 +285,7 @@ describe('optional', () => {
             const issues = await runAndCollectIssues(container, { tag: 42 });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+            expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBeUndefined();
         });
 
@@ -346,7 +349,49 @@ describe('optional', () => {
             const issues = await runAndCollectIssues(container, { tag: 42 });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+            expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBeUndefined();
+        });
+
+        it('recursively tags leaves inside an IssueGroup thrown by a validator', async () => {
+            // Some integration adapters might throw `ValidupError([
+            //   defineIssueGroup({ issues: [leaf1, leaf2] }),
+            // ])`. Without deep stamping, `flattenIssueItems` reaches in,
+            // pulls the leaves, and they'd surface to consumers WITHOUT
+            // meta.optional — breaking severity gating downstream.
+            const container = new Container<{ tag: string }>();
+            container.mount(
+                'tag',
+                { optional: true },
+                () => {
+                    throw new ValidupError([{
+                        type: 'group',
+                        path: [],
+                        message: 'two-leaf group',
+                        issues: [
+                            {
+                                type: 'item', 
+                                code: 'A', 
+                                path: ['inner-a'], 
+                                message: 'a', 
+                            } as IssueItem,
+                            {
+                                type: 'item', 
+                                code: 'B', 
+                                path: ['inner-b'], 
+                                message: 'b', 
+                            } as IssueItem,
+                        ],
+                    } as Issue]);
+                },
+            );
+
+            const issues = await runAndCollectIssues(container, { tag: 'anything' });
+            const leaves = flattenIssueItems(issues);
+            expect(leaves.length).toBeGreaterThanOrEqual(2);
+            for (const leaf of leaves) {
+                expect(leaf.meta?.optional).toBe(true);
+            }
         });
 
         it('does not mutate the validator\'s original error.issues[i].meta', async () => {
@@ -405,6 +450,7 @@ describe('optional', () => {
             const issues = await runAndCollectIssues(container, { tag: 'anything' });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+            expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBe(true);
             expect(leaf.meta?.source).toBe('unit-test');
         });

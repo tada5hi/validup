@@ -864,21 +864,42 @@ export class Container<
             Boolean(item.options.optional(value)) :
             item.options.optional === true
         ;
+        // Shallow stamp — only the top-level `issue.meta`. Used for the
+        // wrapping `IssueGroup` we emit for container mounts (Option B: do
+        // not propagate the parent's optional flag onto the bubbled-up child
+        // leaves, which retain their own per-mount tagging) and for leaves
+        // we construct directly via `defineIssueItem`.
+        //
+        // We reassign `issue.meta` to a FRESH object rather than mutating
+        // the existing one. The top-level `issue` is always safe to mutate
+        // here (it's a fresh object from `prefixIssuePath`'s shallow spread
+        // or one of the `defineIssue*` factories), but the inner `meta`
+        // object can be shared with the validator's original
+        // `ValidupError.issues[i].meta` — mutating in place would leak
+        // `optional: true` back into the validator's own (possibly cached
+        // or replayed) error.
         const markOptional = <I extends Issue>(issue: I): I => {
             if (!isOptionalMount) {
                 return issue;
             }
-
-            // Reassign `issue.meta` to a FRESH object rather than mutating
-            // the existing one. The top-level `issue` is always safe to
-            // mutate here (it's a fresh object from `prefixIssuePath`'s
-            // shallow spread or one of the `defineIssue*` factories), but
-            // the inner `meta` object can be shared with the validator's
-            // original `ValidupError.issues[i].meta` — mutating in place
-            // would leak `optional: true` back into the validator's own
-            // (possibly cached/replayed) error.
             issue.meta = { ...(issue.meta ?? {}), optional: true };
+            return issue;
+        };
 
+        // Deep stamp — recurse into `IssueGroup.issues`. Used ONLY when the
+        // whole tree was produced by *this* validator (e.g. an integration
+        // adapter that threw `ValidupError([defineIssueGroup({ issues: [...] })])`).
+        // Without this, `flattenIssueItems` would pull out the inner leaves
+        // and miss `meta.optional` on them. Not used for container mounts —
+        // see Option B above.
+        const markOptionalDeep = <I extends Issue>(issue: I): I => {
+            if (!isOptionalMount) {
+                return issue;
+            }
+            markOptional(issue);
+            if (issue.type === 'group') {
+                issue.issues = issue.issues.map((nested) => markOptionalDeep(nested));
+            }
             return issue;
         };
 
@@ -889,9 +910,11 @@ export class Container<
                 const prefixed = this.prefixIssuePath(error.issues[i], keyParts);
                 // Stamp only when a *validator* threw `ValidupError` directly
                 // (e.g. an integration adapter like `@validup/zod` reshaping
-                // a foreign error into validup issues). For child Container
-                // runs, leave the bubbled tree alone — see comment above.
-                childIssues.push(item.type === 'validator' ? markOptional(prefixed) : prefixed);
+                // a foreign error into validup issues). Deep so that a
+                // validator returning a nested `IssueGroup` tags leaves too.
+                // For child Container runs, leave the bubbled tree alone —
+                // see comment above.
+                childIssues.push(item.type === 'validator' ? markOptionalDeep(prefixed) : prefixed);
             }
         } else if (isError(error)) {
             childIssues.push(markOptional(defineIssueItem({
@@ -914,10 +937,11 @@ export class Container<
         if (pathRelative) {
             if (item.type === 'container' || childIssues.length > 1) {
                 // The wrapping group is itself an emission of *this* mount —
-                // stamp it so a tree-walking consumer can read the optional
-                // signal at the group level (the leaves inside follow the
-                // "no inheritance" rule and stay untouched for container
-                // mounts).
+                // stamp it (shallow) so a tree-walking consumer can read the
+                // optional signal at the group level. The leaves inside
+                // follow the "no inheritance" rule and stay untouched for
+                // container mounts; for multi-leaf validator mounts, the
+                // leaves were already stamped above.
                 issues.push(markOptional(defineIssueGroup({
                     message: buildErrorMessageForAttribute(String(pathRelative)),
                     params: { name: String(pathRelative) },
