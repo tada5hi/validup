@@ -6,10 +6,10 @@
  */
 
 import validator from 'validator';
-import { IssueCode } from 'validup';
+import { IssueCode, createValidupError  } from 'validup';
 import type { Validator } from 'validup';
 import type { BaseFactoryOptions } from '../module';
-import { throwValidupError, toValidatorString } from '../module';
+import { toValidatorString } from '../module';
 
 /**
  * Factory: validator.js `isAlpha`. Emits `IssueCode.ALPHA` on failure.
@@ -26,7 +26,7 @@ export function isAlpha<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isAlpha(s, options.locale, options)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.ALPHA, message);
+        throw createValidupError(ctx.value, IssueCode.ALPHA, message);
     };
 }
 
@@ -42,7 +42,7 @@ export function isAlphanumeric<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isAlphanumeric(s, options.locale, options)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.ALPHA_NUM, message);
+        throw createValidupError(ctx.value, IssueCode.ALPHA_NUM, message);
     };
 }
 
@@ -56,7 +56,7 @@ export function isNumeric<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isNumeric(s, options)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.NUMERIC, message);
+        throw createValidupError(ctx.value, IssueCode.NUMERIC, message);
     };
 }
 
@@ -70,7 +70,7 @@ export function isDecimal<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isDecimal(s, options)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.DECIMAL, message);
+        throw createValidupError(ctx.value, IssueCode.DECIMAL, message);
     };
 }
 
@@ -91,7 +91,7 @@ export function isInt<C = unknown>(
         // surfaces as INTEGER instead of being swallowed by a range failure.
         const isInteger = validator.isInt(s, { allow_leading_zeroes: options.allow_leading_zeroes });
         if (!isInteger) {
-            return throwValidupError(
+            throw createValidupError(
                 ctx.value,
                 IssueCode.INTEGER,
                 options.message ?? 'The value must be an integer',
@@ -100,7 +100,7 @@ export function isInt<C = unknown>(
         const numeric = Number(s);
         const { min, max } = options;
         if (typeof min === 'number' && numeric < min) {
-            return throwValidupError(
+            throw createValidupError(
                 ctx.value,
                 IssueCode.MIN_VALUE,
                 options.message ?? `The value must be greater than or equal to ${min}`,
@@ -108,7 +108,7 @@ export function isInt<C = unknown>(
             );
         }
         if (typeof max === 'number' && numeric > max) {
-            return throwValidupError(
+            throw createValidupError(
                 ctx.value,
                 IssueCode.MAX_VALUE,
                 options.message ?? `The value must be less than or equal to ${max}`,
@@ -117,7 +117,7 @@ export function isInt<C = unknown>(
         }
         // Final pass with the full options to cover lt / gt / etc.
         if (!validator.isInt(s, options)) {
-            return throwValidupError(
+            throw createValidupError(
                 ctx.value,
                 IssueCode.INTEGER,
                 options.message ?? 'The value must be an integer',
@@ -138,7 +138,7 @@ export function isFloat<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (!validator.isFloat(s)) {
-            return throwValidupError(
+            throw createValidupError(
                 ctx.value,
                 IssueCode.DECIMAL,
                 options.message ?? 'The value must be a decimal number',
@@ -147,7 +147,7 @@ export function isFloat<C = unknown>(
         const numeric = Number(s);
         const { min, max } = options;
         if (typeof min === 'number' && numeric < min) {
-            return throwValidupError(
+            throw createValidupError(
                 ctx.value,
                 IssueCode.MIN_VALUE,
                 options.message ?? `The value must be greater than or equal to ${min}`,
@@ -155,7 +155,7 @@ export function isFloat<C = unknown>(
             );
         }
         if (typeof max === 'number' && numeric > max) {
-            return throwValidupError(
+            throw createValidupError(
                 ctx.value,
                 IssueCode.MAX_VALUE,
                 options.message ?? `The value must be less than or equal to ${max}`,
@@ -163,7 +163,7 @@ export function isFloat<C = unknown>(
             );
         }
         if (!validator.isFloat(s, options)) {
-            return throwValidupError(
+            throw createValidupError(
                 ctx.value,
                 IssueCode.DECIMAL,
                 options.message ?? 'The value must be a decimal number',

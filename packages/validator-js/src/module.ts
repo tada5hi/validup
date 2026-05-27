@@ -7,10 +7,9 @@
 
 import {
     IssueCode,
-    ValidupError,
-    defineIssueItem,
+    createValidupError,
 } from 'validup';
-import type { Issue, Validator } from 'validup';
+import type { Validator } from 'validup';
 
 /**
  * Shape of a validator.js boolean predicate. The first argument is always
@@ -63,27 +62,6 @@ export function toValidatorString(value: unknown): string {
 }
 
 /**
- * Throw a `ValidupError` carrying a single `IssueItem` with the given
- * `code` + `params` + `message`. Used by every factory and by
- * {@link createValidator} as the canonical failure shape.
- */
-export function throwValidupError(
-    received: unknown,
-    code: string,
-    message: string,
-    params?: Record<string, unknown>,
-): never {
-    const issue: Issue = defineIssueItem({
-        path: [],
-        message,
-        code,
-        params,
-        received,
-    });
-    throw new ValidupError([issue]);
-}
-
-/**
  * Generic wrap for any validator.js function we don't ship a pre-baked
  * factory for. The wrapped validator stringifies `ctx.value`, calls the
  * validator.js predicate, and throws a `ValidupError` carrying the
@@ -114,6 +92,6 @@ export function createValidator<C = unknown>(
         if (fn(stringified)) {
             return ctx.value;
         }
-        return throwValidupError(ctx.value, fallbackCode, fallbackMessage, options.params);
+        throw createValidupError(ctx.value, fallbackCode, fallbackMessage, options.params);
     };
 }

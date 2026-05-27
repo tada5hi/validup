@@ -6,10 +6,10 @@
  */
 
 import validator from 'validator';
-import { IssueCode } from 'validup';
+import { IssueCode, createValidupError  } from 'validup';
 import type { Validator } from 'validup';
 import type { BaseFactoryOptions } from '../module';
-import { throwValidupError, toValidatorString } from '../module';
+import { toValidatorString } from '../module';
 
 /**
  * Factory: validator.js `isLength`. Detects which bound failed at
@@ -31,7 +31,7 @@ export function isLength<C = unknown>(
         const s = toValidatorString(ctx.value);
         if (validator.isLength(s, options)) return ctx.value;
         if (typeof min === 'number' && s.length < min) {
-            return throwValidupError(
+            throw createValidupError(
                 ctx.value,
                 IssueCode.MIN_LENGTH,
                 options.message ?? `The minimum length allowed is ${min}`,
@@ -39,7 +39,7 @@ export function isLength<C = unknown>(
             );
         }
         if (typeof max === 'number' && s.length > max) {
-            return throwValidupError(
+            throw createValidupError(
                 ctx.value,
                 IssueCode.MAX_LENGTH,
                 options.message ?? `The maximum length allowed is ${max}`,
@@ -49,7 +49,7 @@ export function isLength<C = unknown>(
         // Fallback (shouldn't normally hit — `isLength` returned false but
         // neither bound was crossed). Surface as MIN_LENGTH with the
         // configured min as the most informative shape.
-        return throwValidupError(
+        throw createValidupError(
             ctx.value,
             IssueCode.MIN_LENGTH,
             options.message ?? 'The value has an invalid length',

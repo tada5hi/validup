@@ -6,10 +6,10 @@
  */
 
 import validator from 'validator';
-import { IssueCode } from 'validup';
+import { IssueCode, createValidupError  } from 'validup';
 import type { Validator } from 'validup';
 import type { BaseFactoryOptions } from '../module';
-import { throwValidupError, toValidatorString } from '../module';
+import { toValidatorString } from '../module';
 
 /**
  * Factory: validator.js `matches`. Emits `IssueCode.PATTERN` on failure
@@ -26,7 +26,7 @@ export function matches<C = unknown>(pattern: RegExp | string, options: BaseFact
             validator.matches(s, pattern, options.modifiers) :
             validator.matches(s, pattern);
         if (ok) return ctx.value;
-        return throwValidupError(
+        throw createValidupError(
             ctx.value,
             IssueCode.PATTERN,
             options.message ?? 'The value does not match the expected pattern',
@@ -52,7 +52,7 @@ export function equals<C = unknown>(comparison: string, options: BaseFactoryOpti
         const s = toValidatorString(ctx.value);
         const target = options.expectedValue ?? comparison;
         if (validator.equals(s, target)) return ctx.value;
-        return throwValidupError(
+        throw createValidupError(
             ctx.value,
             IssueCode.SAME_AS,
             options.message ?? `The value must equal ${comparison}`,

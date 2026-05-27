@@ -751,9 +751,38 @@ See [Builder API](#builder-api-compile-time-typing). Each `.mount(...)` call ret
 |-----------------------|------------------------------------------------------|
 | `defineIssueItem`     | Construct an `IssueItem` (sets `type`, default code) |
 | `defineIssueGroup`    | Construct an `IssueGroup` (sets `type`)              |
-| `IssueCode`           | Built-in issue codes (`VALUE_INVALID`, `ONE_OF_FAILED`) |
+| `createValidupError`  | Build a `ValidupError` carrying one `IssueItem` (sugar for the most common single-issue failure shape). Caller throws. |
+| `IssueCode`           | Vocabulary of well-known issue codes (`VALUE_INVALID`, `REQUIRED`, `MIN_LENGTH`, …; full table above) |
 | `GroupKey`            | `WILDCARD = '*'`                                     |
 | `OptionalValue`       | `UNDEFINED` / `NULL` / `FALSY`                       |
+
+### Validator Composition
+
+```typescript
+import { compose, type ComposeOptions } from 'validup';
+
+function compose<C = unknown>(
+    validators: Validator<C>[],
+    options?: ComposeOptions,
+): Validator<C>;
+```
+
+Build a single `Validator` from many. Two modes via `options.bail`:
+
+- **`bail: true`** (default) — fail-fast + threaded: each validator's output feeds the next; the first failure stops the chain. Use for sanitize-then-validate pipelines.
+- **`bail: false`** — collect-all: every validator runs against the original `ctx.value`; failures aggregate into one `ValidupError` with multiple issues. Use for richer submit-time error UIs.
+
+```typescript
+// sanitize-then-validate
+container.mount('email', compose([trim(), isEmail(), isLength({ max: 254 })]));
+
+// every broken rule surfaces in one pass
+container.mount('password', compose([
+    isLength({ min: 8 }),
+    isAlphanumeric(),
+    matches(/[0-9]/),
+], { bail: false }));
+```
 
 ### Type Guards
 

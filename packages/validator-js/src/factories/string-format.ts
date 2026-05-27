@@ -6,10 +6,10 @@
  */
 
 import validator from 'validator';
-import { IssueCode } from 'validup';
+import { IssueCode, createValidupError  } from 'validup';
 import type { Validator } from 'validup';
 import type { BaseFactoryOptions } from '../module';
-import { throwValidupError, toValidatorString } from '../module';
+import { toValidatorString } from '../module';
 
 /**
  * Factory: validator.js `isEmail`. Emits `IssueCode.EMAIL` on failure.
@@ -25,7 +25,7 @@ export function isEmail<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isEmail(s, options)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.EMAIL, message);
+        throw createValidupError(ctx.value, IssueCode.EMAIL, message);
     };
 }
 
@@ -39,7 +39,7 @@ export function isURL<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isURL(s, options)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.URL, message);
+        throw createValidupError(ctx.value, IssueCode.URL, message);
     };
 }
 
@@ -57,7 +57,7 @@ export function isUUID<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isUUID(s, options.version)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.UUID, message);
+        throw createValidupError(ctx.value, IssueCode.UUID, message);
     };
 }
 
@@ -73,7 +73,7 @@ export function isIP<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isIP(s, options.version)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.IP_ADDRESS, message);
+        throw createValidupError(ctx.value, IssueCode.IP_ADDRESS, message);
     };
 }
 
@@ -87,7 +87,7 @@ export function isMACAddress<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isMACAddress(s, options)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.MAC_ADDRESS, message);
+        throw createValidupError(ctx.value, IssueCode.MAC_ADDRESS, message);
     };
 }
 
@@ -101,7 +101,7 @@ export function isDate<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isDate(s, options)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.DATE, message);
+        throw createValidupError(ctx.value, IssueCode.DATE, message);
     };
 }
 
@@ -117,7 +117,7 @@ export function isISO8601<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isISO8601(s, options)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.DATE, message);
+        throw createValidupError(ctx.value, IssueCode.DATE, message);
     };
 }
 
@@ -131,7 +131,7 @@ export function isJSON<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isJSON(s, options)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.JSON, message);
+        throw createValidupError(ctx.value, IssueCode.JSON, message);
     };
 }
 
@@ -145,7 +145,7 @@ export function isBase64<C = unknown>(
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         if (validator.isBase64(s, options)) return ctx.value;
-        return throwValidupError(ctx.value, IssueCode.BASE64, message);
+        throw createValidupError(ctx.value, IssueCode.BASE64, message);
     };
 }
 
@@ -171,7 +171,7 @@ export function isStrongPassword<C = unknown>(
         // `{{minLength}}`, `{{minNumbers}}`, … against this object.
         const { message: _, ...rest } = options;
         const params: Record<string, unknown> = { ...rest };
-        return throwValidupError(
+        throw createValidupError(
             ctx.value,
             IssueCode.STRONG_PASSWORD,
             message,
