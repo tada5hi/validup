@@ -11,10 +11,13 @@
  * (e.g. `@ilingo/validup`) can ship one localized message per code
  * instead of falling back to a generic "invalid value" fallback.
  *
- * Tracks the common ground between vuelidate, zod, joi, and yup — 16
- * codes lift directly from vuelidate's catalog (snake_cased to match
- * validup's convention); 3 modern additions (`PATTERN_MISMATCH`,
- * `NOT_UUID`, `INVALID_DATE`) cover ground vuelidate predates.
+ * Tracks the common ground between vuelidate, zod, joi, and yup. The
+ * core lifts from vuelidate's catalog (snake_cased to match validup's
+ * convention); modern format codes (`PATTERN`, `UUID`, `DATE`,
+ * `JSON`, `BASE64`, `STRONG_PASSWORD`, …) cover ground vuelidate
+ * predates. Every format code names the format positively (`UUID`,
+ * `EMAIL`, `URL`, …) rather than the failure mode (`NOT_UUID`,
+ * `INVALID_EMAIL`) so the registry reads consistently.
  *
  * Ad-hoc / project-specific codes still work — `IssueItem.code` is
  * widened to `IssueCode | (string & {})`, so `defineIssueItem({ code:
