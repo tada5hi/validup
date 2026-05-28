@@ -5,7 +5,26 @@
  *  view the LICENSE file that was distributed with this source code.
  */
 
-import type { IssueCode } from './constants';
+import type { 
+    BareIssueCode, 
+    IssueCode, 
+    IssueParamsByCode, 
+    ParameterizedIssueCode, 
+} from './constants';
+
+/**
+ * Resolve a possibly-`undefined` `code` to its effective vocabulary entry.
+ * When a producer (`defineIssueItem`, `createValidupError`) is called
+ * without a `code`, the runtime defaults to `IssueCode.VALUE_INVALID`;
+ * this helper reflects that at the type level so the conditional-type
+ * signatures pick the bare-params branch instead of the raw catch-all.
+ *
+ * `[C] extends [undefined]` is the standard idiom for testing the whole
+ * `C` against `undefined` *without* distributing over union members.
+ */
+export type ResolveIssueCode<C> = [C] extends [undefined] ?
+    typeof IssueCode.VALUE_INVALID :
+    C & string;
 
 export interface IssueBase {
     /**
@@ -58,21 +77,20 @@ export interface IssueBase {
 
     /**
      * Structured parameters used by the default `message` rendering and
-     * available to consumer-side formatters (i18n, custom locales). For
-     * built-in issues created by the runtime, `params` is populated where
-     * the message references a non-trivial value (e.g. attribute name).
+     * available to consumer-side formatters (i18n, custom locales). The
+     * concrete shape depends on the discriminating `code` — see the
+     * `IssueItem` union below for the per-code contract.
      */
     params?: Record<string, unknown>
 }
 
-export interface IssueItem extends IssueBase {
-    /**
-     * Code identifying the issue. Known codes come from `IssueCodeRegistry`
-     * (extensible via declaration merging); the `string` widening leaves the
-     * door open for ad-hoc codes that don't need a registry entry.
-     */
-    code: IssueCode | (string & {}),
-
+/**
+ * Shared shape for every `IssueItem` branch — the discriminant (`type:
+ * 'item'`) plus the vendor-passthrough fields. The `code` and `params`
+ * fields are intentionally absent here; each branch in the discriminated
+ * union below pins them to the right pair.
+ */
+interface IssueItemCommon extends IssueBase {
     /**
      * Issue Type
      */
@@ -89,10 +107,75 @@ export interface IssueItem extends IssueBase {
     expected?: unknown,
 }
 
+/**
+ * Typed-params branch — one variant per `ParameterizedIssueCode`. The
+ * `params` shape is locked to the documented contract via
+ * {@link IssueParamsByCode}.
+ *
+ * Distributed (rather than written as a single `code: ParameterizedIssueCode`
+ * member) so that `Extract<IssueItem, { code: 'min_length' }>` and structural
+ * narrowing on `issue.code === IssueCode.MIN_LENGTH` resolve to the right
+ * concrete variant with `params: { min: number }`, not the joined union.
+ */
+export type IssueItemTyped = {
+    [K in ParameterizedIssueCode]: IssueItemCommon & {
+        code: K,
+        params: IssueParamsByCode[K],
+    };
+}[ParameterizedIssueCode];
+
+/**
+ * Bare-params branch — one variant per `BareIssueCode`. `params` must be
+ * absent (or explicitly `undefined`).
+ *
+ * Distributed for the same reason as {@link IssueItemTyped} — so
+ * `Extract<IssueItem, { code: 'email' }>` resolves to the single
+ * `code: 'email'` variant.
+ */
+export type IssueItemBare = {
+    [K in BareIssueCode]: IssueItemCommon & {
+        code: K,
+        params?: undefined,
+    };
+}[BareIssueCode];
+
+/**
+ * Escape-hatch branch — ad-hoc / project-specific codes outside the
+ * shipped vocabulary. `code: string & {}` keeps autocomplete on the
+ * `IssueCode` literals while permitting strings the typed branches don't
+ * cover; `params` is fully open.
+ *
+ * Note: because `string & {}` accepts any string at the type level,
+ * narrowing on `issue.code === IssueCode.MIN_LENGTH` still pulls this
+ * branch in alongside the matching `IssueItemTyped` variant. The
+ * producer-side `defineIssueItem` / `createValidupError` signatures
+ * gatekeep this so emission is always correct; consumers needing a
+ * clean narrow should cast `issue.params` after the code check.
+ */
+export interface IssueItemRaw extends IssueItemCommon {
+    code: string & {},
+    params?: Record<string, unknown>,
+}
+
+/**
+ * Discriminated union over `IssueItem`'s three branches:
+ *
+ * - {@link IssueItemTyped} — known parameterized codes (`MIN_LENGTH`,
+ *   `PATTERN`, `STRONG_PASSWORD`, …); `params` is required and typed.
+ * - {@link IssueItemBare} — known param-less codes (`EMAIL`, `REQUIRED`,
+ *   …); `params` must be absent.
+ * - {@link IssueItemRaw} — ad-hoc string codes; `params` is open.
+ *
+ * The discriminant is `code`. Build issues with `defineIssueItem` (typed
+ * overloads enforce the per-branch contract) rather than constructing
+ * literals by hand.
+ */
+export type IssueItem = IssueItemTyped | IssueItemBare | IssueItemRaw;
+
 export interface IssueGroup extends IssueBase {
     /**
-     * Code identifying the issue. See `IssueItem.code` for the registry
-     * extension mechanism.
+     * Code identifying the issue. See `IssueItem.code` for the
+     * vocabulary + ad-hoc widening conventions.
      */
     code?: IssueCode | (string & {}),
 

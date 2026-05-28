@@ -96,7 +96,7 @@ export default defineConfig({
                         { text: 'Overview', link: '/integrations/' },
                         { text: 'Standard Schema', link: '/integrations/standard-schema' },
                         { text: 'Zod', link: '/integrations/zod' },
-                        { text: 'express-validator', link: '/integrations/express-validator' },
+                        { text: 'validator.js', link: '/integrations/validator-js' },
                         { text: 'Vue', link: '/integrations/vue' },
                         { text: 'Vuecs Forms (preview)', link: '/integrations/vuecs-forms' },
                     ],

@@ -5,6 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+export * from './compose';
+export * from './create-error';
 export * from './defaults';
 export * from './error';
 export * from './optional-value';

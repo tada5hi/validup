@@ -1,6 +1,6 @@
 # Architecture
 
-Validup's model has three nouns — **Container**, **Validator**, **Issue** — and one verb: `Container.run(data)` (with `runSync` / `runParallel` / `safeRun` / `safeRunSync` siblings). Integration packages either produce a `Validator` from a foreign validation library (`@validup/standard-schema`, `@validup/zod`, `@validup/express-validator`) or wire a `Container` into a runtime / framework (`@validup/vue`).
+Validup's model has three nouns — **Container**, **Validator**, **Issue** — and one verb: `Container.run(data)` (with `runSync` / `runParallel` / `safeRun` / `safeRunSync` siblings). Integration packages either produce a `Validator` from a foreign validation library (`@validup/standard-schema`, `@validup/zod`, `@validup/validator-js`) or wire a `Container` into a runtime / framework (`@validup/vue`).
 
 ## Core Types
 
@@ -97,16 +97,24 @@ Pass `optional: (value) => boolean` for cases the enum can't express (e.g. drop 
 interface IssueBase {
     path: PropertyKey[],
     message: string,
-    params?: Record<string, unknown>,   // structured payload for lazy re-rendering
+    params?: Record<string, unknown>,   // narrowed per branch on IssueItem
     meta?: Record<string, unknown>,
 }
 
-interface IssueItem extends IssueBase {
-    type: 'item',
-    code: IssueCode | (string & {}),    // IssueCode.VALUE_INVALID by default
-    received?: unknown,
-    expected?: unknown,
-}
+// IssueItem is a discriminated union over three branches:
+type IssueItemTyped = IssueItemCommon & {
+    code: ParameterizedIssueCode,       // 'min_length' | 'pattern' | 'strong_password' | …
+    params: IssueParamsByCode[code],    // required and typed per `IssueParamsByCode`
+};
+type IssueItemBare = IssueItemCommon & {
+    code: BareIssueCode,                // 'email' | 'required' | 'one_of_failed' | …
+    params?: undefined,                 // bare codes have no params
+};
+type IssueItemRaw = IssueItemCommon & {
+    code: string & {},                  // ad-hoc / project-specific codes
+    params?: Record<string, unknown>,   // open shape
+};
+type IssueItem = IssueItemTyped | IssueItemBare | IssueItemRaw;
 
 interface IssueGroup extends IssueBase {
     type: 'group',
@@ -116,7 +124,9 @@ interface IssueGroup extends IssueBase {
 ```
 
 - Always construct with the factories `defineIssueItem(...)` / `defineIssueGroup(...)` — they set `type` correctly. Pass `params` so consumer-side `formatIssue(issue, templates?)` can re-render the message in another locale.
-- `IssueCode` is a `const` lookup paired with a declaration-mergeable `IssueCodeRegistry` interface — third parties can add typed codes via module augmentation; the `(string & {})` widening keeps ad-hoc strings working too.
+- **`defineIssueItem` and `createValidupError` enforce the per-code `params` contract at compile time** via conditional-type signatures (`DefineIssueItemData<C>` / `CreateValidupErrorTail<C>` in `src/issue/define.ts` and `src/helpers/create-error.ts`; the shared `ResolveIssueCode<C>` helper in `src/issue/types.ts` handles the `code: undefined → VALUE_INVALID` default). Passing `IssueCode.MIN_LENGTH` without `params: { min }` is a compile error; passing `IssueCode.STRONG_PASSWORD` with `params: { pointsPerUnique: 5 }` is a compile error (scoring weight, not a documented requirement key); passing `IssueCode.EMAIL` with any `params` is a compile error.
+- **Consumer-side narrowing has a known limitation**: `IssueItemRaw`'s `code: string & {}` overlaps with the literal codes, so `if (issue.code === IssueCode.MIN_LENGTH) issue.params.min` types as `number | unknown | undefined` rather than `number`. The producer gatekeep is the primary safety net; consumers needing a clean narrow can use `Extract<IssueItem, { code: 'min_length' }>` or cast after the equality check.
+- **`IssueCode`** is the value/type const for the shipped vocabulary (`'value_invalid'`, `'min_length'`, …). **`IssueParamsByCode`** is the `interface` mapping each parameterized code to its `params` shape — open to declaration merging so third-party adapters can augment with their own typed codes (`declare module 'validup' { interface IssueParamsByCode { email_taken: { existingUserId: string } } }`). **`ParameterizedIssueCode` / `BareIssueCode`** are derived from `IssueParamsByCode` + `IssueCode` and feed the conditional-type signatures. Ad-hoc string codes outside the vocabulary fall to `IssueItemRaw` (open `params`).
 - **`meta` governance.** `meta` is `Record<string, unknown>` by design — issues cross package boundaries and integration packages / apps need to tag them with provenance core doesn't know about. To keep the bag from sprawling, **library-owned keys must be provenance the consumer cannot reconstruct from `path` + container config.** Presentation tokens (e.g. `severity`) don't qualify and live in consumer code. Reconstructible facts (e.g. the active `group`, which the caller passed) don't qualify either. Apps and third-party validators are free to add their own keys; conflicts are their responsibility.
 - **Library-owned `meta` keys** (stable, semver-protected):
   - `optional?: true` — stamped by the runtime when the originating mount's `optional` declaration resolves truthy for the current `value`. Resolution mirrors the run-loop check (boolean → tag iff `true`; predicate → invoke with `value` and tag iff truthy). The predicate is re-evaluated at error time rather than relying on the "predicate already returned false in the run loop" invariant — explicit intent, decoupled from the run path. Reflects only the **most-local** mount, never inherited: a leaf inside an optional child container does NOT carry the flag unless its own mount also evaluated truthy. Wrapping `IssueGroup`s emitted by the optional mount itself DO carry the flag — so a tree walker can distinguish "subtree was optional" from "leaf's own mount was optional." Stamping happens in `container/module.ts` → `recordMountError` (`stampOptional` helper); the "no inheritance" rule is implemented by gating the stamp on `item.type === 'validator'` in the `isValidupError` branch. `recordMountError` takes a single `RecordMountErrorContext` bag (named for `error`, `item`, `value`, `keyParts`, `pathRelative`, `issues`, `signal`) so adding provenance fields is a one-line change at every call site instead of a positional-arg shuffle.
@@ -128,7 +138,7 @@ interface IssueGroup extends IssueBase {
 
 Integration packages come in two shapes:
 
-1. **Validator adapters** (`@validup/standard-schema`, `@validup/zod`, `@validup/express-validator`) — expose a function that returns a `Validator<C>`. The pattern from `@validup/zod`:
+1. **Validator adapters** (`@validup/standard-schema`, `@validup/zod`, `@validup/validator-js`) — expose factories or a `createValidator()` function that returns a `Validator<C>`. The schema-style pattern from `@validup/zod`:
 
 ```ts
 export function createValidator<C = unknown>(input: ZodCreateFn<C> | ZodType): Validator<C> {

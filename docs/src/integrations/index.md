@@ -18,8 +18,8 @@ These come in three flavors today:
 | Package                          | Wraps                                                   | Pick when…                                  |
 |----------------------------------|---------------------------------------------------------|---------------------------------------------|
 | [`@validup/standard-schema`](/integrations/standard-schema) | Any [Standard Schema](https://standardschema.dev) library (zod 3.24+, valibot, arktype, …) | You want vendor-neutral schemas |
-| [`@validup/zod`](/integrations/zod)               | [zod](https://zod.dev) v3.25+ / v4         | You need vendor-specific issue fields (`expected`, `received`) |
-| [`@validup/express-validator`](/integrations/express-validator) | [express-validator](https://express-validator.github.io) chains | You already have express-validator chains |
+| [`@validup/zod`](/integrations/zod)               | [zod](https://zod.dev) v4         | You need vendor-specific issue fields (`expected`, `received`) |
+| [`@validup/validator-js`](/integrations/validator-js) | [validator.js](https://github.com/validatorjs/validator.js) string validators (`isEmail`, `isLength`, `isInt`, …) | You want pre-baked factories for the common rules with vocabulary codes baked in |
 
 **Framework / runtime integrations** consume a whole `Container<T, C>` and wire it into a host environment:
 

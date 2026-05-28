@@ -3,7 +3,7 @@
     "initial-version": "0.1.0",
     "packages": {
         "packages/validup": {"component": "validup"},
-        "packages/express-validator": {"component": "express-validator"},
+        "packages/validator-js": {"component": "validator-js"},
         "packages/vue": {"component": "vue"},
         "packages/zod": {"component": "zod"},
         "packages/standard-schema": {"component": "standard-schema"}

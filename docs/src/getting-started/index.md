@@ -20,7 +20,7 @@ The verb is `container.run(data)` (with `runSync`, `runParallel`, `safeRun`, `sa
 
 - You need to mount **per-path** validation rules without committing to one schema library.
 - You want to **compose** small, testable validators rather than write one giant schema.
-- You already use a validator (zod, express-validator, valibot, arktype) and want a shared **path/group/issue** model on top of it.
+- You already use a validator (zod, validator.js, valibot, arktype) and want a shared **path/group/issue** model on top of it.
 - You want a **typed user context** flowing through nested mounts (`Container<T, C>`).
 - You want a single model that drives both server-side parsing and a Vue 3 reactive form.
 
@@ -29,4 +29,4 @@ The verb is `container.run(data)` (with `runSync`, `runParallel`, `safeRun`, `sa
 - [Installation](/getting-started/installation) — install the core and any integration packages.
 - [Quick Start](/getting-started/quick-start) — compose a Container, run it, handle errors.
 - [Guide → Container](/guide/container) — the full mount semantics.
-- [Integrations](/integrations/) — pick a bridge to zod, express-validator, Routup, or Vue.
+- [Integrations](/integrations/) — pick a bridge to zod, validator.js, Standard Schema, or Vue.

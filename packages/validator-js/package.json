@@ -1,8 +1,8 @@
 {
-    "name": "@validup/express-validator",
-    "version": "0.3.3",
+    "name": "@validup/validator-js",
+    "version": "0.1.0",
     "type": "module",
-    "description": "A validup integration for express-validator.",
+    "description": "validator.js integration for validup — pre-baked factories per common rule plus a generic createValidator for the long tail.",
     "author": {
         "name": "Peter Placzek",
         "email": "contact@tada5hi.net",
@@ -10,7 +10,8 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/tada5hi/validup.git"
+        "url": "https://github.com/tada5hi/validup.git",
+        "directory": "packages/validator-js"
     },
     "main": "dist/index.mjs",
     "types": "dist/index.d.mts",
@@ -34,14 +35,20 @@
         "test": "vitest --config test/vitest.config.ts --run",
         "test:coverage": "vitest --config test/vitest.config.ts --run --coverage"
     },
-    "keywords": [],
+    "keywords": [
+        "validup",
+        "validator",
+        "validation",
+        "validatorjs"
+    ],
     "license": "Apache-2.0",
     "devDependencies": {
-        "express-validator": "^7.3.1"
+        "@types/validator": "^13.12.2",
+        "validator": "^13.12.0"
     },
     "peerDependencies": {
         "validup": "^0.3.0",
-        "express-validator": "^7.3.1"
+        "validator": "^13.0.0"
     },
     "publishConfig": {
         "access": "public"

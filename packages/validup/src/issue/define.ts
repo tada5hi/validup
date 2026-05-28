@@ -6,16 +6,72 @@
  */
 
 import { IssueCode } from './constants';
-import type { IssueGroup, IssueItem } from './types';
+import type {
+    BareIssueCode,
+    IssueParamsByCode,
+    ParameterizedIssueCode,
+} from './constants';
+import type {
+    IssueBase,
+    IssueGroup,
+    IssueItem,
+    IssueItemBare,
+    IssueItemRaw,
+    IssueItemTyped,
+    ResolveIssueCode,
+} from './types';
 
-type PartialProps<T extends Record<PropertyKey, any>, K extends keyof T> = Pick<T, Exclude<keyof T, K>> & Partial<Pick<T, K>>;
+interface DefineIssueItemCommon extends Omit<IssueBase, 'params'> {
+    received?: unknown,
+    expected?: unknown,
+}
 
-export function defineIssueItem(data: Omit<PartialProps<IssueItem, 'code'>, 'type'>): IssueItem {
+/**
+ * Per-call `data` shape for {@link defineIssueItem}. The `params`
+ * requirement is selected from the resolved `code`:
+ *
+ * - Parameterized code → `params` required, typed per {@link IssueParamsByCode}.
+ * - Bare code (incl. omitted, which resolves to `VALUE_INVALID`)
+ *   → `params` must be absent / `undefined`.
+ * - Ad-hoc string code → `params` optional `Record`.
+ */
+type DefineIssueItemData<C> = DefineIssueItemCommon & {
+    code?: C,
+} & (
+    ResolveIssueCode<C> extends ParameterizedIssueCode ?
+        { params: IssueParamsByCode[ResolveIssueCode<C> & ParameterizedIssueCode] } :
+        ResolveIssueCode<C> extends BareIssueCode ?
+            { params?: undefined } :
+            { params?: Record<string, unknown> }
+);
+
+/**
+ * Return type for {@link defineIssueItem} — picks the concrete `IssueItem`
+ * variant matching the resolved `code`.
+ */
+type DefineIssueItemReturn<C> =    ResolveIssueCode<C> extends ParameterizedIssueCode ?
+    Extract<IssueItemTyped, { code: ResolveIssueCode<C> }> :
+    ResolveIssueCode<C> extends BareIssueCode ?
+        Extract<IssueItemBare, { code: ResolveIssueCode<C> }> :
+        IssueItemRaw;
+
+/**
+ * Build an `IssueItem`. TS uses the supplied `code` to pick the right
+ * `params` requirement at the call site — passing `MIN_LENGTH` without
+ * `params: { min }` is a compile error; passing `STRONG_PASSWORD` with
+ * `params: { pointsPerUnique: 5 }` is a compile error.
+ *
+ * `code` may be omitted (defaults to `IssueCode.VALUE_INVALID` — bare,
+ * no params).
+ */
+export function defineIssueItem<C extends string | undefined = undefined>(
+    data: DefineIssueItemData<C>,
+): DefineIssueItemReturn<C> {
     return {
         type: 'item',
         ...data,
-        code: data.code || IssueCode.VALUE_INVALID,
-    };
+        code: (data as { code?: string }).code || IssueCode.VALUE_INVALID,
+    } as unknown as DefineIssueItemReturn<C>;
 }
 
 export function defineIssueGroup(data: Omit<IssueGroup, 'type'>): IssueGroup {
