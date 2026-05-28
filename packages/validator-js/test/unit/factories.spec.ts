@@ -305,4 +305,33 @@ describe('equals', () => {
     it('uses expectedValue for runtime comparison when supplied', async () => {
         expect(await pass(equals('password', { expectedValue: 'hunter2' }), 'hunter2')).toBe('hunter2');
     });
+    it('reads the comparison target from ctx.data at the key path', async () => {
+        const result = await equals('password')({
+            key: 'passwordConfirm',
+            path: ['passwordConfirm'],
+            value: 'hunter2',
+            data: { password: 'hunter2', passwordConfirm: 'hunter2' },
+            context: undefined,
+        });
+        expect(result).toBe('hunter2');
+    });
+    it('fails when ctx.data target differs from ctx.value', async () => {
+        try {
+            await equals('password')({
+                key: 'passwordConfirm',
+                path: ['passwordConfirm'],
+                value: 'hunter2',
+                data: { password: 'other', passwordConfirm: 'hunter2' },
+                context: undefined,
+            });
+        } catch (e) {
+            if (e instanceof ValidupError) {
+                const items = flattenIssueItems(e.issues);
+                expect(items[0]?.code).toBe(IssueCode.SAME_AS);
+                expect(items[0]?.params).toEqual({ other: 'password' });
+                return;
+            }
+        }
+        throw new Error('expected validator to throw');
+    });
 });

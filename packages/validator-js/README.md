@@ -36,6 +36,7 @@ const container = new Container<{
     age: number;
     site: string;
     zip: string;
+    password: string;
     confirm: string;
 }>();
 
@@ -44,7 +45,8 @@ container.mount('name',    isLength({ min: 3, max: 50 }));
 container.mount('age',     isInt({ min: 18, max: 120 }));
 container.mount('site',    isURL({ require_protocol: true }));
 container.mount('zip',     matches(/^\d{5}$/));
-container.mount('confirm', equals('password'));
+container.mount('password', isStrongPassword());
+container.mount('confirm', equals('password')); // compares ctx.value against ctx.data.password
 
 const valid = await container.run({
     email: 'peter@example.com',
@@ -52,7 +54,8 @@ const valid = await container.run({
     age: 28,
     site: 'https://example.com',
     zip: '12345',
-    confirm: 'password',
+    password: 'Hunter2!sup3r',
+    confirm: 'Hunter2!sup3r',
 });
 ```
 
@@ -80,7 +83,7 @@ Every factory takes a **flat options object** — the validup-side `message` ove
 | `isFloat(opts?)` | `BaseFactoryOptions & validator.IsFloatOptions` | `DECIMAL` *or* `MIN_VALUE` / `MAX_VALUE` | `{ min }` / `{ max }` on range failure |
 | `isLength(opts?)` | `BaseFactoryOptions & validator.IsLengthOptions` | `MIN_LENGTH` *or* `MAX_LENGTH` | `{ min }` / `{ max }` |
 | `matches(pattern, opts?)` | `BaseFactoryOptions & { modifiers? }` | `PATTERN` | `{ pattern: string }` |
-| `equals(comparison, opts?)` | `BaseFactoryOptions & { expectedValue? }` | `SAME_AS` | `{ other: string }` |
+| `equals(key, opts?)` | `BaseFactoryOptions & { expectedValue? }` | `SAME_AS` | `{ other: string }` |
 
 Examples:
 
@@ -94,6 +97,8 @@ isStrongPassword({ minLength: 12, minNumbers: 2 });
 ```
 
 **`isInt` / `isFloat` / `isLength` are intentionally split.** A failure can be either a type mismatch (`'abc'` for an integer) or a range mismatch (`5` when min is `18`). Validator.js collapses both into a single boolean, so the factory checks them in order and emits the most specific code for each case — that's what makes the i18n story useful ("must be between 18 and 120" vs. "must be an integer" are different messages).
+
+**`equals` resolves its comparison target from `ctx.data`.** When `expectedValue` is omitted, `key` is used as a pathtrace path into the current container's input — so `equals('password')` mounted on `confirm` compares against `ctx.data.password` (the password-confirmation pattern). Pass `expectedValue` for a fixed literal target; `key` always supplies the `{ other }` label for i18n templates.
 
 ## Generic wrap — `createValidator`
 

@@ -5,6 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { getPathValue } from 'pathtrace';
 import validator from 'validator';
 import { IssueCode, createValidupError  } from 'validup';
 import type { Validator } from 'validup';
@@ -38,25 +39,27 @@ export function matches<C = unknown>(pattern: RegExp | string, options: BaseFact
 /**
  * Factory: validator.js `equals`. Emits `IssueCode.SAME_AS` on failure
  * with `params: { other: string }` so a translated message can quote the
- * comparison subject (e.g. "must equal {{other}}").
+ * key subject (e.g. "must equal {{other}}").
  *
- * `comparison` is the field-name / label the i18n template should
- * surface — *not* the runtime value (which validator.js's `equals`
- * compares against). When the two are different, pass `expectedValue`
- * for the runtime comparison and `comparison` for the label.
+ * `key` is the field-name / label the i18n template should
+ * surface. When `expectedValue` is omitted, `key` is also used as a
+ * pathtrace path into `ctx.data` to look up the runtime comparison
+ * target — so `equals('password')` mounted on `passwordConfirm`
+ * compares against `ctx.data.password`. Pass `expectedValue`
+ * explicitly to compare against a fixed string instead.
  */
-export function equals<C = unknown>(comparison: string, options: BaseFactoryOptions & {
+export function equals<C = unknown>(key: string, options: BaseFactoryOptions & {
     expectedValue?: string,
 } = {}): Validator<C> {
     return (ctx) => {
         const s = toValidatorString(ctx.value);
-        const target = options.expectedValue ?? comparison;
+        const target = options.expectedValue ?? toValidatorString(getPathValue(ctx.data, key));
         if (validator.equals(s, target)) return ctx.value;
         throw createValidupError(
             ctx.value,
             IssueCode.SAME_AS,
-            options.message ?? `The value must equal ${comparison}`,
-            { other: comparison },
+            options.message ?? `The value must equal ${key}`,
+            { other: key },
         );
     };
 }
