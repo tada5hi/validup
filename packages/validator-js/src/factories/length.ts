@@ -47,13 +47,21 @@ export function isLength<C = unknown>(
             );
         }
         // Fallback (shouldn't normally hit — `isLength` returned false but
-        // neither bound was crossed). Surface as MIN_LENGTH with the
-        // configured min as the most informative shape.
+        // neither bound was crossed). The MIN_LENGTH / MAX_LENGTH codes
+        // both require their bound in `params`; without a bound we can't
+        // honour the vocabulary contract, so emit the generic code.
+        if (typeof min === 'number') {
+            throw createValidupError(
+                ctx.value,
+                IssueCode.MIN_LENGTH,
+                options.message ?? 'The value has an invalid length',
+                { min },
+            );
+        }
         throw createValidupError(
             ctx.value,
-            IssueCode.MIN_LENGTH,
+            IssueCode.VALUE_INVALID,
             options.message ?? 'The value has an invalid length',
-            typeof min === 'number' ? { min } : undefined,
         );
     };
 }

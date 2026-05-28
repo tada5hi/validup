@@ -150,14 +150,46 @@ export function isBase64<C = unknown>(
 }
 
 /**
+ * The subset of `validator.StrongPasswordOptions` keys that describe
+ * *strength requirements* — what the consumer wants the password to look
+ * like, as opposed to scoring weights (`pointsPerUnique`,
+ * `pointsForContainingLower`, …) which only affect validator.js's
+ * `returnScore` mode. Only these keys surface on `IssueCode.STRONG_PASSWORD`'s
+ * `params` payload, matching the documented vocabulary contract.
+ */
+const STRONG_PASSWORD_REQUIREMENT_KEYS = [
+    'minLength',
+    'minLowercase',
+    'minUppercase',
+    'minNumbers',
+    'minSymbols',
+] as const;
+
+type StrongPasswordRequirementParams = {
+    minLength?: number,
+    minLowercase?: number,
+    minUppercase?: number,
+    minNumbers?: number,
+    minSymbols?: number,
+};
+
+/**
  * Factory: validator.js `isStrongPassword`. Emits
- * `IssueCode.STRONG_PASSWORD` on failure. `params` mirrors the configured
- * options so i18n templates can quote the requirements:
+ * `IssueCode.STRONG_PASSWORD` on failure. `params` carries only the
+ * documented strength-requirement keys (`minLength`, `minLowercase`,
+ * `minUppercase`, `minNumbers`, `minSymbols`) so i18n templates can quote
+ * them:
  *
  * ```ts
  * isStrongPassword({ minLength: 12, minNumbers: 2 });
  * // → IssueCode.STRONG_PASSWORD, params: { minLength: 12, minNumbers: 2 }
  * ```
+ *
+ * Scoring weights (`pointsPerUnique`, `pointsForContainingLower`, …) are
+ * still forwarded to validator.js so they continue to influence the
+ * pass/fail decision (and any `returnScore`-shaped diagnostics), but they
+ * do NOT appear in `params` — i18n templates would never want to render
+ * "must score at least N points per unique character" to the user.
  */
 export function isStrongPassword<C = unknown>(
     options: BaseFactoryOptions & validator.StrongPasswordOptions = {},
@@ -167,29 +199,38 @@ export function isStrongPassword<C = unknown>(
     // validator.js. With `returnScore: true`, validator.js returns a numeric
     // score instead of a boolean — the truthy check below would accept any
     // non-zero score as a pass, so a weak password could squeak through.
-    // Drop the flag and force boolean semantics. `message` is dropped from
-    // `params` so i18n templates see only the validator.js-side requirements
-    // (`{{minLength}}`, `{{minNumbers}}`, …).
+    // Drop the flag and force boolean semantics.
     const {
-        message: _ignored, 
-        returnScore: _alsoIgnored, 
-        ...rest 
+        message: _ignored,
+        returnScore: _alsoIgnored,
+        ...rest
     } = options;
+    // Project `rest` down to the documented strength-requirement subset for
+    // the `params` payload. The full `rest` (including scoring weights) is
+    // what validator.js sees — but consumer-facing `IssueItem.params`
+    // matches the documented vocabulary contract.
+    //
+    // Build the template once at factory time; clone it per failure so a
+    // consumer mutating `issue.params` on one IssueItem can't bleed into a
+    // future failure from the same factory.
+    const paramsTemplate: StrongPasswordRequirementParams = {};
+    for (const key of STRONG_PASSWORD_REQUIREMENT_KEYS) {
+        if (typeof rest[key] === 'number') {
+            paramsTemplate[key] = rest[key];
+        }
+    }
     return (ctx) => {
         const s = toValidatorString(ctx.value);
         // validator.js mutates the options argument it receives (merging
-        // defaults in-place), which would leak `returnScore: false` and other
-        // default keys back into our `rest` and then into `params`. Pass a
-        // shallow clone so `rest` stays clean and our params payload reflects
-        // only what the consumer configured.
+        // defaults in-place). Pass a shallow clone so consumer-side
+        // `options` and our captured template stay clean.
         const probeOptions = { ...rest } as validator.StrongPasswordOptions;
         if (validator.isStrongPassword(s, probeOptions) === true) return ctx.value;
-        const params: Record<string, unknown> = { ...rest };
         throw createValidupError(
             ctx.value,
             IssueCode.STRONG_PASSWORD,
             message,
-            Object.keys(params).length > 0 ? params : undefined,
+            { ...paramsTemplate },
         );
     };
 }

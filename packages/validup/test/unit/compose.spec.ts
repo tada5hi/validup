@@ -192,16 +192,19 @@ describe('compose with { bail: false } — collect-all', () => {
 
 describe('createValidupError', () => {
     it('builds a single-issue ValidupError with the supplied fields', () => {
+        // Ad-hoc string code carries open params; vocabulary codes are
+        // gatekept per their documented contract (see the typed-overloads
+        // in issue.spec.ts).
         const err = createValidupError(
-            42, 
-            IssueCode.VALUE_INVALID, 
-            'bad value', 
+            42,
+            'custom_failure',
+            'bad value',
             { foo: 'bar' },
         );
         expect(err).toBeInstanceOf(ValidupError);
         expect(err.issues).toHaveLength(1);
         const items = flattenIssueItems(err.issues);
-        expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
+        expect(items[0]?.code).toBe('custom_failure');
         expect(items[0]?.message).toBe('bad value');
         expect(items[0]?.params).toEqual({ foo: 'bar' });
         expect(items[0]?.received).toBe(42);

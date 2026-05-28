@@ -8,7 +8,6 @@
 import { describe, expect, it } from 'vitest';
 import {
     Container,
-    IssueCode,
     ValidupError,
     defineIssueGroup,
     defineIssueItem,
@@ -24,14 +23,17 @@ describe('formatIssue', () => {
     });
 
     it('should interpolate a matching template using params', () => {
+        // Ad-hoc code with open params — VALUE_INVALID is bare per the
+        // vocabulary contract, so use a project-specific code for
+        // template-driven messages that need structured params.
         const issue = defineIssueItem({
-            code: IssueCode.VALUE_INVALID,
+            code: 'value_invalid_named',
             path: ['email'],
             message: 'Value invalid',
             params: { name: 'email' },
         });
 
-        const out = formatIssue(issue, { value_invalid: 'Field {name} is invalid' });
+        const out = formatIssue(issue, { value_invalid_named: 'Field {name} is invalid' });
 
         expect(out).toEqual('Field email is invalid');
     });

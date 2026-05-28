@@ -79,8 +79,12 @@ export function isDecimal<C = unknown>(
  * based on what failed:
  *
  * - Value isn't an integer at all → `IssueCode.INTEGER`.
- * - Value is an integer but below `min` → `IssueCode.MIN_VALUE` (params: `{ min }`).
- * - Value is an integer but above `max` → `IssueCode.MAX_VALUE` (params: `{ max }`).
+ * - Value below `min` (inclusive) or `gt` (exclusive) → `IssueCode.MIN_VALUE`
+ *   (params: `{ min }`). For `gt`, `params.min` is `options.gt` — i18n
+ *   templates can quote the boundary; the precise inclusive/exclusive
+ *   wording comes from `message`.
+ * - Value above `max` (inclusive) or `lt` (exclusive) → `IssueCode.MAX_VALUE`
+ *   (params: `{ max }`). Same treatment as `gt` → `params.max` is `options.lt`.
  */
 export function isInt<C = unknown>(
     options: BaseFactoryOptions & validator.IsIntOptions = {},
@@ -98,13 +102,26 @@ export function isInt<C = unknown>(
             );
         }
         const numeric = Number(s);
-        const { min, max } = options;
+        const {
+            min, 
+            max, 
+            lt, 
+            gt,
+        } = options;
         if (typeof min === 'number' && numeric < min) {
             throw createValidupError(
                 ctx.value,
                 IssueCode.MIN_VALUE,
                 options.message ?? `The value must be greater than or equal to ${min}`,
                 { min },
+            );
+        }
+        if (typeof gt === 'number' && numeric <= gt) {
+            throw createValidupError(
+                ctx.value,
+                IssueCode.MIN_VALUE,
+                options.message ?? `The value must be greater than ${gt}`,
+                { min: gt },
             );
         }
         if (typeof max === 'number' && numeric > max) {
@@ -115,7 +132,18 @@ export function isInt<C = unknown>(
                 { max },
             );
         }
-        // Final pass with the full options to cover lt / gt / etc.
+        if (typeof lt === 'number' && numeric >= lt) {
+            throw createValidupError(
+                ctx.value,
+                IssueCode.MAX_VALUE,
+                options.message ?? `The value must be less than ${lt}`,
+                { max: lt },
+            );
+        }
+        // Defensive final pass — catches any remaining option we didn't
+        // model explicitly (currently none beyond min/max/lt/gt and
+        // allow_leading_zeroes). If this fires the failure is a true type
+        // mismatch.
         if (!validator.isInt(s, options)) {
             throw createValidupError(
                 ctx.value,
@@ -130,7 +158,18 @@ export function isInt<C = unknown>(
 /**
  * Factory: validator.js `isFloat`. Like {@link isInt} but for decimal
  * numbers — type failure emits `IssueCode.DECIMAL`; range bounds emit
- * `MIN_VALUE` / `MAX_VALUE`.
+ * `MIN_VALUE` / `MAX_VALUE`. `lt` / `gt` map to `MIN_VALUE` / `MAX_VALUE`
+ * the same way `isInt` does.
+ *
+ * **Locale caveat.** validator.js's locale-aware float parsing (e.g.
+ * `'123,45'` under `locale: 'de-DE'`) is opaque to the factory — we use
+ * `Number(s)` for the explicit range checks, which returns `NaN` for
+ * localized strings. When `locale` is set and the input parses to `NaN`,
+ * we skip the explicit range checks and fall through to
+ * `validator.isFloat(s, options)`, which DOES handle the locale correctly
+ * — but a range failure caught there surfaces as `IssueCode.DECIMAL`
+ * instead of `MIN_VALUE` / `MAX_VALUE`. Use the default locale (or
+ * normalize the input upstream) when precise range codes matter for i18n.
  */
 export function isFloat<C = unknown>(
     options: BaseFactoryOptions & validator.IsFloatOptions = {},
@@ -148,22 +187,47 @@ export function isFloat<C = unknown>(
             );
         }
         const numeric = Number(s);
-        const { min, max } = options;
-        if (typeof min === 'number' && numeric < min) {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.MIN_VALUE,
-                options.message ?? `The value must be greater than or equal to ${min}`,
-                { min },
-            );
-        }
-        if (typeof max === 'number' && numeric > max) {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.MAX_VALUE,
-                options.message ?? `The value must be less than or equal to ${max}`,
-                { max },
-            );
+        const {
+            min, 
+            max, 
+            lt, 
+            gt,
+        } = options;
+        // NaN from a localized input skips the explicit range checks — see
+        // the JSDoc above for the resulting code-vs-message trade-off.
+        if (!Number.isNaN(numeric)) {
+            if (typeof min === 'number' && numeric < min) {
+                throw createValidupError(
+                    ctx.value,
+                    IssueCode.MIN_VALUE,
+                    options.message ?? `The value must be greater than or equal to ${min}`,
+                    { min },
+                );
+            }
+            if (typeof gt === 'number' && numeric <= gt) {
+                throw createValidupError(
+                    ctx.value,
+                    IssueCode.MIN_VALUE,
+                    options.message ?? `The value must be greater than ${gt}`,
+                    { min: gt },
+                );
+            }
+            if (typeof max === 'number' && numeric > max) {
+                throw createValidupError(
+                    ctx.value,
+                    IssueCode.MAX_VALUE,
+                    options.message ?? `The value must be less than or equal to ${max}`,
+                    { max },
+                );
+            }
+            if (typeof lt === 'number' && numeric >= lt) {
+                throw createValidupError(
+                    ctx.value,
+                    IssueCode.MAX_VALUE,
+                    options.message ?? `The value must be less than ${lt}`,
+                    { max: lt },
+                );
+            }
         }
         if (!validator.isFloat(s, options)) {
             throw createValidupError(

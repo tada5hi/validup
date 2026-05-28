@@ -113,3 +113,69 @@ export const IssueCode = {
 } as const;
 
 export type IssueCode = typeof IssueCode[keyof typeof IssueCode];
+
+/**
+ * Per-code `params` contract for the well-known vocabulary. Producers
+ * (`defineIssueItem`, `createValidupError`, adapter `error.ts` modules)
+ * thread this through their type signatures so TS rejects mismatched
+ * payloads at compile time — e.g. `STRONG_PASSWORD` with `params:
+ * { pointsPerUnique: 5 }` (a validator.js scoring weight, not a strength
+ * requirement) fails to type-check. Codes absent from this map carry no
+ * `params`; ad-hoc string codes fall back to the open
+ * `Record<string, unknown>` shape on the raw `IssueItem` branch.
+ *
+ * Extensible via TypeScript declaration merging — third-party adapters
+ * and apps that want typed params for their own codes can augment this
+ * interface, and the producer-side gatekeep (`defineIssueItem`,
+ * `createValidupError`) will type-check their payloads too:
+ *
+ * ```ts
+ * // In a third-party package or app:
+ * declare module 'validup' {
+ *     interface IssueParamsByCode {
+ *         email_taken: { existingUserId: string };
+ *     }
+ * }
+ *
+ * defineIssueItem({
+ *     code: 'email_taken',
+ *     path: ['email'],
+ *     message: 'Already in use',
+ *     params: { existingUserId: 'u_42' }, // typed and required
+ * });
+ * ```
+ *
+ * Keep entries here in lockstep with the JSDoc on the corresponding
+ * `IssueCode` entry — the type-level enforcement and the documentation
+ * are two views of the same contract.
+ */
+export interface IssueParamsByCode {
+    min_length: { min: number };
+    max_length: { max: number };
+    min_value: { min: number };
+    max_value: { max: number };
+    between: { min: number, max: number };
+    pattern: { pattern: string };
+    strong_password: {
+        minLength?: number,
+        minLowercase?: number,
+        minUppercase?: number,
+        minNumbers?: number,
+        minSymbols?: number,
+    };
+    same_as: { other: string };
+}
+
+/**
+ * `IssueCode` values that carry a documented `params` payload — keys of
+ * {@link IssueParamsByCode}. Producers using one of these codes must
+ * supply the matching `params` shape.
+ */
+export type ParameterizedIssueCode = keyof IssueParamsByCode;
+
+/**
+ * `IssueCode` values that carry no `params` (`VALUE_INVALID`, `EMAIL`,
+ * `REQUIRED`, …). Producers using one of these codes must omit `params`
+ * (or pass `undefined`).
+ */
+export type BareIssueCode = Exclude<IssueCode, ParameterizedIssueCode>;

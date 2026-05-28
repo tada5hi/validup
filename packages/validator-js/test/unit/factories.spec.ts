@@ -176,6 +176,24 @@ describe('isStrongPassword', () => {
         expect(items[0]?.params).not.toHaveProperty('returnScore');
         expect(items[0]?.params).toMatchObject({ minLength: 12 });
     });
+
+    it('projects params down to the documented requirement keys', async () => {
+        // Regression: scoring weights (`pointsPerUnique`,
+        // `pointsForContainingLower`, …) are valid `StrongPasswordOptions`
+        // keys but not part of the documented STRONG_PASSWORD vocabulary
+        // contract. They must still influence the pass/fail decision but
+        // must NOT leak into the IssueItem.params payload (i18n templates
+        // would render gibberish).
+        const items = await fail(
+            isStrongPassword({
+                minLength: 12,
+                pointsPerUnique: 5,
+                pointsForContainingLower: 1,
+            }),
+            'short',
+        );
+        expect(items[0]?.params).toEqual({ minLength: 12 });
+    });
 });
 
 describe('isAlpha / isAlphanumeric / isNumeric / isDecimal', () => {
@@ -215,6 +233,21 @@ describe('isInt', () => {
     it('accepts valid integers in range', async () => {
         expect(await pass(isInt({ min: 18, max: 120 }), 42)).toBe(42);
     });
+
+    it('emits IssueCode.MIN_VALUE for the strict gt boundary (params.min = gt)', async () => {
+        // Regression: pre-fix, value == options.gt fell through the explicit
+        // `<` check (since gt is exclusive) and surfaced as INTEGER from the
+        // defensive final-pass. It's a range failure — should be MIN_VALUE.
+        const items = await fail(isInt({ gt: 10 }), 10);
+        expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
+        expect(items[0]?.params).toEqual({ min: 10 });
+    });
+
+    it('emits IssueCode.MAX_VALUE for the strict lt boundary (params.max = lt)', async () => {
+        const items = await fail(isInt({ lt: 10 }), 10);
+        expect(items[0]?.code).toBe(IssueCode.MAX_VALUE);
+        expect(items[0]?.params).toEqual({ max: 10 });
+    });
 });
 
 describe('isFloat', () => {
@@ -227,6 +260,15 @@ describe('isFloat', () => {
         expect(low[0]?.code).toBe(IssueCode.MIN_VALUE);
         const high = await fail(isFloat({ max: 10 }), 11.5);
         expect(high[0]?.code).toBe(IssueCode.MAX_VALUE);
+    });
+    it('emits IssueCode.MIN_VALUE / MAX_VALUE for strict gt / lt boundaries', async () => {
+        const onGt = await fail(isFloat({ gt: 1.5 }), 1.5);
+        expect(onGt[0]?.code).toBe(IssueCode.MIN_VALUE);
+        expect(onGt[0]?.params).toEqual({ min: 1.5 });
+
+        const onLt = await fail(isFloat({ lt: 10 }), 10);
+        expect(onLt[0]?.code).toBe(IssueCode.MAX_VALUE);
+        expect(onLt[0]?.params).toEqual({ max: 10 });
     });
 });
 

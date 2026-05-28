@@ -4,16 +4,52 @@
 
 ## `IssueItem`
 
+`IssueItem` is a discriminated union over three branches keyed on the vocabulary `code`. The `defineIssueItem` factory uses TypeScript overloads to enforce the right `params` shape per code at compile time:
+
 ```typescript
-interface IssueItem {
+// Parameterized — `params` required and typed
+type IssueItemTyped = {
     type: 'item';
-    code: IssueCode | (string & {}); // IssueCode.VALUE_INVALID by default
+    code: 'min_length';                  // (or another parameterized vocabulary code)
+    params: { min: number };             // typed per `IssueParamsByCode`
     path: PropertyKey[];
     message: string;
     received?: unknown;
     expected?: unknown;
-    params?: Record<string, unknown>;
     meta?: Record<string, unknown>;
+};
+
+// Bare — `params` must be absent
+type IssueItemBare = {
+    type: 'item';
+    code: 'email';                       // (or another param-less vocabulary code)
+    params?: undefined;
+    path: PropertyKey[];
+    message: string;
+    /* …received / expected / meta… */
+};
+
+// Raw — ad-hoc string code, open `params`
+type IssueItemRaw = {
+    type: 'item';
+    code: string & {};                   // anything outside the vocabulary
+    params?: Record<string, unknown>;
+    /* …same surrounding fields… */
+};
+
+type IssueItem = IssueItemTyped | IssueItemBare | IssueItemRaw;
+```
+
+Consumers usually don't write these out — narrow on `code` and TypeScript picks the right branch:
+
+```typescript
+import { IssueCode, isIssueItem, flattenIssueItems } from 'validup';
+
+for (const issue of flattenIssueItems(err.issues)) {
+    if (issue.code === IssueCode.MIN_LENGTH) {
+        // issue.params.min is typed as `number` after narrowing
+        console.log(`min: ${issue.params?.min}`);
+    }
 }
 ```
 
@@ -33,26 +69,42 @@ interface IssueGroup {
 
 ## Constructing issues
 
-Always use the factories — they set `type` and provide sensible defaults:
+Always use the factories — they set `type`, default the `code` to `VALUE_INVALID` when omitted, and gatekeep the `params` shape per code:
 
 ```typescript
 import { defineIssueItem, defineIssueGroup, IssueCode } from 'validup';
 
-const item = defineIssueItem({
-    code: IssueCode.VALUE_INVALID,
+// Bare code — no params accepted (default fallback)
+const fallback = defineIssueItem({
     path: ['email'],
     message: 'Invalid email address',
     received: 'not-an-email',
-    expected: 'email-format',
-    params: { name: 'email' },
+});
+
+// Parameterized code — `params` required and typed
+const tooShort = defineIssueItem({
+    code: IssueCode.MIN_LENGTH,
+    path: ['password'],
+    message: 'Password must be at least 12 characters',
+    params: { min: 12 },                  // type-checked against IssueParamsByCode
+});
+
+// Ad-hoc string code — open `params`
+const taken = defineIssueItem({
+    code: 'email_taken',
+    path: ['email'],
+    message: 'Email already in use',
+    params: { existingUserId: 'u_42' },
 });
 
 const group = defineIssueGroup({
     path: ['credentials'],
     message: 'Credentials are invalid',
-    issues: [item],
+    issues: [fallback, tooShort, taken],
 });
 ```
+
+The same gatekeep applies to the `createValidupError` sugar — `createValidupError(value, IssueCode.MIN_LENGTH, msg)` is a compile error (missing `{ min }`); `createValidupError(value, IssueCode.EMAIL, msg, { … })` is a compile error (EMAIL is bare).
 
 ## `meta` conventions
 
@@ -203,3 +255,34 @@ throw new ValidupError([
     }),
 ]);
 ```
+
+### Typed `params` for custom codes
+
+`IssueParamsByCode` is an `interface`, so consumers can augment it via TypeScript declaration merging — `defineIssueItem` / `createValidupError` then gatekeep the custom code the same way they do the built-ins:
+
+```typescript
+// Anywhere in your codebase (e.g. an ambient `app-types.d.ts`):
+declare module 'validup' {
+    interface IssueParamsByCode {
+        email_taken: { existingUserId: string };
+        rate_limited: { retryAfterMs: number };
+    }
+}
+
+// At a producer call site:
+defineIssueItem({
+    code: 'email_taken',
+    path: ['email'],
+    message: 'Already in use',
+    params: { existingUserId: 'u_42' },   // ✓ typed and required
+});
+
+defineIssueItem({
+    code: 'email_taken',
+    path: ['email'],
+    message: 'Already in use',
+    // @ts-expect-error — params required for a parameterized code
+});
+```
+
+Augment only with codes you own — adding entries you don't control collides with future vocabulary expansions and other consumers' merges.

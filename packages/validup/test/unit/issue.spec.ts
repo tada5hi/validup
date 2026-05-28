@@ -134,6 +134,79 @@ describe('issue', () => {
         expect(item.code).toEqual(IssueCode.VALUE_INVALID);
     });
 
+    describe('defineIssueItem typed params contract', () => {
+        // The producer-side gatekeep that catches mismatched payloads at
+        // compile time. These tests don't exercise runtime behaviour — the
+        // value is in the `// @ts-expect-error` comments, which fail the
+        // typecheck if the gatekeep ever regresses.
+
+        it('accepts a parameterized code with its required params shape', () => {
+            const item = defineIssueItem({
+                path: ['count'],
+                message: 'Too short',
+                code: IssueCode.MIN_LENGTH,
+                params: { min: 3 },
+            });
+            expect(item.code).toBe(IssueCode.MIN_LENGTH);
+            // After narrowing on `code`, `params.min` is typed `number`.
+            if (item.code === IssueCode.MIN_LENGTH) {
+                expect(item.params.min).toBe(3);
+            }
+        });
+
+        it('rejects a parameterized code with missing params', () => {
+            // The missing-params error fires on the call as a whole (TS
+            // reports it on the argument literal), not on the `code` line —
+            // so the directive belongs immediately above the call.
+            // @ts-expect-error — MIN_LENGTH requires params: { min: number }
+            defineIssueItem({
+                path: ['count'],
+                message: 'Too short',
+                code: IssueCode.MIN_LENGTH,
+            });
+        });
+
+        it('rejects a parameterized code with the wrong params shape', () => {
+            defineIssueItem({
+                path: ['pwd'],
+                message: 'Too weak',
+                code: IssueCode.STRONG_PASSWORD,
+                // @ts-expect-error — `pointsPerUnique` is a scoring weight,
+                // not a documented strength-requirement key.
+                params: { pointsPerUnique: 5 },
+            });
+        });
+
+        it('accepts a bare code without params', () => {
+            const item = defineIssueItem({
+                path: ['email'],
+                message: 'Not an email',
+                code: IssueCode.EMAIL,
+            });
+            expect(item.code).toBe(IssueCode.EMAIL);
+        });
+
+        it('rejects a bare code with params', () => {
+            defineIssueItem({
+                path: ['email'],
+                message: 'Not an email',
+                code: IssueCode.EMAIL,
+                // @ts-expect-error — EMAIL is a bare code; params must be absent.
+                params: { irrelevant: 1 },
+            });
+        });
+
+        it('accepts an ad-hoc string code with open params', () => {
+            const item = defineIssueItem({
+                path: ['email'],
+                message: 'Email already in use',
+                code: 'email_taken',
+                params: { existingUserId: 'u_42' },
+            });
+            expect(item.code).toBe('email_taken');
+        });
+    });
+
     describe('IssueCode vocabulary', () => {
         // The vocabulary is the contract adapters map onto and i18n catalogs
         // translate from. These tests anchor the convention: UPPER_SNAKE keys,
