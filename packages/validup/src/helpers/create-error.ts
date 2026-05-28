@@ -22,8 +22,9 @@ import { defineIssueItem } from '../issue';
  * }
  * ```
  *
- * For multi-issue failures (e.g. inside {@link composeAll}), build a
- * `ValidupError` directly with `new ValidupError([defineIssueItem(...), …])`.
+ * For multi-issue failures (e.g. inside {@link compose} with `{ bail: false }`),
+ * build a `ValidupError` directly with
+ * `new ValidupError([defineIssueItem(...), …])`.
  */
 export function createValidupError(
     received: unknown,

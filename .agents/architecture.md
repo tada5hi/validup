@@ -1,6 +1,6 @@
 # Architecture
 
-Validup's model has three nouns — **Container**, **Validator**, **Issue** — and one verb: `Container.run(data)` (with `runSync` / `runParallel` / `safeRun` / `safeRunSync` siblings). Integration packages either produce a `Validator` from a foreign validation library (`@validup/standard-schema`, `@validup/zod`, `@validup/express-validator`) or wire a `Container` into a runtime / framework (`@validup/vue`).
+Validup's model has three nouns — **Container**, **Validator**, **Issue** — and one verb: `Container.run(data)` (with `runSync` / `runParallel` / `safeRun` / `safeRunSync` siblings). Integration packages either produce a `Validator` from a foreign validation library (`@validup/standard-schema`, `@validup/zod`, `@validup/validator-js`) or wire a `Container` into a runtime / framework (`@validup/vue`).
 
 ## Core Types
 
@@ -128,7 +128,7 @@ interface IssueGroup extends IssueBase {
 
 Integration packages come in two shapes:
 
-1. **Validator adapters** (`@validup/standard-schema`, `@validup/zod`, `@validup/express-validator`) — expose a function that returns a `Validator<C>`. The pattern from `@validup/zod`:
+1. **Validator adapters** (`@validup/standard-schema`, `@validup/zod`, `@validup/validator-js`) — expose factories or a `createValidator()` function that returns a `Validator<C>`. The schema-style pattern from `@validup/zod`:
 
 ```ts
 export function createValidator<C = unknown>(input: ZodCreateFn<C> | ZodType): Validator<C> {

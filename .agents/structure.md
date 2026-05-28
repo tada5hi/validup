@@ -8,7 +8,7 @@ validup/
 │   ├── validup/              # Core library (npm: validup)
 │   ├── standard-schema/      # Standard Schema bridge (npm: @validup/standard-schema)
 │   ├── zod/                  # zod bridge (npm: @validup/zod)
-│   ├── express-validator/    # express-validator bridge (npm: @validup/express-validator)
+│   ├── validator-js/         # validator.js bridge (npm: @validup/validator-js)
 │   └── vue/                  # Vue 3 composable (npm: @validup/vue)
 ├── docs/                     # VitePress site (private workspace, npm: @validup/docs)
 ├── nx.json                   # Nx caching config (build, lint, test cacheable)
@@ -23,10 +23,10 @@ validup/
 | Package                        | Path                          | Public name                  | Depends on (runtime)                | Peer deps                                       |
 |--------------------------------|-------------------------------|------------------------------|-------------------------------------|-------------------------------------------------|
 | Core                           | `packages/validup`            | `validup`                    | `@ebec/core`, `pathtrace`, `smob`   | —                                               |
-| Standard Schema integration    | `packages/standard-schema`    | `@validup/standard-schema`   | `@standard-schema/spec`, `validup`  | —                                               |
-| Zod integration                | `packages/zod`                | `@validup/zod`               | `validup`                           | `zod ^3.25.0 \|\| ^4.0.0`                       |
-| express-validator integration  | `packages/express-validator`  | `@validup/express-validator` | `validup`, `smob`                   | `express-validator ^7.3.1`                      |
-| Vue integration                | `packages/vue`                | `@validup/vue`               | `validup`                           | `vue ^3.3`                                      |
+| Standard Schema integration    | `packages/standard-schema`    | `@validup/standard-schema`   | `@standard-schema/spec`             | `validup ^1.0.0`                                |
+| Zod integration                | `packages/zod`                | `@validup/zod`               | —                                   | `validup ^1.0.0`, `zod ^4.0.0`                  |
+| validator.js integration       | `packages/validator-js`       | `@validup/validator-js`      | —                                   | `validup ^1.0.0`, `validator ^13.0.0`           |
+| Vue integration                | `packages/vue`                | `@validup/vue`               | —                                   | `validup ^1.0.0`, `vue ^3.3`                    |
 
 All packages are `"type": "module"` and publish **ESM-only** (`dist/index.mjs` + `dist/index.d.mts`). No CJS output. License: Apache-2.0 across the board (root + every package).
 
@@ -37,7 +37,7 @@ The `docs/` workspace is `private: true` (excluded from `release-please-config.j
 ```
 standard-schema ──┐
 zod ──────────────┤
-express-validator ┼──► validup ──► @ebec/core, pathtrace, smob
+validator-js ─────┼──► validup ──► @ebec/core, pathtrace, smob
 vue ──────────────┘
 ```
 
@@ -95,7 +95,7 @@ src/
 
 - **@validup/standard-schema**: `createValidator(schema | (ctx) => schema)` calls `schema['~standard'].validate(ctx.value)` against any [Standard Schema](https://standardschema.dev) library (zod 3.24+, valibot, arktype, effect-schema, …). On failure each `StandardSchemaV1.Issue` becomes a validup `IssueItem`; `path` is normalized so `{ key }`-shape `PathSegment` entries are flattened to `PropertyKey[]`. Vendor-specific fields (zod's `expected`/`received`) are not surfaced — use `@validup/zod` if those matter.
 - **@validup/zod**: `createValidator(zod | (ctx) => zod)` calls `safeParseAsync`; on failure converts each `ZodIssue` (`$ZodRawIssue` from `zod/v4/core`) into a validup `IssueItem`, including `expected` / `received`. Also exports `buildZodIssuesForError` for the reverse direction. Choose this over `@validup/standard-schema` when you need vendor-specific issue fields or bidirectional conversion.
-- **@validup/express-validator**: `createValidator(chain | (ctx) => chain)` runs an express-validator `ContextRunner` with `body: ctx.value`, then translates `ValidationError` (`field` / `alternative` / `alternative_grouped`) into issues. Also exports `createValidationChain()`.
+- **@validup/validator-js**: ships pre-baked factories per common rule (`isEmail`, `isURL`, `isUUID`, `isLength`, `isInt`, `isFloat`, `isAlpha`, `isAlphanumeric`, `isNumeric`, `isDecimal`, `isIP`, `isMACAddress`, `isDate`, `isISO8601`, `isJSON`, `isBase64`, `isStrongPassword`, `matches`, `equals`). Each accepts a flat options object `BaseFactoryOptions & validator.Is*Options` and stamps the right vocabulary `IssueCode` (+ structured `params`) on failure. `isInt` / `isFloat` / `isLength` split type-failure (`INTEGER` / `DECIMAL` / `MIN_LENGTH`) from range-failure (`MIN_VALUE` / `MAX_VALUE` / `MAX_LENGTH`) on output. The generic `createValidator(fn, { code, message, params? })` wraps any `(value: string, ...args) => boolean` validator.js predicate for the long tail (`isCreditCard`, `isJWT`, …).
 - **@validup/vue**: `useValidup(container, state, options?)` is a Vue 3 composable returning a vuelidate-shaped `Composable<T>` (`$invalid`, `$dirty`, `$pending`, `$errors`, per-field `$model`/`$touch`/`$reset`, plus `$crossCuttingErrors` and `$groupErrors`). Options: `group`, `debounce`, `name`, `stopPropagation`, `detached`, `lazy`, `autoDirty`, `scope`. `stopPropagation` skips upward `inject()` only; `detached` skips both `inject()` and `provide()` (invisible to ancestors *and* descendants). Public types are plain type aliases (no `Validup` prefix, no `I` prefix) since no class implements them: `Composable`, `ComposableOptions`, `FieldState`, `Severity`, `ParentRegistry`. `getSeverity(field)` is optional-aware — when every issue on a field carries `meta.optional: true` (stamped by the validup runtime for `optional: true` mounts) it downgrades the result from `'error'` to `'warning'`; any required-mount issue tips the scale back to `'error'`. Layout differs slightly: `module.ts` (composable), `helpers/severity.ts` (`getSeverity`), `helpers/child.ts` (`PARENT_INJECTION_KEY` + `extractResultsFromChild`), `helpers/collector.ts` (private `useCollector`), `types.ts`. No `error.ts` — issues come pre-shaped from the wrapped `Container`.
 
 ## Tests

@@ -137,7 +137,10 @@ export function isFloat<C = unknown>(
 ): Validator<C> {
     return (ctx) => {
         const s = toValidatorString(ctx.value);
-        if (!validator.isFloat(s)) {
+        // Pre-check honours `locale` so localized floats (e.g. '123,45' for
+        // 'de-DE') aren't rejected by the type gate before the range checks
+        // get a chance to run.
+        if (!validator.isFloat(s, { locale: options.locale })) {
             throw createValidupError(
                 ctx.value,
                 IssueCode.DECIMAL,

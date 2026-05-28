@@ -140,24 +140,66 @@ import {
 | `buildErrorMessageForAttribute('email')` | `'Property "email" is invalid.'`                          |
 | `stringifyPath([...])`     | Render a `PropertyKey[]` as `'a.b[0].c'`                            |
 
+## Issue code vocabulary
+
+validup ships a vocabulary of well-known issue codes that adapter packages (`@validup/zod`, `@validup/validator-js`) map onto and that i18n catalogs (`@ilingo/validup`) translate from. The vocabulary tracks the common ground across vuelidate, zod, joi, and yup — enough that a translation catalog can ship one localized string per code instead of a generic "invalid value" fallback.
+
+| Theme | Code | When | `params` |
+|-------|------|------|----------|
+| **Generic / structural** | `VALUE_INVALID` | Default for any `defineIssueItem(...)` without a code | — |
+|                          | `ONE_OF_FAILED` | All branches of a `oneOf` container failed | — |
+| **Presence**             | `REQUIRED` | Value is missing, `undefined`, `null`, or empty | — |
+| **Type assertions**      | `ALPHA` | Value contains characters outside the alphabetical set | — |
+|                          | `ALPHA_NUM` | Value contains characters outside the alphanumeric set | — |
+|                          | `NUMERIC` | Value is not a number | — |
+|                          | `INTEGER` | Value is not an integer | — |
+|                          | `DECIMAL` | Value is not a decimal number | — |
+| **Length**               | `MIN_LENGTH` | Value is shorter than the configured minimum | `{ min: number }` |
+|                          | `MAX_LENGTH` | Value is longer than the configured maximum | `{ max: number }` |
+| **Numeric range**        | `MIN_VALUE` | Numeric value is below the configured minimum | `{ min: number }` |
+|                          | `MAX_VALUE` | Numeric value is above the configured maximum | `{ max: number }` |
+|                          | `BETWEEN` | Numeric value falls outside `[min, max]` | `{ min: number, max: number }` |
+| **String format**        | `EMAIL` | Value is not a valid email address | — |
+|                          | `URL` | Value is not a valid URL | — |
+|                          | `IP_ADDRESS` | Value is not a valid IP address | — |
+|                          | `MAC_ADDRESS` | Value is not a valid MAC address | — |
+|                          | `UUID` | Value is not a valid UUID | — |
+|                          | `DATE` | Value is not a valid / parseable date | — |
+|                          | `PATTERN` | Value does not match the expected regex | `{ pattern: string }` |
+|                          | `JSON` | Value is not valid JSON | — |
+|                          | `BASE64` | Value is not valid base64 | — |
+|                          | `STRONG_PASSWORD` | Value doesn't meet the configured strength rules | `{ minLength?, minLowercase?, minUppercase?, minNumbers?, minSymbols? }` |
+| **Comparison**           | `SAME_AS` | Value must equal another named field's value (e.g. password-confirm) | `{ other: string }` |
+
+Adapters are responsible for mapping foreign codes onto the vocabulary. When a foreign code has no direct match, the adapter falls back to `IssueCode.VALUE_INVALID` and the consumer-side template uses the eagerly-rendered English `issue.message`.
+
 ## Custom codes
 
-`IssueCode` is paired with a declaration-mergeable `IssueCodeRegistry` interface — you can add typed codes via module augmentation:
+`IssueItem.code` is widened to `IssueCode | (string & {})`, so any literal string works at runtime:
 
 ```typescript
-declare module 'validup' {
-    interface IssueCodeRegistry {
-        EMAIL_TAKEN: 'EMAIL_TAKEN';
-    }
-}
+defineIssueItem({ code: 'email_taken', path: ['email'], message: 'Already taken.' });
+// → accepted; downstream code paths treat it like any other code
+```
+
+For typed autocomplete on project-specific codes, define your own const that spreads the shipped vocabulary:
+
+```typescript
+import { IssueCode } from 'validup';
+
+export const AppCode = {
+    ...IssueCode,
+    EMAIL_TAKEN: 'email_taken',
+    RATE_LIMITED: 'rate_limited',
+} as const;
+
+export type AppCode = typeof AppCode[keyof typeof AppCode];
 
 throw new ValidupError([
     defineIssueItem({
-        code: 'EMAIL_TAKEN',
+        code: AppCode.EMAIL_TAKEN,
         path: ['email'],
         message: 'Email already in use.',
     }),
 ]);
 ```
-
-The `(string & {})` widening keeps ad-hoc string codes working too — the registry is purely for type-level autocomplete.

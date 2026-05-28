@@ -116,6 +116,14 @@ describe('error', () => {
             const items = parseAndMap(z.uuid(), 'not-a-uuid');
             expect(items[0]?.code).toBe(IssueCode.UUID);
         });
+        it('invalid_format nanoid → VALUE_INVALID (not UUID — distinct format)', () => {
+            // nanoid / cuid / ulid produce different shapes than UUIDs and
+            // shouldn't conflate with the UUID translation key. The mapper
+            // intentionally falls back to VALUE_INVALID so consumers add
+            // their own code if they care.
+            const items = parseAndMap(z.nanoid(), 'short');
+            expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
+        });
         it('invalid_format datetime → DATE', () => {
             const items = parseAndMap(z.iso.datetime(), 'not-a-datetime');
             expect(items[0]?.code).toBe(IssueCode.DATE);

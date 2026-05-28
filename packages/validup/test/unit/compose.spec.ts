@@ -166,6 +166,20 @@ describe('compose with { bail: false } — collect-all', () => {
         const items = flattenIssueItems(err.issues);
         expect(items).toHaveLength(1);
         expect(items[0]?.message).toBe('plain string failure');
+        // Synthesized issues must always carry a code so consumer-side
+        // i18n catalogs have something to key off.
+        expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
+    });
+
+    it('synthesizes an IssueItem for plain Error throws (not ValidupError)', async () => {
+        const bad: Validator = () => {
+            throw new Error('plain error failure');
+        };
+        const err = await captureFail(compose([bad], { bail: false }), 'x');
+        const items = flattenIssueItems(err.issues);
+        expect(items).toHaveLength(1);
+        expect(items[0]?.message).toBe('plain error failure');
+        expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
     });
 
     it('returns ctx.value verbatim on full success (no threading)', async () => {

@@ -67,7 +67,7 @@ container.mount('name', isString);     // sees the trimmed value
 
 ## Lazy / context-aware validators
 
-The integration adapters (`@validup/zod`, `@validup/standard-schema`, `@validup/express-validator`) accept either a schema/chain or a function `(ctx) => schema/chain`. The function form lets you build a per-call schema from `ctx.group`, `ctx.context`, or `ctx.data`.
+The integration adapters (`@validup/zod`, `@validup/standard-schema`) accept either a schema or a function `(ctx) => schema`. The function form lets you build a per-call schema from `ctx.group`, `ctx.context`, or `ctx.data`. `@validup/validator-js` factories aren't lazy by default — they bind their options at factory-build time; wrap them in a closure if you need per-context configuration.
 
 For your own validators, the same pattern is just a closure:
 

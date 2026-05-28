@@ -78,8 +78,17 @@ function mapZodIssue(raw: ZodIssue | $ZodIssue): {
                     return { code: IssueCode.URL };
                 case 'uuid':
                 case 'guid':
-                case 'nanoid':
                     return { code: IssueCode.UUID };
+                // nanoid / cuid / cuid2 / ulid are distinct ID formats — an
+                // i18n template keyed on `UUID` would render "must be a valid
+                // UUID" against a nanoid field, which is wrong. Fall back to
+                // the generic code so consumers can add catalog entries for
+                // these formats explicitly if they care.
+                case 'nanoid':
+                case 'cuid':
+                case 'cuid2':
+                case 'ulid':
+                    return { code: IssueCode.VALUE_INVALID };
                 case 'date':
                 case 'time':
                 case 'datetime':

@@ -163,13 +163,27 @@ export function isStrongPassword<C = unknown>(
     options: BaseFactoryOptions & validator.StrongPasswordOptions = {},
 ): Validator<C> {
     const message = options.message ?? 'The value does not meet the password strength requirements';
+    // Strip validup-only `message` AND `returnScore` before forwarding to
+    // validator.js. With `returnScore: true`, validator.js returns a numeric
+    // score instead of a boolean — the truthy check below would accept any
+    // non-zero score as a pass, so a weak password could squeak through.
+    // Drop the flag and force boolean semantics. `message` is dropped from
+    // `params` so i18n templates see only the validator.js-side requirements
+    // (`{{minLength}}`, `{{minNumbers}}`, …).
+    const {
+        message: _ignored, 
+        returnScore: _alsoIgnored, 
+        ...rest 
+    } = options;
     return (ctx) => {
         const s = toValidatorString(ctx.value);
-        if (validator.isStrongPassword(s, options)) return ctx.value;
-        // Strip the validup-only `message` field so params reflect only
-        // the validator.js-side requirements — templates reference
-        // `{{minLength}}`, `{{minNumbers}}`, … against this object.
-        const { message: _, ...rest } = options;
+        // validator.js mutates the options argument it receives (merging
+        // defaults in-place), which would leak `returnScore: false` and other
+        // default keys back into our `rest` and then into `params`. Pass a
+        // shallow clone so `rest` stays clean and our params payload reflects
+        // only what the consumer configured.
+        const probeOptions = { ...rest } as validator.StrongPasswordOptions;
+        if (validator.isStrongPassword(s, probeOptions) === true) return ctx.value;
         const params: Record<string, unknown> = { ...rest };
         throw createValidupError(
             ctx.value,

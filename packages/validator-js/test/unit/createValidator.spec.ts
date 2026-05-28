@@ -52,6 +52,7 @@ describe('createValidator', () => {
     });
 
     it('forwards params onto the resulting IssueItem', async () => {
+        expect.assertions(1);
         const container = new Container<{ phone: string }>();
         container.mount('phone', createValidator(
             (v: string) => validator.isMobilePhone(v, 'de-DE'),
@@ -64,17 +65,18 @@ describe('createValidator', () => {
 
         try {
             await container.run({ phone: '12345' });
+            throw new Error('expected ValidupError');
         } catch (e) {
-            if (e instanceof ValidupError) {
-                const items = flattenIssueItems(e.issues);
-                expect(items[0]?.params).toEqual({ locale: 'de-DE' });
-            }
+            if (!(e instanceof ValidupError)) throw e;
+            const items = flattenIssueItems(e.issues);
+            expect(items[0]?.params).toEqual({ locale: 'de-DE' });
         }
     });
 
     it('defaults to VALUE_INVALID when no code is supplied', async () => {
         // The factory signature requires `code`, but a runtime caller
         // might pass an empty string. Defensive default.
+        expect.assertions(1);
         const container = new Container<{ x: string }>();
         container.mount('x', createValidator(validator.isAlpha, {
             code: '',
@@ -82,11 +84,11 @@ describe('createValidator', () => {
         }));
         try {
             await container.run({ x: '123' });
+            throw new Error('expected ValidupError');
         } catch (e) {
-            if (e instanceof ValidupError) {
-                const items = flattenIssueItems(e.issues);
-                expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
-            }
+            if (!(e instanceof ValidupError)) throw e;
+            const items = flattenIssueItems(e.issues);
+            expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
         }
     });
 });

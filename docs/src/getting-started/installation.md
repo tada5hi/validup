@@ -9,10 +9,10 @@ npm install validup --save
 Optionally pick one or more integrations:
 
 ```bash
-npm install @validup/standard-schema --save    # Standard Schema (zod 3.24+, valibot, arktype, …)
-npm install @validup/zod --save                # zod-specific (richer issue mapping)
-npm install @validup/express-validator --save  # express-validator chains
-npm install @validup/vue --save                # Vue 3 forms
+npm install @validup/standard-schema --save           # Standard Schema (zod 3.24+, valibot, arktype, …)
+npm install @validup/zod --save                       # zod-specific (richer issue mapping)
+npm install @validup/validator-js validator --save    # validator.js string validators
+npm install @validup/vue --save                       # Vue 3 forms
 ```
 
 ## Requirements
@@ -30,10 +30,10 @@ All packages publish ESM-only (`dist/index.mjs` + `dist/index.d.mts`). There is 
 | Package                       | Peer deps                                       |
 |-------------------------------|-------------------------------------------------|
 | `validup`                     | —                                               |
-| `@validup/standard-schema`    | —                                               |
-| `@validup/zod`                | `zod ^3.25.0 \|\| ^4.0.0`                       |
-| `@validup/express-validator`  | `express-validator ^7.3.1`                      |
-| `@validup/vue`                | `vue ^3.3`                                      |
+| `@validup/standard-schema`    | `validup ^1.0.0`                                |
+| `@validup/zod`                | `validup ^1.0.0`, `zod ^4.0.0`                  |
+| `@validup/validator-js`       | `validup ^1.0.0`, `validator ^13.0.0`           |
+| `@validup/vue`                | `validup ^1.0.0`, `vue ^3.3`                    |
 
 ## Verifying the install
 

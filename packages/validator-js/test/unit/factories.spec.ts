@@ -152,6 +152,30 @@ describe('isStrongPassword', () => {
         expect(items[0]?.code).toBe(IssueCode.STRONG_PASSWORD);
         expect(items[0]?.params).toMatchObject({ minLength: 12, minNumbers: 2 });
     });
+
+    it('rejects weak passwords even when consumer sets returnScore: true', async () => {
+        // Regression guard: validator.isStrongPassword(..., { returnScore: true })
+        // returns a numeric score rather than a boolean. A naive truthy check
+        // would accept any non-zero score as a pass — the factory strips the
+        // flag before forwarding to validator.js so a weak password still
+        // surfaces as a STRONG_PASSWORD failure.
+        const items = await fail(
+            isStrongPassword({ minLength: 12, returnScore: true }),
+            'short',
+        );
+        expect(items[0]?.code).toBe(IssueCode.STRONG_PASSWORD);
+    });
+
+    it('omits returnScore from the params payload', async () => {
+        // returnScore is a validator.js execution mode, not a strength
+        // requirement — an i18n template would never want to render it.
+        const items = await fail(
+            isStrongPassword({ minLength: 12, returnScore: true }),
+            'short',
+        );
+        expect(items[0]?.params).not.toHaveProperty('returnScore');
+        expect(items[0]?.params).toMatchObject({ minLength: 12 });
+    });
 });
 
 describe('isAlpha / isAlphanumeric / isNumeric / isDecimal', () => {

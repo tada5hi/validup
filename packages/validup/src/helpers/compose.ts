@@ -6,7 +6,7 @@
  */
 
 import { ValidupError, isValidupError } from '../error';
-import { defineIssueItem } from '../issue';
+import { IssueCode, defineIssueItem } from '../issue';
 import type { Issue } from '../issue';
 import type { Validator } from '../types';
 
@@ -92,12 +92,14 @@ export function compose<C = unknown>(
                 if (e instanceof Error) {
                     issues.push(defineIssueItem({
                         path: [],
+                        code: IssueCode.VALUE_INVALID,
                         message: e.message,
                     }));
                     continue;
                 }
                 issues.push(defineIssueItem({
                     path: [],
+                    code: IssueCode.VALUE_INVALID,
                     message: typeof e === 'string' && e.length > 0 ?
                         e :
                         `Non-Error throw: ${String(e)}`,
