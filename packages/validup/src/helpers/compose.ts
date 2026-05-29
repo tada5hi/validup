@@ -9,10 +9,10 @@ import { isContainer } from '../container/check';
 import type { IContainer } from '../container/types';
 import { ValidupError } from '../error';
 import type { Issue } from '../issue';
-import type { Validator, ValidatorContext } from '../types';
 import { isObject } from '../utils';
 import { errorToIssues } from './error-to-issues';
 import { buildOneOfFailedGroup } from './one-of-failed';
+import type { Validator, ValidatorContext } from '../validator';
 
 /**
  * A composable element — either a bare `Validator<C>` function or a

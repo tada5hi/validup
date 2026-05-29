@@ -7,7 +7,8 @@
 
 import type { Container } from '../container';
 import type { IContainer, MountOptions } from '../container/types';
-import type { Validator } from '../types';
+
+import type { Validator } from '../validator';
 
 /**
  * Cosmetic helper — flattens an intersection so editors render

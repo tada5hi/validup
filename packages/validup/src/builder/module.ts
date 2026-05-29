@@ -11,8 +11,8 @@ import type {
     IContainer,
     MountOptions,
 } from '../container/types';
-import type { Validator } from '../types';
 import type { IBuilder, MountTarget } from './types';
+import type { Validator } from '../validator';
 
 type ValidatorStep<C> = {
     kind: 'validator',

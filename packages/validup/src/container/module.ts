@@ -26,9 +26,8 @@ import {
     resolveDefaults,
     resolvePathFilter,
 } from '../helpers';
-import type { Validator } from '../types';
 import { hasOwnProperty, isObject } from '../utils';
-import type { ValidatorDescriptor } from '../validator';
+import type { Validator, ValidatorDescriptor } from '../validator';
 import { isValidatorDescriptor } from '../validator';
 import { isContainer } from './check';
 import type {

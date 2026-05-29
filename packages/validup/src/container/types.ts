@@ -11,8 +11,8 @@ import type { OptionalValue } from '../constants';
 import type { ValidupError } from '../error';
 import type {
     ObjectLiteral,
-    Validator,
 } from '../types';
+import type { Validator } from '../validator';
 
 export type ContainerOptions<T> = {
     /**
