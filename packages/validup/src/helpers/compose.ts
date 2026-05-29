@@ -66,7 +66,7 @@ export type ComposeOptions = {
      * throws a `ValidupError` whose first issue is an `IssueGroup`
      * with `code: IssueCode.ONE_OF_FAILED` carrying every branch's
      * collected failures (per-branch index surfaced via
-     * `params: { branch }`). Symmetric with
+     * `data: { branch }`). Symmetric with
      * `Container.options.oneOf`, just at the validator level.
      *
      * Each branch sees the original `ctx.value` — no threading
@@ -321,7 +321,7 @@ async function invokeComposeElement<C>(
 /**
  * Normalize one branch's failure into `Issue[]` ready to merge into
  * the outer `ONE_OF_FAILED` group. Each issue is tagged with
- * `params: { branch: index }` so a tree-walking consumer can report
+ * `data: { branch: index }` so a tree-walking consumer can report
  * "branch N failed because ..." without needing to reconstruct
  * registration order.
  *
@@ -329,11 +329,11 @@ async function invokeComposeElement<C>(
  * `errorToIssues` cascade; only the per-branch stamping is local
  * concern. Spread issues are shallow-cloned before stamping so the
  * `ValidupError` instance's `issues` array on the caller side isn't
- * mutated when a consumer reads `.params.branch` later.
+ * mutated when a consumer reads `.data.branch` later.
  */
 function wrapBranchIssues(error: unknown, index: number): Issue[] {
     const stamp = <I extends Issue>(issue: I): I => {
-        issue.params = { ...(issue.params ?? {}), branch: index };
+        issue.data = { ...(issue.data ?? {}), branch: index };
         return issue;
     };
     return errorToIssues(error).map((issue) => stamp({ ...issue }));

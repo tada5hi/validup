@@ -27,7 +27,7 @@ const LENGTH_LIKE_ORIGINS = new Set(['string', 'array', 'set', 'file']);
 
 /**
  * Internal — picks a validup `IssueCode` for a zod issue and (when the
- * code calls for it) builds the structured `params` payload templates
+ * code calls for it) builds the structured `data` payload templates
  * rely on (`{{min}}`, `{{max}}`, `{{pattern}}`, …).
  *
  * Falls back to `VALUE_INVALID` for zod codes that don't have a clear
@@ -37,7 +37,7 @@ const LENGTH_LIKE_ORIGINS = new Set(['string', 'array', 'set', 'file']);
  */
 function mapZodIssue(raw: ZodIssue | $ZodIssue): {
     code: string,
-    params?: Record<string, unknown>,
+    data?: Record<string, unknown>,
 } {
     switch (raw.code) {
         case 'invalid_type': {
@@ -57,17 +57,17 @@ function mapZodIssue(raw: ZodIssue | $ZodIssue): {
             const origin = String(raw.origin ?? '');
             const min = Number(raw.minimum);
             if (LENGTH_LIKE_ORIGINS.has(origin)) {
-                return { code: IssueCode.MIN_LENGTH, params: { min } };
+                return { code: IssueCode.MIN_LENGTH, data: { min } };
             }
-            return { code: IssueCode.MIN_VALUE, params: { min } };
+            return { code: IssueCode.MIN_VALUE, data: { min } };
         }
         case 'too_big': {
             const origin = String(raw.origin ?? '');
             const max = Number(raw.maximum);
             if (LENGTH_LIKE_ORIGINS.has(origin)) {
-                return { code: IssueCode.MAX_LENGTH, params: { max } };
+                return { code: IssueCode.MAX_LENGTH, data: { max } };
             }
-            return { code: IssueCode.MAX_VALUE, params: { max } };
+            return { code: IssueCode.MAX_VALUE, data: { max } };
         }
         case 'invalid_format': {
             const format = String(raw.format ?? '');
@@ -108,7 +108,7 @@ function mapZodIssue(raw: ZodIssue | $ZodIssue): {
                     const pattern = typeof raw.pattern === 'string' ?
                         raw.pattern :
                         String(raw.pattern ?? '');
-                    return { code: IssueCode.PATTERN, params: { pattern } };
+                    return { code: IssueCode.PATTERN, data: { pattern } };
                 }
                 default:
                     return { code: IssueCode.VALUE_INVALID };
@@ -134,7 +134,7 @@ function mapZodIssue(raw: ZodIssue | $ZodIssue): {
  * - `message` — zod's own message, verbatim. Consumer-side i18n
  *   catalogs override this via the `code` lookup; `message` is the
  *   English fallback when no translation is registered.
- * - `params` — structured payload for code-aware templates
+ * - `data` — structured payload for code-aware templates
  *   (`{{min}}` / `{{max}}` / `{{pattern}}`); absent when the code
  *   carries no parameters.
  * - `expected` / `received` — vendor-specific zod fields, passed
@@ -146,7 +146,7 @@ export function buildIssuesForZodError(error: ZodError): Issue[] {
     for (let i = 0; i < error.issues.length; i++) {
         const issue = error.issues[i];
 
-        const { code, params } = mapZodIssue(issue);
+        const { code, data } = mapZodIssue(issue);
 
         let expected : unknown;
         if (hasOwnProperty(issue, 'expected')) {
@@ -162,7 +162,7 @@ export function buildIssuesForZodError(error: ZodError): Issue[] {
             path: issue.path || [],
             message: issue.message,
             code,
-            params,
+            data,
             expected,
             received,
         }));

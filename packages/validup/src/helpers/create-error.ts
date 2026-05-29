@@ -10,7 +10,7 @@ import { defineIssueItem } from '../issue';
 import type { 
     BareIssueCode, 
     IssueCode, 
-    IssueParamsByCode, 
+    IssueDataByCode, 
     ParameterizedIssueCode, 
     ResolveIssueCode, 
 } from '../issue';
@@ -18,19 +18,19 @@ import type {
 /**
  * Trailing-args shape selected by the resolved `code`:
  *
- * - Parameterized code → `params` is required and typed.
+ * - Parameterized code → `data` is required and typed.
  * - Bare code → no trailing arg accepted.
- * - Ad-hoc string code → `params?: Record<string, unknown>` optional.
+ * - Ad-hoc string code → `data?: Record<string, unknown>` optional.
  */
 type CreateValidupErrorTail<C> = ResolveIssueCode<C> extends ParameterizedIssueCode ?
-    [params: IssueParamsByCode[ResolveIssueCode<C> & ParameterizedIssueCode]] :
+    [data: IssueDataByCode[ResolveIssueCode<C> & ParameterizedIssueCode]] :
     ResolveIssueCode<C> extends BareIssueCode ?
         [] :
-        [params?: Record<string, unknown>];
+        [data?: Record<string, unknown>];
 
 /**
  * Build a `ValidupError` carrying a single `IssueItem` with the supplied
- * code / message / params. Sugar for the common one-issue failure
+ * code / message / data. Sugar for the common one-issue failure
  * construction used by adapters and hand-rolled validators.
  *
  * The caller throws — keeping the `throw` keyword at the call site
@@ -46,10 +46,10 @@ type CreateValidupErrorTail<C> = ResolveIssueCode<C> extends ParameterizedIssueC
  * }
  * ```
  *
- * The `code` you pass selects the `params` requirement at compile time:
+ * The `code` you pass selects the `data` requirement at compile time:
  * parameterized codes (`MIN_LENGTH`, `STRONG_PASSWORD`, …) require their
- * typed payload; bare codes (`EMAIL`, `REQUIRED`, …) take no params; any
- * other string falls through to an open `Record<string, unknown>` params
+ * typed payload; bare codes (`EMAIL`, `REQUIRED`, …) take no data; any
+ * other string falls through to an open `Record<string, unknown>` data
  * argument.
  *
  * For multi-issue failures (e.g. inside {@link compose} with `{ bail: false }`),
@@ -62,13 +62,13 @@ export function createValidupError<C extends string = typeof IssueCode.VALUE_INV
     message: string,
     ...rest: CreateValidupErrorTail<C>
 ): ValidupError {
-    const params = rest[0] as Record<string, unknown> | undefined;
+    const data = rest[0] as Record<string, unknown> | undefined;
     return new ValidupError([
         defineIssueItem({
             path: [],
             message,
             code,
-            params,
+            data,
             received,
         } as Parameters<typeof defineIssueItem>[0]),
     ]);

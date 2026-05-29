@@ -12,7 +12,7 @@ import type { Issue } from './types';
 /**
  * Map of issue `code` → message template. Templates use `{name}` placeholders
  * — the same syntax `@ebec/core`'s `interpolate` understands — and are
- * resolved against `Issue.params` at format time.
+ * resolved against `Issue.data` at format time.
  *
  * ```ts
  * const de: IssueMessageTemplates = {
@@ -27,7 +27,7 @@ export type IssueMessageTemplates = Partial<Record<IssueCode, string>> & Record<
  * Render an issue's user-facing message.
  *
  * Resolution order:
- * 1. If `templates[code]` exists, return `interpolate(template, issue.params)`.
+ * 1. If `templates[code]` exists, return `interpolate(template, issue.data)`.
  * 2. Else return `issue.message` (the default English rendering set at
  *    construction time).
  * 3. Else return `fallback`.
@@ -40,7 +40,7 @@ export function formatIssue(
     if (templates && issue.code) {
         const template = templates[issue.code];
         if (typeof template === 'string') {
-            return interpolate(template, issue.params || {});
+            return interpolate(template, issue.data || {});
         }
     }
     if (typeof issue.message === 'string' && issue.message.length > 0) {

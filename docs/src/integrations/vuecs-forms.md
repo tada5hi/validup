@@ -40,7 +40,7 @@ type IssueItem = {
     message: string;
     received?: unknown;
     expected?: unknown;
-    params?: Record<string, unknown>;
+    data?: Record<string, unknown>;
     meta?: Record<string, unknown>;
 };
 

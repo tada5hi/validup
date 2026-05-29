@@ -75,32 +75,32 @@ describe('error', () => {
         it('too_small (string) → MIN_LENGTH', () => {
             const items = parseAndMap(z.string().min(5), 'hi');
             expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
-            expect(items[0]?.params).toEqual({ min: 5 });
+            expect(items[0]?.data).toEqual({ min: 5 });
         });
         it('too_big (string) → MAX_LENGTH', () => {
             const items = parseAndMap(z.string().max(3), 'toolong');
             expect(items[0]?.code).toBe(IssueCode.MAX_LENGTH);
-            expect(items[0]?.params).toEqual({ max: 3 });
+            expect(items[0]?.data).toEqual({ max: 3 });
         });
         it('too_small (array) → MIN_LENGTH', () => {
             const items = parseAndMap(z.array(z.number()).min(2), [1]);
             expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
-            expect(items[0]?.params).toEqual({ min: 2 });
+            expect(items[0]?.data).toEqual({ min: 2 });
         });
         it('too_big (array) → MAX_LENGTH', () => {
             const items = parseAndMap(z.array(z.number()).max(2), [1, 2, 3]);
             expect(items[0]?.code).toBe(IssueCode.MAX_LENGTH);
-            expect(items[0]?.params).toEqual({ max: 2 });
+            expect(items[0]?.data).toEqual({ max: 2 });
         });
         it('too_small (number) → MIN_VALUE', () => {
             const items = parseAndMap(z.number().min(10), 5);
             expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
-            expect(items[0]?.params).toEqual({ min: 10 });
+            expect(items[0]?.data).toEqual({ min: 10 });
         });
         it('too_big (number) → MAX_VALUE', () => {
             const items = parseAndMap(z.number().max(10), 50);
             expect(items[0]?.code).toBe(IssueCode.MAX_VALUE);
-            expect(items[0]?.params).toEqual({ max: 10 });
+            expect(items[0]?.data).toEqual({ max: 10 });
         });
 
         // ── invalid_format — one test per zod format ─────────────────────
@@ -143,12 +143,12 @@ describe('error', () => {
         it('invalid_format regex → PATTERN with { pattern }', () => {
             const items = parseAndMap(z.string().regex(/^[a-z]+$/), 'UPPER');
             expect(items[0]?.code).toBe(IssueCode.PATTERN);
-            expect(items[0]?.params).toMatchObject({ pattern: expect.any(String) });
+            expect(items[0]?.data).toMatchObject({ pattern: expect.any(String) });
         });
         it('invalid_format with an unmapped format → VALUE_INVALID', () => {
             // Pick a string format that's not in the mapping table — emoji
             // checks are an example of vendor-specific shapes we don't carry.
-            const schema = z.string().refine(() => false, { params: { format: 'emoji' } });
+            const schema = z.string().refine(() => false, { data: { format: 'emoji' } });
             const items = parseAndMap(schema, 'plain');
             expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
         });

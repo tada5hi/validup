@@ -156,7 +156,7 @@ try {
 }
 ```
 
-> ⚠️ **`IssueGroup` round-trip is lossy.** validup's `Issue` is a discriminated union of `IssueItem` and `IssueGroup`. zod has no group equivalent, so `buildZodIssuesForIssue` recursively flattens every `IssueGroup` into its constituent `IssueItem`s when emitting zod issues — group-level metadata (`code: 'one_of_failed'`, `params.name`, etc.) is dropped. The reverse direction (zod → validup) never produces groups, so a `zod ← validup` round-trip on a flat issue list is preserved; a round-trip that involves grouped errors is not.
+> ⚠️ **`IssueGroup` round-trip is lossy.** validup's `Issue` is a discriminated union of `IssueItem` and `IssueGroup`. zod has no group equivalent, so `buildZodIssuesForIssue` recursively flattens every `IssueGroup` into its constituent `IssueItem`s when emitting zod issues — group-level metadata (`code: 'one_of_failed'`, `data.name`, etc.) is dropped. The reverse direction (zod → validup) never produces groups, so a `zod ← validup` round-trip on a flat issue list is preserved; a round-trip that involves grouped errors is not.
 
 ## API Reference
 
@@ -180,12 +180,12 @@ function createValidator<C = unknown, Z extends ZodType = ZodType>(
 What's covered by semver:
 
 - **Public exports** — `createValidator`, `buildIssuesForZodError`, `buildZodIssuesForError`, `buildZodIssuesForIssue`, and the `ZodIssue` type alias.
-- **Error-mapping shape** — `IssueItem.path` mirrors the failing zod path; `IssueItem.expected` / `received` are populated when zod exposes them. Other zod-only fields (`code`, `params`, …) are intentionally not surfaced. `buildZodIssuesForError` reconstructs a zod-shaped representation from a `ValidupError` (`code: 'custom'`, the message, the path, and the original `received` value as `input`) — it does **not** recover the dropped zod fields. If you need them end-to-end, keep the `ZodError` available alongside the `ValidupError`.
+- **Error-mapping shape** — `IssueItem.path` mirrors the failing zod path; `IssueItem.expected` / `received` are populated when zod exposes them. Other zod-only fields (`code`, `data`, …) are intentionally not surfaced. `buildZodIssuesForError` reconstructs a zod-shaped representation from a `ValidupError` (`code: 'custom'`, the message, the path, and the original `received` value as `input`) — it does **not** recover the dropped zod fields. If you need them end-to-end, keep the `ZodError` available alongside the `ValidupError`.
 - **Per-context schema factory** — `(ctx: ValidatorContext<C>) => ZodType` invocation contract.
 
 Known lossy behavior:
 
-- `buildZodIssuesForIssue` flattens `IssueGroup`s when emitting zod issues (zod has no group concept) — group-level `code` and `params` are dropped.
+- `buildZodIssuesForIssue` flattens `IssueGroup`s when emitting zod issues (zod has no group concept) — group-level `code` and `data` are dropped.
 
 Peer dependency policy:
 

@@ -114,7 +114,7 @@ describe('oneOf', () => {
 
                 const branchNames = outer.issues
                     .filter(isIssueGroup)
-                    .map((g) => g.params?.name);
+                    .map((g) => g.data?.name);
                 expect(branchNames).toEqual(['foo', 'bar']);
 
                 // Leaves still flatten to the original two failures.

@@ -173,7 +173,7 @@ export function isBase64<C = unknown>(
  * like, as opposed to scoring weights (`pointsPerUnique`,
  * `pointsForContainingLower`, …) which only affect validator.js's
  * `returnScore` mode. Only these keys surface on `IssueCode.STRONG_PASSWORD`'s
- * `params` payload, matching the documented vocabulary contract.
+ * `data` payload, matching the documented vocabulary contract.
  */
 const STRONG_PASSWORD_REQUIREMENT_KEYS = [
     'minLength',
@@ -193,20 +193,20 @@ type StrongPasswordRequirementParams = {
 
 /**
  * Factory: validator.js `isStrongPassword`. Emits
- * `IssueCode.STRONG_PASSWORD` on failure. `params` carries only the
+ * `IssueCode.STRONG_PASSWORD` on failure. `data` carries only the
  * documented strength-requirement keys (`minLength`, `minLowercase`,
  * `minUppercase`, `minNumbers`, `minSymbols`) so i18n templates can quote
  * them:
  *
  * ```ts
  * isStrongPassword({ minLength: 12, minNumbers: 2 });
- * // → IssueCode.STRONG_PASSWORD, params: { minLength: 12, minNumbers: 2 }
+ * // → IssueCode.STRONG_PASSWORD, data: { minLength: 12, minNumbers: 2 }
  * ```
  *
  * Scoring weights (`pointsPerUnique`, `pointsForContainingLower`, …) are
  * still forwarded to validator.js so they continue to influence the
  * pass/fail decision (and any `returnScore`-shaped diagnostics), but they
- * do NOT appear in `params` — i18n templates would never want to render
+ * do NOT appear in `data` — i18n templates would never want to render
  * "must score at least N points per unique character" to the user.
  */
 export function isStrongPassword<C = unknown>(
@@ -224,12 +224,12 @@ export function isStrongPassword<C = unknown>(
         ...rest
     } = options;
     // Project `rest` down to the documented strength-requirement subset for
-    // the `params` payload. The full `rest` (including scoring weights) is
-    // what validator.js sees — but consumer-facing `IssueItem.params`
+    // the `data` payload. The full `rest` (including scoring weights) is
+    // what validator.js sees — but consumer-facing `IssueItem.data`
     // matches the documented vocabulary contract.
     //
     // Build the template once at factory time; clone it per failure so a
-    // consumer mutating `issue.params` on one IssueItem can't bleed into a
+    // consumer mutating `issue.data` on one IssueItem can't bleed into a
     // future failure from the same factory.
     const paramsTemplate: StrongPasswordRequirementParams = {};
     for (const key of STRONG_PASSWORD_REQUIREMENT_KEYS) {

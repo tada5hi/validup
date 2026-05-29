@@ -16,8 +16,8 @@ import { toValidatorString } from '../module';
  * validation time so the resulting issue carries a useful vocabulary
  * code:
  *
- * - Too short → `IssueCode.MIN_LENGTH` (params: `{ min }`).
- * - Too long → `IssueCode.MAX_LENGTH` (params: `{ max }`).
+ * - Too short → `IssueCode.MIN_LENGTH` (data: `{ min }`).
+ * - Too long → `IssueCode.MAX_LENGTH` (data: `{ max }`).
  *
  * Calling without `min` / `max` is allowed but degenerate — every value
  * passes. `message` overrides the default English string for both bound
@@ -49,7 +49,7 @@ export function isLength<C = unknown>(
             }
             // Fallback (shouldn't normally hit — `isLength` returned false but
             // neither bound was crossed). The MIN_LENGTH / MAX_LENGTH codes
-            // both require their bound in `params`; without a bound we can't
+            // both require their bound in `data`; without a bound we can't
             // honour the vocabulary contract, so emit the generic code.
             if (typeof min === 'number') {
                 throw createValidupError(

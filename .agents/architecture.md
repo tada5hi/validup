@@ -130,7 +130,7 @@ For each mounted item, in registration order:
 5. **Dispatch**:
    - `validator` → `await item.data(ctx)` (or `item.data(ctx)` in `runSync`, which throws if the result is thenable). Writes `output[key]`.
    - `container` → `await item.data.run(value, { group, flat: true, path, pathsToInclude, pathsToExclude, defaults: resolveDefaults(...), context, signal, parallel })`. `runSync` calls `item.data.runSync(...)` (throws `RunSyncViolationError` if the child doesn't implement it). Nested results are merged by `mergePaths(key, childKey)` so dotted paths flatten correctly.
-6. **Error capture** (`recordMountError`) — abort errors and `RunSyncViolationError`s rethrow verbatim (carved out of the issue-folding path). Otherwise: `ValidupError` issues are re-pathed (parent key prepended); other `Error`s become a single `IssueItem`. Multiple child issues at one path get wrapped in an `IssueGroup` whose `params: { name }` lets consumers re-render the message with `formatIssue`.
+6. **Error capture** (`recordMountError`) — abort errors and `RunSyncViolationError`s rethrow verbatim (carved out of the issue-folding path). Otherwise: `ValidupError` issues are re-pathed (parent key prepended); other `Error`s become a single `IssueItem`. Multiple child issues at one path get wrapped in an `IssueGroup` whose `data: { name }` lets consumers re-render the message with `formatIssue`.
 7. **Aggregate** (`finalizeOutput`):
    - `oneOf` containers throw only when **every** branch failed (`errorCount === itemCount`), wrapping all issues in a single `IssueGroup` with `code: ONE_OF_FAILED`.
    - Non-`oneOf` containers throw a `ValidupError` with all collected issues if any failed.
@@ -168,7 +168,7 @@ type ComposeOptions =
 ```
 
 - **`oneOf: false`** (default) — every element must pass. Sequential loop; each stage's defined return replaces the threaded `ctx.value` (a `undefined` return passes through). `bail: true` (default) re-throws the first failure verbatim; `bail: false` collects every failure into one aggregate `ValidupError` and threads through throwing stages so the next branch still runs against the last successful value.
-- **`oneOf: true`** — branches run as alternatives in registration order. First defined return wins (with the same pass-through fallback to `ctx.value`); subsequent branches never run. All branches failing throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures, each stamped with `params: { branch: index }` so consumers can attribute issues. Aborts via `ctx.signal` re-throw verbatim instead of being folded into branch failures. Empty branch list throws `ONE_OF_FAILED` with an empty inner list — "zero successes" is still zero successes.
+- **`oneOf: true`** — branches run as alternatives in registration order. First defined return wins (with the same pass-through fallback to `ctx.value`); subsequent branches never run. All branches failing throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures, each stamped with `data: { branch: index }` so consumers can attribute issues. Aborts via `ctx.signal` re-throw verbatim instead of being folded into branch failures. Empty branch list throws `ONE_OF_FAILED` with an empty inner list — "zero successes" is still zero successes.
 
 `composeOneOf([...])` is sugar for `compose([...], { oneOf: true })`. The any-of path lives in a private `composeAnyOf` helper inside `compose.ts` so the main `compose` body stays focused on the all-strategy chain.
 
@@ -191,22 +191,22 @@ Symmetric with `Container.options.oneOf`, just at the validator level — both s
 interface IssueBase {
     path: PropertyKey[],
     message: string,
-    params?: Record<string, unknown>,   // narrowed per branch on IssueItem
+    data?: Record<string, unknown>,   // narrowed per branch on IssueItem
     meta?: Record<string, unknown>,
 }
 
 // IssueItem is a discriminated union over three branches:
 type IssueItemTyped = IssueItemCommon & {
     code: ParameterizedIssueCode,       // 'min_length' | 'pattern' | 'strong_password' | …
-    params: IssueParamsByCode[code],    // required and typed per `IssueParamsByCode`
+    data: IssueDataByCode[code],    // required and typed per `IssueDataByCode`
 };
 type IssueItemBare = IssueItemCommon & {
     code: BareIssueCode,                // 'email' | 'required' | 'one_of_failed' | …
-    params?: undefined,                 // bare codes have no params
+    data?: undefined,                 // bare codes have no data
 };
 type IssueItemRaw = IssueItemCommon & {
     code: string & {},                  // ad-hoc / project-specific codes
-    params?: Record<string, unknown>,   // open shape
+    data?: Record<string, unknown>,   // open shape
 };
 type IssueItem = IssueItemTyped | IssueItemBare | IssueItemRaw;
 
@@ -217,10 +217,10 @@ interface IssueGroup extends IssueBase {
 }
 ```
 
-- Always construct with the factories `defineIssueItem(...)` / `defineIssueGroup(...)` — they set `type` correctly. Pass `params` so consumer-side `formatIssue(issue, templates?)` can re-render the message in another locale.
-- **`defineIssueItem` and `createValidupError` enforce the per-code `params` contract at compile time** via conditional-type signatures (`DefineIssueItemData<C>` / `CreateValidupErrorTail<C>` in `src/issue/define.ts` and `src/helpers/create-error.ts`; the shared `ResolveIssueCode<C>` helper in `src/issue/types.ts` handles the `code: undefined → VALUE_INVALID` default). Passing `IssueCode.MIN_LENGTH` without `params: { min }` is a compile error; passing `IssueCode.STRONG_PASSWORD` with `params: { pointsPerUnique: 5 }` is a compile error (scoring weight, not a documented requirement key); passing `IssueCode.EMAIL` with any `params` is a compile error.
-- **Consumer-side narrowing has a known limitation**: `IssueItemRaw`'s `code: string & {}` overlaps with the literal codes, so `if (issue.code === IssueCode.MIN_LENGTH) issue.params.min` types as `number | unknown | undefined` rather than `number`. The producer gatekeep is the primary safety net; consumers needing a clean narrow can use `Extract<IssueItem, { code: 'min_length' }>` or cast after the equality check.
-- **`IssueCode`** is the value/type const for the shipped vocabulary (`'value_invalid'`, `'min_length'`, …). **`IssueParamsByCode`** is the `interface` mapping each parameterized code to its `params` shape — open to declaration merging so third-party adapters can augment with their own typed codes (`declare module 'validup' { interface IssueParamsByCode { email_taken: { existingUserId: string } } }`). **`ParameterizedIssueCode` / `BareIssueCode`** are derived from `IssueParamsByCode` + `IssueCode` and feed the conditional-type signatures. Ad-hoc string codes outside the vocabulary fall to `IssueItemRaw` (open `params`).
+- Always construct with the factories `defineIssueItem(...)` / `defineIssueGroup(...)` — they set `type` correctly. Pass `data` so consumer-side `formatIssue(issue, templates?)` can re-render the message in another locale.
+- **`defineIssueItem` and `createValidupError` enforce the per-code `data` contract at compile time** via conditional-type signatures (`DefineIssueItemData<C>` / `CreateValidupErrorTail<C>` in `src/issue/define.ts` and `src/helpers/create-error.ts`; the shared `ResolveIssueCode<C>` helper in `src/issue/types.ts` handles the `code: undefined → VALUE_INVALID` default). Passing `IssueCode.MIN_LENGTH` without `data: { min }` is a compile error; passing `IssueCode.STRONG_PASSWORD` with `data: { pointsPerUnique: 5 }` is a compile error (scoring weight, not a documented requirement key); passing `IssueCode.EMAIL` with any `data` is a compile error.
+- **Consumer-side narrowing has a known limitation**: `IssueItemRaw`'s `code: string & {}` overlaps with the literal codes, so `if (issue.code === IssueCode.MIN_LENGTH) issue.data.min` types as `number | unknown | undefined` rather than `number`. The producer gatekeep is the primary safety net; consumers needing a clean narrow can use `Extract<IssueItem, { code: 'min_length' }>` or cast after the equality check.
+- **`IssueCode`** is the value/type const for the shipped vocabulary (`'value_invalid'`, `'min_length'`, …). **`IssueDataByCode`** is the `interface` mapping each parameterized code to its `data` shape — open to declaration merging so third-party adapters can augment with their own typed codes (`declare module 'validup' { interface IssueDataByCode { email_taken: { existingUserId: string } } }`). **`ParameterizedIssueCode` / `BareIssueCode`** are derived from `IssueDataByCode` + `IssueCode` and feed the conditional-type signatures. Ad-hoc string codes outside the vocabulary fall to `IssueItemRaw` (open `data`).
 - **`meta` governance.** `meta` is `Record<string, unknown>` by design — issues cross package boundaries and integration packages / apps need to tag them with provenance core doesn't know about. To keep the bag from sprawling, **library-owned keys must be provenance the consumer cannot reconstruct from `path` + container config.** Presentation tokens (e.g. `severity`) don't qualify and live in consumer code. Reconstructible facts (e.g. the active `group`, which the caller passed) don't qualify either. Apps and third-party validators are free to add their own keys; conflicts are their responsibility.
 - **Library-owned `meta` keys** (stable, semver-protected):
   - `optional?: true` — stamped by the runtime when the originating mount's `optional` declaration resolves truthy for the current `value`. Resolution mirrors the run-loop check (boolean → tag iff `true`; predicate → invoke with `value` and tag iff truthy). The predicate is re-evaluated at error time rather than relying on the "predicate already returned false in the run loop" invariant — explicit intent, decoupled from the run path. Reflects only the **most-local** mount, never inherited: a leaf inside an optional child container does NOT carry the flag unless its own mount also evaluated truthy. Wrapping `IssueGroup`s emitted by the optional mount itself DO carry the flag — so a tree walker can distinguish "subtree was optional" from "leaf's own mount was optional." Stamping happens in `container/module.ts` → `recordMountError` (`stampOptional` helper); the "no inheritance" rule is implemented by gating the stamp on `item.type === 'validator'` in the `isValidupError` branch. `recordMountError` takes a single `RecordMountErrorContext` bag (named for `error`, `item`, `value`, `keyParts`, `pathRelative`, `issues`, `signal`) so adding provenance fields is a one-line change at every call site instead of a positional-arg shuffle.

@@ -443,14 +443,14 @@ await credential.run({ email: 'not-an-email', username: 'invalid' });
 //   {
 //     type: 'group', code: 'one_of_failed', path: [],
 //     issues: [
-//       { type: 'group', path: [], params: { branch: 0, name: 'email' },    issues: [...] },
-//       { type: 'group', path: [], params: { branch: 1, name: 'username' }, issues: [...] },
+//       { type: 'group', path: [], data: { branch: 0, name: 'email' },    issues: [...] },
+//       { type: 'group', path: [], data: { branch: 1, name: 'username' }, issues: [...] },
 //     ],
 //   },
 // ]
 ```
 
-The per-branch sub-group's `params.branch` is the mount index (in registration order) and `params.name` is the mount path. Use `flattenIssueItems(error.issues)` for a flat list of leaf failures regardless of branch, or walk the sub-groups when you need to report which branch failed and why.
+The per-branch sub-group's `data.branch` is the mount index (in registration order) and `data.name` is the mount path. Use `flattenIssueItems(error.issues)` for a flat list of leaf failures regardless of branch, or walk the sub-groups when you need to report which branch failed and why.
 
 ## Path Filtering
 
@@ -609,7 +609,7 @@ const out = container.runSync(input);  // returns T directly, not Promise<T>
 
 ## Localized Messages
 
-`Issue.message` is rendered eagerly in English at construction time. For i18n / custom locales, every issue also carries a structured `params?: Record<string, unknown>` field (populated by the runtime where the message references a non-trivial value — e.g. `{ name: 'email' }` on the wrapping group at a failing mount). Pair it with `formatIssue` and a `code → template` map to render at the consumer side:
+`Issue.message` is rendered eagerly in English at construction time. For i18n / custom locales, every issue also carries a structured `data?: Record<string, unknown>` field (populated by the runtime where the message references a non-trivial value — e.g. `{ name: 'email' }` on the wrapping group at a failing mount). Pair it with `formatIssue` and a `code → template` map to render at the consumer side:
 
 ```typescript
 import { formatIssue, type IssueMessageTemplates } from 'validup';
@@ -626,11 +626,11 @@ for (const issue of error.issues) {
 
 `formatIssue(issue, templates?, fallback?)`:
 
-1. If `templates[issue.code]` exists, returns `interpolate(template, issue.params)` (placeholders use the `{name}` syntax from `@ebec/core`).
+1. If `templates[issue.code]` exists, returns `interpolate(template, issue.data)` (placeholders use the `{name}` syntax from `@ebec/core`).
 2. Otherwise returns `issue.message`.
 3. Otherwise returns `fallback`.
 
-Custom validators that want to participate in this flow should pass `params` through `defineIssueItem`/`defineIssueGroup` so consumer-side templates can reference field-specific values. The default `interpolate` is also re-exported for ad-hoc rendering.
+Custom validators that want to participate in this flow should pass `data` through `defineIssueItem`/`defineIssueGroup` so consumer-side templates can reference field-specific values. The default `interpolate` is also re-exported for ad-hoc rendering.
 
 ## Error Handling
 
@@ -707,7 +707,7 @@ const group = defineIssueGroup({
 
 validup ships a vocabulary of well-known issue codes that adapter packages (`@validup/zod`, `@validup/validator-js`, …) map onto and that i18n catalogs (`@ilingo/validup`) translate from. The vocabulary tracks the common ground across vuelidate, zod, joi, and yup — enough that a translation catalog can ship one localized string per code instead of a generic "invalid value" fallback.
 
-| Theme | Code | When | `params` |
+| Theme | Code | When | `data` |
 |-------|------|------|----------|
 | **Generic / structural** | `VALUE_INVALID` | Default for any `defineIssueItem(...)` without a code | — |
 |                          | `ONE_OF_FAILED` | All branches of a `oneOf` container failed (the wrapping group; per-branch sub-groups carry `{ branch, name }`) | — |
@@ -838,7 +838,7 @@ function composeOneOf<C = unknown>(
 Build a single `Validator` from many. Each element can be a bare `Validator<C>` function OR a fully-built `IContainer<T, C>` instance — the dispatcher picks the right call shape (containers receive the threaded value as their input, validators receive `ctx`). The strategy is picked via `options.oneOf`:
 
 - **`oneOf: false`** (default) — every element must pass. Stages thread their return value into the next so sanitize-then-validate patterns work; `options.bail` controls fail-fast (`true`, default) vs. collect-all (`false`).
-- **`oneOf: true`** — branches run as alternatives in registration order; the first one to succeed wins, subsequent branches are not invoked, and the composed validator returns the winning branch's value. When every branch fails, the composed validator throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures (each tagged with `params: { branch }`). `bail` is rejected at the type level under this mode — there's no chain to fail-fast over.
+- **`oneOf: true`** — branches run as alternatives in registration order; the first one to succeed wins, subsequent branches are not invoked, and the composed validator returns the winning branch's value. When every branch fails, the composed validator throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures (each tagged with `data: { branch }`). `bail` is rejected at the type level under this mode — there's no chain to fail-fast over.
 
 `composeOneOf([...])` is sugar for `compose([...], { oneOf: true })`.
 
@@ -897,7 +897,7 @@ What's covered by semver:
 
 - **Public exports** — everything re-exported from `validup`'s entry barrel (`Container`, `defineSchema`, `ValidupError`, `Issue` / factories / guards, `IssueCode`, `GroupKey`, `OptionalValue`, helpers in `formatIssue` / `flattenIssue*`).
 - **`Container` runtime contract** — `run` / `runSync` / `runParallel` (via `parallel: true`) / `safeRun` / `safeRunSync`, including their throw-contracts as documented on `IContainer` (`safeRun` throws only on abort).
-- **`Issue` and `ValidupError` shape** — the discriminated union (`type: 'item' | 'group'`), `params`, `meta`, `code` widening to `IssueCode | (string & {})`.
+- **`Issue` and `ValidupError` shape** — the discriminated union (`type: 'item' | 'group'`), `data`, `meta`, `code` widening to `IssueCode | (string & {})`.
 - **Mount API** — variadic `mount(...)` argument forms listed in [Mounting](#mounting).
 - **`oneOf` aggregation shape** — `IssueCode.ONE_OF_FAILED` group wrapping per-branch sub-groups (see [oneOf Branches](#oneof-branches)).
 

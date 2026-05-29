@@ -22,15 +22,15 @@ describe('formatIssue', () => {
         expect(formatIssue(issue)).toEqual('invalid');
     });
 
-    it('should interpolate a matching template using params', () => {
-        // Ad-hoc code with open params — VALUE_INVALID is bare per the
+    it('should interpolate a matching template using data', () => {
+        // Ad-hoc code with open data — VALUE_INVALID is bare per the
         // vocabulary contract, so use a project-specific code for
-        // template-driven messages that need structured params.
+        // template-driven messages that need structured data.
         const issue = defineIssueItem({
             code: 'value_invalid_named',
             path: ['email'],
             message: 'Value invalid',
-            params: { name: 'email' },
+            data: { name: 'email' },
         });
 
         const out = formatIssue(issue, { value_invalid_named: 'Field {name} is invalid' });
@@ -63,8 +63,8 @@ describe('formatIssue', () => {
     });
 });
 
-describe('Issue.params populated by the runtime', () => {
-    it('should set params: { name } on the wrapping IssueGroup of a failing mount', async () => {
+describe('Issue.data populated by the runtime', () => {
+    it('should set data: { name } on the wrapping IssueGroup of a failing mount', async () => {
         const child = new Container<{ inner: string }>();
         child.mount('inner', stringValidator);
 
@@ -79,7 +79,7 @@ describe('Issue.params populated by the runtime', () => {
                 const [group] = e.issues;
                 expect(group?.type).toEqual('group');
                 if (group?.type === 'group') {
-                    expect(group.params).toEqual({ name: 'profile' });
+                    expect(group.data).toEqual({ name: 'profile' });
                 }
             }
         }

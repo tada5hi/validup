@@ -456,7 +456,7 @@ export class Container<
             item: Mount<C>,
             // Original registration index in `this.items`. Tracked separately
             // from the position in `itemGroups` because group-filtered mounts
-            // are dropped from `itemGroups` — without this, `params.branch`
+            // are dropped from `itemGroups` — without this, `data.branch`
             // emitted by `wrapBranchForOneOf` would not match the
             // registration order seen by the consumer.
             mountIndex: number,
@@ -674,7 +674,7 @@ export class Container<
                 itemCount++;
                 if (pathFailed) {
                     errorCount++;
-                    // Use the original registration index so `params.branch`
+                    // Use the original registration index so `data.branch`
                     // matches the registration order regardless of group
                     // filtering — sequential `run()` / `runSync()` already
                     // pass the registration index directly.
@@ -1188,7 +1188,7 @@ export class Container<
                 // leaves were already stamped above.
                 issues.push(markOptional(defineIssueGroup({
                     message: buildErrorMessageForAttribute(String(pathRelative)),
-                    params: { name: String(pathRelative) },
+                    data: { name: String(pathRelative) },
                     path: keyParts,
                     issues: childIssues,
                 })));
@@ -1208,8 +1208,8 @@ export class Container<
      * partitioning.
      *
      * The wrapping group's `path` is `[]` (the branch wraps everything
-     * inside it; per-leaf paths are unchanged); `params.branch` is the
-     * mount index; and `params.name` (when set) is the mount path so
+     * inside it; per-leaf paths are unchanged); `data.branch` is the
+     * mount index; and `data.name` (when set) is the mount path so
      * consumers can label "branch X failed" without recomputing the
      * registration order.
      */
@@ -1223,15 +1223,15 @@ export class Container<
             return;
         }
         const branchIssues = issues.splice(branchStart);
-        const params: Record<string, unknown> = { branch: branchIndex };
+        const data: Record<string, unknown> = { branch: branchIndex };
         if (item.path) {
-            params.name = item.path;
+            data.name = item.path;
         }
         issues.push(defineIssueGroup({
             message: item.path ?
                 `Branch "${item.path}" failed` :
                 `Branch ${branchIndex} failed`,
-            params,
+            data,
             path: [],
             issues: branchIssues,
         }));

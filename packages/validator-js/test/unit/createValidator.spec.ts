@@ -18,7 +18,7 @@ import { createValidator } from '../../src';
 describe('createValidator', () => {
     // The generic wrap for validator.js functions we don't pre-bake. The
     // contract: stringify ctx.value, call the predicate, throw a
-    // ValidupError carrying the supplied code/params on failure.
+    // ValidupError carrying the supplied code/data on failure.
 
     it('lifts a validator.js predicate into a validup Validator', async () => {
         const container = new Container<{ card: string }>();
@@ -51,14 +51,14 @@ describe('createValidator', () => {
         expect(out.card).toBe('4111111111111111');
     });
 
-    it('forwards params onto the resulting IssueItem', async () => {
+    it('forwards data onto the resulting IssueItem', async () => {
         expect.assertions(1);
         const container = new Container<{ phone: string }>();
         container.mount('phone', createValidator(
             (v: string) => validator.isMobilePhone(v, 'de-DE'),
             {
                 code: 'mobile_phone',
-                params: { locale: 'de-DE' },
+                data: { locale: 'de-DE' },
                 message: 'Invalid German mobile number',
             },
         ));
@@ -69,7 +69,7 @@ describe('createValidator', () => {
         } catch (e) {
             if (!(e instanceof ValidupError)) throw e;
             const items = flattenIssueItems(e.issues);
-            expect(items[0]?.params).toEqual({ locale: 'de-DE' });
+            expect(items[0]?.data).toEqual({ locale: 'de-DE' });
         }
     });
 

@@ -88,11 +88,11 @@ export function isDecimal<C = unknown>(
  *
  * - Value isn't an integer at all → `IssueCode.INTEGER`.
  * - Value below `min` (inclusive) or `gt` (exclusive) → `IssueCode.MIN_VALUE`
- *   (params: `{ min }`). For `gt`, `params.min` is `options.gt` — i18n
+ *   (data: `{ min }`). For `gt`, `data.min` is `options.gt` — i18n
  *   templates can quote the boundary; the precise inclusive/exclusive
  *   wording comes from `message`.
  * - Value above `max` (inclusive) or `lt` (exclusive) → `IssueCode.MAX_VALUE`
- *   (params: `{ max }`). Same treatment as `gt` → `params.max` is `options.lt`.
+ *   (data: `{ max }`). Same treatment as `gt` → `data.max` is `options.lt`.
  */
 export function isInt<C = unknown>(
     options: BaseFactoryOptions & validator.IsIntOptions = {},

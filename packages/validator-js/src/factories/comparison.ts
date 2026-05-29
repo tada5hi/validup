@@ -14,7 +14,7 @@ import { toValidatorString } from '../module';
 
 /**
  * Factory: validator.js `matches`. Emits `IssueCode.PATTERN` on failure
- * with `params: { pattern: string }` (the regex source, no flags) so
+ * with `data: { pattern: string }` (the regex source, no flags) so
  * i18n templates can quote it.
  */
 export function matches<C = unknown>(pattern: RegExp | string, options: BaseFactoryOptions & {
@@ -40,7 +40,7 @@ export function matches<C = unknown>(pattern: RegExp | string, options: BaseFact
 
 /**
  * Factory: validator.js `equals`. Emits `IssueCode.SAME_AS` on failure
- * with `params: { other: string }` so a translated message can quote the
+ * with `data: { other: string }` so a translated message can quote the
  * key subject (e.g. "must equal {{other}}").
  *
  * `key` is the field-name / label the i18n template should

@@ -1,6 +1,6 @@
 # @validup/validator-js
 
-Pre-baked factories for [validator.js](https://github.com/validatorjs/validator.js) string validators (`isEmail`, `isLength`, `isInt`, `isURL`, …) plus a generic `createValidator(fn, { code, message })` for the long tail. Each factory stamps the right `IssueCode` on failure with structured `params`, so consumer-side i18n catalogs (`@ilingo/validup`) can translate per code.
+Pre-baked factories for [validator.js](https://github.com/validatorjs/validator.js) string validators (`isEmail`, `isLength`, `isInt`, `isURL`, …) plus a generic `createValidator(fn, { code, message })` for the long tail. Each factory stamps the right `IssueCode` on failure with structured `data`, so consumer-side i18n catalogs (`@ilingo/validup`) can translate per code.
 
 ```bash
 npm install @validup/validator-js validator validup --save
@@ -46,7 +46,7 @@ container.mount('confirm', equals('password')); // compares ctx.value against ct
 
 Every factory takes a single flat options object — the validup-side `message` override sits alongside the validator.js options for that rule (`BaseFactoryOptions & validator.Is*Options`).
 
-| Factory | Emits | `params` payload |
+| Factory | Emits | `data` payload |
 |---------|-------|------------------|
 | `isEmail(opts?)` | `EMAIL` | — |
 | `isURL(opts?)` | `URL` | — |
@@ -99,7 +99,7 @@ container.mount('card', createValidator(validator.isCreditCard, {
 }));
 ```
 
-Accepts any `(value: string, ...args: any[]) => boolean` predicate. Takes `{ code, message, params? }`. Throws a `ValidupError` carrying a single `IssueItem` on failure.
+Accepts any `(value: string, ...args: any[]) => boolean` predicate. Takes `{ code, message, data? }`. Throws a `ValidupError` carrying a single `IssueItem` on failure.
 
 ## Composing factories
 

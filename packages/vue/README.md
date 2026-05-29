@@ -460,7 +460,7 @@ Templates rarely change:
 
 What changes substantively:
 
-- **Per-field error keys** — Vuelidate's `$errors` is a list of `{ $validator, $message, $params }` objects keyed by rule name. validup's `$errors` is a list of `IssueItem` (`{ code, path, message, expected, received, meta }`). If your template iterates `$v.value.<field>.$errors`, switch the loop variable to read `err.message` and `err.code`.
+- **Per-field error keys** — Vuelidate's `$errors` is a list of `{ $validator, $message, $data }` objects keyed by rule name. validup's `$errors` is a list of `IssueItem` (`{ code, path, message, expected, received, meta }`). If your template iterates `$v.value.<field>.$errors`, switch the loop variable to read `err.message` and `err.code`.
 - **Translation** — built-in messages live in [`@ilingo/validup`](https://www.npmjs.com/package/@ilingo/validup) (sibling to the existing `@ilingo/vuelidate`). The migration replaces `useTranslationsForNestedValidation($v.value)` with `useTranslationsForValidup($v)`.
 - **Async timing** — `options.lazy` is the analog of Vuelidate's `$lazy: true`. By default, validation runs eagerly internally and per-field error rendering is gated on `$dirty`, so the visible UX matches Vuelidate's `$lazy: true`. Pass `lazy: true` to additionally skip the on-mount probe (useful for expensive async validators).
 - **`$autoDirty`** — set `options.autoDirty: true` when state is mutated outside of `$model` (e.g. via Pinia store actions). Default-off preserves silent hydration.

@@ -33,72 +33,72 @@
  * } as const;
  * ```
  *
- * Each entry's JSDoc documents the structured `params` adapters should
+ * Each entry's JSDoc documents the structured `data` adapters should
  * attach when constructing the issue — templates can rely on those
  * placeholders being present (`{{min}}`, `{{max}}`, `{{other}}`, etc.).
  */
 export const IssueCode = {
     // ──────────────────────────── Generic / structural ────────────────────────────
-    /** Generic fallback when no more-specific code applies. `params`: — */
+    /** Generic fallback when no more-specific code applies. `data`: — */
     VALUE_INVALID: 'value_invalid',
-    /** Every branch of a `oneOf` container failed. `params`: — */
+    /** Every branch of a `oneOf` container failed. `data`: — */
     ONE_OF_FAILED: 'one_of_failed',
 
     // ──────────────────────────── Presence ────────────────────────────
-    /** Value is missing, `undefined`, `null`, or empty per the validator's semantics. `params`: — */
+    /** Value is missing, `undefined`, `null`, or empty per the validator's semantics. `data`: — */
     REQUIRED: 'required',
 
     // ──────────────────────────── Type assertions ────────────────────────────
-    /** Value contains characters outside the alphabetical set. `params`: — */
+    /** Value contains characters outside the alphabetical set. `data`: — */
     ALPHA: 'alpha',
-    /** Value contains characters outside the alphanumeric set. `params`: — */
+    /** Value contains characters outside the alphanumeric set. `data`: — */
     ALPHA_NUM: 'alpha_num',
-    /** Value is not a number. `params`: — */
+    /** Value is not a number. `data`: — */
     NUMERIC: 'numeric',
-    /** Value is not an integer. `params`: — */
+    /** Value is not an integer. `data`: — */
     INTEGER: 'integer',
-    /** Value is not a decimal number. `params`: — */
+    /** Value is not a decimal number. `data`: — */
     DECIMAL: 'decimal',
 
     // ──────────────────────────── Length (strings, arrays) ────────────────────────────
-    /** Value is shorter than the configured minimum. `params`: `{ min: number }` */
+    /** Value is shorter than the configured minimum. `data`: `{ min: number }` */
     MIN_LENGTH: 'min_length',
-    /** Value is longer than the configured maximum. `params`: `{ max: number }` */
+    /** Value is longer than the configured maximum. `data`: `{ max: number }` */
     MAX_LENGTH: 'max_length',
 
     // ──────────────────────────── Numeric range ────────────────────────────
-    /** Numeric value is below the configured minimum. `params`: `{ min: number }` */
+    /** Numeric value is below the configured minimum. `data`: `{ min: number }` */
     MIN_VALUE: 'min_value',
-    /** Numeric value is above the configured maximum. `params`: `{ max: number }` */
+    /** Numeric value is above the configured maximum. `data`: `{ max: number }` */
     MAX_VALUE: 'max_value',
-    /** Numeric value falls outside the configured `[min, max]` range. `params`: `{ min: number, max: number }` */
+    /** Numeric value falls outside the configured `[min, max]` range. `data`: `{ min: number, max: number }` */
     BETWEEN: 'between',
 
     // ──────────────────────────── String format ────────────────────────────
-    /** Value is not a valid email address. `params`: — */
+    /** Value is not a valid email address. `data`: — */
     EMAIL: 'email',
-    /** Value is not a valid URL. `params`: — */
+    /** Value is not a valid URL. `data`: — */
     URL: 'url',
-    /** Value is not a valid IP address. `params`: — */
+    /** Value is not a valid IP address. `data`: — */
     IP_ADDRESS: 'ip_address',
-    /** Value is not a valid MAC address. `params`: — */
+    /** Value is not a valid MAC address. `data`: — */
     MAC_ADDRESS: 'mac_address',
-    /** Value is not a valid UUID. `params`: — */
+    /** Value is not a valid UUID. `data`: — */
     UUID: 'uuid',
-    /** Value is not a valid date / cannot be parsed as a date. `params`: — */
+    /** Value is not a valid date / cannot be parsed as a date. `data`: — */
     DATE: 'date',
     /**
-     * Value does not match the expected regex pattern. `params`:
+     * Value does not match the expected regex pattern. `data`:
      * `{ pattern: string }` — source of the regex without flags so
      * catalogs can quote it in human-readable form.
      */
     PATTERN: 'pattern',
-    /** Value is not valid JSON. `params`: — */
+    /** Value is not valid JSON. `data`: — */
     JSON: 'json',
-    /** Value is not valid base64. `params`: — */
+    /** Value is not valid base64. `data`: — */
     BASE64: 'base64',
     /**
-     * Value does not meet the configured strong-password rules. `params`:
+     * Value does not meet the configured strong-password rules. `data`:
      * `{ minLength?: number, minLowercase?: number, minUppercase?: number,
      * minNumbers?: number, minSymbols?: number }` — only the keys the
      * adapter chose to surface; missing keys mean "the default for that
@@ -109,7 +109,7 @@ export const IssueCode = {
     // ──────────────────────────── Comparison ────────────────────────────
     /**
      * Value must equal another named field's value (sibling-field assertion,
-     * e.g. password-confirm). `params`: `{ other: string }` — the name of
+     * e.g. password-confirm). `data`: `{ other: string }` — the name of
      * the field being compared against.
      */
     SAME_AS: 'same_as',
@@ -118,24 +118,24 @@ export const IssueCode = {
 export type IssueCode = typeof IssueCode[keyof typeof IssueCode];
 
 /**
- * Per-code `params` contract for the well-known vocabulary. Producers
+ * Per-code `data` contract for the well-known vocabulary. Producers
  * (`defineIssueItem`, `createValidupError`, adapter `error.ts` modules)
  * thread this through their type signatures so TS rejects mismatched
- * payloads at compile time — e.g. `STRONG_PASSWORD` with `params:
+ * payloads at compile time — e.g. `STRONG_PASSWORD` with `data:
  * { pointsPerUnique: 5 }` (a validator.js scoring weight, not a strength
  * requirement) fails to type-check. Codes absent from this map carry no
- * `params`; ad-hoc string codes fall back to the open
+ * `data`; ad-hoc string codes fall back to the open
  * `Record<string, unknown>` shape on the raw `IssueItem` branch.
  *
  * Extensible via TypeScript declaration merging — third-party adapters
- * and apps that want typed params for their own codes can augment this
+ * and apps that want typed data for their own codes can augment this
  * interface, and the producer-side gatekeep (`defineIssueItem`,
  * `createValidupError`) will type-check their payloads too:
  *
  * ```ts
  * // In a third-party package or app:
  * declare module 'validup' {
- *     interface IssueParamsByCode {
+ *     interface IssueDataByCode {
  *         email_taken: { existingUserId: string };
  *     }
  * }
@@ -144,7 +144,7 @@ export type IssueCode = typeof IssueCode[keyof typeof IssueCode];
  *     code: 'email_taken',
  *     path: ['email'],
  *     message: 'Already in use',
- *     params: { existingUserId: 'u_42' }, // typed and required
+ *     data: { existingUserId: 'u_42' }, // typed and required
  * });
  * ```
  *
@@ -152,7 +152,7 @@ export type IssueCode = typeof IssueCode[keyof typeof IssueCode];
  * `IssueCode` entry — the type-level enforcement and the documentation
  * are two views of the same contract.
  */
-export interface IssueParamsByCode {
+export interface IssueDataByCode {
     min_length: { min: number };
     max_length: { max: number };
     min_value: { min: number };
@@ -170,15 +170,15 @@ export interface IssueParamsByCode {
 }
 
 /**
- * `IssueCode` values that carry a documented `params` payload — keys of
- * {@link IssueParamsByCode}. Producers using one of these codes must
- * supply the matching `params` shape.
+ * `IssueCode` values that carry a documented `data` payload — keys of
+ * {@link IssueDataByCode}. Producers using one of these codes must
+ * supply the matching `data` shape.
  */
-export type ParameterizedIssueCode = keyof IssueParamsByCode;
+export type ParameterizedIssueCode = keyof IssueDataByCode;
 
 /**
- * `IssueCode` values that carry no `params` (`VALUE_INVALID`, `EMAIL`,
- * `REQUIRED`, …). Producers using one of these codes must omit `params`
+ * `IssueCode` values that carry no `data` (`VALUE_INVALID`, `EMAIL`,
+ * `REQUIRED`, …). Producers using one of these codes must omit `data`
  * (or pass `undefined`).
  */
 export type BareIssueCode = Exclude<IssueCode, ParameterizedIssueCode>;

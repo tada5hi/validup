@@ -8,7 +8,7 @@
 import type { 
     BareIssueCode, 
     IssueCode, 
-    IssueParamsByCode, 
+    IssueDataByCode, 
     ParameterizedIssueCode, 
 } from './constants';
 
@@ -17,7 +17,7 @@ import type {
  * When a producer (`defineIssueItem`, `createValidupError`) is called
  * without a `code`, the runtime defaults to `IssueCode.VALUE_INVALID`;
  * this helper reflects that at the type level so the conditional-type
- * signatures pick the bare-params branch instead of the raw catch-all.
+ * signatures pick the bare-data branch instead of the raw catch-all.
  *
  * `[C] extends [undefined]` is the standard idiom for testing the whole
  * `C` against `undefined` *without* distributing over union members.
@@ -81,12 +81,12 @@ export interface IssueBase {
      * concrete shape depends on the discriminating `code` — see the
      * `IssueItem` union below for the per-code contract.
      */
-    params?: Record<string, unknown>
+    data?: Record<string, unknown>
 }
 
 /**
  * Shared shape for every `IssueItem` branch — the discriminant (`type:
- * 'item'`) plus the vendor-passthrough fields. The `code` and `params`
+ * 'item'`) plus the vendor-passthrough fields. The `code` and `data`
  * fields are intentionally absent here; each branch in the discriminated
  * union below pins them to the right pair.
  */
@@ -108,24 +108,24 @@ interface IssueItemCommon extends IssueBase {
 }
 
 /**
- * Typed-params branch — one variant per `ParameterizedIssueCode`. The
- * `params` shape is locked to the documented contract via
- * {@link IssueParamsByCode}.
+ * Typed-data branch — one variant per `ParameterizedIssueCode`. The
+ * `data` shape is locked to the documented contract via
+ * {@link IssueDataByCode}.
  *
  * Distributed (rather than written as a single `code: ParameterizedIssueCode`
  * member) so that `Extract<IssueItem, { code: 'min_length' }>` and structural
  * narrowing on `issue.code === IssueCode.MIN_LENGTH` resolve to the right
- * concrete variant with `params: { min: number }`, not the joined union.
+ * concrete variant with `data: { min: number }`, not the joined union.
  */
 export type IssueItemTyped = {
     [K in ParameterizedIssueCode]: IssueItemCommon & {
         code: K,
-        params: IssueParamsByCode[K],
+        data: IssueDataByCode[K],
     };
 }[ParameterizedIssueCode];
 
 /**
- * Bare-params branch — one variant per `BareIssueCode`. `params` must be
+ * Bare-data branch — one variant per `BareIssueCode`. `data` must be
  * absent (or explicitly `undefined`).
  *
  * Distributed for the same reason as {@link IssueItemTyped} — so
@@ -135,7 +135,7 @@ export type IssueItemTyped = {
 export type IssueItemBare = {
     [K in BareIssueCode]: IssueItemCommon & {
         code: K,
-        params?: undefined,
+        data?: undefined,
     };
 }[BareIssueCode];
 
@@ -143,28 +143,28 @@ export type IssueItemBare = {
  * Escape-hatch branch — ad-hoc / project-specific codes outside the
  * shipped vocabulary. `code: string & {}` keeps autocomplete on the
  * `IssueCode` literals while permitting strings the typed branches don't
- * cover; `params` is fully open.
+ * cover; `data` is fully open.
  *
  * Note: because `string & {}` accepts any string at the type level,
  * narrowing on `issue.code === IssueCode.MIN_LENGTH` still pulls this
  * branch in alongside the matching `IssueItemTyped` variant. The
  * producer-side `defineIssueItem` / `createValidupError` signatures
  * gatekeep this so emission is always correct; consumers needing a
- * clean narrow should cast `issue.params` after the code check.
+ * clean narrow should cast `issue.data` after the code check.
  */
 export interface IssueItemRaw extends IssueItemCommon {
     code: string & {},
-    params?: Record<string, unknown>,
+    data?: Record<string, unknown>,
 }
 
 /**
  * Discriminated union over `IssueItem`'s three branches:
  *
  * - {@link IssueItemTyped} — known parameterized codes (`MIN_LENGTH`,
- *   `PATTERN`, `STRONG_PASSWORD`, …); `params` is required and typed.
+ *   `PATTERN`, `STRONG_PASSWORD`, …); `data` is required and typed.
  * - {@link IssueItemBare} — known param-less codes (`EMAIL`, `REQUIRED`,
- *   …); `params` must be absent.
- * - {@link IssueItemRaw} — ad-hoc string codes; `params` is open.
+ *   …); `data` must be absent.
+ * - {@link IssueItemRaw} — ad-hoc string codes; `data` is open.
  *
  * The discriminant is `code`. Build issues with `defineIssueItem` (typed
  * overloads enforce the per-branch contract) rather than constructing

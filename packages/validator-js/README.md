@@ -2,7 +2,7 @@
 
 A [validup](https://www.npmjs.com/package/validup) integration for [validator.js](https://github.com/validatorjs/validator.js) — pre-baked factories for the common string validators (`isEmail`, `isLength`, `isInt`, …) plus a generic `createValidator(fn, …)` for the long tail.
 
-Each factory stamps the right validup [`IssueCode`](https://www.npmjs.com/package/validup#issue-codes) on failure, with structured `params` matching the i18n catalog's placeholders. Drop into `@ilingo/validup` for free per-rule translations.
+Each factory stamps the right validup [`IssueCode`](https://www.npmjs.com/package/validup#issue-codes) on failure, with structured `data` matching the i18n catalog's placeholders. Drop into `@ilingo/validup` for free per-rule translations.
 
 **Replaces** `@validup/express-validator`. validator.js is the underlying library express-validator wraps; using it directly removes the Express-chain abstraction we don't need and gives the adapter structural knowledge of which validator fired (so no `.withMessage({code, message})` dance).
 
@@ -63,7 +63,7 @@ const valid = await container.run({
 
 Every factory takes a **flat options object** — the validup-side `message` override sits alongside the validator.js options for that rule (`BaseFactoryOptions & validator.Is*Options`). No nesting; one shape per call site.
 
-| Factory | Options type | Emits | `params` payload |
+| Factory | Options type | Emits | `data` payload |
 |---------|--------------|-------|------------------|
 | `isEmail(opts?)` | `BaseFactoryOptions & validator.IsEmailOptions` | `EMAIL` | — |
 | `isURL(opts?)` | `BaseFactoryOptions & validator.IsURLOptions` | `URL` | — |
@@ -119,18 +119,18 @@ container.mount('phone', createValidator(
     (v) => validator.isMobilePhone(v, 'de-DE'),
     {
         code: 'mobile_phone',
-        params: { locale: 'de-DE' },
+        data: { locale: 'de-DE' },
         message: 'Invalid German mobile number',
     },
 ));
 ```
 
-`createValidator(fn, { code, message, params?, sideEffect? })`:
+`createValidator(fn, { code, message, data?, sideEffect? })`:
 
 - `fn` — any function with the signature `(value: string, ...args: any[]) => boolean`. validator.js's predicates all fit.
 - `code` — the validup `IssueCode` (or any project-specific string) attached to the resulting `IssueItem`. `IssueItem.code` widens to `IssueCode | (string & {})`, so ad-hoc strings are accepted.
 - `message` — fallback English message on `IssueItem.message`. Always set this — i18n catalogs key off `code`, but consumers without an i18n setup see the message directly.
-- `params` — structured payload surfaced on `IssueItem.params`. Optional; templates that reference placeholders (`{{locale}}`, `{{min}}`, …) resolve against this.
+- `data` — structured payload surfaced on `IssueItem.data`. Optional; templates that reference placeholders (`{{locale}}`, `{{min}}`, …) resolve against this.
 - `sideEffect` — optional flag for the rare case where the wrapped predicate captures external state. Default is cache-eligible.
 
 The wrap stringifies `ctx.value` via `toValidatorString` before calling `fn` — same as the factories — so consumers can mount on `number`-shaped fields without manual coercion.

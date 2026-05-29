@@ -30,7 +30,7 @@ Default branch: `next`
 | **Auto-touch on $model write** | Yes (default) | Yes (Q5 decision) |
 | **Touch / reset** | `$touch()` / `$reset()` (per-field and whole-form) | identical |
 | **Async / pending state** | `$pending` per rule + per field | `$pending` per field, single boolean per form |
-| **Per-field errors list** | `$errors` (rule-keyed `{$validator, $message, $params, $pending, $invalid}`) | `$errors: IssueItem[]` (validup `Issue` shape — `{code, path, message, expected, received, meta}`) |
+| **Per-field errors list** | `$errors` (rule-keyed `{$validator, $message, $data, $pending, $invalid}`) | `$errors: IssueItem[]` (validup `Issue` shape — `{code, path, message, expected, received, meta}`) |
 | **External (server) errors** | `$externalResults` (Vue 3 `next` branch) | `$v.setExternalIssues(issues)` (Q4 decision) |
 | **Parent/child auto-register** | `useVuelidate({ $stopPropagation: true })` parent + nested `useVuelidate(rules, form)` children | `useValidup(parent, ..., { stopPropagation })` + child `useValidup(child, ..., { name: 'foo' })` via `provide` / `inject` (`PARENT_INJECTION_KEY`) |
 | **Get child state** | `v$.value.$getResultsForChild(name)` | `$v.$getResultsForChild(name)` (returns the child `Composable`) |
@@ -65,7 +65,7 @@ Default branch: `next`
 - **Rules come from a `Container<T>`, not a literal object.** Mounting / nesting / globs / groups / `oneOf` all live in the validup core, so the same validator runs server-side and client-side via `useValidup`.
 - **No bundled rule library.** Vuelidate ships `@vuelidate/validators` with `required`, `email`, etc. We don't — bring your own validator (zod is the default story via `@validup/zod`).
 - **Per-field state is keyed by path, not by rule.** A field has a flat list of `IssueItem`s, not a per-rule sub-object. Templates that displayed "this rule failed" must shift to "this issue (with code `X`) was raised" — the `@ilingo/validup` plugin handles the translation.
-- **`Issue` carries structured metadata.** `IssueItem.expected` / `received` / `meta` make rich error rendering possible without a bespoke rule API. Vuelidate's `$params` is the rough analog.
+- **`Issue` carries structured metadata.** `IssueItem.expected` / `received` / `meta` make rich error rendering possible without a bespoke rule API. Vuelidate's `$data` is the rough analog.
 - **Group filtering replaces `$stopPropagation` for "different rules under different conditions".** Where vuelidate users encode create/update via two separate `useVuelidate` calls (or `validations()` returning different objects), validup mounts the same field twice with different `group: ['create']` / `group: ['update']` flags and we forward the active group via `options.group`.
 - **External issues via explicit method.** Vuelidate's `$externalResults` is a two-way ref the consumer must clear; we use `setExternalIssues(issues)` and auto-clear on `$model` write at the same path.
 - **No `$autoDirty`, `$scope`, `$registerAs`, `$lazy`.** Out of scope for the initial release — we picked the minimum surface authup actually consumes.

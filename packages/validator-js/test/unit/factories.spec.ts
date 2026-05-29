@@ -35,7 +35,7 @@ import {
 } from '../../src';
 
 // Helper — every factory wraps the validator.js call and throws a
-// ValidupError on failure. The tests assert the failure (code + params)
+// ValidupError on failure. The tests assert the failure (code + data)
 // via `flattenIssueItems` and the success (value passes through).
 async function fail(descriptor: ValidatorDescriptor, value: unknown): Promise<ReturnType<typeof flattenIssueItems>> {
     try {
@@ -150,7 +150,7 @@ describe('isStrongPassword', () => {
     it('rejects weak passwords with IssueCode.STRONG_PASSWORD', async () => {
         const items = await fail(isStrongPassword({ minLength: 12, minNumbers: 2 }), 'short');
         expect(items[0]?.code).toBe(IssueCode.STRONG_PASSWORD);
-        expect(items[0]?.params).toMatchObject({ minLength: 12, minNumbers: 2 });
+        expect(items[0]?.data).toMatchObject({ minLength: 12, minNumbers: 2 });
     });
 
     it('rejects weak passwords even when consumer sets returnScore: true', async () => {
@@ -166,23 +166,23 @@ describe('isStrongPassword', () => {
         expect(items[0]?.code).toBe(IssueCode.STRONG_PASSWORD);
     });
 
-    it('omits returnScore from the params payload', async () => {
+    it('omits returnScore from the data payload', async () => {
         // returnScore is a validator.js execution mode, not a strength
         // requirement — an i18n template would never want to render it.
         const items = await fail(
             isStrongPassword({ minLength: 12, returnScore: true }),
             'short',
         );
-        expect(items[0]?.params).not.toHaveProperty('returnScore');
-        expect(items[0]?.params).toMatchObject({ minLength: 12 });
+        expect(items[0]?.data).not.toHaveProperty('returnScore');
+        expect(items[0]?.data).toMatchObject({ minLength: 12 });
     });
 
-    it('projects params down to the documented requirement keys', async () => {
+    it('projects data down to the documented requirement keys', async () => {
         // Regression: scoring weights (`pointsPerUnique`,
         // `pointsForContainingLower`, …) are valid `StrongPasswordOptions`
         // keys but not part of the documented STRONG_PASSWORD vocabulary
         // contract. They must still influence the pass/fail decision but
-        // must NOT leak into the IssueItem.params payload (i18n templates
+        // must NOT leak into the IssueItem.data payload (i18n templates
         // would render gibberish).
         const items = await fail(
             isStrongPassword({
@@ -192,7 +192,7 @@ describe('isStrongPassword', () => {
             }),
             'short',
         );
-        expect(items[0]?.params).toEqual({ minLength: 12 });
+        expect(items[0]?.data).toEqual({ minLength: 12 });
     });
 });
 
@@ -223,30 +223,30 @@ describe('isInt', () => {
     it('emits IssueCode.MIN_VALUE when below min', async () => {
         const items = await fail(isInt({ min: 18 }), 5);
         expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
-        expect(items[0]?.params).toEqual({ min: 18 });
+        expect(items[0]?.data).toEqual({ min: 18 });
     });
     it('emits IssueCode.MAX_VALUE when above max', async () => {
         const items = await fail(isInt({ max: 120 }), 999);
         expect(items[0]?.code).toBe(IssueCode.MAX_VALUE);
-        expect(items[0]?.params).toEqual({ max: 120 });
+        expect(items[0]?.data).toEqual({ max: 120 });
     });
     it('accepts valid integers in range', async () => {
         expect(await pass(isInt({ min: 18, max: 120 }), 42)).toBe(42);
     });
 
-    it('emits IssueCode.MIN_VALUE for the strict gt boundary (params.min = gt)', async () => {
+    it('emits IssueCode.MIN_VALUE for the strict gt boundary (data.min = gt)', async () => {
         // Regression: pre-fix, value == options.gt fell through the explicit
         // `<` check (since gt is exclusive) and surfaced as INTEGER from the
         // defensive final-pass. It's a range failure — should be MIN_VALUE.
         const items = await fail(isInt({ gt: 10 }), 10);
         expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
-        expect(items[0]?.params).toEqual({ min: 10 });
+        expect(items[0]?.data).toEqual({ min: 10 });
     });
 
-    it('emits IssueCode.MAX_VALUE for the strict lt boundary (params.max = lt)', async () => {
+    it('emits IssueCode.MAX_VALUE for the strict lt boundary (data.max = lt)', async () => {
         const items = await fail(isInt({ lt: 10 }), 10);
         expect(items[0]?.code).toBe(IssueCode.MAX_VALUE);
-        expect(items[0]?.params).toEqual({ max: 10 });
+        expect(items[0]?.data).toEqual({ max: 10 });
     });
 });
 
@@ -264,11 +264,11 @@ describe('isFloat', () => {
     it('emits IssueCode.MIN_VALUE / MAX_VALUE for strict gt / lt boundaries', async () => {
         const onGt = await fail(isFloat({ gt: 1.5 }), 1.5);
         expect(onGt[0]?.code).toBe(IssueCode.MIN_VALUE);
-        expect(onGt[0]?.params).toEqual({ min: 1.5 });
+        expect(onGt[0]?.data).toEqual({ min: 1.5 });
 
         const onLt = await fail(isFloat({ lt: 10 }), 10);
         expect(onLt[0]?.code).toBe(IssueCode.MAX_VALUE);
-        expect(onLt[0]?.params).toEqual({ max: 10 });
+        expect(onLt[0]?.data).toEqual({ max: 10 });
     });
 });
 
@@ -276,12 +276,12 @@ describe('isLength', () => {
     it('emits IssueCode.MIN_LENGTH when too short', async () => {
         const items = await fail(isLength({ min: 3 }), 'hi');
         expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
-        expect(items[0]?.params).toEqual({ min: 3 });
+        expect(items[0]?.data).toEqual({ min: 3 });
     });
     it('emits IssueCode.MAX_LENGTH when too long', async () => {
         const items = await fail(isLength({ max: 3 }), 'toolong');
         expect(items[0]?.code).toBe(IssueCode.MAX_LENGTH);
-        expect(items[0]?.params).toEqual({ max: 3 });
+        expect(items[0]?.data).toEqual({ max: 3 });
     });
     it('accepts values inside the range', async () => {
         expect(await pass(isLength({ min: 3, max: 10 }), 'hello')).toBe('hello');
@@ -292,7 +292,7 @@ describe('matches', () => {
     it('emits IssueCode.PATTERN with { pattern: string }', async () => {
         const items = await fail(matches(/^[a-z]+$/), 'UPPER');
         expect(items[0]?.code).toBe(IssueCode.PATTERN);
-        expect(items[0]?.params).toEqual({ pattern: '^[a-z]+$' });
+        expect(items[0]?.data).toEqual({ pattern: '^[a-z]+$' });
     });
 });
 
@@ -300,7 +300,7 @@ describe('equals', () => {
     it('emits IssueCode.SAME_AS with { other }', async () => {
         const items = await fail(equals('password'), 'mismatch');
         expect(items[0]?.code).toBe(IssueCode.SAME_AS);
-        expect(items[0]?.params).toEqual({ other: 'password' });
+        expect(items[0]?.data).toEqual({ other: 'password' });
     });
     it('uses expectedValue for runtime comparison when supplied', async () => {
         expect(await pass(equals('password', { expectedValue: 'hunter2' }), 'hunter2')).toBe('hunter2');
@@ -328,7 +328,7 @@ describe('equals', () => {
             if (e instanceof ValidupError) {
                 const items = flattenIssueItems(e.issues);
                 expect(items[0]?.code).toBe(IssueCode.SAME_AS);
-                expect(items[0]?.params).toEqual({ other: 'password' });
+                expect(items[0]?.data).toEqual({ other: 'password' });
                 return;
             }
         }

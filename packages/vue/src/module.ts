@@ -574,7 +574,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         //
         // Top-level groups only — `oneOf` containers wrap each failing branch
         // in its own sub-group inside ONE_OF_FAILED to preserve per-branch
-        // identity (`params.branch` / `params.name`). Those sub-groups are
+        // identity (`data.branch` / `data.name`). Those sub-groups are
         // not themselves `$groupErrors` targets; consumers that need the
         // per-branch detail walk `$issues` instead.
         $groupErrors: computed(() => [...internalIssues.value, ...externalIssues.value]

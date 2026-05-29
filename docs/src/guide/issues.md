@@ -1,17 +1,17 @@
 # Issues & Errors
 
-`Issue = IssueItem | IssueGroup` is the structured failure record validup produces. They're discriminated by `type`, recursive (groups can wrap groups), and carry a structured payload (`params`) so the message can be re-rendered later in another locale.
+`Issue = IssueItem | IssueGroup` is the structured failure record validup produces. They're discriminated by `type`, recursive (groups can wrap groups), and carry a structured payload (`data`) so the message can be re-rendered later in another locale.
 
 ## `IssueItem`
 
-`IssueItem` is a discriminated union over three branches keyed on the vocabulary `code`. The `defineIssueItem` factory uses TypeScript overloads to enforce the right `params` shape per code at compile time:
+`IssueItem` is a discriminated union over three branches keyed on the vocabulary `code`. The `defineIssueItem` factory uses TypeScript overloads to enforce the right `data` shape per code at compile time:
 
 ```typescript
-// Parameterized — `params` required and typed
+// Parameterized — `data` required and typed
 type IssueItemTyped = {
     type: 'item';
     code: 'min_length';                  // (or another parameterized vocabulary code)
-    params: { min: number };             // typed per `IssueParamsByCode`
+    data: { min: number };             // typed per `IssueDataByCode`
     path: PropertyKey[];
     message: string;
     received?: unknown;
@@ -19,21 +19,21 @@ type IssueItemTyped = {
     meta?: Record<string, unknown>;
 };
 
-// Bare — `params` must be absent
+// Bare — `data` must be absent
 type IssueItemBare = {
     type: 'item';
     code: 'email';                       // (or another param-less vocabulary code)
-    params?: undefined;
+    data?: undefined;
     path: PropertyKey[];
     message: string;
     /* …received / expected / meta… */
 };
 
-// Raw — ad-hoc string code, open `params`
+// Raw — ad-hoc string code, open `data`
 type IssueItemRaw = {
     type: 'item';
     code: string & {};                   // anything outside the vocabulary
-    params?: Record<string, unknown>;
+    data?: Record<string, unknown>;
     /* …same surrounding fields… */
 };
 
@@ -47,8 +47,8 @@ import { IssueCode, isIssueItem, flattenIssueItems } from 'validup';
 
 for (const issue of flattenIssueItems(err.issues)) {
     if (issue.code === IssueCode.MIN_LENGTH) {
-        // issue.params.min is typed as `number` after narrowing
-        console.log(`min: ${issue.params?.min}`);
+        // issue.data.min is typed as `number` after narrowing
+        console.log(`min: ${issue.data?.min}`);
     }
 }
 ```
@@ -62,39 +62,39 @@ interface IssueGroup {
     path: PropertyKey[];
     message: string;
     issues: Issue[]; // recursive
-    params?: Record<string, unknown>;
+    data?: Record<string, unknown>;
     meta?: Record<string, unknown>;
 }
 ```
 
 ## Constructing issues
 
-Always use the factories — they set `type`, default the `code` to `VALUE_INVALID` when omitted, and gatekeep the `params` shape per code:
+Always use the factories — they set `type`, default the `code` to `VALUE_INVALID` when omitted, and gatekeep the `data` shape per code:
 
 ```typescript
 import { defineIssueItem, defineIssueGroup, IssueCode } from 'validup';
 
-// Bare code — no params accepted (default fallback)
+// Bare code — no data accepted (default fallback)
 const fallback = defineIssueItem({
     path: ['email'],
     message: 'Invalid email address',
     received: 'not-an-email',
 });
 
-// Parameterized code — `params` required and typed
+// Parameterized code — `data` required and typed
 const tooShort = defineIssueItem({
     code: IssueCode.MIN_LENGTH,
     path: ['password'],
     message: 'Password must be at least 12 characters',
-    params: { min: 12 },                  // type-checked against IssueParamsByCode
+    data: { min: 12 },                  // type-checked against IssueDataByCode
 });
 
-// Ad-hoc string code — open `params`
+// Ad-hoc string code — open `data`
 const taken = defineIssueItem({
     code: 'email_taken',
     path: ['email'],
     message: 'Email already in use',
-    params: { existingUserId: 'u_42' },
+    data: { existingUserId: 'u_42' },
 });
 
 const group = defineIssueGroup({
@@ -188,7 +188,7 @@ import {
 | `isIssueGroup(x)`          | Narrow to `IssueGroup`                                              |
 | `flattenIssueItems(issues)`| Recurse into groups, return only the leaf items                     |
 | `flattenIssueGroups(issues)`| Recurse, return only the groups                                    |
-| `formatIssue(issue, templates?)` | Re-render `message` using `params` against your templates       |
+| `formatIssue(issue, templates?)` | Re-render `message` using `data` against your templates       |
 | `buildErrorMessageForAttribute('email')` | `'Property "email" is invalid.'`                          |
 | `stringifyPath([...])`     | Render a `PropertyKey[]` as `'a.b[0].c'`                            |
 
@@ -196,7 +196,7 @@ import {
 
 validup ships a vocabulary of well-known issue codes that adapter packages (`@validup/zod`, `@validup/validator-js`) map onto and that i18n catalogs (`@ilingo/validup`) translate from. The vocabulary tracks the common ground across vuelidate, zod, joi, and yup — enough that a translation catalog can ship one localized string per code instead of a generic "invalid value" fallback.
 
-| Theme | Code | When | `params` |
+| Theme | Code | When | `data` |
 |-------|------|------|----------|
 | **Generic / structural** | `VALUE_INVALID` | Default for any `defineIssueItem(...)` without a code | — |
 |                          | `ONE_OF_FAILED` | All branches of a `oneOf` container failed | — |
@@ -256,14 +256,14 @@ throw new ValidupError([
 ]);
 ```
 
-### Typed `params` for custom codes
+### Typed `data` for custom codes
 
-`IssueParamsByCode` is an `interface`, so consumers can augment it via TypeScript declaration merging — `defineIssueItem` / `createValidupError` then gatekeep the custom code the same way they do the built-ins:
+`IssueDataByCode` is an `interface`, so consumers can augment it via TypeScript declaration merging — `defineIssueItem` / `createValidupError` then gatekeep the custom code the same way they do the built-ins:
 
 ```typescript
 // Anywhere in your codebase (e.g. an ambient `app-types.d.ts`):
 declare module 'validup' {
-    interface IssueParamsByCode {
+    interface IssueDataByCode {
         email_taken: { existingUserId: string };
         rate_limited: { retryAfterMs: number };
     }
@@ -274,14 +274,14 @@ defineIssueItem({
     code: 'email_taken',
     path: ['email'],
     message: 'Already in use',
-    params: { existingUserId: 'u_42' },   // ✓ typed and required
+    data: { existingUserId: 'u_42' },   // ✓ typed and required
 });
 
 defineIssueItem({
     code: 'email_taken',
     path: ['email'],
     message: 'Already in use',
-    // @ts-expect-error — params required for a parameterized code
+    // @ts-expect-error — data required for a parameterized code
 });
 ```
 

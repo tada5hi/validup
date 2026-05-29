@@ -312,7 +312,7 @@ describe('compose with { oneOf: true } — any-of', () => {
             // branch index for downstream attribution.
             const inner = flattenIssueItems(group.issues);
             expect(inner).toHaveLength(3);
-            const branches = inner.map((i) => i.params?.branch).sort();
+            const branches = inner.map((i) => i.data?.branch).sort();
             expect(branches).toEqual([0, 1, 2]);
         }
     });
@@ -452,10 +452,10 @@ describe('compose with IContainer elements', () => {
         if (isIssueGroup(group)) {
             expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
             // Both branches contributed; container branch carries
-            // params.branch=1 on every issue it surfaced.
+            // data.branch=1 on every issue it surfaced.
             const inner = flattenIssueItems(group.issues);
-            expect(inner.some((i) => i.params?.branch === 0)).toBe(true);
-            expect(inner.some((i) => i.params?.branch === 1)).toBe(true);
+            expect(inner.some((i) => i.data?.branch === 0)).toBe(true);
+            expect(inner.some((i) => i.data?.branch === 1)).toBe(true);
         }
     });
 
@@ -504,14 +504,14 @@ describe('compose with IContainer elements', () => {
             const inner = flattenIssueItems(group.issues);
             // The container ran against `{}` and produced its own
             // missing-field failures; compose folded them as branch 0.
-            expect(inner.every((i) => i.params?.branch === 0)).toBe(true);
+            expect(inner.every((i) => i.data?.branch === 0)).toBe(true);
         }
     });
 });
 
 describe('createValidupError', () => {
     it('builds a single-issue ValidupError with the supplied fields', () => {
-        // Ad-hoc string code carries open params; vocabulary codes are
+        // Ad-hoc string code carries open data; vocabulary codes are
         // gatekept per their documented contract (see the typed-overloads
         // in issue.spec.ts).
         const err = createValidupError(
@@ -525,12 +525,12 @@ describe('createValidupError', () => {
         const items = flattenIssueItems(err.issues);
         expect(items[0]?.code).toBe('custom_failure');
         expect(items[0]?.message).toBe('bad value');
-        expect(items[0]?.params).toEqual({ foo: 'bar' });
+        expect(items[0]?.data).toEqual({ foo: 'bar' });
         expect(items[0]?.received).toBe(42);
     });
 
-    it('omits params when not provided', () => {
+    it('omits data when not provided', () => {
         const err = createValidupError(0, IssueCode.REQUIRED, 'required');
-        expect(err.issues[0]?.params).toBeUndefined();
+        expect(err.issues[0]?.data).toBeUndefined();
     });
 });

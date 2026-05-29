@@ -50,7 +50,7 @@ interface IssueItem {
     message: string;
     received?: unknown;
     expected?: unknown;
-    params?: Record<string, unknown>;
+    data?: Record<string, unknown>;
     meta?: Record<string, unknown>;
 }
 
@@ -60,7 +60,7 @@ interface IssueGroup {
     path: PropertyKey[];
     message: string;
     issues: Issue[]; // recursive
-    params?: Record<string, unknown>;
+    data?: Record<string, unknown>;
     meta?: Record<string, unknown>;
 }
 ```

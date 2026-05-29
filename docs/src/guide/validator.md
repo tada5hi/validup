@@ -109,7 +109,7 @@ container.mount('email', createValidator(z.string().email()));                  
 container.mount('email', createValidator(zSchema, { sideEffect: true }));            // never cached
 ```
 
-`@validup/validator-js` doesn't surface a uniform per-factory `sideEffect` option — every shipped factory is deterministic by construction and is cache-eligible by default. The one exception is `equals(key, options?)`, which auto-stamps `sideEffect: true` when no `expectedValue` is provided (it reads `ctx.data[key]`, which the cache snapshot doesn't capture); the generic `createValidator(fn, { code, message, params?, sideEffect? })` is the one place where the option is exposed, for the rare case where the wrapped predicate captures external state.
+`@validup/validator-js` doesn't surface a uniform per-factory `sideEffect` option — every shipped factory is deterministic by construction and is cache-eligible by default. The one exception is `equals(key, options?)`, which auto-stamps `sideEffect: true` when no `expectedValue` is provided (it reads `ctx.data[key]`, which the cache snapshot doesn't capture); the generic `createValidator(fn, { code, message, data?, sideEffect? })` is the one place where the option is exposed, for the rare case where the wrapped predicate captures external state.
 
 For your own validators, the same pattern is just a closure:
 

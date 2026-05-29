@@ -22,13 +22,13 @@ describe('errorToIssues', () => {
                 path: ['a'], 
                 code: IssueCode.MIN_LENGTH, 
                 message: 'too short', 
-                params: { min: 3 }, 
+                data: { min: 3 }, 
             }),
             defineIssueItem({
                 path: ['b'], 
                 code: IssueCode.PATTERN, 
                 message: 'pattern mismatch', 
-                params: { pattern: '\\d+' }, 
+                data: { pattern: '\\d+' }, 
             }),
         ]);
 
@@ -80,7 +80,7 @@ describe('errorToIssues', () => {
                 path: ['a'], 
                 code: IssueCode.MIN_LENGTH, 
                 message: 'short', 
-                params: { min: 3 }, 
+                data: { min: 3 }, 
             }),
         ]);
         const out = errorToIssues(error, { code: 'should_not_apply' });

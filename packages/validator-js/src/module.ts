@@ -43,10 +43,10 @@ export interface CreateValidatorOptions extends BaseFactoryOptions {
      */
     code: string;
     /**
-     * Optional structured payload surfaced on `IssueItem.params` — what
+     * Optional structured payload surfaced on `IssueItem.data` — what
      * the i18n template's `{{placeholders}}` resolve against.
      */
-    params?: Record<string, unknown>;
+    data?: Record<string, unknown>;
 }
 
 /**
@@ -66,7 +66,7 @@ export function toValidatorString(value: unknown): string {
  * Generic wrap for any validator.js function we don't ship a pre-baked
  * factory for. The wrapped validator stringifies `ctx.value`, calls the
  * validator.js predicate, and throws a `ValidupError` carrying the
- * supplied `code` (+ optional `params`) on failure.
+ * supplied `code` (+ optional `data`) on failure.
  *
  * @example
  *     import validator from 'validator';
@@ -79,7 +79,7 @@ export function toValidatorString(value: unknown): string {
  *
  * For the common cases — `email()`, `isLength()`, `isInt()` etc. — reach
  * for the pre-baked factories instead; they bake the right vocabulary
- * code and `params` in for you.
+ * code and `data` in for you.
  *
  * The returned descriptor participates in the validup result cache by
  * default — validator.js's `ValidatorJsFn` signature is synchronous
@@ -102,7 +102,7 @@ export function createValidator<C = unknown>(
             if (fn(stringified)) {
                 return ctx.value;
             }
-            throw createValidupError(ctx.value, fallbackCode, fallbackMessage, options.params);
+            throw createValidupError(ctx.value, fallbackCode, fallbackMessage, options.data);
         },
     });
 }
