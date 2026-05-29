@@ -149,11 +149,11 @@ describe('compose with { bail: false } — collect-all', () => {
         expect(codes).toEqual([IssueCode.MIN_LENGTH, IssueCode.PATTERN].sort());
     });
 
-    it('does NOT thread the value — every validator sees ctx.value verbatim', async () => {
-        // trim runs and "produces" 'ab', but with bail: false we discard
-        // its output and give the next validator the original '  ab  '.
-        // The minLength check on the un-trimmed value (length 6) passes;
-        // only the pattern fails.
+    it('threads the value — downstream validators see the transformed input', async () => {
+        // trim() runs first and produces 'ab' (length 2). The threaded
+        // value flows into minLength(3), which fails because 2 < 3, and
+        // into matchesPattern(/[0-9]/), which also fails. Both issues
+        // are collected.
         const err = await captureFail(
             compose([
                 trim(),
@@ -163,8 +163,9 @@ describe('compose with { bail: false } — collect-all', () => {
             '  ab  ',
         );
         const items = flattenIssueItems(err.issues);
-        expect(items).toHaveLength(1);
-        expect(items[0]?.code).toBe(IssueCode.PATTERN);
+        expect(items).toHaveLength(2);
+        const codes = items.map((i) => i.code).sort();
+        expect(codes).toEqual([IssueCode.MIN_LENGTH, IssueCode.PATTERN].sort());
     });
 
     it('continues past failures', async () => {
@@ -203,11 +204,30 @@ describe('compose with { bail: false } — collect-all', () => {
         expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
     });
 
-    it('returns ctx.value verbatim on full success (no threading)', async () => {
-        // trim "would" transform the value, but bail: false doesn't
-        // thread, so the original ctx.value comes back unchanged.
+    it('returns the threaded value on full success', async () => {
+        // Symmetric with bail: true — a trim() stage's transformed
+        // value flows through and is what the composed validator
+        // returns when every stage passes.
         const out = await run(compose([trim()], { bail: false }), '  hello  ');
-        expect(out).toBe('  hello  ');
+        expect(out).toBe('hello');
+    });
+
+    it('a throwing stage does not retro-mutate the threaded value', async () => {
+        // trim() produces 'ab' → minLength(3) THROWS and so its return
+        // never lands; matchesPattern receives the value from the last
+        // successful stage ('ab'), not whatever minLength might have
+        // tried to mutate. Both failures still surface in the aggregate.
+        const err = await captureFail(
+            compose([
+                trim(),
+                minLength(5),         // throws on 'ab'
+                matchesPattern(/[0-9]/), // sees 'ab', fails
+            ], { bail: false }),
+            '  ab  ',
+        );
+        const items = flattenIssueItems(err.issues);
+        const codes = items.map((i) => i.code).sort();
+        expect(codes).toEqual([IssueCode.MIN_LENGTH, IssueCode.PATTERN].sort());
     });
 });
 

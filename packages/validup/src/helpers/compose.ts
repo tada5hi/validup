@@ -12,26 +12,29 @@ import type { Validator } from '../types';
 
 export interface ComposeOptions {
     /**
-     * Controls failure handling.
+     * Controls failure handling. Both modes thread each stage's return
+     * into the next as `ctx.value` — they differ only in what happens
+     * on a failure.
      *
-     * - `true` **(default)** — **fail-fast.** The first failing validator
-     *   stops the chain; the thrown error bubbles up unchanged. Each
-     *   validator's output feeds the next as `ctx.value`, so
-     *   sanitize-then-validate patterns work (`trim()` → `isEmail()`).
-     *   A validator that returns `undefined` is treated as a
-     *   pass-through — the prior stage's value continues down the chain
-     *   unchanged, so pure checks that don't re-emit `ctx.value` compose
-     *   cleanly with transformers.
+     * - `true` **(default)** — **fail-fast.** The first failing
+     *   validator stops the chain; the thrown error bubbles up
+     *   unchanged.
      *
-     * - `false` — **collect-all.** Every validator runs against the
-     *   original `ctx.value` (no threading); failures are collected and
-     *   aggregated into a single `ValidupError` with multiple issues.
-     *   Useful for submit-time error UIs that surface every broken rule
-     *   in one pass.
+     * - `false` — **collect-all.** Every validator runs, even after a
+     *   previous one threw; failures are collected and aggregated
+     *   into a single `ValidupError` with multiple issues. Useful for
+     *   submit-time error UIs that surface every broken rule in one
+     *   pass. When a validator throws, the upstream value continues
+     *   downstream (the failing stage isn't allowed to retro-actively
+     *   mutate it).
      *
-     * The threading semantic is coupled to bail behavior on purpose: a
-     * `bail: false` chain that threads would re-validate a transformed
-     * value the consumer didn't expect to be transformed.
+     * **Threading rule (both modes).** A validator's return value
+     * replaces the threaded `ctx.value` only when it's defined.
+     * `undefined` is treated as a pass-through — the upstream value
+     * continues down the chain, so pure checks that don't bother
+     * re-emitting `ctx.value` compose cleanly with transformers.
+     * Validators that DO want to explicitly clear the field must
+     * throw or return a sentinel.
      */
     bail?: boolean;
 }
@@ -39,10 +42,12 @@ export interface ComposeOptions {
 /**
  * Compose multiple validators into a single `Validator`.
  *
- * Default (`bail: true`) runs validators in order and stops at the first
- * failure; each validator's output feeds the next. Pass `bail: false` to
- * run every validator against the original `ctx.value` and aggregate all
- * failures into one `ValidupError`.
+ * Validators run in order; each stage's return value feeds the next
+ * as `ctx.value`. A stage that returns `undefined` is treated as a
+ * pass-through (upstream value continues down the chain), so pure
+ * checks that don't re-emit `ctx.value` compose cleanly with
+ * transformers. `bail: true` (default) stops at the first failure;
+ * `bail: false` collects every failure into a single `ValidupError`.
  *
  * @example
  *     // Fail-fast (default) — sanitize then validate
@@ -70,43 +75,38 @@ export function compose<C = unknown>(
 ): Validator<C> {
     const bail = options.bail ?? true;
 
-    if (bail) {
-        return async (ctx) => {
-            let { value } = ctx;
-            for (const validator of validators) {
-                const result = await validator({ ...ctx, value });
-                // Only adopt the validator's return when it actually
-                // produced one — a pure check that throws-or-passes
-                // typically returns nothing, and clobbering `value` to
-                // `undefined` between stages would break
-                // sanitize-then-validate chains
-                // (e.g. `compose([trim(), isEmail()])` where `isEmail`
-                // doesn't bother re-emitting `ctx.value`). Validators
-                // that DO want to explicitly null out the field must
-                // throw or use a sentinel; returning `undefined` is
-                // treated as "no opinion, pass the upstream value
-                // through."
-                if (typeof result !== 'undefined') {
-                    value = result;
-                }
-            }
-            return value;
-        };
-    }
-
     return async (ctx) => {
         const issues: Issue[] = [];
+        let { value } = ctx;
 
         for (const validator of validators) {
             try {
-                await validator(ctx);
+                // Spread a fresh ctx per stage so the threaded value
+                // doesn't leak back to the caller via the input
+                // reference — callers that compose inside their own
+                // validator can keep reading `ctx.value` after the
+                // composed call returns without seeing the post-thread
+                // mutation.
+                const result = await validator({ ...ctx, value });
+                if (typeof result !== 'undefined') {
+                    value = result;
+                }
             } catch (e) {
+                if (bail) {
+                    throw e;
+                }
+
+                // Failing stage doesn't get to mutate the threaded
+                // value — `value` keeps whatever the last successful
+                // stage produced, so the next validator runs against a
+                // well-defined input.
                 if (isValidupError(e)) {
                     for (const issue of e.issues) {
                         issues.push(issue);
                     }
                     continue;
                 }
+
                 if (isError(e)) {
                     issues.push(defineIssueItem({
                         path: [],
@@ -115,6 +115,7 @@ export function compose<C = unknown>(
                     }));
                     continue;
                 }
+
                 issues.push(defineIssueItem({
                     path: [],
                     code: IssueCode.VALUE_INVALID,
@@ -128,6 +129,7 @@ export function compose<C = unknown>(
         if (issues.length > 0) {
             throw new ValidupError(issues);
         }
-        return ctx.value;
+
+        return value;
     };
 }
