@@ -65,7 +65,7 @@ try {
 }
 ```
 
-`createValidator` returns a validup `Validator`. Mount it like any other validator:
+`createValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Mount it like any other validator:
 
 ```typescript
 container.mount('field', { group: 'create' }, createValidator(z.string()));
@@ -160,16 +160,19 @@ try {
 
 ## API Reference
 
-| Export                       | Description                                                                  |
-|------------------------------|------------------------------------------------------------------------------|
-| `createValidator(schema)`    | Wrap a `ZodType` (or `(ctx) => ZodType`) as a validup `Validator`.           |
-| `buildIssuesForZodError(e)`  | Convert a `ZodError` into an array of validup `Issue`s.                      |
-| `buildZodIssuesForError(e)`  | Convert a `ValidupError` into an array of zod raw issues.                    |
-| `buildZodIssuesForIssue(i)`  | Convert a single validup `Issue` into zod raw issues (recurses into groups). |
-| `ZodIssue`                   | Re-exported alias for `$ZodRawIssue` from `zod/v4/core`.                     |
+| Export                              | Description                                                                  |
+|-------------------------------------|------------------------------------------------------------------------------|
+| `createValidator(schema, options?)` | Wrap a `ZodType` (or `(ctx) => ZodType`) as a validup `ValidatorDescriptor`. `options.sideEffect: true` bypasses the result cache (use for async refines / `superRefine` reading external state). |
+| `buildIssuesForZodError(e)`         | Convert a `ZodError` into an array of validup `Issue`s.                      |
+| `buildZodIssuesForError(e)`         | Convert a `ValidupError` into an array of zod raw issues.                    |
+| `buildZodIssuesForIssue(i)`         | Convert a single validup `Issue` into zod raw issues (recurses into groups). |
+| `ZodIssue`                          | Re-exported alias for `$ZodRawIssue` from `zod/v4/core`.                     |
 
 ```typescript
-function createValidator<C = unknown>(input: ZodType | ((ctx: ValidatorContext<C>) => ZodType)): Validator<C>;
+function createValidator<C = unknown, Z extends ZodType = ZodType>(
+    input: Z | ((ctx: ValidatorContext<C>) => Z),
+    options?: { sideEffect?: boolean },
+): ValidatorDescriptor<C, ZodOutput<Z>>;
 ```
 
 ## Stability

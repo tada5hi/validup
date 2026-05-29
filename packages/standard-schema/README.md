@@ -104,14 +104,17 @@ Both packages can coexist in the same project. (`@validup/zod` requires `zod ^4.
 ## API Reference
 
 ```typescript
-function createValidator<C = unknown>(
-    input: StandardSchemaV1 | ((ctx: ValidatorContext<C>) => StandardSchemaV1),
-): Validator<C>;
+function createValidator<C = unknown, S extends StandardSchemaV1 = StandardSchemaV1>(
+    input: S | ((ctx: ValidatorContext<C>) => S),
+    options?: { sideEffect?: boolean },
+): ValidatorDescriptor<C, StandardSchemaV1.InferOutput<S>>;
 
 function buildIssuesForStandardSchemaIssues(
     issues: ReadonlyArray<StandardSchemaV1.Issue>,
 ): Issue[];
 ```
+
+`createValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Pass `{ sideEffect: true }` for schemas that read external state (typically async refines) so the framework re-runs them on every invocation instead of replaying a cached outcome.
 
 ## Stability
 
