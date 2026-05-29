@@ -69,6 +69,14 @@ type StandardSchemaCreateFn<C = unknown> = (ctx: ValidatorContext<C>) => Standar
 
 `createValidator<C>(...)` is generic over the validup context type, so factories can read typed `ctx.context` when the parent container declares one (`Container<T, C>`).
 
+## Result Caching
+
+`createValidator` returns a `ValidatorDescriptor` that participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — most Standard Schema validators are deterministic functions of the value. For schemas that read external state (typically async refines), pass `{ sideEffect: true }` to bypass the cache:
+
+```typescript
+container.mount('email', createValidator(asyncSchema, { sideEffect: true }));
+```
+
 ## Error Mapping
 
 When a schema's `~standard.validate` returns issues, the adapter converts each one into a validup `IssueItem` carrying the spec-portable subset:
@@ -96,14 +104,17 @@ Both packages can coexist in the same project. (`@validup/zod` requires `zod ^4.
 ## API Reference
 
 ```typescript
-function createValidator<C = unknown>(
-    input: StandardSchemaV1 | ((ctx: ValidatorContext<C>) => StandardSchemaV1),
-): Validator<C>;
+function createValidator<C = unknown, S extends StandardSchemaV1 = StandardSchemaV1>(
+    input: S | ((ctx: ValidatorContext<C>) => S),
+    options?: { sideEffect?: boolean },
+): ValidatorDescriptor<C, StandardSchemaV1.InferOutput<S>>;
 
 function buildIssuesForStandardSchemaIssues(
     issues: ReadonlyArray<StandardSchemaV1.Issue>,
 ): Issue[];
 ```
+
+`createValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Pass `{ sideEffect: true }` for schemas that read external state (typically async refines) so the framework re-runs them on every invocation instead of replaying a cached outcome.
 
 ## Stability
 

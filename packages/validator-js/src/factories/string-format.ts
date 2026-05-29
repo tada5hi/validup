@@ -6,8 +6,8 @@
  */
 
 import validator from 'validator';
-import { IssueCode, createValidupError  } from 'validup';
-import type { Validator } from 'validup';
+import { IssueCode, createValidupError, defineValidator } from 'validup';
+import type { ValidatorDescriptor } from 'validup';
 import type { BaseFactoryOptions } from '../module';
 import { toValidatorString } from '../module';
 
@@ -20,13 +20,15 @@ import { toValidatorString } from '../module';
  */
 export function isEmail<C = unknown>(
     options: BaseFactoryOptions & validator.IsEmailOptions = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid email address';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isEmail(s, options)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.EMAIL, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isEmail(s, options)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.EMAIL, message);
+        },
+    });
 }
 
 /**
@@ -34,13 +36,15 @@ export function isEmail<C = unknown>(
  */
 export function isURL<C = unknown>(
     options: BaseFactoryOptions & validator.IsURLOptions = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid URL';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isURL(s, options)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.URL, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isURL(s, options)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.URL, message);
+        },
+    });
 }
 
 /**
@@ -52,13 +56,15 @@ export function isURL<C = unknown>(
  */
 export function isUUID<C = unknown>(
     options: BaseFactoryOptions & { version?: validator.UUIDVersion } = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid UUID';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isUUID(s, options.version)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.UUID, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isUUID(s, options.version)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.UUID, message);
+        },
+    });
 }
 
 /**
@@ -68,13 +74,15 @@ export function isUUID<C = unknown>(
  */
 export function isIP<C = unknown>(
     options: BaseFactoryOptions & { version?: '4' | '6' | 4 | 6 } = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid IP address';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isIP(s, options.version)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.IP_ADDRESS, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isIP(s, options.version)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.IP_ADDRESS, message);
+        },
+    });
 }
 
 /**
@@ -82,13 +90,15 @@ export function isIP<C = unknown>(
  */
 export function isMACAddress<C = unknown>(
     options: BaseFactoryOptions & validator.IsMACAddressOptions = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid MAC address';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isMACAddress(s, options)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.MAC_ADDRESS, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isMACAddress(s, options)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.MAC_ADDRESS, message);
+        },
+    });
 }
 
 /**
@@ -96,13 +106,15 @@ export function isMACAddress<C = unknown>(
  */
 export function isDate<C = unknown>(
     options: BaseFactoryOptions & validator.IsDateOptions = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid date';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isDate(s, options)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.DATE, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isDate(s, options)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.DATE, message);
+        },
+    });
 }
 
 /**
@@ -112,13 +124,15 @@ export function isDate<C = unknown>(
  */
 export function isISO8601<C = unknown>(
     options: BaseFactoryOptions & validator.IsISO8601Options = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid date';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isISO8601(s, options)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.DATE, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isISO8601(s, options)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.DATE, message);
+        },
+    });
 }
 
 /**
@@ -126,13 +140,15 @@ export function isISO8601<C = unknown>(
  */
 export function isJSON<C = unknown>(
     options: BaseFactoryOptions & validator.IsJSONOptions = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not valid JSON';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isJSON(s, options)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.JSON, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isJSON(s, options)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.JSON, message);
+        },
+    });
 }
 
 /**
@@ -140,13 +156,15 @@ export function isJSON<C = unknown>(
  */
 export function isBase64<C = unknown>(
     options: BaseFactoryOptions & validator.IsBase64Options = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not valid base64';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isBase64(s, options)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.BASE64, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isBase64(s, options)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.BASE64, message);
+        },
+    });
 }
 
 /**
@@ -193,7 +211,7 @@ type StrongPasswordRequirementParams = {
  */
 export function isStrongPassword<C = unknown>(
     options: BaseFactoryOptions & validator.StrongPasswordOptions = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value does not meet the password strength requirements';
     // Strip validup-only `message` AND `returnScore` before forwarding to
     // validator.js. With `returnScore: true`, validator.js returns a numeric
@@ -219,18 +237,20 @@ export function isStrongPassword<C = unknown>(
             paramsTemplate[key] = rest[key];
         }
     }
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        // validator.js mutates the options argument it receives (merging
-        // defaults in-place). Pass a shallow clone so consumer-side
-        // `options` and our captured template stay clean.
-        const probeOptions = { ...rest } as validator.StrongPasswordOptions;
-        if (validator.isStrongPassword(s, probeOptions) === true) return ctx.value;
-        throw createValidupError(
-            ctx.value,
-            IssueCode.STRONG_PASSWORD,
-            message,
-            { ...paramsTemplate },
-        );
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            // validator.js mutates the options argument it receives (merging
+            // defaults in-place). Pass a shallow clone so consumer-side
+            // `options` and our captured template stay clean.
+            const probeOptions = { ...rest } as validator.StrongPasswordOptions;
+            if (validator.isStrongPassword(s, probeOptions) === true) return ctx.value;
+            throw createValidupError(
+                ctx.value,
+                IssueCode.STRONG_PASSWORD,
+                message,
+                { ...paramsTemplate },
+            );
+        },
+    });
 }

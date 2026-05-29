@@ -30,11 +30,32 @@ try {
 }
 ```
 
-`createValidator` returns a validup `Validator`. Mount it with any other mount option:
+`createValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Mount it with any other mount option:
 
 ```typescript
 container.mount('field', { group: 'create' }, createValidator(z.string()));
 container.mount('opt',   { optional: true },  createValidator(z.number()));
+```
+
+## Result caching (`sideEffect`)
+
+The descriptor returned by `createValidator` participates in validup's [result cache](/guide/caching) by default. Most zod schemas (`z.string().email()`, length / regex / enum checks) are deterministic, so the framework can replay a cached `(ctx.value, ctx.context, ctx.group)` snapshot without re-running the schema:
+
+```typescript
+import { ValidationCache } from 'validup';
+
+const cache = new ValidationCache();
+await container.run(data, { cache });
+await container.run(data, { cache }); // schema not re-invoked
+```
+
+For schemas with async refines or `superRefine` calls reading external state, opt out per call site:
+
+```typescript
+container.mount('email', createValidator(
+    z.string().refine(async (v) => !(await isEmailTaken(v))),
+    { sideEffect: true },
+));
 ```
 
 ## Per-context schemas
@@ -101,7 +122,7 @@ try {
 
 | Export                       | Description                                                                  |
 |------------------------------|------------------------------------------------------------------------------|
-| `createValidator(schema)`    | Wrap a `ZodType` (or `(ctx) => ZodType`) as a validup `Validator`.           |
+| `createValidator(schema, options?)` | Wrap a `ZodType` (or `(ctx) => ZodType`) as a validup `ValidatorDescriptor`. `options.sideEffect: true` bypasses the result cache. |
 | `buildIssuesForZodError(e)`  | Convert a `ZodError` into an array of validup `Issue`s.                      |
 | `buildZodIssuesForError(e)`  | Convert a `ValidupError` into an array of zod raw issues.                    |
 | `buildZodIssuesForIssue(i)`  | Convert a single validup `Issue` into zod raw issues (recurses into groups). |

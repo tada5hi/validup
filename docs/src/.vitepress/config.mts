@@ -85,6 +85,7 @@ export default defineConfig({
                     text: 'Execution',
                     items: [
                         { text: 'Run Modes', link: '/guide/run-modes' },
+                        { text: 'Caching', link: '/guide/caching' },
                         { text: 'Cancellation', link: '/guide/cancellation' },
                     ],
                 },

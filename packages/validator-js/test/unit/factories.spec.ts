@@ -11,7 +11,7 @@ import {
     ValidupError,
     flattenIssueItems,
 } from 'validup';
-import type { Validator } from 'validup';
+import type { ValidatorDescriptor } from 'validup';
 import {
     equals,
     isAlpha,
@@ -37,13 +37,13 @@ import {
 // Helper — every factory wraps the validator.js call and throws a
 // ValidupError on failure. The tests assert the failure (code + params)
 // via `flattenIssueItems` and the success (value passes through).
-async function fail(validator: Validator, value: unknown): Promise<ReturnType<typeof flattenIssueItems>> {
+async function fail(descriptor: ValidatorDescriptor, value: unknown): Promise<ReturnType<typeof flattenIssueItems>> {
     try {
-        await validator({
-            key: '', 
-            path: [], 
-            value, 
-            data: {}, 
+        await descriptor.run({
+            key: '',
+            path: [],
+            value,
+            data: {},
             context: undefined,
         });
     } catch (e) {
@@ -52,12 +52,12 @@ async function fail(validator: Validator, value: unknown): Promise<ReturnType<ty
     throw new Error('expected validator to throw');
 }
 
-async function pass(validator: Validator, value: unknown): Promise<unknown> {
-    return validator({
-        key: '', 
-        path: [], 
-        value, 
-        data: {}, 
+async function pass(descriptor: ValidatorDescriptor, value: unknown): Promise<unknown> {
+    return descriptor.run({
+        key: '',
+        path: [],
+        value,
+        data: {},
         context: undefined,
     });
 }
@@ -304,5 +304,40 @@ describe('equals', () => {
     });
     it('uses expectedValue for runtime comparison when supplied', async () => {
         expect(await pass(equals('password', { expectedValue: 'hunter2' }), 'hunter2')).toBe('hunter2');
+    });
+    it('reads the comparison target from ctx.data at the key path', async () => {
+        const result = await equals('password').run({
+            key: 'passwordConfirm',
+            path: ['passwordConfirm'],
+            value: 'hunter2',
+            data: { password: 'hunter2', passwordConfirm: 'hunter2' },
+            context: undefined,
+        });
+        expect(result).toBe('hunter2');
+    });
+    it('fails when ctx.data target differs from ctx.value', async () => {
+        try {
+            await equals('password').run({
+                key: 'passwordConfirm',
+                path: ['passwordConfirm'],
+                value: 'hunter2',
+                data: { password: 'other', passwordConfirm: 'hunter2' },
+                context: undefined,
+            });
+        } catch (e) {
+            if (e instanceof ValidupError) {
+                const items = flattenIssueItems(e.issues);
+                expect(items[0]?.code).toBe(IssueCode.SAME_AS);
+                expect(items[0]?.params).toEqual({ other: 'password' });
+                return;
+            }
+        }
+        throw new Error('expected validator to throw');
+    });
+    it('stamps sideEffect=true when reading from ctx.data (no expectedValue)', () => {
+        expect(equals('password').sideEffect).toBe(true);
+    });
+    it('stamps sideEffect=false when expectedValue is provided', () => {
+        expect(equals('password', { expectedValue: 'hunter2' }).sideEffect).toBe(false);
     });
 });

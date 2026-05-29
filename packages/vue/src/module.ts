@@ -25,6 +25,7 @@ import type {
 } from 'validup';
 import {
     IssueCode,
+    ValidationCache,
     ValidupError,
     flattenIssueItems,
     isIssueGroup,
@@ -120,6 +121,14 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
     // stomped by a concurrent state change.
     let scheduleAbortController: AbortController | undefined;
 
+    // One per composable scope. Persists results of every non-side-effect
+    // mount keyed on `(value, context, group)` snapshots, so per-keystroke
+    // runs only invoke validators whose inputs actually changed and submit
+    // runs (`$validate()`) reuse everything the scheduled runs already
+    // proved fresh. Cleared on `$reset()` and whenever the container
+    // reference swaps (different container = different mount identities).
+    const cache = new ValidationCache();
+
     async function runOnce(signal?: AbortSignal): Promise<Result<T>> {
         const id = ++runId;
         pending.value = true;
@@ -130,9 +139,10 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
                 result = await c.safeRun(
                     unref(stateRef) as Record<string, any>,
                     {
-                        group: groupRef.value, 
-                        context: contextRef.value, 
-                        signal, 
+                        group: groupRef.value,
+                        context: contextRef.value,
+                        signal,
+                        cache,
                     },
                 );
             } catch (rawError) {
@@ -180,6 +190,50 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         }
         void runOnce(signal);
     }
+
+    /**
+     * Wipe state from any pending or in-flight run so it can't repopulate
+     * `cache` / `internalIssues` after we've cleared them. Used by both
+     * `$reset()` and the container-ref watch — without it a late
+     * `runOnce()` finishing after `cache.clear()` could (a) write fresh
+     * entries via the live `IValidationCache` reference, and (b) overwrite
+     * `internalIssues.value` with the stale verdict.
+     *
+     * Three knobs, all needed:
+     * - `debounceTimer` — drops any queued schedule that hasn't fired yet.
+     * - `scheduleAbortController.abort()` — short-circuits the Container
+     *   run loop's between-mount `signal.throwIfAborted()` checks, so the
+     *   in-flight `safeRun` either bails out with the abort reason or
+     *   stops writing further cache entries.
+     * - `runId += 1` — even if the in-flight `safeRun` slips past every
+     *   abort gate (e.g. all its validators were already running), the
+     *   `id !== runId` check at the end of `runOnce` will swallow its
+     *   write to `internalIssues`.
+     */
+    function invalidatePendingRuns() {
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = undefined;
+        }
+        scheduleAbortController?.abort();
+        scheduleAbortController = undefined;
+        runId += 1;
+    }
+
+    // Drop cached results whenever the underlying container instance swaps.
+    // Mount references are container-scoped, so entries keyed on the *old*
+    // container's mounts can never be hit by the new container's lookups —
+    // but the entries linger in the Map until eviction, and a still-running
+    // safeRun against the old container could write more of them post-swap.
+    // Invalidate pending work first so the cache stays empty for the new
+    // container's first run, then clear what's already there.
+    watch(
+        containerRef,
+        () => {
+            invalidatePendingRuns();
+            cache.clear();
+        },
+    );
 
     watch(
         [containerRef, groupRef, stateRef, contextRef],
@@ -448,20 +502,30 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         // flicker false until the next run. Vuelidate behaves the same way.
         // To re-run validation after a reset, the caller should `$validate()`
         // (or wait for the next state change).
+        //
+        // BUT — invalidate any pending/in-flight run BEFORE wiping
+        // dirty/external state and cache. A debounced or in-flight
+        // `runOnce` that finishes after `$reset()` would otherwise
+        // write back to `internalIssues` (and repopulate `cache` via
+        // mid-flight `cache.set` calls inside Container.run), undoing
+        // the reset.
+        invalidatePendingRuns();
         dirtyPaths.clear();
         externalIssues.value = [];
+        // Cached results are also a UX artifact — once the user explicitly
+        // resets, the next run should hit every validator fresh so any
+        // server-state-dependent validators (e.g. "is this email taken?")
+        // observe current reality, not what was true at last keystroke.
+        cache.clear();
     }
 
     async function $validate(): Promise<Result<T>> {
         // Cancel any pending debounced run AND abort any in-flight scheduled
         // run — `$validate` is the explicit submit-time check and must not
-        // race with a stale debounced result.
-        if (debounceTimer) {
-            clearTimeout(debounceTimer);
-            debounceTimer = undefined;
-        }
-        scheduleAbortController?.abort();
-        scheduleAbortController = undefined;
+        // race with a stale debounced result. Shared with `$reset()` /
+        // container-ref swaps via `invalidatePendingRuns` so the three
+        // knobs (debounce timer, abort controller, runId) stay in lockstep.
+        invalidatePendingRuns();
         // Eagerly mark every known state key dirty so the upcoming run's
         // results surface immediately. Issue paths from validation targets
         // outside the state object (e.g. `address.city` against `state = {}`)

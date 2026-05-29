@@ -65,7 +65,7 @@ try {
 }
 ```
 
-`createValidator` returns a validup `Validator`. Mount it like any other validator:
+`createValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Mount it like any other validator:
 
 ```typescript
 container.mount('field', { group: 'create' }, createValidator(z.string()));
@@ -98,6 +98,17 @@ type ZodCreateFn<C = unknown> = (ctx: ValidatorContext<C>) => ZodType;
 ```
 
 `createValidator<C>(...)` is generic over the validup context type, so factories can read typed `ctx.context` when the parent container declares one (`Container<T, C>`).
+
+## Result Caching
+
+`createValidator` returns a `ValidatorDescriptor` (interchangeable with a bare `Validator` at the mount site). It participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — most zod schemas (`z.string().email()`, length / regex / enum) are deterministic, so cached `(value, context, group)` snapshots replay without re-running the schema.
+
+```typescript
+container.mount('email', createValidator(z.string().email()));                              // cached
+container.mount('email', createValidator(asyncZodSchema, { sideEffect: true }));            // never cached
+```
+
+Pass `{ sideEffect: true }` for schemas with async refines or `superRefine` calls reading external state — the framework will then re-run them on every invocation, ignoring any cached entry.
 
 ## Error Mapping
 
@@ -149,16 +160,19 @@ try {
 
 ## API Reference
 
-| Export                       | Description                                                                  |
-|------------------------------|------------------------------------------------------------------------------|
-| `createValidator(schema)`    | Wrap a `ZodType` (or `(ctx) => ZodType`) as a validup `Validator`.           |
-| `buildIssuesForZodError(e)`  | Convert a `ZodError` into an array of validup `Issue`s.                      |
-| `buildZodIssuesForError(e)`  | Convert a `ValidupError` into an array of zod raw issues.                    |
-| `buildZodIssuesForIssue(i)`  | Convert a single validup `Issue` into zod raw issues (recurses into groups). |
-| `ZodIssue`                   | Re-exported alias for `$ZodRawIssue` from `zod/v4/core`.                     |
+| Export                              | Description                                                                  |
+|-------------------------------------|------------------------------------------------------------------------------|
+| `createValidator(schema, options?)` | Wrap a `ZodType` (or `(ctx) => ZodType`) as a validup `ValidatorDescriptor`. `options.sideEffect: true` bypasses the result cache (use for async refines / `superRefine` reading external state). |
+| `buildIssuesForZodError(e)`         | Convert a `ZodError` into an array of validup `Issue`s.                      |
+| `buildZodIssuesForError(e)`         | Convert a `ValidupError` into an array of zod raw issues.                    |
+| `buildZodIssuesForIssue(i)`         | Convert a single validup `Issue` into zod raw issues (recurses into groups). |
+| `ZodIssue`                          | Re-exported alias for `$ZodRawIssue` from `zod/v4/core`.                     |
 
 ```typescript
-function createValidator<C = unknown>(input: ZodType | ((ctx: ValidatorContext<C>) => ZodType)): Validator<C>;
+function createValidator<C = unknown, Z extends ZodType = ZodType>(
+    input: Z | ((ctx: ValidatorContext<C>) => Z),
+    options?: { sideEffect?: boolean },
+): ValidatorDescriptor<C, ZodOutput<Z>>;
 ```
 
 ## Stability

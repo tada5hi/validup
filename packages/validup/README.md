@@ -114,6 +114,39 @@ type ValidatorContext<C = unknown> = {
 
 A validator's **return value** becomes the output for that path — so validators double as transformers/sanitizers. The optional second generic `Out` lets callers (and the [Builder API](#builder-api-compile-time-typing)) infer per-field types from the validator's return type — `Out` defaults to `unknown`, so existing call sites compile unchanged.
 
+#### Descriptor form
+
+`mount()` also accepts a `ValidatorDescriptor<C, Out>` — a small wrapper that attaches per-mount metadata the framework consults. Today the metadata is just `sideEffect`, the switch that opts a validator out of the [result cache](#result-caching).
+
+```typescript
+import { defineValidator } from 'validup';
+
+// Cache-eligible (default): same (value, context, group) → reuse result.
+const isPositive = defineValidator({
+    run: (ctx) => {
+        if (typeof ctx.value !== 'number' || ctx.value <= 0) {
+            throw new Error('must be positive');
+        }
+        return ctx.value;
+    },
+});
+
+// Cross-field / network / stateful — re-run every time:
+const isEmailUnique = defineValidator({
+    sideEffect: true,
+    run: async (ctx) => {
+        if (await api.isEmailTaken(ctx.value as string)) {
+            throw new Error('Email already taken');
+        }
+        return ctx.value;
+    },
+});
+
+container.mount('email', isEmailUnique);
+```
+
+Bare functions stay fully supported — `mount('foo', fn)` normalizes them to `{ run: fn }` internally with no behavior change. Use `defineValidator` when you need the metadata.
+
 ### Containers
 
 A `Container<T, C>` holds an ordered list of mounts and runs them against an input object. The optional generic `T` constrains mount keys and shapes the resolved output; the optional `C` types the caller-supplied [context](#context).
@@ -490,6 +523,35 @@ try {
 
 `safeRun()` rethrows the abort reason (it is never wrapped into a `Result.failure`) so callers can distinguish "validation failed" from "operation cancelled".
 
+## Result Caching
+
+`Container.run` (and every other run variant) accepts an optional `cache: ValidationCache`. When supplied, validator mounts whose `(ctx.value, ctx.context, ctx.group)` snapshot matches a prior invocation are skipped — their cached outcome is replayed instead of re-running the validator. Particularly valuable for forms with slow async validators (network round-trips, regex-heavy schemas): submit-time validation doesn't pay the cost of re-running mounts whose inputs the per-keystroke runs already proved fresh.
+
+```typescript
+import { Container, ValidationCache, defineValidator } from 'validup';
+
+const container = new Container<{ email: string }>();
+let calls = 0;
+container.mount('email', defineValidator({
+    run: async (ctx) => {
+        calls += 1;
+        await new Promise((r) => setTimeout(r, 100));
+        return ctx.value;
+    },
+}));
+
+const cache = new ValidationCache();
+const data = { email: 'peter@example.com' };
+
+await container.run(data, { cache });
+await container.run(data, { cache });
+// calls === 1 — the second invocation hits the cache
+```
+
+**Opt out per validator** with `sideEffect: true` (via `defineValidator` or an adapter's `{ sideEffect: true }` option) for cross-field validators, network calls, or anything else whose result depends on inputs the snapshot doesn't capture. The cache is caller-owned — `Container` never holds a reference, so the lifecycle (per-request / per-form / persistent) is entirely up to you. Implement `IValidationCache` directly for LRU eviction, TTL, etc.
+
+See [the Caching guide](https://validup.tada5hi.net/guide/caching) for the full snapshot semantics and lifecycle patterns.
+
 ## Run Modes
 
 Four methods — `container.run` / `container.runSync` / `container.safeRun` / `container.safeRunSync` — plus a `parallel` flag on the async ones cover three orthogonal axes: **sync vs async**, **throw vs no-throw `Result`**, and **sequential vs parallel** (async only):
@@ -759,18 +821,26 @@ See [Builder API](#builder-api-compile-time-typing). Each `.mount(...)` call ret
 ### Validator Composition
 
 ```typescript
-import { compose, type ComposeOptions } from 'validup';
+import { compose, composeOneOf, type ComposeOptions, type ComposeElement } from 'validup';
+
+type ComposeElement<C = unknown> = Validator<C> | IContainer<any, any>;
 
 function compose<C = unknown>(
-    validators: Validator<C>[],
+    elements: ComposeElement<C>[],
     options?: ComposeOptions,
+): Validator<C>;
+
+function composeOneOf<C = unknown>(
+    elements: ComposeElement<C>[],
 ): Validator<C>;
 ```
 
-Build a single `Validator` from many. Two modes via `options.bail`:
+Build a single `Validator` from many. Each element can be a bare `Validator<C>` function OR a fully-built `IContainer<T, C>` instance — the dispatcher picks the right call shape (containers receive the threaded value as their input, validators receive `ctx`). The strategy is picked via `options.oneOf`:
 
-- **`bail: true`** (default) — fail-fast + threaded: each validator's output feeds the next; the first failure stops the chain. Use for sanitize-then-validate pipelines.
-- **`bail: false`** — collect-all: every validator runs against the original `ctx.value`; failures aggregate into one `ValidupError` with multiple issues. Use for richer submit-time error UIs.
+- **`oneOf: false`** (default) — every element must pass. Stages thread their return value into the next so sanitize-then-validate patterns work; `options.bail` controls fail-fast (`true`, default) vs. collect-all (`false`).
+- **`oneOf: true`** — branches run as alternatives in registration order; the first one to succeed wins, subsequent branches are not invoked, and the composed validator returns the winning branch's value. When every branch fails, the composed validator throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures (each tagged with `params: { branch }`). `bail` is rejected at the type level under this mode — there's no chain to fail-fast over.
+
+`composeOneOf([...])` is sugar for `compose([...], { oneOf: true })`.
 
 ```typescript
 // sanitize-then-validate
@@ -782,7 +852,22 @@ container.mount('password', compose([
     isAlphanumeric(),
     matches(/[0-9]/),
 ], { bail: false }));
+
+// accept either an email or a phone number on the same field
+container.mount('contact', composeOneOf([isEmail(), isMobilePhone()]));
+
+// any-of with a container branch — accept a string-formatted contact
+// OR a nested address object validated by its own container.
+container.mount('contact', composeOneOf([
+    isEmail(),
+    isMobilePhone(),
+    addressContainer,
+]));
 ```
+
+Threading notes:
+- A stage that returns `undefined` is treated as a pass-through — the upstream value continues down the chain. Validators that DO want to explicitly clear the field must throw or return a sentinel.
+- Container elements receive `ctx.value` as their `input` (normalised to `{}` for non-object values, matching how a nested container mounted directly handles a non-object mount value). Their `path` / `group` / `context` / `signal` flow from the threaded `ctx`, so issues from a container branch carry absolute paths from the outer mount (`composeOneOf` mounted at `foo` with a child schema's `street` field surfaces issues at `['foo', 'street']`).
 
 ### Type Guards
 

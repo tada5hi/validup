@@ -61,6 +61,20 @@ if (result.success) {
 
 Abort errors and `RunSyncViolationError`s are **not** wrapped — they propagate verbatim, since they're not validation outcomes. You'll still see them as a normal throw out of `safeRun`/`safeRunSync`.
 
+## `cache`
+
+Every run variant accepts an optional `cache?: IValidationCache`. When provided, non-side-effect validator mounts whose `(value, context, group)` snapshot matches a prior invocation are skipped — their cached outcome is replayed instead of calling the validator again. Useful for forms with slow async validators, especially under `@validup/vue` where per-keystroke runs would otherwise re-invoke every mount.
+
+```typescript
+import { ValidationCache } from 'validup';
+
+const cache = new ValidationCache();
+await container.run(data, { cache });
+await container.run(data, { cache }); // pure mounts skipped
+```
+
+See [Caching](/guide/caching) for the snapshot semantics, the `sideEffect` opt-out, and lifecycle patterns.
+
 ## `flat: true`
 
 By default the output is **expanded** from dotted keys back into a nested object. Pass `flat: true` to keep the dotted-key map (used internally for nested-container plumbing, occasionally useful at the boundary):

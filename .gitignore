@@ -14,6 +14,9 @@ reports
 db.sqlite
 .env
 cache
+# Bare `cache` would otherwise swallow `packages/validup/src/cache/` —
+# the runtime result-cache module is source code, not a build artifact.
+!packages/validup/src/cache/
 .nx
 .agents/plans
 .claude/

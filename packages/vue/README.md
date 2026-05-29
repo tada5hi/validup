@@ -170,6 +170,20 @@ group.value = 'update';
 
 Optional mounts on the container behave the same way they do server-side — pass `{ optional: true }` to `Container.mount(...)` and the field is skipped when its value is `undefined` (or `null` / falsy depending on `optionalValue`). See validup's [Optional Values](https://www.npmjs.com/package/validup#optional-values) docs.
 
+## Result Caching (automatic)
+
+`useValidup` owns one [`ValidationCache`](https://validup.tada5hi.net/guide/caching) per composable scope and passes it on every `safeRun` call. Cross-keystroke runs reuse the cached outcome of any mount whose `(value, context, group)` snapshot didn't change — `$validate()` at submit time skips validators that the per-keystroke runs already proved fresh, so async checks (uniqueness, captcha) don't refire when their inputs haven't changed.
+
+The cache is cleared automatically on `$reset()` and when the container reference swaps; in both cases any pending or in-flight `safeRun` is invalidated first so it can't repopulate the cache or `internalIssues` after the clear.
+
+Mark a validator `sideEffect: true` (via `defineValidator` or an adapter's `{ sideEffect: true }` option) whenever its result is NOT a pure function of `(ctx.value, ctx.context, ctx.group)` — the cache snapshot only captures those three inputs, so anything else the validator reads goes stale silently. That includes:
+
+- **Cross-field validators** that read `ctx.data.otherField` (`@validup/validator-js`'s `equals(key)` without `expectedValue` does this automatically).
+- **Network-dependent validators** — uniqueness checks against an API, captcha verifications, server-side rules where the answer can change between calls.
+- **Time-varying or globally-mutable state** — anything reading the system clock, a feature flag, a shared store, the URL, etc.
+
+Pure-input validators (regex, length, enum, schema parse against the value alone) stay default-cached and benefit from per-keystroke skip + submit-time skip naturally.
+
 ## Async & Debouncing
 
 By default, every state change triggers a fresh `safeRun()` on the container. Concurrent runs are coalesced via a run-id token so "last write wins" — older async results are dropped if newer state has already been written.

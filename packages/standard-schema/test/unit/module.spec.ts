@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { Container, ValidupError } from 'validup';
+import { Container, ValidationCache, ValidupError } from 'validup';
 import { buildIssuesForStandardSchemaIssues, createValidator } from '../../src';
 
 describe('@validup/standard-schema', () => {
@@ -111,6 +111,39 @@ describe('@validup/standard-schema', () => {
                 expect(e.issues[0]?.path).toEqual(['amount']);
             }
         }
+    });
+
+    it('createValidator participates in the result cache by default', async () => {
+        const container = new Container<{ email: string }>();
+        let calls = 0;
+        container.mount('email', createValidator(() => {
+            calls += 1;
+            return z.string().email();
+        }));
+
+        const cache = new ValidationCache();
+        const data = { email: 'foo@example.com' };
+        await container.run(data, { cache });
+        await container.run(data, { cache });
+        expect(calls).toBe(1);
+    });
+
+    it('createValidator({ sideEffect: true }) bypasses the cache', async () => {
+        const container = new Container<{ email: string }>();
+        let calls = 0;
+        container.mount('email', createValidator(
+            () => {
+                calls += 1;
+                return z.string().email();
+            },
+            { sideEffect: true },
+        ));
+
+        const cache = new ValidationCache();
+        const data = { email: 'foo@example.com' };
+        await container.run(data, { cache });
+        await container.run(data, { cache });
+        expect(calls).toBe(2);
     });
 
     it('should normalize PathSegment objects ({ key }) when present', () => {

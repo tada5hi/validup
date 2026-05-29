@@ -7,11 +7,16 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+    Container,
     IssueCode,
+    ValidationCache,
     ValidupError,
     compose,
+    composeOneOf,
     createValidupError,
+    defineValidator,
     flattenIssueItems,
+    isIssueGroup,
 } from '../../src';
 import type { Validator } from '../../src';
 
@@ -102,6 +107,27 @@ describe('compose (default — bail: true, fail-fast + threaded)', () => {
         const items = flattenIssueItems(err.issues);
         expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
     });
+
+    it('treats an undefined-returning validator as pass-through', async () => {
+        // `voidCheck` is a pure validator that throws on a bad value but
+        // doesn't bother re-emitting `ctx.value`. Without the
+        // pass-through rule it would clobber the threaded value to
+        // `undefined` and the downstream `minLength` check would see
+        // `'undefined'` (the string), passing length 9. With the rule,
+        // the trimmed value from the prior stage flows through and the
+        // chain returns it cleanly.
+        const voidCheck: Validator = (ctx) => {
+            if (typeof ctx.value !== 'string') {
+                throw new Error('not a string');
+            }
+            // no return — implicit undefined
+        };
+        const out = await run(
+            compose([trim(), voidCheck, minLength(3)]),
+            '  hello  ',
+        );
+        expect(out).toBe('hello');
+    });
 });
 
 describe('compose with { bail: false } — collect-all', () => {
@@ -128,11 +154,11 @@ describe('compose with { bail: false } — collect-all', () => {
         expect(codes).toEqual([IssueCode.MIN_LENGTH, IssueCode.PATTERN].sort());
     });
 
-    it('does NOT thread the value — every validator sees ctx.value verbatim', async () => {
-        // trim runs and "produces" 'ab', but with bail: false we discard
-        // its output and give the next validator the original '  ab  '.
-        // The minLength check on the un-trimmed value (length 6) passes;
-        // only the pattern fails.
+    it('threads the value — downstream validators see the transformed input', async () => {
+        // trim() runs first and produces 'ab' (length 2). The threaded
+        // value flows into minLength(3), which fails because 2 < 3, and
+        // into matchesPattern(/[0-9]/), which also fails. Both issues
+        // are collected.
         const err = await captureFail(
             compose([
                 trim(),
@@ -142,8 +168,9 @@ describe('compose with { bail: false } — collect-all', () => {
             '  ab  ',
         );
         const items = flattenIssueItems(err.issues);
-        expect(items).toHaveLength(1);
-        expect(items[0]?.code).toBe(IssueCode.PATTERN);
+        expect(items).toHaveLength(2);
+        const codes = items.map((i) => i.code).sort();
+        expect(codes).toEqual([IssueCode.MIN_LENGTH, IssueCode.PATTERN].sort());
     });
 
     it('continues past failures', async () => {
@@ -182,11 +209,303 @@ describe('compose with { bail: false } — collect-all', () => {
         expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
     });
 
-    it('returns ctx.value verbatim on full success (no threading)', async () => {
-        // trim "would" transform the value, but bail: false doesn't
-        // thread, so the original ctx.value comes back unchanged.
+    it('returns the threaded value on full success', async () => {
+        // Symmetric with bail: true — a trim() stage's transformed
+        // value flows through and is what the composed validator
+        // returns when every stage passes.
         const out = await run(compose([trim()], { bail: false }), '  hello  ');
-        expect(out).toBe('  hello  ');
+        expect(out).toBe('hello');
+    });
+
+    it('a throwing stage does not retro-mutate the threaded value', async () => {
+        // trim() produces 'ab' → minLength(3) THROWS and so its return
+        // never lands; matchesPattern receives the value from the last
+        // successful stage ('ab'), not whatever minLength might have
+        // tried to mutate. Both failures still surface in the aggregate.
+        const err = await captureFail(
+            compose([
+                trim(),
+                minLength(5),         // throws on 'ab'
+                matchesPattern(/[0-9]/), // sees 'ab', fails
+            ], { bail: false }),
+            '  ab  ',
+        );
+        const items = flattenIssueItems(err.issues);
+        const codes = items.map((i) => i.code).sort();
+        expect(codes).toEqual([IssueCode.MIN_LENGTH, IssueCode.PATTERN].sort());
+    });
+});
+
+describe('compose with { oneOf: true } — any-of', () => {
+    it('returns the first successful branch\'s value and skips the rest', async () => {
+        let secondCalls = 0;
+        const second: Validator = (ctx) => {
+            secondCalls += 1;
+            return ctx.value;
+        };
+
+        const out = await run(
+            compose([
+                isString(),    // succeeds for 'hello'
+                second,        // must NOT run — first already won
+            ], { oneOf: true }),
+            'hello',
+        );
+        expect(out).toBe('hello');
+        expect(secondCalls).toBe(0);
+    });
+
+    it('falls through to a later branch when an earlier one throws', async () => {
+        const out = await run(
+            compose([
+                minLength(10),                  // 'hello' (length 5) fails
+                matchesPattern(/^[a-z]+$/),     // succeeds
+            ], { oneOf: true }),
+            'hello',
+        );
+        expect(out).toBe('hello');
+    });
+
+    it('returns the winning branch\'s transformed value (not ctx.value)', async () => {
+        // trim() is the second branch and the first (minLength(10)) fails;
+        // composeOneOf returns the trimmed string, not the input.
+        const out = await run(
+            compose([
+                minLength(10),
+                trim(),
+            ], { oneOf: true }),
+            '  ab  ',
+        );
+        expect(out).toBe('ab');
+    });
+
+    it('falls back to ctx.value when the winning branch returns undefined', async () => {
+        // Pass-through rule: a branch that doesn\'t bother re-emitting
+        // ctx.value is still a successful branch — the input flows through.
+        const voidCheck: Validator = () => undefined;
+        const out = await run(
+            compose([
+                minLength(10),  // fails on 'hi'
+                voidCheck,      // succeeds, returns undefined
+            ], { oneOf: true }),
+            'hi',
+        );
+        expect(out).toBe('hi');
+    });
+
+    it('wraps every branch\'s failures in a single ONE_OF_FAILED group when all branches fail', async () => {
+        const err = await captureFail(
+            compose([
+                isString(),                   // fails — not a string
+                minLength(10),                // fails — '42' is too short
+                matchesPattern(/^[a-z]+$/),   // fails — '42' is digits, not lowercase letters
+            ], { oneOf: true }),
+            42,
+        );
+        expect(err.issues).toHaveLength(1);
+        const [group] = err.issues;
+        expect(isIssueGroup(group)).toBe(true);
+        if (isIssueGroup(group)) {
+            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+            expect(group.message).toBe('None of the branches succeeded');
+            // Every branch contributed; each issue is stamped with its
+            // branch index for downstream attribution.
+            const inner = flattenIssueItems(group.issues);
+            expect(inner).toHaveLength(3);
+            const branches = inner.map((i) => i.params?.branch).sort();
+            expect(branches).toEqual([0, 1, 2]);
+        }
+    });
+
+    it('throws ONE_OF_FAILED with an empty inner list when no branches are supplied', async () => {
+        // "Zero successes out of zero alternatives" is still zero
+        // successes — surfaces the empty list as a configuration mistake
+        // the consumer can detect via the empty group.
+        const err = await captureFail(compose([], { oneOf: true }), 'whatever');
+        expect(err.issues).toHaveLength(1);
+        const [group] = err.issues;
+        expect(isIssueGroup(group)).toBe(true);
+        if (isIssueGroup(group)) {
+            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+            expect(group.issues).toHaveLength(0);
+        }
+    });
+
+    it('synthesizes a VALUE_INVALID IssueItem for non-Error throws from a branch', async () => {
+        const branchA: Validator = () => {
+            // eslint-disable-next-line no-throw-literal
+            throw 'plain string failure';
+        };
+        const branchB: Validator = () => {
+            throw new Error('plain error failure');
+        };
+        const err = await captureFail(
+            compose([branchA, branchB], { oneOf: true }),
+            'x',
+        );
+        const [group] = err.issues;
+        if (isIssueGroup(group)) {
+            const inner = flattenIssueItems(group.issues);
+            expect(inner).toHaveLength(2);
+            expect(inner.every((i) => i.code === IssueCode.VALUE_INVALID)).toBe(true);
+            const messages = inner.map((i) => i.message).sort();
+            expect(messages).toEqual(['plain error failure', 'plain string failure'].sort());
+        }
+    });
+
+    it('re-raises an AbortError verbatim instead of folding it into a branch failure', async () => {
+        const controller = new AbortController();
+        const branchA: Validator = () => {
+            controller.abort(new Error('cancelled mid-branch'));
+            throw new Error('cancelled mid-branch');
+        };
+        const branchB: Validator = (ctx) => ctx.value;
+
+        await expect(
+            compose([branchA, branchB], { oneOf: true })({
+                key: '',
+                path: [],
+                value: 'x',
+                data: {},
+                context: undefined,
+                signal: controller.signal,
+            }),
+        ).rejects.toThrow('cancelled mid-branch');
+    });
+
+    it('composeOneOf() is sugar for compose([...], { oneOf: true })', async () => {
+        const out = await run(composeOneOf([isString()]), 'hello');
+        expect(out).toBe('hello');
+
+        const err = await captureFail(composeOneOf([isString()]), 42);
+        const [group] = err.issues;
+        expect(isIssueGroup(group)).toBe(true);
+        if (isIssueGroup(group)) {
+            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+        }
+    });
+
+    it('rejects { oneOf: true, bail: ... } at the type level', () => {
+        // Compile-time guard via the discriminated-union ComposeOptions.
+        // The @ts-expect-error line is the test — if the union ever
+        // collapses into a flat object type, this will start passing
+        // typecheck and the test fails to compile.
+        // @ts-expect-error — bail is not assignable under the oneOf: true variant.
+        compose([isString()], { oneOf: true, bail: false });
+    });
+});
+
+describe('compose with IContainer elements', () => {
+    function addressContainer(): Container<{ street: string, city: string }> {
+        const c = new Container<{ street: string, city: string }>();
+        c.mount('street', isString());
+        c.mount('city', isString());
+        return c;
+    }
+
+    it('runs a container element in an all-strategy chain and threads its output', async () => {
+        // Sanitiser produces a normalised object, the container validates it,
+        // and the chain returns the container's parsed result.
+        const normalise: Validator = (ctx) => {
+            const v = ctx.value as Record<string, unknown>;
+            return { street: String(v.street).trim(), city: String(v.city).trim() };
+        };
+        const out = await run(
+            compose([normalise, addressContainer()]),
+            { street: '  10 Downing St  ', city: '  London  ' },
+        );
+        expect(out).toEqual({ street: '10 Downing St', city: 'London' });
+    });
+
+    it('lifts a container failure into the composed validator', async () => {
+        const err = await captureFail(
+            compose([addressContainer()]),
+            { street: 'OK', city: 42 },
+        );
+        // The container threw a ValidupError; bail: true (default) lets it
+        // bubble up unchanged.
+        const items = flattenIssueItems(err.issues);
+        expect(items.some((i) => i.message === 'must be a string')).toBe(true);
+    });
+
+    it('lets a successful container win a oneOf branch', async () => {
+        const out = await run(
+            composeOneOf([
+                isString(),           // fails — input is an object
+                addressContainer(),   // succeeds — returns parsed object
+            ]),
+            { street: '10 Downing St', city: 'London' },
+        );
+        expect(out).toEqual({ street: '10 Downing St', city: 'London' });
+    });
+
+    it('treats a failing container as a oneOf branch failure', async () => {
+        const err = await captureFail(
+            composeOneOf([
+                isString(),           // fails — input is an object
+                addressContainer(),   // fails — city is wrong type
+            ]),
+            { street: '10 Downing St', city: 42 },
+        );
+        const [group] = err.issues;
+        expect(isIssueGroup(group)).toBe(true);
+        if (isIssueGroup(group)) {
+            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+            // Both branches contributed; container branch carries
+            // params.branch=1 on every issue it surfaced.
+            const inner = flattenIssueItems(group.issues);
+            expect(inner.some((i) => i.params?.branch === 0)).toBe(true);
+            expect(inner.some((i) => i.params?.branch === 1)).toBe(true);
+        }
+    });
+
+    it('forwards the outer run\'s cache into a container element', async () => {
+        // Regression test: compose-with-container must thread
+        // `ctx.cache` into the child's `run({ cache })` call. Without
+        // it, mounts inside the child would silently bypass the cache.
+        const inner = new Container<{ name: string }>();
+        let calls = 0;
+        inner.mount('name', defineValidator({
+            run: (ctx) => {
+                calls += 1;
+                return ctx.value;
+            },
+        }));
+
+        const outer = new Container<{ user: { name: string } }>();
+        outer.mount('user', compose([inner]));
+
+        const cache = new ValidationCache();
+        const data = { user: { name: 'peter' } };
+        await outer.run(data, { cache });
+        await outer.run(data, { cache });
+        // First run: cache miss → child validator runs once.
+        // Second run: cache hit (snapshot unchanged) → child validator skipped.
+        // If cache forwarding regresses, this assertion catches it (calls === 2).
+        expect(calls).toBe(1);
+    });
+
+    it('normalises non-object values to {} before invoking a container element', async () => {
+        // A container in a oneOf branch with a string input — Container.run
+        // expects Record<string, any>, so compose mirrors the parent's
+        // `isObject(value) ? value : {}` defensive cast. The container then
+        // sees `{}` and fails its required-field checks; the branch fails
+        // gracefully instead of throwing a type-mismatch.
+        const err = await captureFail(
+            composeOneOf([
+                addressContainer(),
+            ]),
+            'not-an-object',
+        );
+        const [group] = err.issues;
+        expect(isIssueGroup(group)).toBe(true);
+        if (isIssueGroup(group)) {
+            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+            const inner = flattenIssueItems(group.issues);
+            // The container ran against `{}` and produced its own
+            // missing-field failures; compose folded them as branch 0.
+            expect(inner.every((i) => i.params?.branch === 0)).toBe(true);
+        }
     });
 });
 

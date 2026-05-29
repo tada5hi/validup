@@ -20,7 +20,15 @@ user.mount('age',   createValidator(z.number().int().positive()));
 const data = await user.run({ email: 'peter@example.com', age: 28 });
 ```
 
-The adapter calls `schema['~standard'].validate(ctx.value)`. On failure each `StandardSchemaV1.Issue` becomes a validup `IssueItem`, with the path normalized so `{ key }`-shape `PathSegment` entries flatten into a `PropertyKey[]`.
+The adapter calls `schema['~standard'].validate(ctx.value)` and returns a validup `ValidatorDescriptor` (interchangeable with a bare `Validator` at the mount site). On failure each `StandardSchemaV1.Issue` becomes a validup `IssueItem`, with the path normalized so `{ key }`-shape `PathSegment` entries flatten into a `PropertyKey[]`.
+
+## Result caching (`sideEffect`)
+
+`createValidator` returns a cache-eligible descriptor by default — the [validup result cache](/guide/caching) will replay results when `(ctx.value, ctx.context, ctx.group)` is unchanged. Pass `{ sideEffect: true }` to bypass the cache for schemas that read external state:
+
+```typescript
+container.mount('email', createValidator(asyncSchema, { sideEffect: true }));
+```
 
 ## Per-context schemas
 
@@ -51,5 +59,5 @@ Pick `@validup/standard-schema` when you want **library portability** or are hap
 
 | Export                       | Description                                                                  |
 |------------------------------|------------------------------------------------------------------------------|
-| `createValidator(schema)`    | Wrap a Standard Schema (or `(ctx) => schema`) as a validup `Validator`.      |
+| `createValidator(schema, options?)` | Wrap a Standard Schema (or `(ctx) => schema`) as a validup `ValidatorDescriptor`. `options.sideEffect: true` bypasses the result cache. |
 | `buildIssuesForStandardSchemaIssues(issues)` | Convert `StandardSchemaV1.Issue[]` into validup `Issue[]`.   |

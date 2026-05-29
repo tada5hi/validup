@@ -12,16 +12,24 @@ import {
     pathToArray,
     setPathValue,
 } from 'pathtrace';
+import type {
+    IValidationCache,
+    ValidationCacheOutcome,
+    ValidationCacheSnapshot,
+} from '../cache';
 import { GroupKey } from '../constants';
 import { ValidupError, isError, isValidupError } from '../error';
 import {
     buildErrorMessageForAttribute,
+    buildOneOfFailedGroup,
     isOptionalValue,
     resolveDefaults,
     resolvePathFilter,
 } from '../helpers';
 import type { Validator } from '../types';
 import { hasOwnProperty, isObject } from '../utils';
+import type { ValidatorDescriptor } from '../validator';
+import { isValidatorDescriptor } from '../validator';
 import { isContainer } from './check';
 import type {
     ContainerOptions,
@@ -89,13 +97,13 @@ export class Container<
 
     mount(
         key: Path<T> | (string & {}),
-        data: IContainer<any, any> | Validator<C>
+        data: IContainer<any, any> | Validator<C> | ValidatorDescriptor<C>
     ) : void;
 
     mount(
         key: Path<T> | (string & {}),
         options: MountOptions,
-        data: IContainer<any, any> | Validator<C>
+        data: IContainer<any, any> | Validator<C> | ValidatorDescriptor<C>
     ) : void;
 
     mount(...args: any[]) : void {
@@ -109,9 +117,12 @@ export class Container<
         let path : string | undefined;
         let pathSeen = false;
 
-        let data: IContainer<any, any> | Validator<C> | undefined;
+        let data: IContainer<any, any> | Validator<C> | ValidatorDescriptor<C> | undefined;
         let dataSeen = false;
-        let dataIsContainer : boolean = false;
+        // Tracked separately so we don't re-detect on store — `isContainer` /
+        // `isValidatorDescriptor` walk the value once each here, then the
+        // result is consulted directly when we push onto `this.items`.
+        let dataKind: 'container' | 'validator' | 'descriptor' | undefined;
 
         let options: MountOptions = {};
         let optionsSeen = false;
@@ -132,6 +143,7 @@ export class Container<
                 }
                 dataSeen = true;
                 data = arg;
+                dataKind = 'validator';
                 continue;
             }
 
@@ -141,7 +153,22 @@ export class Container<
                 }
                 dataSeen = true;
                 data = arg;
-                dataIsContainer = true;
+                dataKind = 'container';
+                continue;
+            }
+
+            // Descriptor check goes BEFORE the generic `isObject` branch:
+            // a `ValidatorDescriptor` is an object that happens to carry
+            // a `run` function but lacks `safeRun`, distinguishing it from
+            // both `MountOptions` (no `run`) and `IContainer` (has both
+            // `run` and `safeRun`).
+            if (isValidatorDescriptor(arg)) {
+                if (dataSeen) {
+                    throw new SyntaxError('mount() received multiple validator/container arguments.');
+                }
+                dataSeen = true;
+                data = arg;
+                dataKind = 'descriptor';
                 continue;
             }
 
@@ -155,24 +182,36 @@ export class Container<
         }
 
         if (
-            !dataIsContainer &&
+            dataKind !== 'container' &&
             (typeof path === 'undefined' || path.length === 0)
         ) {
             throw new SyntaxError('Only a container can be mounted without a key.');
         }
 
-        if (typeof data === 'undefined') {
+        if (typeof data === 'undefined' || typeof dataKind === 'undefined') {
             throw new SyntaxError('No container/validator could be extracted from the fn arguments.');
         }
 
-        if (isContainer(data)) {
+        if (dataKind === 'container') {
             this.items.push({
                 options,
-                data,
+                data: data as IContainer<any, any>,
                 path,
                 type: 'container',
             });
 
+            return;
+        }
+
+        if (dataKind === 'descriptor') {
+            const descriptor = data as ValidatorDescriptor<C>;
+            this.items.push({
+                options,
+                data: descriptor.run,
+                path,
+                type: 'validator',
+                sideEffect: descriptor.sideEffect,
+            });
             return;
         }
 
@@ -298,6 +337,7 @@ export class Container<
                                 defaults: resolveDefaults(options.defaults, key),
                                 context: options.context,
                                 signal: options.signal,
+                                cache: options.cache,
                             },
                         );
 
@@ -306,16 +346,57 @@ export class Container<
                             output[this.mergePaths(key, tmpKey)] = tmp[tmpKey];
                         }
                     } else if (item.type === 'validator') {
-                        output[key] = await item.data({
-                            key,
-                            path: pathAbsolute,
-
+                        const snapshot: ValidationCacheSnapshot = {
                             value,
-                            data,
+                            context: options.context,
                             group: options.group,
-                            context: options.context as C,
-                            signal: options.signal,
-                        });
+                        };
+                        const cached = this.resolveCachedOutcome(item, key, snapshot, options.cache);
+                        if (cached) {
+                            if (cached.ok) {
+                                output[key] = cached.value;
+                            } else {
+                                // Replay the prior error through the same outer-catch
+                                // path so issue construction (path prefixing, optional
+                                // stamping) runs with the *current* `keyParts` — vital
+                                // when the same container is mounted under different
+                                // parents across runs.
+                                throw cached.error;
+                            }
+                        } else {
+                            try {
+                                const result = await item.data({
+                                    key,
+                                    path: pathAbsolute,
+
+                                    value,
+                                    data,
+                                    group: options.group,
+                                    context: options.context as C,
+                                    signal: options.signal,
+                                    cache: options.cache,
+                                });
+                                output[key] = result;
+                                this.writeCachedOutcome(
+                                    item,
+                                    key,
+                                    snapshot,
+                                    { ok: true, value: result },
+                                    options.cache,
+                                    options.signal,
+                                );
+                            } catch (e) {
+                                this.writeCachedOutcome(
+                                    item,
+                                    key,
+                                    snapshot,
+                                    { ok: false, error: e },
+                                    options.cache,
+                                    options.signal,
+                                );
+                                throw e;
+                            }
+                        }
                     }
                 } catch (e) {
                     this.collectExecutionFailure({
@@ -454,21 +535,67 @@ export class Container<
                             context: options.context,
                             signal: options.signal,
                             parallel: true,
+                            cache: options.cache,
                         },
                     );
                 } else {
-                    // Wrap sync validators in a microtask so the surrounding
-                    // `Promise.allSettled` always sees a thenable.
-                    const itemData = item.data;
-                    promise = (async () => itemData({
-                        key,
-                        path: pathAbsolute,
+                    const snapshot: ValidationCacheSnapshot = {
                         value,
-                        data,
+                        context: options.context,
                         group: options.group,
-                        context: options.context as C,
-                        signal: options.signal,
-                    }))();
+                    };
+                    const cached = this.resolveCachedOutcome(item, key, snapshot, options.cache);
+                    if (cached) {
+                        // Materialize cached outcomes as already-settled promises
+                        // so the existing `Promise.allSettled` merge loop handles
+                        // them identically to fresh runs — no parallel-specific
+                        // replay code path.
+                        promise = cached.ok ?
+                            Promise.resolve(cached.value) :
+                            Promise.reject(cached.error);
+                    } else {
+                        // Wrap sync validators in a microtask so the surrounding
+                        // `Promise.allSettled` always sees a thenable. Cache
+                        // writes happen inside the wrapper so the entry is
+                        // persisted before the promise settles.
+                        const itemData = item.data;
+                        const captureItem = item;
+                        const captureKey = key;
+                        const captureSnapshot = snapshot;
+                        promise = (async () => {
+                            try {
+                                const result = await itemData({
+                                    key,
+                                    path: pathAbsolute,
+                                    value,
+                                    data,
+                                    group: options.group,
+                                    context: options.context as C,
+                                    signal: options.signal,
+                                    cache: options.cache,
+                                });
+                                this.writeCachedOutcome(
+                                    captureItem,
+                                    captureKey,
+                                    captureSnapshot,
+                                    { ok: true, value: result },
+                                    options.cache,
+                                    options.signal,
+                                );
+                                return result;
+                            } catch (e) {
+                                this.writeCachedOutcome(
+                                    captureItem,
+                                    captureKey,
+                                    captureSnapshot,
+                                    { ok: false, error: e },
+                                    options.cache,
+                                    options.signal,
+                                );
+                                throw e;
+                            }
+                        })();
+                    }
                 }
 
                 tasks.push({
@@ -686,6 +813,7 @@ export class Container<
                             defaults: resolveDefaults(options.defaults, key),
                             context: options.context,
                             signal: options.signal,
+                            cache: options.cache,
                         });
 
                         const tmpKeys = Object.keys(tmp);
@@ -693,24 +821,66 @@ export class Container<
                             output[this.mergePaths(key, tmpKey)] = tmp[tmpKey];
                         }
                     } else if (item.type === 'validator') {
-                        const result = item.data({
-                            key,
-                            path: pathAbsolute,
-
+                        const snapshot: ValidationCacheSnapshot = {
                             value,
-                            data,
+                            context: options.context,
                             group: options.group,
-                            context: options.context as C,
-                            signal: options.signal,
-                        });
-                        if (
-                            result !== null &&
-                            typeof result === 'object' &&
-                            typeof (result as { then?: unknown }).then === 'function'
-                        ) {
-                            throw new RunSyncViolationError(`runSync: validator at "${key || '<root>'}" returned a Promise`);
+                        };
+                        const cached = this.resolveCachedOutcome(item, key, snapshot, options.cache);
+                        if (cached) {
+                            if (cached.ok) {
+                                output[key] = cached.value;
+                            } else {
+                                throw cached.error;
+                            }
+                        } else {
+                            try {
+                                const result = item.data({
+                                    key,
+                                    path: pathAbsolute,
+
+                                    value,
+                                    data,
+                                    group: options.group,
+                                    context: options.context as C,
+                                    signal: options.signal,
+                                    cache: options.cache,
+                                });
+                                if (
+                                    result !== null &&
+                                    typeof result === 'object' &&
+                                    typeof (result as { then?: unknown }).then === 'function'
+                                ) {
+                                    // Don't cache: structural violation, not a
+                                    // validation outcome.
+                                    throw new RunSyncViolationError(`runSync: validator at "${key || '<root>'}" returned a Promise`);
+                                }
+                                output[key] = result;
+                                this.writeCachedOutcome(
+                                    item,
+                                    key,
+                                    snapshot,
+                                    { ok: true, value: result },
+                                    options.cache,
+                                    options.signal,
+                                );
+                            } catch (e) {
+                                // RunSyncViolation is structural — don't pollute
+                                // the cache with a graph-level error that the
+                                // next run might reach through different mounts.
+                                if (!isRunSyncViolation(e)) {
+                                    this.writeCachedOutcome(
+                                        item,
+                                        key,
+                                        snapshot,
+                                        { ok: false, error: e },
+                                        options.cache,
+                                        options.signal,
+                                    );
+                                }
+                                throw e;
+                            }
                         }
-                        output[key] = result;
                     }
                 } catch (e) {
                     this.collectExecutionFailure({
@@ -748,6 +918,80 @@ export class Container<
         } catch (e) {
             return this.wrapSafeRunError(e, options);
         }
+    }
+
+    /**
+     * Lookup helper for the per-mount result cache.
+     *
+     * Returns `undefined` (forcing a real run) for any of:
+     * - No `cache` supplied — caller didn't opt in.
+     * - Mount isn't a validator — container mounts run their own
+     *   inner loop, which consults the cache for their own mounts.
+     * - Validator declared `sideEffect: true` — its result depends on
+     *   inputs the snapshot doesn't capture (sibling fields, network,
+     *   global state), so caching would be unsound.
+     * - No prior entry stored for this `(mount, key)` pair.
+     * - Stored snapshot's `value` / `context` / `group` don't all match
+     *   the current invocation by `Object.is`.
+     */
+    private resolveCachedOutcome(
+        item: Mount<C>,
+        key: string,
+        snapshot: ValidationCacheSnapshot,
+        cache: IValidationCache | undefined,
+    ): ValidationCacheOutcome | undefined {
+        if (
+            !cache ||
+            item.type !== 'validator' ||
+            item.sideEffect === true
+        ) {
+            return undefined;
+        }
+        const entry = cache.get(item, key);
+        if (!entry) {
+            return undefined;
+        }
+        if (
+            Object.is(entry.snapshot.value, snapshot.value) &&
+            Object.is(entry.snapshot.context, snapshot.context) &&
+            Object.is(entry.snapshot.group, snapshot.group)
+        ) {
+            return entry.outcome;
+        }
+        return undefined;
+    }
+
+    /**
+     * Store the outcome of a fresh validator invocation. No-ops in the
+     * same cases `resolveCachedOutcome` returns `undefined` for, plus:
+     *
+     * - `signal.aborted` — the throw was caused by cancellation, not by
+     *   a validation outcome we want to remember. Caching the abort
+     *   would mean future replays surface "AbortError" as a fake
+     *   validation issue every time the same snapshot is seen, even
+     *   in fully-completed runs.
+     *
+     * `RunSyncViolationError`s are filtered out at the call site
+     * (`runSync` only) because they're structural — the validator
+     * graph is wrong, not the input.
+     */
+    private writeCachedOutcome(
+        item: Mount<C>,
+        key: string,
+        snapshot: ValidationCacheSnapshot,
+        outcome: ValidationCacheOutcome,
+        cache: IValidationCache | undefined,
+        signal: AbortSignal | undefined,
+    ): void {
+        if (
+            !cache ||
+            item.type !== 'validator' ||
+            item.sideEffect === true ||
+            signal?.aborted
+        ) {
+            return;
+        }
+        cache.set(item, key, { snapshot, outcome });
     }
 
     private resolveContainerFilters(options: ContainerRunOptions<T, C>): {
@@ -1008,15 +1252,12 @@ export class Container<
             // Guard against the "all branches filtered out" case (group /
             // pathsToInclude / pathsToExclude can leave itemCount === 0).
             // Without it, a oneOf container with nothing to run would throw
-            // ONE_OF_FAILED with an empty issues list.
+            // ONE_OF_FAILED with an empty issues list. Shared
+            // `buildOneOfFailedGroup` keeps the ONE_OF_FAILED shape in
+            // lockstep with compose's any-of path so consumers / i18n
+            // catalogs only format one variant.
             if (itemCount > 0 && errorCount === itemCount) {
-                const group = defineIssueGroup({
-                    code: IssueCode.ONE_OF_FAILED,
-                    message: 'None of the branches succeeded',
-                    issues,
-                    path: options.path ? options.path : [],
-                });
-                throw new ValidupError([group]);
+                throw new ValidupError([buildOneOfFailedGroup(issues, { path: options.path ? options.path : [] })]);
             }
         } else if (errorCount > 0) {
             throw new ValidupError(issues);

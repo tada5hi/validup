@@ -6,8 +6,8 @@
  */
 
 import validator from 'validator';
-import { IssueCode, createValidupError  } from 'validup';
-import type { Validator } from 'validup';
+import { IssueCode, createValidupError, defineValidator } from 'validup';
+import type { ValidatorDescriptor } from 'validup';
 import type { BaseFactoryOptions } from '../module';
 import { toValidatorString } from '../module';
 
@@ -21,13 +21,15 @@ export function isAlpha<C = unknown>(
     options: BaseFactoryOptions & validator.IsAlphaOptions & {
         locale?: validator.AlphaLocale,
     } = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not alphabetical';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isAlpha(s, options.locale, options)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.ALPHA, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isAlpha(s, options.locale, options)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.ALPHA, message);
+        },
+    });
 }
 
 /**
@@ -37,13 +39,15 @@ export function isAlphanumeric<C = unknown>(
     options: BaseFactoryOptions & validator.IsAlphanumericOptions & {
         locale?: validator.AlphanumericLocale,
     } = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value must be alphanumeric';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isAlphanumeric(s, options.locale, options)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.ALPHA_NUM, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isAlphanumeric(s, options.locale, options)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.ALPHA_NUM, message);
+        },
+    });
 }
 
 /**
@@ -51,13 +55,15 @@ export function isAlphanumeric<C = unknown>(
  */
 export function isNumeric<C = unknown>(
     options: BaseFactoryOptions & validator.IsNumericOptions = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value must be numeric';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isNumeric(s, options)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.NUMERIC, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isNumeric(s, options)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.NUMERIC, message);
+        },
+    });
 }
 
 /**
@@ -65,13 +71,15 @@ export function isNumeric<C = unknown>(
  */
 export function isDecimal<C = unknown>(
     options: BaseFactoryOptions & validator.IsDecimalOptions = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value must be a decimal number';
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isDecimal(s, options)) return ctx.value;
-        throw createValidupError(ctx.value, IssueCode.DECIMAL, message);
-    };
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isDecimal(s, options)) return ctx.value;
+            throw createValidupError(ctx.value, IssueCode.DECIMAL, message);
+        },
+    });
 }
 
 /**
@@ -88,114 +96,27 @@ export function isDecimal<C = unknown>(
  */
 export function isInt<C = unknown>(
     options: BaseFactoryOptions & validator.IsIntOptions = {},
-): Validator<C> {
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        // Type check first — strip range bounds so a non-integer always
-        // surfaces as INTEGER instead of being swallowed by a range failure.
-        const isInteger = validator.isInt(s, { allow_leading_zeroes: options.allow_leading_zeroes });
-        if (!isInteger) {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.INTEGER,
-                options.message ?? 'The value must be an integer',
-            );
-        }
-        const numeric = Number(s);
-        const {
-            min, 
-            max, 
-            lt, 
-            gt,
-        } = options;
-        if (typeof min === 'number' && numeric < min) {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.MIN_VALUE,
-                options.message ?? `The value must be greater than or equal to ${min}`,
-                { min },
-            );
-        }
-        if (typeof gt === 'number' && numeric <= gt) {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.MIN_VALUE,
-                options.message ?? `The value must be greater than ${gt}`,
-                { min: gt },
-            );
-        }
-        if (typeof max === 'number' && numeric > max) {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.MAX_VALUE,
-                options.message ?? `The value must be less than or equal to ${max}`,
-                { max },
-            );
-        }
-        if (typeof lt === 'number' && numeric >= lt) {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.MAX_VALUE,
-                options.message ?? `The value must be less than ${lt}`,
-                { max: lt },
-            );
-        }
-        // Defensive final pass — catches any remaining option we didn't
-        // model explicitly (currently none beyond min/max/lt/gt and
-        // allow_leading_zeroes). If this fires the failure is a true type
-        // mismatch.
-        if (!validator.isInt(s, options)) {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.INTEGER,
-                options.message ?? 'The value must be an integer',
-            );
-        }
-        return ctx.value;
-    };
-}
-
-/**
- * Factory: validator.js `isFloat`. Like {@link isInt} but for decimal
- * numbers — type failure emits `IssueCode.DECIMAL`; range bounds emit
- * `MIN_VALUE` / `MAX_VALUE`. `lt` / `gt` map to `MIN_VALUE` / `MAX_VALUE`
- * the same way `isInt` does.
- *
- * **Locale caveat.** validator.js's locale-aware float parsing (e.g.
- * `'123,45'` under `locale: 'de-DE'`) is opaque to the factory — we use
- * `Number(s)` for the explicit range checks, which returns `NaN` for
- * localized strings. When `locale` is set and the input parses to `NaN`,
- * we skip the explicit range checks and fall through to
- * `validator.isFloat(s, options)`, which DOES handle the locale correctly
- * — but a range failure caught there surfaces as `IssueCode.DECIMAL`
- * instead of `MIN_VALUE` / `MAX_VALUE`. Use the default locale (or
- * normalize the input upstream) when precise range codes matter for i18n.
- */
-export function isFloat<C = unknown>(
-    options: BaseFactoryOptions & validator.IsFloatOptions = {},
-): Validator<C> {
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        // Pre-check honours `locale` so localized floats (e.g. '123,45' for
-        // 'de-DE') aren't rejected by the type gate before the range checks
-        // get a chance to run.
-        if (!validator.isFloat(s, { locale: options.locale })) {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.DECIMAL,
-                options.message ?? 'The value must be a decimal number',
-            );
-        }
-        const numeric = Number(s);
-        const {
-            min, 
-            max, 
-            lt, 
-            gt,
-        } = options;
-        // NaN from a localized input skips the explicit range checks — see
-        // the JSDoc above for the resulting code-vs-message trade-off.
-        if (!Number.isNaN(numeric)) {
+): ValidatorDescriptor<C> {
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            // Type check first — strip range bounds so a non-integer always
+            // surfaces as INTEGER instead of being swallowed by a range failure.
+            const isInteger = validator.isInt(s, { allow_leading_zeroes: options.allow_leading_zeroes });
+            if (!isInteger) {
+                throw createValidupError(
+                    ctx.value,
+                    IssueCode.INTEGER,
+                    options.message ?? 'The value must be an integer',
+                );
+            }
+            const numeric = Number(s);
+            const {
+                min,
+                max,
+                lt,
+                gt,
+            } = options;
             if (typeof min === 'number' && numeric < min) {
                 throw createValidupError(
                     ctx.value,
@@ -228,14 +149,105 @@ export function isFloat<C = unknown>(
                     { max: lt },
                 );
             }
-        }
-        if (!validator.isFloat(s, options)) {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.DECIMAL,
-                options.message ?? 'The value must be a decimal number',
-            );
-        }
-        return ctx.value;
-    };
+            // Defensive final pass — catches any remaining option we didn't
+            // model explicitly (currently none beyond min/max/lt/gt and
+            // allow_leading_zeroes). If this fires the failure is a true type
+            // mismatch.
+            if (!validator.isInt(s, options)) {
+                throw createValidupError(
+                    ctx.value,
+                    IssueCode.INTEGER,
+                    options.message ?? 'The value must be an integer',
+                );
+            }
+            return ctx.value;
+        },
+    });
+}
+
+/**
+ * Factory: validator.js `isFloat`. Like {@link isInt} but for decimal
+ * numbers — type failure emits `IssueCode.DECIMAL`; range bounds emit
+ * `MIN_VALUE` / `MAX_VALUE`. `lt` / `gt` map to `MIN_VALUE` / `MAX_VALUE`
+ * the same way `isInt` does.
+ *
+ * **Locale caveat.** validator.js's locale-aware float parsing (e.g.
+ * `'123,45'` under `locale: 'de-DE'`) is opaque to the factory — we use
+ * `Number(s)` for the explicit range checks, which returns `NaN` for
+ * localized strings. When `locale` is set and the input parses to `NaN`,
+ * we skip the explicit range checks and fall through to
+ * `validator.isFloat(s, options)`, which DOES handle the locale correctly
+ * — but a range failure caught there surfaces as `IssueCode.DECIMAL`
+ * instead of `MIN_VALUE` / `MAX_VALUE`. Use the default locale (or
+ * normalize the input upstream) when precise range codes matter for i18n.
+ */
+export function isFloat<C = unknown>(
+    options: BaseFactoryOptions & validator.IsFloatOptions = {},
+): ValidatorDescriptor<C> {
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            // Pre-check honours `locale` so localized floats (e.g. '123,45' for
+            // 'de-DE') aren't rejected by the type gate before the range checks
+            // get a chance to run.
+            if (!validator.isFloat(s, { locale: options.locale })) {
+                throw createValidupError(
+                    ctx.value,
+                    IssueCode.DECIMAL,
+                    options.message ?? 'The value must be a decimal number',
+                );
+            }
+            const numeric = Number(s);
+            const {
+                min,
+                max,
+                lt,
+                gt,
+            } = options;
+            // NaN from a localized input skips the explicit range checks — see
+            // the JSDoc above for the resulting code-vs-message trade-off.
+            if (!Number.isNaN(numeric)) {
+                if (typeof min === 'number' && numeric < min) {
+                    throw createValidupError(
+                        ctx.value,
+                        IssueCode.MIN_VALUE,
+                        options.message ?? `The value must be greater than or equal to ${min}`,
+                        { min },
+                    );
+                }
+                if (typeof gt === 'number' && numeric <= gt) {
+                    throw createValidupError(
+                        ctx.value,
+                        IssueCode.MIN_VALUE,
+                        options.message ?? `The value must be greater than ${gt}`,
+                        { min: gt },
+                    );
+                }
+                if (typeof max === 'number' && numeric > max) {
+                    throw createValidupError(
+                        ctx.value,
+                        IssueCode.MAX_VALUE,
+                        options.message ?? `The value must be less than or equal to ${max}`,
+                        { max },
+                    );
+                }
+                if (typeof lt === 'number' && numeric >= lt) {
+                    throw createValidupError(
+                        ctx.value,
+                        IssueCode.MAX_VALUE,
+                        options.message ?? `The value must be less than ${lt}`,
+                        { max: lt },
+                    );
+                }
+            }
+            if (!validator.isFloat(s, options)) {
+                throw createValidupError(
+                    ctx.value,
+                    IssueCode.DECIMAL,
+                    options.message ?? 'The value must be a decimal number',
+                );
+            }
+            return ctx.value;
+        },
+    });
 }

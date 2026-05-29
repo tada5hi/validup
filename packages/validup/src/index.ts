@@ -11,5 +11,7 @@ export * from './error';
 export * from './issue';
 export * from './container';
 export * from './builder';
+export * from './cache';
 export * from './types';
 export * from './utils';
+export * from './validator';

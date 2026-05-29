@@ -30,6 +30,7 @@ const container = new Container<{
     age: number;
     site: string;
     zip: string;
+    password: string;
     confirm: string;
 }>();
 
@@ -38,7 +39,7 @@ container.mount('name',    isLength({ min: 3, max: 50 }));
 container.mount('age',     isInt({ min: 18, max: 120 }));
 container.mount('site',    isURL({ require_protocol: true }));
 container.mount('zip',     matches(/^\d{5}$/));
-container.mount('confirm', equals('password'));
+container.mount('confirm', equals('password')); // compares ctx.value against ctx.data.password
 ```
 
 ## Factories
@@ -65,9 +66,24 @@ Every factory takes a single flat options object — the validup-side `message` 
 | `isFloat(opts?)` | `DECIMAL` *or* `MIN_VALUE` / `MAX_VALUE` | `{ min }` / `{ max }` on range failure |
 | `isLength(opts?)` | `MIN_LENGTH` *or* `MAX_LENGTH` (detects which bound failed) | `{ min }` / `{ max }` |
 | `matches(pattern, opts?)` | `PATTERN` | `{ pattern: string }` |
-| `equals(comparison, opts?)` | `SAME_AS` | `{ other: string }` |
+| `equals(key, opts?)` | `SAME_AS` | `{ other: string }` |
 
 `isInt` / `isFloat` / `isLength` distinguish type-failure vs. range-failure on output, so i18n catalogs can ship distinct messages ("must be between 18 and 120" ≠ "must be an integer").
+
+`equals(key)` reads the comparison target from `ctx.data` at the `key` path (pathtrace) — so `equals('password')` mounted on `confirm` compares against `ctx.data.password`. Pass `{ expectedValue: 'literal' }` to compare against a fixed string instead; `key` still supplies the `{ other }` label for i18n templates.
+
+## Result caching
+
+Every factory returns a validup `ValidatorDescriptor`, so factories participate in the [result cache](/guide/caching) automatically — no opt-in flag required. All shipped factories are deterministic functions of `ctx.value`, so cached `(value, context, group)` snapshots replay without re-running validator.js.
+
+**Exception — `equals(key)` without `expectedValue`.** When `expectedValue` is omitted the comparison target is read from `ctx.data[key]`, a sibling field the cache snapshot does NOT capture. The factory therefore stamps `sideEffect: true` automatically in that branch so the framework re-runs it on every invocation — otherwise a `passwordConfirm` mount would stay stale after `password` changes. When `expectedValue` IS supplied, `equals` is pure and participates in the cache like the rest.
+
+```typescript
+container.mount('confirm', equals('password'));                                // sideEffect: true (reads ctx.data)
+container.mount('captcha', equals('captcha', { expectedValue: 'expected' })); // cache-eligible
+```
+
+The generic `createValidator(fn, options)` accepts an optional `sideEffect?: boolean` for the rare case where the wrapped predicate captures external state.
 
 ## Generic wrap — `createValidator`
 
