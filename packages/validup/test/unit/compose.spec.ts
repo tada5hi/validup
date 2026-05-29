@@ -9,10 +9,12 @@ import { describe, expect, it } from 'vitest';
 import {
     Container,
     IssueCode,
+    ValidationCache,
     ValidupError,
     compose,
     composeOneOf,
     createValidupError,
+    defineValidator,
     flattenIssueItems,
     isIssueGroup,
 } from '../../src';
@@ -455,6 +457,32 @@ describe('compose with IContainer elements', () => {
             expect(inner.some((i) => i.params?.branch === 0)).toBe(true);
             expect(inner.some((i) => i.params?.branch === 1)).toBe(true);
         }
+    });
+
+    it('forwards the outer run\'s cache into a container element', async () => {
+        // Regression test: compose-with-container must thread
+        // `ctx.cache` into the child's `run({ cache })` call. Without
+        // it, mounts inside the child would silently bypass the cache.
+        const inner = new Container<{ name: string }>();
+        let calls = 0;
+        inner.mount('name', defineValidator({
+            run: (ctx) => {
+                calls += 1;
+                return ctx.value;
+            },
+        }));
+
+        const outer = new Container<{ user: { name: string } }>();
+        outer.mount('user', compose([inner]));
+
+        const cache = new ValidationCache();
+        const data = { user: { name: 'peter' } };
+        await outer.run(data, { cache });
+        await outer.run(data, { cache });
+        // First run: cache miss → child validator runs once.
+        // Second run: cache hit (snapshot unchanged) → child validator skipped.
+        // If cache forwarding regresses, this assertion catches it (calls === 2).
+        expect(calls).toBe(1);
     });
 
     it('normalises non-object values to {} before invoking a container element', async () => {

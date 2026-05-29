@@ -257,15 +257,42 @@ function composeAnyOf<C>(elements: ComposeElement<C>[]): Validator<C> {
  * Dispatch one compose element against the current `ctx`. Containers
  * receive `ctx.value` as their input (normalised to `{}` for non-object
  * values, mirroring how the `Container.run` loop handles a nested
- * container mounted against a non-object value) and the threaded
- * `group` / `context` / `signal` / `path` from `ctx`; validators
- * receive `ctx` itself.
+ * container mounted against a non-object value); validators receive
+ * `ctx` itself.
  *
- * Forwarding `path: ctx.path` so issues emitted by a container element
- * carry absolute paths from the outer mount — `composeOneOf` mounted
- * at `foo` with a child schema's `street` field surfaces issues at
- * `['foo', 'street']` instead of `['street']`, matching how a nested
- * container mounted directly would behave.
+ * Forwarded to the child container's `run`:
+ *
+ * - `group`, `context`, `signal` — the threaded run-level options
+ *   surfaced on `ctx`. Letting the child see `ctx.signal` matters for
+ *   aborting in-flight child validation when the outer run is
+ *   cancelled.
+ * - `path: ctx.path` — used by the child's mounts to compute their
+ *   own `ctx.path`, so a validator inside the child sees the
+ *   absolute path it sits at (`['foo', 'street']`, not just
+ *   `['street']`). Issue *paths* in the final thrown error don't
+ *   depend on this forwarding — the outer Container's
+ *   `prefixIssuePath` step rebuilds them from each level's own
+ *   `keyParts` — but validators that inspect `ctx.path` (for
+ *   logging, custom error formatting, etc.) would see a misleading
+ *   relative path without it.
+ * - `cache: ctx.cache` — the outer Container surfaces its run-level
+ *   `IValidationCache` on `ctx`, so threading it here keeps a
+ *   container-as-branch participating in the same per-mount cache
+ *   the outer container is using. Without this forward, mounts
+ *   inside a compose-branch container would silently bypass the
+ *   cache, breaking the cache contract for the
+ *   `composeOneOf([…, childContainer])` shape.
+ *
+ * Other run-level options (`pathsToInclude`, `pathsToExclude`,
+ * `defaults`, `parallel`) are intentionally NOT forwarded — they're
+ * normally narrowed per-mount by the parent's run loop
+ * (`resolvePathFilter`, `resolveDefaults`), and compose doesn't have
+ * the parent mount key it would need to compute the equivalent
+ * narrowing. A `composeOneOf` branch that's a container therefore
+ * runs all of its mounts regardless of the outer's include/exclude
+ * filter; if you need that level of inheritance, mount the container
+ * directly with `container.mount(...)` instead of routing it through
+ * compose.
  */
 async function invokeComposeElement<C>(
     element: ComposeElement<C>,
@@ -279,6 +306,7 @@ async function invokeComposeElement<C>(
                 group: ctx.group,
                 context: ctx.context,
                 signal: ctx.signal,
+                cache: ctx.cache,
             },
         );
     }

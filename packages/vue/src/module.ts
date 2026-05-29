@@ -522,13 +522,10 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
     async function $validate(): Promise<Result<T>> {
         // Cancel any pending debounced run AND abort any in-flight scheduled
         // run — `$validate` is the explicit submit-time check and must not
-        // race with a stale debounced result.
-        if (debounceTimer) {
-            clearTimeout(debounceTimer);
-            debounceTimer = undefined;
-        }
-        scheduleAbortController?.abort();
-        scheduleAbortController = undefined;
+        // race with a stale debounced result. Shared with `$reset()` /
+        // container-ref swaps via `invalidatePendingRuns` so the three
+        // knobs (debounce timer, abort controller, runId) stay in lockstep.
+        invalidatePendingRuns();
         // Eagerly mark every known state key dirty so the upcoming run's
         // results surface immediately. Issue paths from validation targets
         // outside the state object (e.g. `address.city` against `state = {}`)

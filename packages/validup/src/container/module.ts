@@ -374,6 +374,7 @@ export class Container<
                                     group: options.group,
                                     context: options.context as C,
                                     signal: options.signal,
+                                    cache: options.cache,
                                 });
                                 output[key] = result;
                                 this.writeCachedOutcome(
@@ -571,6 +572,7 @@ export class Container<
                                     group: options.group,
                                     context: options.context as C,
                                     signal: options.signal,
+                                    cache: options.cache,
                                 });
                                 this.writeCachedOutcome(
                                     captureItem,
@@ -842,6 +844,7 @@ export class Container<
                                     group: options.group,
                                     context: options.context as C,
                                     signal: options.signal,
+                                    cache: options.cache,
                                 });
                                 if (
                                     result !== null &&

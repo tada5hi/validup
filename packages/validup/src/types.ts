@@ -5,6 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import type { IValidationCache } from './cache';
+
 export type ObjectLiteral = Record<string | number, any>;
 
 export type ValidatorContext<C = unknown> = {
@@ -46,7 +48,22 @@ export type ValidatorContext<C = unknown> = {
      * cancel I/O when the run is aborted. The container itself checks
      * `signal.aborted` between mounts and rethrows the signal's `reason`.
      */
-    signal?: AbortSignal
+    signal?: AbortSignal,
+
+    /**
+     * Result cache forwarded from `ContainerRunOptions.cache`. Surfaced so
+     * orchestrating validators (notably `compose` with an `IContainer`
+     * element) can pass the same cache instance into nested
+     * `IContainer.run()` calls — without this thread-through, a
+     * container-as-branch would silently bypass the cache and force every
+     * mount inside it to re-run on every invocation.
+     *
+     * Bare validators almost never need to consult this — the Container
+     * run loop already handles per-mount cache reads/writes around the
+     * validator call. The field is on the public context for
+     * composability, not for typical validator authoring.
+     */
+    cache?: IValidationCache,
 };
 
 /**
