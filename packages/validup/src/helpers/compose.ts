@@ -5,10 +5,27 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { isContainer } from '../container/check';
+import type { IContainer } from '../container/types';
 import { ValidupError, isError, isValidupError } from '../error';
 import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
 import type { Issue } from '../issue';
-import type { Validator } from '../types';
+import type { Validator, ValidatorContext } from '../types';
+import { isObject } from '../utils';
+
+/**
+ * A composable element — either a bare `Validator<C>` function or a
+ * fully-built `IContainer<T, C>` instance. Containers participate
+ * with the same contract as validators (transform-or-throw); the
+ * dispatcher (`invokeComposeElement`) hides the call-shape difference.
+ *
+ * `IContainer<any, any>` (rather than something tighter) keeps the
+ * compose array heterogeneous — a chain can mix schemas / containers
+ * with different output shapes without forcing the caller to widen
+ * generics at every call site. The cost is that the composed
+ * `Validator`'s `Out` defaults to `unknown` (same as before).
+ */
+export type ComposeElement<C = unknown> = Validator<C> | IContainer<any, any>;
 
 /**
  * Options for {@link compose}. Discriminated on `oneOf` so the type
@@ -76,6 +93,15 @@ export type ComposeOptions = {
  * `ValidupError` whose first issue is an `IssueGroup` with
  * `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures.
  *
+ * Elements can be bare `Validator<C>` functions OR fully-built
+ * `IContainer<T, C>` instances — the dispatcher detects which and
+ * either calls the function with the threaded `ctx` or invokes the
+ * container's `run(value, { group, context, signal, path })` with
+ * the threaded value as input. Containers participate with the same
+ * transform-or-throw contract; their output replaces the threaded
+ * value in the all-strategy chain, and a successful container wins
+ * the branch in `oneOf` mode.
+ *
  * @example
  *     // Fail-fast (default) — sanitize then validate
  *     container.mount('email', compose([
@@ -97,17 +123,25 @@ export type ComposeOptions = {
  *         isMobilePhone(),
  *     ], { oneOf: true }));
  *
+ *     // Any-of with a container branch — accept a contact string OR a
+ *     // nested address object validated by its own container.
+ *     container.mount('contact', composeOneOf([
+ *         isEmail(),
+ *         isMobilePhone(),
+ *         addressContainer,
+ *     ]));
+ *
  * Throws that aren't `ValidupError` / `Error` (raw strings, plain
  * objects, null) are synthesized into a single `IssueItem` so the
  * aggregate is never silently missing a contributing failure — mirrors
  * `Container.recordMountError`'s defensive behavior.
  */
 export function compose<C = unknown>(
-    validators: Validator<C>[],
+    elements: ComposeElement<C>[],
     options: ComposeOptions = {},
 ): Validator<C> {
     if (options.oneOf === true) {
-        return composeAnyOf(validators);
+        return composeAnyOf(elements);
     }
 
     const bail = options.bail ?? true;
@@ -116,7 +150,7 @@ export function compose<C = unknown>(
         const issues: Issue[] = [];
         let { value } = ctx;
 
-        for (const validator of validators) {
+        for (const element of elements) {
             try {
                 // Spread a fresh ctx per stage so the threaded value
                 // doesn't leak back to the caller via the input
@@ -124,7 +158,7 @@ export function compose<C = unknown>(
                 // validator can keep reading `ctx.value` after the
                 // composed call returns without seeing the post-thread
                 // mutation.
-                const result = await validator({ ...ctx, value });
+                const result = await invokeComposeElement(element, { ...ctx, value });
                 if (typeof result !== 'undefined') {
                     value = result;
                 }
@@ -172,14 +206,14 @@ export function compose<C = unknown>(
 }
 
 /**
- * Sugar for `compose(validators, { oneOf: true })`. Reads more
+ * Sugar for `compose(elements, { oneOf: true })`. Reads more
  * naturally at the call site when the alternative semantic is the
  * intent, mirrors `Container`'s own `oneOf` option.
  */
 export function composeOneOf<C = unknown>(
-    validators: Validator<C>[],
+    elements: ComposeElement<C>[],
 ): Validator<C> {
-    return compose(validators, { oneOf: true });
+    return compose(elements, { oneOf: true });
 }
 
 /**
@@ -195,18 +229,18 @@ export function composeOneOf<C = unknown>(
  * Aborts are re-raised verbatim from inside the try (matches Container
  * behavior): a cancelled run isn't a validation outcome to wrap.
  */
-function composeAnyOf<C>(validators: Validator<C>[]): Validator<C> {
+function composeAnyOf<C>(elements: ComposeElement<C>[]): Validator<C> {
     return async (ctx) => {
         const branchIssues: Issue[] = [];
 
-        for (const [index, validator] of validators.entries()) {
+        for (const [index, element] of elements.entries()) {
             // Pre-branch abort check — short-circuits cleanly before we
             // enter the per-branch try/catch, so aborts never get
             // rewritten into branch-failure issues.
             ctx.signal?.throwIfAborted();
 
             try {
-                const result = await validator({ ...ctx });
+                const result = await invokeComposeElement(element, { ...ctx });
                 // First branch to succeed wins — pass-through rule:
                 // if the winning branch didn't bother re-emitting
                 // `ctx.value`, surface the input as the output.
@@ -238,6 +272,43 @@ function composeAnyOf<C>(validators: Validator<C>[]): Validator<C> {
             issues: branchIssues,
         })]);
     };
+}
+
+/**
+ * Dispatch one compose element against the current `ctx`. Containers
+ * receive `ctx.value` as their input (normalised to `{}` for non-object
+ * values, mirroring how the `Container.run` loop handles a nested
+ * container mounted against a non-object value) and the threaded
+ * `group` / `context` / `signal` / `path` from `ctx`; validators
+ * receive `ctx` itself.
+ *
+ * Forwarding `path: ctx.path` so issues emitted by a container element
+ * carry absolute paths from the outer mount — `composeOneOf` mounted
+ * at `foo` with a child schema's `street` field surfaces issues at
+ * `['foo', 'street']` instead of `['street']`, matching how a nested
+ * container mounted directly would behave.
+ */
+async function invokeComposeElement<C>(
+    element: ComposeElement<C>,
+    ctx: ValidatorContext<C>,
+): Promise<unknown> {
+    if (isContainer(element)) {
+        return element.run(
+            isObject(ctx.value) ? ctx.value : {},
+            {
+                path: ctx.path,
+                group: ctx.group,
+                context: ctx.context,
+                signal: ctx.signal,
+            },
+        );
+    }
+    // `isContainer` narrows `element` to `IContainer`, but the
+    // negative branch leaves it as the original union — TypeScript
+    // doesn't subtract `IContainer` from a union containing
+    // `Validator<C>` because their structural shapes overlap
+    // (functions are objects). Cast to recover the call signature.
+    return (element as Validator<C>)(ctx);
 }
 
 /**

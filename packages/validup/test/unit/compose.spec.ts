@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+    Container,
     IssueCode,
     ValidupError,
     compose,
@@ -389,6 +390,94 @@ describe('compose with { oneOf: true } — any-of', () => {
         // typecheck and the test fails to compile.
         // @ts-expect-error — bail is not assignable under the oneOf: true variant.
         compose([isString()], { oneOf: true, bail: false });
+    });
+});
+
+describe('compose with IContainer elements', () => {
+    function addressContainer(): Container<{ street: string, city: string }> {
+        const c = new Container<{ street: string, city: string }>();
+        c.mount('street', isString());
+        c.mount('city', isString());
+        return c;
+    }
+
+    it('runs a container element in an all-strategy chain and threads its output', async () => {
+        // Sanitiser produces a normalised object, the container validates it,
+        // and the chain returns the container's parsed result.
+        const normalise: Validator = (ctx) => {
+            const v = ctx.value as Record<string, unknown>;
+            return { street: String(v.street).trim(), city: String(v.city).trim() };
+        };
+        const out = await run(
+            compose([normalise, addressContainer()]),
+            { street: '  10 Downing St  ', city: '  London  ' },
+        );
+        expect(out).toEqual({ street: '10 Downing St', city: 'London' });
+    });
+
+    it('lifts a container failure into the composed validator', async () => {
+        const err = await captureFail(
+            compose([addressContainer()]),
+            { street: 'OK', city: 42 },
+        );
+        // The container threw a ValidupError; bail: true (default) lets it
+        // bubble up unchanged.
+        const items = flattenIssueItems(err.issues);
+        expect(items.some((i) => i.message === 'must be a string')).toBe(true);
+    });
+
+    it('lets a successful container win a oneOf branch', async () => {
+        const out = await run(
+            composeOneOf([
+                isString(),           // fails — input is an object
+                addressContainer(),   // succeeds — returns parsed object
+            ]),
+            { street: '10 Downing St', city: 'London' },
+        );
+        expect(out).toEqual({ street: '10 Downing St', city: 'London' });
+    });
+
+    it('treats a failing container as a oneOf branch failure', async () => {
+        const err = await captureFail(
+            composeOneOf([
+                isString(),           // fails — input is an object
+                addressContainer(),   // fails — city is wrong type
+            ]),
+            { street: '10 Downing St', city: 42 },
+        );
+        const [group] = err.issues;
+        expect(isIssueGroup(group)).toBe(true);
+        if (isIssueGroup(group)) {
+            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+            // Both branches contributed; container branch carries
+            // params.branch=1 on every issue it surfaced.
+            const inner = flattenIssueItems(group.issues);
+            expect(inner.some((i) => i.params?.branch === 0)).toBe(true);
+            expect(inner.some((i) => i.params?.branch === 1)).toBe(true);
+        }
+    });
+
+    it('normalises non-object values to {} before invoking a container element', async () => {
+        // A container in a oneOf branch with a string input — Container.run
+        // expects Record<string, any>, so compose mirrors the parent's
+        // `isObject(value) ? value : {}` defensive cast. The container then
+        // sees `{}` and fails its required-field checks; the branch fails
+        // gracefully instead of throwing a type-mismatch.
+        const err = await captureFail(
+            composeOneOf([
+                addressContainer(),
+            ]),
+            'not-an-object',
+        );
+        const [group] = err.issues;
+        expect(isIssueGroup(group)).toBe(true);
+        if (isIssueGroup(group)) {
+            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+            const inner = flattenIssueItems(group.issues);
+            // The container ran against `{}` and produced its own
+            // missing-field failures; compose folded them as branch 0.
+            expect(inner.every((i) => i.params?.branch === 0)).toBe(true);
+        }
     });
 });
 

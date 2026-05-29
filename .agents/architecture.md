@@ -157,7 +157,9 @@ Pass `optional: (value) => boolean` for cases the enum can't express (e.g. drop 
 
 ### Validator composition (`helpers/compose.ts`)
 
-`compose(validators, options?)` builds a single `Validator` from many. The strategy is picked via `options.oneOf`, discriminated at the type level so the (`bail` × `oneOf`) combinations that don't make sense are rejected by the compiler:
+`compose(elements, options?)` builds a single `Validator` from many. Each element is a `ComposeElement<C> = Validator<C> | IContainer<any, any>`; an internal `invokeComposeElement` dispatcher detects via `isContainer` and either calls the validator with the threaded `ctx` or invokes the container's `run(value, { path, group, context, signal })` with the threaded value as input (normalised to `{}` for non-object values, mirroring `Container.run`'s defensive cast for nested containers mounted on a non-object value). Containers participate with the same transform-or-throw contract; their parsed output replaces the threaded value in the all-strategy chain, and a successful container wins the branch in `oneOf` mode.
+
+The strategy is picked via `options.oneOf`, discriminated at the type level so the (`bail` × `oneOf`) combinations that don't make sense are rejected by the compiler:
 
 ```ts
 type ComposeOptions =
@@ -165,12 +167,14 @@ type ComposeOptions =
     | { oneOf: true };
 ```
 
-- **`oneOf: false`** (default) — every validator must pass. Sequential loop; each stage's defined return replaces the threaded `ctx.value` (a `undefined` return passes through). `bail: true` (default) re-throws the first failure verbatim; `bail: false` collects every failure into one aggregate `ValidupError` and threads through throwing stages so the next branch still runs against the last successful value.
+- **`oneOf: false`** (default) — every element must pass. Sequential loop; each stage's defined return replaces the threaded `ctx.value` (a `undefined` return passes through). `bail: true` (default) re-throws the first failure verbatim; `bail: false` collects every failure into one aggregate `ValidupError` and threads through throwing stages so the next branch still runs against the last successful value.
 - **`oneOf: true`** — branches run as alternatives in registration order. First defined return wins (with the same pass-through fallback to `ctx.value`); subsequent branches never run. All branches failing throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures, each stamped with `params: { branch: index }` so consumers can attribute issues. Aborts via `ctx.signal` re-throw verbatim instead of being folded into branch failures. Empty branch list throws `ONE_OF_FAILED` with an empty inner list — "zero successes" is still zero successes.
 
 `composeOneOf([...])` is sugar for `compose([...], { oneOf: true })`. The any-of path lives in a private `composeAnyOf` helper inside `compose.ts` so the main `compose` body stays focused on the all-strategy chain.
 
-Symmetric with `Container.options.oneOf`, just at the validator level — both share the `IssueCode.ONE_OF_FAILED` group shape so consumers / i18n catalogs only need one branch.
+Symmetric with `Container.options.oneOf`, just at the validator level — both share the `IssueCode.ONE_OF_FAILED` group shape so consumers / i18n catalogs only need one branch. Allowing `IContainer` as a compose element completes the symmetry: mount-level oneOf works at the container boundary; compose-level oneOf works wherever a `Validator` is expected, including with nested containers as branches.
+
+**Cycle note.** `helpers/compose.ts` imports `IContainer` (type-only) from `container/types.ts` and `isContainer` from `container/check.ts` directly, not through the `../container` barrel, because the barrel re-exports `container/module.ts` which itself imports from `../helpers`. Hitting the leaf modules avoids the barrel-level cycle.
 
 ## Issues & Errors
 

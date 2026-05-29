@@ -821,21 +821,23 @@ See [Builder API](#builder-api-compile-time-typing). Each `.mount(...)` call ret
 ### Validator Composition
 
 ```typescript
-import { compose, composeOneOf, type ComposeOptions } from 'validup';
+import { compose, composeOneOf, type ComposeOptions, type ComposeElement } from 'validup';
+
+type ComposeElement<C = unknown> = Validator<C> | IContainer<any, any>;
 
 function compose<C = unknown>(
-    validators: Validator<C>[],
+    elements: ComposeElement<C>[],
     options?: ComposeOptions,
 ): Validator<C>;
 
 function composeOneOf<C = unknown>(
-    validators: Validator<C>[],
+    elements: ComposeElement<C>[],
 ): Validator<C>;
 ```
 
-Build a single `Validator` from many. The strategy is picked via `options.oneOf`:
+Build a single `Validator` from many. Each element can be a bare `Validator<C>` function OR a fully-built `IContainer<T, C>` instance — the dispatcher picks the right call shape (containers receive the threaded value as their input, validators receive `ctx`). The strategy is picked via `options.oneOf`:
 
-- **`oneOf: false`** (default) — every validator must pass. Stages thread their return value into the next so sanitize-then-validate patterns work; `options.bail` controls fail-fast (`true`, default) vs. collect-all (`false`).
+- **`oneOf: false`** (default) — every element must pass. Stages thread their return value into the next so sanitize-then-validate patterns work; `options.bail` controls fail-fast (`true`, default) vs. collect-all (`false`).
 - **`oneOf: true`** — branches run as alternatives in registration order; the first one to succeed wins, subsequent branches are not invoked, and the composed validator returns the winning branch's value. When every branch fails, the composed validator throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures (each tagged with `params: { branch }`). `bail` is rejected at the type level under this mode — there's no chain to fail-fast over.
 
 `composeOneOf([...])` is sugar for `compose([...], { oneOf: true })`.
@@ -853,9 +855,19 @@ container.mount('password', compose([
 
 // accept either an email or a phone number on the same field
 container.mount('contact', composeOneOf([isEmail(), isMobilePhone()]));
+
+// any-of with a container branch — accept a string-formatted contact
+// OR a nested address object validated by its own container.
+container.mount('contact', composeOneOf([
+    isEmail(),
+    isMobilePhone(),
+    addressContainer,
+]));
 ```
 
-Threading note (both `oneOf` modes): a stage that returns `undefined` is treated as a pass-through — the upstream value continues down the chain. Validators that DO want to explicitly clear the field must throw or return a sentinel.
+Threading notes:
+- A stage that returns `undefined` is treated as a pass-through — the upstream value continues down the chain. Validators that DO want to explicitly clear the field must throw or return a sentinel.
+- Container elements receive `ctx.value` as their `input` (normalised to `{}` for non-object values, matching how a nested container mounted directly handles a non-object mount value). Their `path` / `group` / `context` / `signal` flow from the threaded `ctx`, so issues from a container branch carry absolute paths from the outer mount (`composeOneOf` mounted at `foo` with a child schema's `street` field surfaces issues at `['foo', 'street']`).
 
 ### Type Guards
 
