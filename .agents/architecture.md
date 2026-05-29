@@ -155,6 +155,23 @@ All three variants share the private helpers `resolveContainerFilters` / `record
 
 Pass `optional: (value) => boolean` for cases the enum can't express (e.g. drop empty strings but keep `0`).
 
+### Validator composition (`helpers/compose.ts`)
+
+`compose(validators, options?)` builds a single `Validator` from many. The strategy is picked via `options.oneOf`, discriminated at the type level so the (`bail` × `oneOf`) combinations that don't make sense are rejected by the compiler:
+
+```ts
+type ComposeOptions =
+    | { oneOf?: false, bail?: boolean }
+    | { oneOf: true };
+```
+
+- **`oneOf: false`** (default) — every validator must pass. Sequential loop; each stage's defined return replaces the threaded `ctx.value` (a `undefined` return passes through). `bail: true` (default) re-throws the first failure verbatim; `bail: false` collects every failure into one aggregate `ValidupError` and threads through throwing stages so the next branch still runs against the last successful value.
+- **`oneOf: true`** — branches run as alternatives in registration order. First defined return wins (with the same pass-through fallback to `ctx.value`); subsequent branches never run. All branches failing throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures, each stamped with `params: { branch: index }` so consumers can attribute issues. Aborts via `ctx.signal` re-throw verbatim instead of being folded into branch failures. Empty branch list throws `ONE_OF_FAILED` with an empty inner list — "zero successes" is still zero successes.
+
+`composeOneOf([...])` is sugar for `compose([...], { oneOf: true })`. The any-of path lives in a private `composeAnyOf` helper inside `compose.ts` so the main `compose` body stays focused on the all-strategy chain.
+
+Symmetric with `Container.options.oneOf`, just at the validator level — both share the `IssueCode.ONE_OF_FAILED` group shape so consumers / i18n catalogs only need one branch.
+
 ## Issues & Errors
 
 `packages/validup/src/issue/types.ts` — `Issue = IssueItem | IssueGroup` (discriminated by `type`).

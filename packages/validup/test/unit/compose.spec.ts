@@ -10,8 +10,10 @@ import {
     IssueCode,
     ValidupError,
     compose,
+    composeOneOf,
     createValidupError,
     flattenIssueItems,
+    isIssueGroup,
 } from '../../src';
 import type { Validator } from '../../src';
 
@@ -228,6 +230,165 @@ describe('compose with { bail: false } — collect-all', () => {
         const items = flattenIssueItems(err.issues);
         const codes = items.map((i) => i.code).sort();
         expect(codes).toEqual([IssueCode.MIN_LENGTH, IssueCode.PATTERN].sort());
+    });
+});
+
+describe('compose with { oneOf: true } — any-of', () => {
+    it('returns the first successful branch\'s value and skips the rest', async () => {
+        let secondCalls = 0;
+        const second: Validator = (ctx) => {
+            secondCalls += 1;
+            return ctx.value;
+        };
+
+        const out = await run(
+            compose([
+                isString(),    // succeeds for 'hello'
+                second,        // must NOT run — first already won
+            ], { oneOf: true }),
+            'hello',
+        );
+        expect(out).toBe('hello');
+        expect(secondCalls).toBe(0);
+    });
+
+    it('falls through to a later branch when an earlier one throws', async () => {
+        const out = await run(
+            compose([
+                minLength(10),                  // 'hello' (length 5) fails
+                matchesPattern(/^[a-z]+$/),     // succeeds
+            ], { oneOf: true }),
+            'hello',
+        );
+        expect(out).toBe('hello');
+    });
+
+    it('returns the winning branch\'s transformed value (not ctx.value)', async () => {
+        // trim() is the second branch and the first (minLength(10)) fails;
+        // composeOneOf returns the trimmed string, not the input.
+        const out = await run(
+            compose([
+                minLength(10),
+                trim(),
+            ], { oneOf: true }),
+            '  ab  ',
+        );
+        expect(out).toBe('ab');
+    });
+
+    it('falls back to ctx.value when the winning branch returns undefined', async () => {
+        // Pass-through rule: a branch that doesn\'t bother re-emitting
+        // ctx.value is still a successful branch — the input flows through.
+        const voidCheck: Validator = () => undefined;
+        const out = await run(
+            compose([
+                minLength(10),  // fails on 'hi'
+                voidCheck,      // succeeds, returns undefined
+            ], { oneOf: true }),
+            'hi',
+        );
+        expect(out).toBe('hi');
+    });
+
+    it('wraps every branch\'s failures in a single ONE_OF_FAILED group when all branches fail', async () => {
+        const err = await captureFail(
+            compose([
+                isString(),                   // fails — not a string
+                minLength(10),                // fails — '42' is too short
+                matchesPattern(/^[a-z]+$/),   // fails — '42' is digits, not lowercase letters
+            ], { oneOf: true }),
+            42,
+        );
+        expect(err.issues).toHaveLength(1);
+        const [group] = err.issues;
+        expect(isIssueGroup(group)).toBe(true);
+        if (isIssueGroup(group)) {
+            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+            expect(group.message).toBe('None of the branches succeeded');
+            // Every branch contributed; each issue is stamped with its
+            // branch index for downstream attribution.
+            const inner = flattenIssueItems(group.issues);
+            expect(inner).toHaveLength(3);
+            const branches = inner.map((i) => i.params?.branch).sort();
+            expect(branches).toEqual([0, 1, 2]);
+        }
+    });
+
+    it('throws ONE_OF_FAILED with an empty inner list when no branches are supplied', async () => {
+        // "Zero successes out of zero alternatives" is still zero
+        // successes — surfaces the empty list as a configuration mistake
+        // the consumer can detect via the empty group.
+        const err = await captureFail(compose([], { oneOf: true }), 'whatever');
+        expect(err.issues).toHaveLength(1);
+        const [group] = err.issues;
+        expect(isIssueGroup(group)).toBe(true);
+        if (isIssueGroup(group)) {
+            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+            expect(group.issues).toHaveLength(0);
+        }
+    });
+
+    it('synthesizes a VALUE_INVALID IssueItem for non-Error throws from a branch', async () => {
+        const branchA: Validator = () => {
+            // eslint-disable-next-line no-throw-literal
+            throw 'plain string failure';
+        };
+        const branchB: Validator = () => {
+            throw new Error('plain error failure');
+        };
+        const err = await captureFail(
+            compose([branchA, branchB], { oneOf: true }),
+            'x',
+        );
+        const [group] = err.issues;
+        if (isIssueGroup(group)) {
+            const inner = flattenIssueItems(group.issues);
+            expect(inner).toHaveLength(2);
+            expect(inner.every((i) => i.code === IssueCode.VALUE_INVALID)).toBe(true);
+            const messages = inner.map((i) => i.message).sort();
+            expect(messages).toEqual(['plain error failure', 'plain string failure'].sort());
+        }
+    });
+
+    it('re-raises an AbortError verbatim instead of folding it into a branch failure', async () => {
+        const controller = new AbortController();
+        const branchA: Validator = () => {
+            controller.abort(new Error('cancelled mid-branch'));
+            throw new Error('cancelled mid-branch');
+        };
+        const branchB: Validator = (ctx) => ctx.value;
+
+        await expect(
+            compose([branchA, branchB], { oneOf: true })({
+                key: '',
+                path: [],
+                value: 'x',
+                data: {},
+                context: undefined,
+                signal: controller.signal,
+            }),
+        ).rejects.toThrow('cancelled mid-branch');
+    });
+
+    it('composeOneOf() is sugar for compose([...], { oneOf: true })', async () => {
+        const out = await run(composeOneOf([isString()]), 'hello');
+        expect(out).toBe('hello');
+
+        const err = await captureFail(composeOneOf([isString()]), 42);
+        const [group] = err.issues;
+        expect(isIssueGroup(group)).toBe(true);
+        if (isIssueGroup(group)) {
+            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+        }
+    });
+
+    it('rejects { oneOf: true, bail: ... } at the type level', () => {
+        // Compile-time guard via the discriminated-union ComposeOptions.
+        // The @ts-expect-error line is the test — if the union ever
+        // collapses into a flat object type, this will start passing
+        // typecheck and the test fails to compile.
+        // @ts-expect-error — bail is not assignable under the oneOf: true variant.
+        compose([isString()], { oneOf: true, bail: false });
     });
 });
 

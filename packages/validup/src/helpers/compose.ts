@@ -6,48 +6,75 @@
  */
 
 import { ValidupError, isError, isValidupError } from '../error';
-import { IssueCode, defineIssueItem } from '../issue';
+import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
 import type { Issue } from '../issue';
 import type { Validator } from '../types';
 
-export interface ComposeOptions {
+/**
+ * Options for {@link compose}. Discriminated on `oneOf` so the type
+ * surface enforces the (`bail` × `oneOf`) combinations that actually
+ * make sense:
+ *
+ * - `{}` / `{ bail?: boolean }` / `{ oneOf: false }` — the **all**
+ *   strategy: every validator must pass, stages thread their return
+ *   value into the next, `bail` controls fail-fast vs. collect-all.
+ * - `{ oneOf: true }` — the **any-of** strategy: the first branch to
+ *   succeed wins and the composed validator returns its value;
+ *   `bail` is rejected at compile time because there's no chain to
+ *   bail out of.
+ */
+export type ComposeOptions = {
     /**
-     * Controls failure handling. Both modes thread each stage's return
-     * into the next as `ctx.value` — they differ only in what happens
-     * on a failure.
+     * Run every validator and require all to pass (default). Stages
+     * thread their return into the next; `bail` controls whether the
+     * first failure stops the chain (`true`, default) or every failure
+     * is collected into one aggregate `ValidupError` (`false`).
      *
-     * - `true` **(default)** — **fail-fast.** The first failing
-     *   validator stops the chain; the thrown error bubbles up
-     *   unchanged.
-     *
-     * - `false` — **collect-all.** Every validator runs, even after a
-     *   previous one threw; failures are collected and aggregated
-     *   into a single `ValidupError` with multiple issues. Useful for
-     *   submit-time error UIs that surface every broken rule in one
-     *   pass. When a validator throws, the upstream value continues
-     *   downstream (the failing stage isn't allowed to retro-actively
-     *   mutate it).
-     *
-     * **Threading rule (both modes).** A validator's return value
-     * replaces the threaded `ctx.value` only when it's defined.
-     * `undefined` is treated as a pass-through — the upstream value
-     * continues down the chain, so pure checks that don't bother
-     * re-emitting `ctx.value` compose cleanly with transformers.
-     * Validators that DO want to explicitly clear the field must
-     * throw or return a sentinel.
+     * **Threading rule.** A stage's return replaces the threaded
+     * `ctx.value` only when defined — `undefined` is treated as a
+     * pass-through so pure checks that don't re-emit `ctx.value`
+     * compose cleanly with transformers. Stages that DO want to
+     * explicitly clear the field must throw or return a sentinel.
      */
-    bail?: boolean;
-}
+    oneOf?: false,
+    bail?: boolean,
+} | {
+    /**
+     * Run branches as alternatives in registration order — the first
+     * one to succeed wins, subsequent branches are not invoked, and
+     * the composed validator returns the winning branch's value
+     * (falling back to `ctx.value` if the winning branch returned
+     * `undefined`). When *every* branch fails, the composed validator
+     * throws a `ValidupError` whose first issue is an `IssueGroup`
+     * with `code: IssueCode.ONE_OF_FAILED` carrying every branch's
+     * collected failures (per-branch index surfaced via
+     * `params: { branch }`). Symmetric with
+     * `Container.options.oneOf`, just at the validator level.
+     *
+     * Each branch sees the original `ctx.value` — no threading
+     * across alternatives, since branches aren't a pipeline.
+     * `bail` is intentionally rejected at the type level under this
+     * mode: there's no chain to fail-fast over.
+     */
+    oneOf: true,
+};
 
 /**
  * Compose multiple validators into a single `Validator`.
  *
- * Validators run in order; each stage's return value feeds the next
- * as `ctx.value`. A stage that returns `undefined` is treated as a
- * pass-through (upstream value continues down the chain), so pure
- * checks that don't re-emit `ctx.value` compose cleanly with
- * transformers. `bail: true` (default) stops at the first failure;
- * `bail: false` collects every failure into a single `ValidupError`.
+ * Default (`oneOf: false`) — validators run in order; each stage's
+ * return value feeds the next as `ctx.value`. A stage that returns
+ * `undefined` is treated as a pass-through (upstream value continues
+ * down the chain), so pure checks that don't re-emit `ctx.value`
+ * compose cleanly with transformers. `bail: true` (default) stops at
+ * the first failure; `bail: false` collects every failure into a
+ * single `ValidupError`.
+ *
+ * `oneOf: true` — branches run as alternatives in registration order;
+ * the first branch to succeed wins and subsequent branches are not
+ * invoked. When every branch fails, the composed validator throws a
+ * `ValidupError` whose first issue is an `IssueGroup` with
+ * `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures.
  *
  * @example
  *     // Fail-fast (default) — sanitize then validate
@@ -64,6 +91,12 @@ export interface ComposeOptions {
  *         matches(/[0-9]/),
  *     ], { bail: false }));
  *
+ *     // Any-of — accept either an email or a phone number on the same field
+ *     container.mount('contact', compose([
+ *         isEmail(),
+ *         isMobilePhone(),
+ *     ], { oneOf: true }));
+ *
  * Throws that aren't `ValidupError` / `Error` (raw strings, plain
  * objects, null) are synthesized into a single `IssueItem` so the
  * aggregate is never silently missing a contributing failure — mirrors
@@ -73,6 +106,10 @@ export function compose<C = unknown>(
     validators: Validator<C>[],
     options: ComposeOptions = {},
 ): Validator<C> {
+    if (options.oneOf === true) {
+        return composeAnyOf(validators);
+    }
+
     const bail = options.bail ?? true;
 
     return async (ctx) => {
@@ -132,4 +169,113 @@ export function compose<C = unknown>(
 
         return value;
     };
+}
+
+/**
+ * Sugar for `compose(validators, { oneOf: true })`. Reads more
+ * naturally at the call site when the alternative semantic is the
+ * intent, mirrors `Container`'s own `oneOf` option.
+ */
+export function composeOneOf<C = unknown>(
+    validators: Validator<C>[],
+): Validator<C> {
+    return compose(validators, { oneOf: true });
+}
+
+/**
+ * The `oneOf` execution path. Carved out so `compose`'s body stays
+ * focused on the all-strategy chain and so the abort / per-branch
+ * issue plumbing has somewhere to live without nesting.
+ *
+ * Each branch sees the original `ctx.value` (no threading across
+ * alternatives). The first defined return wins; an `undefined` return
+ * from a successful branch falls back to `ctx.value` so the
+ * pass-through rule stays symmetric with the all-strategy path.
+ *
+ * Aborts are re-raised verbatim from inside the try (matches Container
+ * behavior): a cancelled run isn't a validation outcome to wrap.
+ */
+function composeAnyOf<C>(validators: Validator<C>[]): Validator<C> {
+    return async (ctx) => {
+        const branchIssues: Issue[] = [];
+
+        for (const [index, validator] of validators.entries()) {
+            // Pre-branch abort check — short-circuits cleanly before we
+            // enter the per-branch try/catch, so aborts never get
+            // rewritten into branch-failure issues.
+            ctx.signal?.throwIfAborted();
+
+            try {
+                const result = await validator({ ...ctx });
+                // First branch to succeed wins — pass-through rule:
+                // if the winning branch didn't bother re-emitting
+                // `ctx.value`, surface the input as the output.
+                return typeof result === 'undefined' ? ctx.value : result;
+            } catch (e) {
+                // Cancellations from a branch validator surface
+                // verbatim instead of being folded into a branch
+                // failure — caller can distinguish "no branch matched"
+                // from "operation cancelled".
+                if (ctx.signal?.aborted) {
+                    throw e;
+                }
+
+                const wrapped = wrapBranchIssues(e, index);
+                for (const issue of wrapped) {
+                    branchIssues.push(issue);
+                }
+            }
+        }
+
+        // Every branch (including the empty-branch-list case) failed.
+        // Wrap in a single ONE_OF_FAILED group so consumers /
+        // i18n catalogs handle compose's any-of the same way they
+        // handle Container.options.oneOf.
+        throw new ValidupError([defineIssueGroup({
+            code: IssueCode.ONE_OF_FAILED,
+            message: 'None of the branches succeeded',
+            path: [],
+            issues: branchIssues,
+        })]);
+    };
+}
+
+/**
+ * Normalize one branch's failure into `Issue[]` ready to merge into
+ * the outer `ONE_OF_FAILED` group. Each issue is tagged with
+ * `params: { branch: index }` so a tree-walking consumer can report
+ * "branch N failed because ..." without needing to reconstruct
+ * registration order.
+ *
+ * - `ValidupError` → spread its issues, stamping each with
+ *   `params.branch`.
+ * - `Error` → one `IssueItem` carrying the message.
+ * - Anything else → defensive stringify, mirroring
+ *   `Container.recordMountError`.
+ */
+function wrapBranchIssues(error: unknown, index: number): Issue[] {
+    const stamp = <I extends Issue>(issue: I): I => {
+        issue.params = { ...(issue.params ?? {}), branch: index };
+        return issue;
+    };
+
+    if (isValidupError(error)) {
+        return error.issues.map((i) => stamp({ ...i }));
+    }
+
+    if (isError(error)) {
+        return [stamp(defineIssueItem({
+            path: [],
+            code: IssueCode.VALUE_INVALID,
+            message: error.message,
+        }))];
+    }
+
+    return [stamp(defineIssueItem({
+        path: [],
+        code: IssueCode.VALUE_INVALID,
+        message: typeof error === 'string' && error.length > 0 ?
+            error :
+            `Non-Error throw: ${String(error)}`,
+    }))];
 }

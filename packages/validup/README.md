@@ -821,18 +821,24 @@ See [Builder API](#builder-api-compile-time-typing). Each `.mount(...)` call ret
 ### Validator Composition
 
 ```typescript
-import { compose, type ComposeOptions } from 'validup';
+import { compose, composeOneOf, type ComposeOptions } from 'validup';
 
 function compose<C = unknown>(
     validators: Validator<C>[],
     options?: ComposeOptions,
 ): Validator<C>;
+
+function composeOneOf<C = unknown>(
+    validators: Validator<C>[],
+): Validator<C>;
 ```
 
-Build a single `Validator` from many. Two modes via `options.bail`:
+Build a single `Validator` from many. The strategy is picked via `options.oneOf`:
 
-- **`bail: true`** (default) — fail-fast + threaded: each validator's output feeds the next; the first failure stops the chain. Use for sanitize-then-validate pipelines.
-- **`bail: false`** — collect-all: every validator runs against the original `ctx.value`; failures aggregate into one `ValidupError` with multiple issues. Use for richer submit-time error UIs.
+- **`oneOf: false`** (default) — every validator must pass. Stages thread their return value into the next so sanitize-then-validate patterns work; `options.bail` controls fail-fast (`true`, default) vs. collect-all (`false`).
+- **`oneOf: true`** — branches run as alternatives in registration order; the first one to succeed wins, subsequent branches are not invoked, and the composed validator returns the winning branch's value. When every branch fails, the composed validator throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures (each tagged with `params: { branch }`). `bail` is rejected at the type level under this mode — there's no chain to fail-fast over.
+
+`composeOneOf([...])` is sugar for `compose([...], { oneOf: true })`.
 
 ```typescript
 // sanitize-then-validate
@@ -844,7 +850,12 @@ container.mount('password', compose([
     isAlphanumeric(),
     matches(/[0-9]/),
 ], { bail: false }));
+
+// accept either an email or a phone number on the same field
+container.mount('contact', composeOneOf([isEmail(), isMobilePhone()]));
 ```
+
+Threading note (both `oneOf` modes): a stage that returns `undefined` is treated as a pass-through — the upstream value continues down the chain. Validators that DO want to explicitly clear the field must throw or return a sentinel.
 
 ### Type Guards
 
