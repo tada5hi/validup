@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { IValidationCache } from './cache';
+import type { IResultCache } from './cache';
 
 export type ObjectLiteral = Record<string | number, any>;
 
@@ -63,7 +63,7 @@ export type ValidatorContext<C = unknown> = {
      * validator call. The field is on the public context for
      * composability, not for typical validator authoring.
      */
-    cache?: IValidationCache,
+    cache?: IResultCache,
 };
 
 /**

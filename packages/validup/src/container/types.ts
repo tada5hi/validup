@@ -6,7 +6,7 @@
  */
 
 import type { Path } from 'pathtrace';
-import type { IValidationCache } from '../cache';
+import type { IResultCache } from '../cache';
 import type { OptionalValue } from '../constants';
 import type { ValidupError } from '../error';
 import type {
@@ -123,7 +123,7 @@ export type ContainerRunOptions<
      * Omitting `cache` disables the optimization entirely; every mount
      * runs every time, regardless of any `sideEffect` declaration.
      */
-    cache?: IValidationCache,
+    cache?: IResultCache,
 };
 
 export type MountOptions = {

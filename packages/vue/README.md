@@ -172,7 +172,7 @@ Optional mounts on the container behave the same way they do server-side — pas
 
 ## Result Caching (automatic)
 
-`useValidup` owns one [`ValidationCache`](https://validup.tada5hi.net/guide/caching) per composable scope and passes it on every `safeRun` call. Cross-keystroke runs reuse the cached outcome of any mount whose `(value, context, group)` snapshot didn't change — `$validate()` at submit time skips validators that the per-keystroke runs already proved fresh, so async checks (uniqueness, captcha) don't refire when their inputs haven't changed.
+`useValidup` owns one [`ResultCache`](https://validup.tada5hi.net/guide/caching) per composable scope and passes it on every `safeRun` call. Cross-keystroke runs reuse the cached outcome of any mount whose `(value, context, group)` snapshot didn't change — `$validate()` at submit time skips validators that the per-keystroke runs already proved fresh, so async checks (uniqueness, captcha) don't refire when their inputs haven't changed.
 
 The cache is cleared automatically on `$reset()` and when the container reference swaps; in both cases any pending or in-flight `safeRun` is invalidated first so it can't repopulate the cache or `internalIssues` after the clear.
 

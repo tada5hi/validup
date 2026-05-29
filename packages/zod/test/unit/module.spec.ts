@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
     Container,
-    ValidationCache,
+    ResultCache,
     ValidupError,
 } from 'validup';
 import { createValidator } from '../../src';
@@ -106,7 +106,7 @@ describe('src/module', () => {
             return z.string().email();
         }));
 
-        const cache = new ValidationCache();
+        const cache = new ResultCache();
         const data = { email: 'foo@example.com' };
         await container.run(data, { cache });
         await container.run(data, { cache });
@@ -124,7 +124,7 @@ describe('src/module', () => {
             { sideEffect: true },
         ));
 
-        const cache = new ValidationCache();
+        const cache = new ResultCache();
         const data = { email: 'foo@example.com' };
         await container.run(data, { cache });
         await container.run(data, { cache });

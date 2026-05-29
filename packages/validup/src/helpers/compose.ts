@@ -276,7 +276,7 @@ function composeAnyOf<C>(elements: ComposeElement<C>[]): Validator<C> {
  *   logging, custom error formatting, etc.) would see a misleading
  *   relative path without it.
  * - `cache: ctx.cache` — the outer Container surfaces its run-level
- *   `IValidationCache` on `ctx`, so threading it here keeps a
+ *   `IResultCache` on `ctx`, so threading it here keeps a
  *   container-as-branch participating in the same per-mount cache
  *   the outer container is using. Without this forward, mounts
  *   inside a compose-branch container would silently bypass the

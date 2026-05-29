@@ -8,16 +8,16 @@
 import { describe, expect, it } from 'vitest';
 import {
     Container,
-    ValidationCache,
+    ResultCache,
     ValidupError,
     defineValidator,
-    isValidationCache,
+    isResultCache,
 } from '../../src';
 
 describe('src/cache', () => {
-    describe('ValidationCache', () => {
+    describe('ResultCache', () => {
         it('round-trips entries by (mount, key)', () => {
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
             const mountA = { id: 'a' };
             const mountB = { id: 'b' };
 
@@ -37,7 +37,7 @@ describe('src/cache', () => {
         });
 
         it('delete() removes per-key or per-mount entries', () => {
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
             const mount = { id: 'a' };
             cache.set(mount, 'foo', {
                 snapshot: {
@@ -65,7 +65,7 @@ describe('src/cache', () => {
         });
 
         it('clear() wipes every entry', () => {
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
             const mount = { id: 'a' };
             cache.set(mount, 'foo', {
                 snapshot: {
@@ -79,16 +79,16 @@ describe('src/cache', () => {
             expect(cache.get(mount, 'foo')).toBeUndefined();
         });
 
-        it('isValidationCache is duck-typed', () => {
-            expect(isValidationCache(new ValidationCache())).toBe(true);
-            expect(isValidationCache({
+        it('isResultCache is duck-typed', () => {
+            expect(isResultCache(new ResultCache())).toBe(true);
+            expect(isResultCache({
                 get: () => undefined, 
                 set: () => {}, 
                 delete: () => {}, 
                 clear: () => {},
             })).toBe(true);
-            expect(isValidationCache({})).toBe(false);
-            expect(isValidationCache(null)).toBe(false);
+            expect(isResultCache({})).toBe(false);
+            expect(isResultCache(null)).toBe(false);
         });
     });
 
@@ -103,7 +103,7 @@ describe('src/cache', () => {
                 },
             }));
 
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
             const data = { foo: 'bar' };
 
             const a = await container.run(data, { cache });
@@ -124,7 +124,7 @@ describe('src/cache', () => {
                 },
             }));
 
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
             await container.run({ foo: 'a' }, { cache });
             await container.run({ foo: 'b' }, { cache });
             expect(calls).toBe(2);
@@ -140,7 +140,7 @@ describe('src/cache', () => {
                 },
             }));
 
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
             const data = { foo: 'bar' };
             await container.run(data, { cache, context: { tenant: 'a' } });
             await container.run(data, { cache, context: { tenant: 'a' } });
@@ -158,7 +158,7 @@ describe('src/cache', () => {
                 },
             }));
 
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
             const data = { foo: 'bar' };
             await container.run(data, { cache, group: 'create' });
             await container.run(data, { cache, group: 'update' });
@@ -176,7 +176,7 @@ describe('src/cache', () => {
                 },
             }));
 
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
             const data = { foo: 'bar' };
             await container.run(data, { cache });
             await container.run(data, { cache });
@@ -193,7 +193,7 @@ describe('src/cache', () => {
                 },
             }));
 
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
 
             await expect(container.run({ foo: 'bar' }, { cache })).rejects.toThrow(ValidupError);
             await expect(container.run({ foo: 'bar' }, { cache })).rejects.toThrow(ValidupError);
@@ -214,7 +214,7 @@ describe('src/cache', () => {
             const outer = new Container<{ foo: { bar: string } }>();
             outer.mount('foo', inner);
 
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
             const data = { foo: { bar: 'baz' } };
             await outer.run(data, { cache });
             await outer.run(data, { cache });
@@ -249,7 +249,7 @@ describe('src/cache', () => {
                 },
             }));
 
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
             const data = { foo: 'bar' };
             container.runSync(data, { cache });
             container.runSync(data, { cache });
@@ -270,7 +270,7 @@ describe('src/cache', () => {
             container.mount('a', v);
             container.mount('b', v);
 
-            const cache = new ValidationCache();
+            const cache = new ResultCache();
             const data = { a: 'a', b: 'b' };
             await container.run(data, { cache, parallel: true });
             await container.run(data, { cache, parallel: true });

@@ -42,9 +42,9 @@ container.mount('opt',   { optional: true },  createValidator(z.number()));
 The descriptor returned by `createValidator` participates in validup's [result cache](/guide/caching) by default. Most zod schemas (`z.string().email()`, length / regex / enum checks) are deterministic, so the framework can replay a cached `(ctx.value, ctx.context, ctx.group)` snapshot without re-running the schema:
 
 ```typescript
-import { ValidationCache } from 'validup';
+import { ResultCache } from 'validup';
 
-const cache = new ValidationCache();
+const cache = new ResultCache();
 await container.run(data, { cache });
 await container.run(data, { cache }); // schema not re-invoked
 ```

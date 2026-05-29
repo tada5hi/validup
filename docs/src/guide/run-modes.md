@@ -63,12 +63,12 @@ Abort errors and `RunSyncViolationError`s are **not** wrapped — they propagate
 
 ## `cache`
 
-Every run variant accepts an optional `cache?: IValidationCache`. When provided, non-side-effect validator mounts whose `(value, context, group)` snapshot matches a prior invocation are skipped — their cached outcome is replayed instead of calling the validator again. Useful for forms with slow async validators, especially under `@validup/vue` where per-keystroke runs would otherwise re-invoke every mount.
+Every run variant accepts an optional `cache?: IResultCache`. When provided, non-side-effect validator mounts whose `(value, context, group)` snapshot matches a prior invocation are skipped — their cached outcome is replayed instead of calling the validator again. Useful for forms with slow async validators, especially under `@validup/vue` where per-keystroke runs would otherwise re-invoke every mount.
 
 ```typescript
-import { ValidationCache } from 'validup';
+import { ResultCache } from 'validup';
 
-const cache = new ValidationCache();
+const cache = new ResultCache();
 await container.run(data, { cache });
 await container.run(data, { cache }); // pure mounts skipped
 ```

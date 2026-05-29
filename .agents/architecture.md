@@ -44,24 +44,24 @@ Adapter factories return descriptors with the right `sideEffect` baked in:
 
 ### Result cache (`packages/validup/src/cache/`)
 
-`ContainerRunOptions.cache?: IValidationCache` lets the caller opt into per-mount result memoization. The cache stores the *raw* outcome of each non-side-effect validator invocation, keyed by `(mount, expanded-key)`; on a hit it replays the outcome through the surrounding run loop so issues get re-built with the current `keyParts` (the same container mounted under two different parents stays correct).
+`ContainerRunOptions.cache?: IResultCache` lets the caller opt into per-mount result memoization. The cache stores the *raw* outcome of each non-side-effect validator invocation, keyed by `(mount, expanded-key)`; on a hit it replays the outcome through the surrounding run loop so issues get re-built with the current `keyParts` (the same container mounted under two different parents stays correct).
 
 ```ts
-export interface IValidationCache {
-    get(mount: object, key: string): ValidationCacheEntry | undefined;
-    set(mount: object, key: string, entry: ValidationCacheEntry): void;
+export interface IResultCache {
+    get(mount: object, key: string): ResultCacheEntry | undefined;
+    set(mount: object, key: string, entry: ResultCacheEntry): void;
     delete(mount: object, key?: string): void;
     clear(): void;
 }
 
-export type ValidationCacheSnapshot = { value: unknown, context: unknown, group: string | undefined };
-export type ValidationCacheOutcome =
+export type ResultCacheSnapshot = { value: unknown, context: unknown, group: string | undefined };
+export type ResultCacheOutcome =
     | { ok: true, value: unknown }
     | { ok: false, error: unknown };
-export type ValidationCacheEntry = { snapshot: ValidationCacheSnapshot, outcome: ValidationCacheOutcome };
+export type ResultCacheEntry = { snapshot: ResultCacheSnapshot, outcome: ResultCacheOutcome };
 
-export class ValidationCache implements IValidationCache { /* Map-backed default impl */ }
-export function isValidationCache(input: unknown): input is IValidationCache;  // duck-typed
+export class ResultCache implements IResultCache { /* Map-backed default impl */ }
+export function isResultCache(input: unknown): input is IResultCache;  // duck-typed
 ```
 
 Hit conditions (all must hold) — checked in `Container.resolveCachedOutcome`:
@@ -79,7 +79,7 @@ Storing the *raw outcome* (validator return value OR thrown error) rather than t
 - Cache hit, `ok: true` → `output[key] = outcome.value`.
 - Cache hit, `ok: false` → `throw outcome.error` so the outer `collectExecutionFailure` rebuilds issues with the current run's path / optional context.
 
-The cache is threaded through nested container `.run()` calls so a single `ValidationCache` instance covers an entire container tree. `@validup/vue` creates one per composable scope (cleared on `$reset()` and on container-ref swaps).
+The cache is threaded through nested container `.run()` calls so a single `ResultCache` instance covers an entire container tree. `@validup/vue` creates one per composable scope (cleared on `$reset()` and on container-ref swaps).
 
 ### Run-variant integration
 
@@ -260,4 +260,4 @@ export function createValidator<C, Z extends ZodType>(
 
 2. **Framework / runtime integrations** (`@validup/vue`) — consume a whole `Container<T, C>` and wire it into a host environment.
    - `@validup/vue` exposes a `useValidup<T, C>(container, state, options?)` composable that drives reactive form state from `Container.safeRun()`. Reactive `options.context` re-runs validation on change; an internal `AbortController` per scheduled run cancels the previous when state/group/context updates (and on `onScopeDispose`). `$validate()` deliberately runs *without* a signal so submit-time runs aren't aborted by intervening keystrokes. Issues come pre-shaped from validup, so there is no `error.ts` module here.
-   - The composable owns one `ValidationCache` per scope and passes it on every `safeRun` call, so per-keystroke runs reuse fresh results for non-side-effect mounts and submit (`$validate()`) only re-invokes validators whose `(value, context, group)` snapshot actually changed. Cache is cleared on `$reset()` and on container-ref swaps (the watch fires before `schedule()`, so the next run starts cold against the new container's mounts).
+   - The composable owns one `ResultCache` per scope and passes it on every `safeRun` call, so per-keystroke runs reuse fresh results for non-side-effect mounts and submit (`$validate()`) only re-invokes validators whose `(value, context, group)` snapshot actually changed. Cache is cleared on `$reset()` and on container-ref swaps (the watch fires before `schedule()`, so the next run starts cold against the new container's mounts).

@@ -91,7 +91,7 @@ try {
 | ❓ **Optional handling** | Per-mount control over `undefined` / `null` / falsy semantics.                                 |
 | 📋 **Structured errors** | Discriminated `Issue` items and groups with code, path, message, expected, received.          |
 | 🛡️ **Type-safe**         | `Container<T>` propagates the output shape; mount paths are checked against `T`. The opt-in `defineSchema()` builder accumulates `T` from the registered mounts so `run()`'s static return type matches what was registered. |
-| ⚡ **Cache-aware**        | Opt-in per-mount result cache (`{ cache: new ValidationCache() }`) — `defineValidator({ sideEffect: true })` opts the rare cross-field / async validator out so per-keystroke runs reuse fresh results without re-firing slow checks. |
+| ⚡ **Cache-aware**        | Opt-in per-mount result cache (`{ cache: new ResultCache() }`) — `defineValidator({ sideEffect: true })` opts the rare cross-field / async validator out so per-keystroke runs reuse fresh results without re-firing slow checks. |
 
 ## Repository Layout
 

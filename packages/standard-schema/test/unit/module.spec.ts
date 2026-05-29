@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { Container, ValidationCache, ValidupError } from 'validup';
+import { Container, ResultCache, ValidupError } from 'validup';
 import { buildIssuesForStandardSchemaIssues, createValidator } from '../../src';
 
 describe('@validup/standard-schema', () => {
@@ -121,7 +121,7 @@ describe('@validup/standard-schema', () => {
             return z.string().email();
         }));
 
-        const cache = new ValidationCache();
+        const cache = new ResultCache();
         const data = { email: 'foo@example.com' };
         await container.run(data, { cache });
         await container.run(data, { cache });
@@ -139,7 +139,7 @@ describe('@validup/standard-schema', () => {
             { sideEffect: true },
         ));
 
-        const cache = new ValidationCache();
+        const cache = new ResultCache();
         const data = { email: 'foo@example.com' };
         await container.run(data, { cache });
         await container.run(data, { cache });

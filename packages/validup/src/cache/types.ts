@@ -13,7 +13,7 @@
  * fully determine its result, so a fresh object literal in `context`
  * invalidates the cache even when its contents are equivalent.
  */
-export type ValidationCacheSnapshot = {
+export type ResultCacheSnapshot = {
     value: unknown,
     context: unknown,
     group: string | undefined,
@@ -30,16 +30,16 @@ export type ValidationCacheSnapshot = {
  * correctly across runs where the parent `options.path` differs
  * (e.g. the same container mounted in two different parents).
  */
-export type ValidationCacheOutcome = { ok: true, value: unknown } |
+export type ResultCacheOutcome = { ok: true, value: unknown } |
     { ok: false, error: unknown };
 
 /**
  * One cache slot for a (mount, expanded-key) pair. Stores the
  * snapshot used to gate reuse and the raw outcome to replay.
  */
-export type ValidationCacheEntry = {
-    snapshot: ValidationCacheSnapshot,
-    outcome: ValidationCacheOutcome,
+export type ResultCacheEntry = {
+    snapshot: ResultCacheSnapshot,
+    outcome: ResultCacheOutcome,
 };
 
 /**
@@ -48,7 +48,7 @@ export type ValidationCacheEntry = {
  * equality, side-effect bypass) lives in the container, not the cache.
  *
  * Implementations are free to add LRU eviction, TTLs, persistence,
- * etc. on top of the default Map-backed {@link ValidationCache}.
+ * etc. on top of the default Map-backed {@link ResultCache}.
  *
  * Keys are (mount, expanded-key) pairs:
  * - `mount` is the framework-internal Mount reference (treated as an
@@ -59,9 +59,9 @@ export type ValidationCacheEntry = {
  *   multiple expanded keys per registration, each needing its own
  *   slot.
  */
-export interface IValidationCache {
-    get(mount: object, key: string): ValidationCacheEntry | undefined;
-    set(mount: object, key: string, entry: ValidationCacheEntry): void;
+export interface IResultCache {
+    get(mount: object, key: string): ResultCacheEntry | undefined;
+    set(mount: object, key: string, entry: ResultCacheEntry): void;
     /**
      * Remove a single (mount, key) entry. When `key` is omitted, drop
      * every entry for the mount (useful when a mount is being

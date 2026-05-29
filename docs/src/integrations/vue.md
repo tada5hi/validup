@@ -105,7 +105,7 @@ type ComposableOptions<T, C> = {
 
 ## Result caching (automatic)
 
-`useValidup` owns a [`ValidationCache`](/guide/caching) per composable scope and passes it on every `safeRun` call. The practical effect:
+`useValidup` owns a [`ResultCache`](/guide/caching) per composable scope and passes it on every `safeRun` call. The practical effect:
 
 - **Per-keystroke runs** only invoke mounts whose `(value, context, group)` snapshot changed. A user editing the `name` field doesn't re-run `email`, `password`, etc. — their cached outcomes replay.
 - **Submit (`$validate()`)** reuses everything the scheduled runs already proved fresh, so async validators (uniqueness checks, captcha verifies) don't fire again unless their inputs actually changed.

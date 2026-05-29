@@ -25,7 +25,7 @@ import type {
 } from 'validup';
 import {
     IssueCode,
-    ValidationCache,
+    ResultCache,
     ValidupError,
     flattenIssueItems,
     isIssueGroup,
@@ -127,7 +127,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
     // runs (`$validate()`) reuse everything the scheduled runs already
     // proved fresh. Cleared on `$reset()` and whenever the container
     // reference swaps (different container = different mount identities).
-    const cache = new ValidationCache();
+    const cache = new ResultCache();
 
     async function runOnce(signal?: AbortSignal): Promise<Result<T>> {
         const id = ++runId;
@@ -196,7 +196,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
      * `cache` / `internalIssues` after we've cleared them. Used by both
      * `$reset()` and the container-ref watch — without it a late
      * `runOnce()` finishing after `cache.clear()` could (a) write fresh
-     * entries via the live `IValidationCache` reference, and (b) overwrite
+     * entries via the live `IResultCache` reference, and (b) overwrite
      * `internalIssues.value` with the stale verdict.
      *
      * Three knobs, all needed:

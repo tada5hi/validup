@@ -1,13 +1,13 @@
 # Caching
 
-`Container.run` (and every other run variant) accepts an opt-in `cache` option that memoizes per-mount results. Pass a `ValidationCache` instance and the framework will skip any mount whose `(value, context, group)` snapshot matches a prior invocation — replaying the cached outcome instead of calling the validator again.
+`Container.run` (and every other run variant) accepts an opt-in `cache` option that memoizes per-mount results. Pass a `ResultCache` instance and the framework will skip any mount whose `(value, context, group)` snapshot matches a prior invocation — replaying the cached outcome instead of calling the validator again.
 
 The optimization is most visible for forms with slow async validators (network round-trips, regex-heavy schemas): submit (`$validate()`) no longer pays the cost of re-running validators whose inputs the per-keystroke runs already proved fresh.
 
 ## Quick example
 
 ```typescript
-import { Container, ValidationCache, defineValidator } from 'validup';
+import { Container, ResultCache, defineValidator } from 'validup';
 
 const container = new Container<{ email: string }>();
 let calls = 0;
@@ -20,7 +20,7 @@ container.mount('email', defineValidator({
     },
 }));
 
-const cache = new ValidationCache();
+const cache = new ResultCache();
 const data = { email: 'peter@example.com' };
 
 await container.run(data, { cache });
@@ -75,17 +75,17 @@ The cache is **caller-owned**. `Container` never holds onto it; each `run()` con
 
 - **Per request** — instantiate one cache, run validation, drop it. The cache is effectively a memoization across the run tree (nested containers participate automatically).
 - **Per session / per form** — instantiate one cache and reuse across multiple `run()` calls. `@validup/vue` does this — one cache per composable scope, cleared on `$reset()` and on container-ref swaps.
-- **Custom storage** — implement `IValidationCache` directly for LRU eviction, TTL, persistence, etc.
+- **Custom storage** — implement `IResultCache` directly for LRU eviction, TTL, persistence, etc.
 
 ```typescript
-import type { IValidationCache } from 'validup';
+import type { IResultCache } from 'validup';
 
-class LruValidationCache implements IValidationCache {
+class LruResultCache implements IResultCache {
     // ... your eviction logic ...
 }
 ```
 
-`isValidationCache(input)` is duck-typed (`get` / `set` / `delete` / `clear` are functions) so custom implementations work across package boundaries.
+`isResultCache(input)` is duck-typed (`get` / `set` / `delete` / `clear` are functions) so custom implementations work across package boundaries.
 
 ## When NOT to use it
 

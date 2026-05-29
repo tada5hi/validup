@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
     Container,
     IssueCode,
-    ValidationCache,
+    ResultCache,
     ValidupError,
     compose,
     composeOneOf,
@@ -475,7 +475,7 @@ describe('compose with IContainer elements', () => {
         const outer = new Container<{ user: { name: string } }>();
         outer.mount('user', compose([inner]));
 
-        const cache = new ValidationCache();
+        const cache = new ResultCache();
         const data = { user: { name: 'peter' } };
         await outer.run(data, { cache });
         await outer.run(data, { cache });

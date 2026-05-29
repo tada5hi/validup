@@ -525,10 +525,10 @@ try {
 
 ## Result Caching
 
-`Container.run` (and every other run variant) accepts an optional `cache: ValidationCache`. When supplied, validator mounts whose `(ctx.value, ctx.context, ctx.group)` snapshot matches a prior invocation are skipped — their cached outcome is replayed instead of re-running the validator. Particularly valuable for forms with slow async validators (network round-trips, regex-heavy schemas): submit-time validation doesn't pay the cost of re-running mounts whose inputs the per-keystroke runs already proved fresh.
+`Container.run` (and every other run variant) accepts an optional `cache: ResultCache`. When supplied, validator mounts whose `(ctx.value, ctx.context, ctx.group)` snapshot matches a prior invocation are skipped — their cached outcome is replayed instead of re-running the validator. Particularly valuable for forms with slow async validators (network round-trips, regex-heavy schemas): submit-time validation doesn't pay the cost of re-running mounts whose inputs the per-keystroke runs already proved fresh.
 
 ```typescript
-import { Container, ValidationCache, defineValidator } from 'validup';
+import { Container, ResultCache, defineValidator } from 'validup';
 
 const container = new Container<{ email: string }>();
 let calls = 0;
@@ -540,7 +540,7 @@ container.mount('email', defineValidator({
     },
 }));
 
-const cache = new ValidationCache();
+const cache = new ResultCache();
 const data = { email: 'peter@example.com' };
 
 await container.run(data, { cache });
@@ -548,7 +548,7 @@ await container.run(data, { cache });
 // calls === 1 — the second invocation hits the cache
 ```
 
-**Opt out per validator** with `sideEffect: true` (via `defineValidator` or an adapter's `{ sideEffect: true }` option) for cross-field validators, network calls, or anything else whose result depends on inputs the snapshot doesn't capture. The cache is caller-owned — `Container` never holds a reference, so the lifecycle (per-request / per-form / persistent) is entirely up to you. Implement `IValidationCache` directly for LRU eviction, TTL, etc.
+**Opt out per validator** with `sideEffect: true` (via `defineValidator` or an adapter's `{ sideEffect: true }` option) for cross-field validators, network calls, or anything else whose result depends on inputs the snapshot doesn't capture. The cache is caller-owned — `Container` never holds a reference, so the lifecycle (per-request / per-form / persistent) is entirely up to you. Implement `IResultCache` directly for LRU eviction, TTL, etc.
 
 See [the Caching guide](https://validup.tada5hi.net/guide/caching) for the full snapshot semantics and lifecycle patterns.
 

@@ -5,16 +5,16 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { IValidationCache } from './types';
+import type { IResultCache } from './types';
 import { isObject } from '../utils';
 
 /**
- * Duck-typed guard for {@link IValidationCache}. Avoids `instanceof`
+ * Duck-typed guard for {@link IResultCache}. Avoids `instanceof`
  * checks so caches constructed from a different copy of the package
  * (workspaces with duplicated `validup` installs, adapter bundles)
  * still round-trip cleanly.
  */
-export function isValidationCache(input: unknown): input is IValidationCache {
+export function isResultCache(input: unknown): input is IResultCache {
     if (!isObject(input)) {
         return false;
     }

@@ -13,9 +13,9 @@ import {
     setPathValue,
 } from 'pathtrace';
 import type {
-    IValidationCache,
-    ValidationCacheOutcome,
-    ValidationCacheSnapshot,
+    IResultCache,
+    ResultCacheOutcome,
+    ResultCacheSnapshot,
 } from '../cache';
 import { GroupKey } from '../constants';
 import { ValidupError, isError, isValidupError } from '../error';
@@ -346,7 +346,7 @@ export class Container<
                             output[this.mergePaths(key, tmpKey)] = tmp[tmpKey];
                         }
                     } else if (item.type === 'validator') {
-                        const snapshot: ValidationCacheSnapshot = {
+                        const snapshot: ResultCacheSnapshot = {
                             value,
                             context: options.context,
                             group: options.group,
@@ -539,7 +539,7 @@ export class Container<
                         },
                     );
                 } else {
-                    const snapshot: ValidationCacheSnapshot = {
+                    const snapshot: ResultCacheSnapshot = {
                         value,
                         context: options.context,
                         group: options.group,
@@ -821,7 +821,7 @@ export class Container<
                             output[this.mergePaths(key, tmpKey)] = tmp[tmpKey];
                         }
                     } else if (item.type === 'validator') {
-                        const snapshot: ValidationCacheSnapshot = {
+                        const snapshot: ResultCacheSnapshot = {
                             value,
                             context: options.context,
                             group: options.group,
@@ -937,9 +937,9 @@ export class Container<
     private resolveCachedOutcome(
         item: Mount<C>,
         key: string,
-        snapshot: ValidationCacheSnapshot,
-        cache: IValidationCache | undefined,
-    ): ValidationCacheOutcome | undefined {
+        snapshot: ResultCacheSnapshot,
+        cache: IResultCache | undefined,
+    ): ResultCacheOutcome | undefined {
         if (
             !cache ||
             item.type !== 'validator' ||
@@ -978,9 +978,9 @@ export class Container<
     private writeCachedOutcome(
         item: Mount<C>,
         key: string,
-        snapshot: ValidationCacheSnapshot,
-        outcome: ValidationCacheOutcome,
-        cache: IValidationCache | undefined,
+        snapshot: ResultCacheSnapshot,
+        outcome: ResultCacheOutcome,
+        cache: IResultCache | undefined,
         signal: AbortSignal | undefined,
     ): void {
         if (
