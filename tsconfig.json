@@ -1,18 +1,12 @@
 {
-    "extends": "@tada5hi/tsconfig",
+    "extends": "./tsconfig.build.json",
     "compilerOptions": {
-        "target": "ES2022",
-        "module": "ESNext",
-        "moduleResolution": "bundler",
-        "experimentalDecorators": true,
-        "emitDecoratorMetadata": true,
-        "strictPropertyInitialization": false,
-        "noUncheckedIndexedAccess": false,
-        "noUnusedLocals": false,
-        "noUnusedParameters": false,
-        "verbatimModuleSyntax": false,
-        "noImplicitOverride": false,
-        "noEmit": true,
-        "allowImportingTsExtensions": true
+        "paths": {
+            "validup": ["./packages/validup/src/index.ts"],
+            "@validup/standard-schema": ["./packages/standard-schema/src/index.ts"],
+            "@validup/zod": ["./packages/zod/src/index.ts"],
+            "@validup/validator-js": ["./packages/validator-js/src/index.ts"],
+            "@validup/vue": ["./packages/vue/src/index.ts"]
+        }
     }
 }
