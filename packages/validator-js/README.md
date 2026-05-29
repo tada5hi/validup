@@ -100,6 +100,8 @@ isStrongPassword({ minLength: 12, minNumbers: 2 });
 
 **`equals` resolves its comparison target from `ctx.data`.** When `expectedValue` is omitted, `key` is used as a pathtrace path into the current container's input — so `equals('password')` mounted on `confirm` compares against `ctx.data.password` (the password-confirmation pattern). Pass `expectedValue` for a fixed literal target; `key` always supplies the `{ other }` label for i18n templates.
 
+**Result caching.** Every factory returns a `ValidatorDescriptor` that participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — every shipped factory is a deterministic function of `ctx.value`, so cached `(value, context, group)` snapshots replay without re-running validator.js. The one exception is `equals(key)` **without** `expectedValue`, which stamps `sideEffect: true` automatically because the comparison target comes from `ctx.data[key]` (a sibling field the snapshot doesn't capture). When `expectedValue` is provided, `equals` is pure and participates in the cache like the rest.
+
 ## Generic wrap — `createValidator`
 
 For validators not pre-baked (`isCreditCard`, `isJWT`, `isMobilePhone`, `isPostalCode`, …):
@@ -123,12 +125,13 @@ container.mount('phone', createValidator(
 ));
 ```
 
-`createValidator(fn, { code, message, params? })`:
+`createValidator(fn, { code, message, params?, sideEffect? })`:
 
 - `fn` — any function with the signature `(value: string, ...args: any[]) => boolean`. validator.js's predicates all fit.
 - `code` — the validup `IssueCode` (or any project-specific string) attached to the resulting `IssueItem`. `IssueItem.code` widens to `IssueCode | (string & {})`, so ad-hoc strings are accepted.
 - `message` — fallback English message on `IssueItem.message`. Always set this — i18n catalogs key off `code`, but consumers without an i18n setup see the message directly.
 - `params` — structured payload surfaced on `IssueItem.params`. Optional; templates that reference placeholders (`{{locale}}`, `{{min}}`, …) resolve against this.
+- `sideEffect` — optional flag for the rare case where the wrapped predicate captures external state. Default is cache-eligible.
 
 The wrap stringifies `ctx.value` via `toValidatorString` before calling `fn` — same as the factories — so consumers can mount on `number`-shaped fields without manual coercion.
 

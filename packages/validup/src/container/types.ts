@@ -6,10 +6,11 @@
  */
 
 import type { Path } from 'pathtrace';
+import type { IValidationCache } from '../cache';
 import type { OptionalValue } from '../constants';
 import type { ValidupError } from '../error';
 import type {
-    ObjectLiteral, 
+    ObjectLiteral,
     Validator,
 } from '../types';
 
@@ -107,6 +108,22 @@ export type ContainerRunOptions<
      * later mount silently observes the un-sanitized input.
      */
     parallel?: boolean
+
+    /**
+     * Per-mount result cache. When supplied, validator mounts that have
+     * NOT declared `sideEffect: true` (via `defineValidator`) will be
+     * skipped whenever the cached snapshot `(ctx.value, ctx.context,
+     * ctx.group)` matches the current invocation — replaying the prior
+     * issues and output without re-running the validator.
+     *
+     * Forwarded unchanged into nested `run()` calls so the same cache
+     * threads through the whole container tree (a nested container's
+     * own pure validators participate too).
+     *
+     * Omitting `cache` disables the optimization entirely; every mount
+     * runs every time, regardless of any `sideEffect` declaration.
+     */
+    cache?: IValidationCache,
 };
 
 export type MountOptions = {
@@ -239,7 +256,22 @@ export type ContainerMount = BaseMount & {
 
 export type ValidatorMount<C = unknown> = BaseMount & {
     type: 'validator',
-    data: Validator<C>
+    data: Validator<C>,
+    /**
+     * Resolved at mount time from a `ValidatorDescriptor.sideEffect`
+     * declaration. `true` means the framework will never cache this
+     * mount's result; `false` / `undefined` means the result is
+     * cache-eligible when the caller supplies
+     * `ContainerRunOptions.cache`.
+     *
+     * Bare-function mounts always land here as `undefined` — the
+     * bare-function shape has no place to declare side effects, so
+     * the framework defaults them to cache-eligible (the same
+     * default as a `defineValidator` call without `sideEffect`).
+     * Wrap with `defineValidator({ sideEffect: true, run: fn })` to
+     * opt out.
+     */
+    sideEffect?: boolean,
 };
 
 export type Mount<C = unknown> = ContainerMount | ValidatorMount<C>;

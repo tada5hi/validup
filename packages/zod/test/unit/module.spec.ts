@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
     Container,
+    ValidationCache,
     ValidupError,
 } from 'validup';
 import { createValidator } from '../../src';
@@ -95,6 +96,39 @@ describe('src/module', () => {
                 expect(e.issues[0].path).toEqual(['email']);
             }
         }
+    });
+
+    it('createValidator participates in the result cache by default', async () => {
+        const container = new Container<{ email: string }>();
+        let calls = 0;
+        container.mount('email', createValidator(() => {
+            calls += 1;
+            return z.string().email();
+        }));
+
+        const cache = new ValidationCache();
+        const data = { email: 'foo@example.com' };
+        await container.run(data, { cache });
+        await container.run(data, { cache });
+        expect(calls).toBe(1);
+    });
+
+    it('createValidator({ sideEffect: true }) bypasses the cache', async () => {
+        const container = new Container<{ email: string }>();
+        let calls = 0;
+        container.mount('email', createValidator(
+            () => {
+                calls += 1;
+                return z.string().email();
+            },
+            { sideEffect: true },
+        ));
+
+        const cache = new ValidationCache();
+        const data = { email: 'foo@example.com' };
+        await container.run(data, { cache });
+        await container.run(data, { cache });
+        expect(calls).toBe(2);
     });
 
     it('should not validate array', async () => {

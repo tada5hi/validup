@@ -114,6 +114,39 @@ type ValidatorContext<C = unknown> = {
 
 A validator's **return value** becomes the output for that path — so validators double as transformers/sanitizers. The optional second generic `Out` lets callers (and the [Builder API](#builder-api-compile-time-typing)) infer per-field types from the validator's return type — `Out` defaults to `unknown`, so existing call sites compile unchanged.
 
+#### Descriptor form
+
+`mount()` also accepts a `ValidatorDescriptor<C, Out>` — a small wrapper that attaches per-mount metadata the framework consults. Today the metadata is just `sideEffect`, the switch that opts a validator out of the [result cache](#result-caching).
+
+```typescript
+import { defineValidator } from 'validup';
+
+// Cache-eligible (default): same (value, context, group) → reuse result.
+const isPositive = defineValidator({
+    run: (ctx) => {
+        if (typeof ctx.value !== 'number' || ctx.value <= 0) {
+            throw new Error('must be positive');
+        }
+        return ctx.value;
+    },
+});
+
+// Cross-field / network / stateful — re-run every time:
+const isEmailUnique = defineValidator({
+    sideEffect: true,
+    run: async (ctx) => {
+        if (await api.isEmailTaken(ctx.value as string)) {
+            throw new Error('Email already taken');
+        }
+        return ctx.value;
+    },
+});
+
+container.mount('email', isEmailUnique);
+```
+
+Bare functions stay fully supported — `mount('foo', fn)` normalizes them to `{ run: fn }` internally with no behavior change. Use `defineValidator` when you need the metadata.
+
 ### Containers
 
 A `Container<T, C>` holds an ordered list of mounts and runs them against an input object. The optional generic `T` constrains mount keys and shapes the resolved output; the optional `C` types the caller-supplied [context](#context).
@@ -489,6 +522,35 @@ try {
 ```
 
 `safeRun()` rethrows the abort reason (it is never wrapped into a `Result.failure`) so callers can distinguish "validation failed" from "operation cancelled".
+
+## Result Caching
+
+`Container.run` (and every other run variant) accepts an optional `cache: ValidationCache`. When supplied, validator mounts whose `(ctx.value, ctx.context, ctx.group)` snapshot matches a prior invocation are skipped — their cached outcome is replayed instead of re-running the validator. Particularly valuable for forms with slow async validators (network round-trips, regex-heavy schemas): submit-time validation doesn't pay the cost of re-running mounts whose inputs the per-keystroke runs already proved fresh.
+
+```typescript
+import { Container, ValidationCache, defineValidator } from 'validup';
+
+const container = new Container<{ email: string }>();
+let calls = 0;
+container.mount('email', defineValidator({
+    run: async (ctx) => {
+        calls += 1;
+        await new Promise((r) => setTimeout(r, 100));
+        return ctx.value;
+    },
+}));
+
+const cache = new ValidationCache();
+const data = { email: 'peter@example.com' };
+
+await container.run(data, { cache });
+await container.run(data, { cache });
+// calls === 1 — the second invocation hits the cache
+```
+
+**Opt out per validator** with `sideEffect: true` (via `defineValidator` or an adapter's `{ sideEffect: true }` option) for cross-field validators, network calls, or anything else whose result depends on inputs the snapshot doesn't capture. The cache is caller-owned — `Container` never holds a reference, so the lifecycle (per-request / per-form / persistent) is entirely up to you. Implement `IValidationCache` directly for LRU eviction, TTL, etc.
+
+See [the Caching guide](https://validup.tada5hi.net/guide/caching) for the full snapshot semantics and lifecycle patterns.
 
 ## Run Modes
 

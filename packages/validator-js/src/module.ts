@@ -8,8 +8,9 @@
 import {
     IssueCode,
     createValidupError,
+    defineValidator,
 } from 'validup';
-import type { Validator } from 'validup';
+import type { ValidatorDescriptor } from 'validup';
 
 /**
  * Shape of a validator.js boolean predicate. The first argument is always
@@ -79,19 +80,29 @@ export function toValidatorString(value: unknown): string {
  * For the common cases — `email()`, `isLength()`, `isInt()` etc. — reach
  * for the pre-baked factories instead; they bake the right vocabulary
  * code and `params` in for you.
+ *
+ * The returned descriptor participates in the validup result cache by
+ * default — validator.js's `ValidatorJsFn` signature is synchronous
+ * and only inspects the stringified value, so the outcome is a pure
+ * function of `(ctx.value, ctx.context, ctx.group)`. If the wrapped
+ * predicate captures external state and the caller knowingly opts
+ * into that, pass `sideEffect: true` to bypass the cache.
  */
 export function createValidator<C = unknown>(
     fn: ValidatorJsFn,
-    options: CreateValidatorOptions,
-): Validator<C> {
+    options: CreateValidatorOptions & { sideEffect?: boolean },
+): ValidatorDescriptor<C> {
     const fallbackCode = options.code || IssueCode.VALUE_INVALID;
     const fallbackMessage = options.message ?? 'The value is invalid';
 
-    return (ctx) => {
-        const stringified = toValidatorString(ctx.value);
-        if (fn(stringified)) {
-            return ctx.value;
-        }
-        throw createValidupError(ctx.value, fallbackCode, fallbackMessage, options.params);
-    };
+    return defineValidator<C>({
+        sideEffect: options.sideEffect,
+        run: (ctx) => {
+            const stringified = toValidatorString(ctx.value);
+            if (fn(stringified)) {
+                return ctx.value;
+            }
+            throw createValidupError(ctx.value, fallbackCode, fallbackMessage, options.params);
+        },
+    });
 }

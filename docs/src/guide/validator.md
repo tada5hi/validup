@@ -42,6 +42,37 @@ container.mount('age', isPositiveInt);
 container.mount('count', { optional: true }, isPositiveInt);
 ```
 
+## Descriptor form: `defineValidator`
+
+A bare function works, but for richer contracts use `defineValidator({ run, ... })` — it returns a `ValidatorDescriptor<C, Out>` that `mount()` accepts interchangeably with a bare function. The wrapper attaches per-mount metadata the framework reads at run time. Today the only metadata field is `sideEffect`, the switch that opts a validator OUT of the [result cache](/guide/caching):
+
+```typescript
+import { defineValidator } from 'validup';
+
+// Default: cache-eligible — same (value, context, group) → reuse result.
+const isPositiveInt = defineValidator({
+    run: ({ value, key }) => {
+        if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+            throw new Error(`${key} must be a positive integer.`);
+        }
+        return value;
+    },
+});
+
+// Cross-field / network / stateful — re-run every time:
+const isEmailUnique = defineValidator({
+    sideEffect: true,
+    run: async ({ value }) => {
+        if (await api.isEmailTaken(value as string)) {
+            throw new Error('Email is already taken');
+        }
+        return value;
+    },
+});
+```
+
+Why a descriptor instead of attaching properties on the function? Object-based metadata survives composition (wrapping the validator doesn't lose the flag), is visible at the type level, and stays symmetrical with the rest of the library (`defineIssueItem` / `defineIssueGroup`). Bare functions remain fully supported — `mount('foo', fn)` normalizes them to `{ run: fn }` internally, with no behavior change. See [Caching](/guide/caching) for the full opt-in story.
+
 ## Transforming values
 
 A validator can return a parsed value (different from `value`):
@@ -68,6 +99,15 @@ container.mount('name', isString);     // sees the trimmed value
 ## Lazy / context-aware validators
 
 The integration adapters (`@validup/zod`, `@validup/standard-schema`) accept either a schema or a function `(ctx) => schema`. The function form lets you build a per-call schema from `ctx.group`, `ctx.context`, or `ctx.data`. `@validup/validator-js` factories aren't lazy by default — they bind their options at factory-build time; wrap them in a closure if you need per-context configuration.
+
+All three validator adapters return descriptors and surface a `sideEffect` option, so the cache integration is end-to-end:
+
+```typescript
+import { createValidator } from '@validup/zod';
+
+container.mount('email', createValidator(z.string().email()));                       // cached
+container.mount('email', createValidator(zSchema, { sideEffect: true }));            // never cached
+```
 
 For your own validators, the same pattern is just a closure:
 

@@ -99,6 +99,17 @@ type ZodCreateFn<C = unknown> = (ctx: ValidatorContext<C>) => ZodType;
 
 `createValidator<C>(...)` is generic over the validup context type, so factories can read typed `ctx.context` when the parent container declares one (`Container<T, C>`).
 
+## Result Caching
+
+`createValidator` returns a `ValidatorDescriptor` (interchangeable with a bare `Validator` at the mount site). It participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — most zod schemas (`z.string().email()`, length / regex / enum) are deterministic, so cached `(value, context, group)` snapshots replay without re-running the schema.
+
+```typescript
+container.mount('email', createValidator(z.string().email()));                              // cached
+container.mount('email', createValidator(asyncZodSchema, { sideEffect: true }));            // never cached
+```
+
+Pass `{ sideEffect: true }` for schemas with async refines or `superRefine` calls reading external state — the framework will then re-run them on every invocation, ignoring any cached entry.
+
 ## Error Mapping
 
 ### Zod → Validup

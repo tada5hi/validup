@@ -103,6 +103,20 @@ type ComposableOptions<T, C> = {
 - `debounce` collapses rapid keystrokes into one run (using the latest state).
 - `$validate()` deliberately runs **without a signal** so a submit-time check can't be aborted by an intervening keystroke.
 
+## Result caching (automatic)
+
+`useValidup` owns a [`ValidationCache`](/guide/caching) per composable scope and passes it on every `safeRun` call. The practical effect:
+
+- **Per-keystroke runs** only invoke mounts whose `(value, context, group)` snapshot changed. A user editing the `name` field doesn't re-run `email`, `password`, etc. — their cached outcomes replay.
+- **Submit (`$validate()`)** reuses everything the scheduled runs already proved fresh, so async validators (uniqueness checks, captcha verifies) don't fire again unless their inputs actually changed.
+
+The cache is cleared automatically when:
+
+- `$reset()` is called — the form returns to a clean state, so the next run hits every validator fresh.
+- The container reference swaps (e.g. you `ref()` a container that gets reassigned) — old mount identities become unreachable; the new container starts cold.
+
+Cross-field validators must declare themselves with `sideEffect: true` (via `defineValidator` or the adapter's `{ sideEffect: true }` option) so they re-run when a sibling changes. `@validup/validator-js`'s `equals(key)` (no `expectedValue`) does this automatically; see [Caching](/guide/caching#opting-out-sideeffect) for the full contract.
+
 ## Nested forms
 
 ```typescript

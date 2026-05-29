@@ -6,8 +6,8 @@
  */
 
 import validator from 'validator';
-import { IssueCode, createValidupError  } from 'validup';
-import type { Validator } from 'validup';
+import { IssueCode, createValidupError, defineValidator } from 'validup';
+import type { ValidatorDescriptor } from 'validup';
 import type { BaseFactoryOptions } from '../module';
 import { toValidatorString } from '../module';
 
@@ -25,43 +25,45 @@ import { toValidatorString } from '../module';
  */
 export function isLength<C = unknown>(
     options: BaseFactoryOptions & validator.IsLengthOptions = {},
-): Validator<C> {
+): ValidatorDescriptor<C> {
     const { min, max } = options;
-    return (ctx) => {
-        const s = toValidatorString(ctx.value);
-        if (validator.isLength(s, options)) return ctx.value;
-        if (typeof min === 'number' && s.length < min) {
+    return defineValidator<C>({
+        run: (ctx) => {
+            const s = toValidatorString(ctx.value);
+            if (validator.isLength(s, options)) return ctx.value;
+            if (typeof min === 'number' && s.length < min) {
+                throw createValidupError(
+                    ctx.value,
+                    IssueCode.MIN_LENGTH,
+                    options.message ?? `The minimum length allowed is ${min}`,
+                    { min },
+                );
+            }
+            if (typeof max === 'number' && s.length > max) {
+                throw createValidupError(
+                    ctx.value,
+                    IssueCode.MAX_LENGTH,
+                    options.message ?? `The maximum length allowed is ${max}`,
+                    { max },
+                );
+            }
+            // Fallback (shouldn't normally hit — `isLength` returned false but
+            // neither bound was crossed). The MIN_LENGTH / MAX_LENGTH codes
+            // both require their bound in `params`; without a bound we can't
+            // honour the vocabulary contract, so emit the generic code.
+            if (typeof min === 'number') {
+                throw createValidupError(
+                    ctx.value,
+                    IssueCode.MIN_LENGTH,
+                    options.message ?? 'The value has an invalid length',
+                    { min },
+                );
+            }
             throw createValidupError(
                 ctx.value,
-                IssueCode.MIN_LENGTH,
-                options.message ?? `The minimum length allowed is ${min}`,
-                { min },
-            );
-        }
-        if (typeof max === 'number' && s.length > max) {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.MAX_LENGTH,
-                options.message ?? `The maximum length allowed is ${max}`,
-                { max },
-            );
-        }
-        // Fallback (shouldn't normally hit — `isLength` returned false but
-        // neither bound was crossed). The MIN_LENGTH / MAX_LENGTH codes
-        // both require their bound in `params`; without a bound we can't
-        // honour the vocabulary contract, so emit the generic code.
-        if (typeof min === 'number') {
-            throw createValidupError(
-                ctx.value,
-                IssueCode.MIN_LENGTH,
+                IssueCode.VALUE_INVALID,
                 options.message ?? 'The value has an invalid length',
-                { min },
             );
-        }
-        throw createValidupError(
-            ctx.value,
-            IssueCode.VALUE_INVALID,
-            options.message ?? 'The value has an invalid length',
-        );
-    };
+        },
+    });
 }

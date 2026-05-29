@@ -25,6 +25,7 @@ import type {
 } from 'validup';
 import {
     IssueCode,
+    ValidationCache,
     ValidupError,
     flattenIssueItems,
     isIssueGroup,
@@ -120,6 +121,14 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
     // stomped by a concurrent state change.
     let scheduleAbortController: AbortController | undefined;
 
+    // One per composable scope. Persists results of every non-side-effect
+    // mount keyed on `(value, context, group)` snapshots, so per-keystroke
+    // runs only invoke validators whose inputs actually changed and submit
+    // runs (`$validate()`) reuse everything the scheduled runs already
+    // proved fresh. Cleared on `$reset()` and whenever the container
+    // reference swaps (different container = different mount identities).
+    const cache = new ValidationCache();
+
     async function runOnce(signal?: AbortSignal): Promise<Result<T>> {
         const id = ++runId;
         pending.value = true;
@@ -130,9 +139,10 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
                 result = await c.safeRun(
                     unref(stateRef) as Record<string, any>,
                     {
-                        group: groupRef.value, 
-                        context: contextRef.value, 
-                        signal, 
+                        group: groupRef.value,
+                        context: contextRef.value,
+                        signal,
+                        cache,
                     },
                 );
             } catch (rawError) {
@@ -180,6 +190,19 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         }
         void runOnce(signal);
     }
+
+    // Drop cached results whenever the underlying container instance swaps —
+    // mount references are container-scoped, so entries keyed on the *old*
+    // container's mounts would be unreachable but the new container would
+    // still see misses for every mount and waste no work; flushing is
+    // mostly defensive (and bounds memory if a long-lived composable cycles
+    // through several containers).
+    watch(
+        containerRef,
+        () => {
+            cache.clear();
+        },
+    );
 
     watch(
         [containerRef, groupRef, stateRef, contextRef],
@@ -450,6 +473,11 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         // (or wait for the next state change).
         dirtyPaths.clear();
         externalIssues.value = [];
+        // Cached results are also a UX artifact — once the user explicitly
+        // resets, the next run should hit every validator fresh so any
+        // server-state-dependent validators (e.g. "is this email taken?")
+        // observe current reality, not what was true at last keystroke.
+        cache.clear();
     }
 
     async function $validate(): Promise<Result<T>> {
