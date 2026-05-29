@@ -176,6 +176,13 @@ Symmetric with `Container.options.oneOf`, just at the validator level — both s
 
 **Cycle note.** `helpers/compose.ts` imports `IContainer` (type-only) from `container/types.ts` and `isContainer` from `container/check.ts` directly, not through the `../container` barrel, because the barrel re-exports `container/module.ts` which itself imports from `../helpers`. Hitting the leaf modules avoids the barrel-level cycle.
 
+**Shared primitives.** Two small helpers carved out of the overlap between compose's catch sites and `Container.finalizeOutput`:
+
+- `errorToIssues(error, { code?, path? })` (`helpers/error-to-issues.ts`) — the defensive `ValidupError` / `Error` / non-`Error` → `Issue[]` fold both helpers needed in identical shape. `ValidupError` issues are spread verbatim (callers map / prefix afterward); `Error` and non-`Error` throws become a single synthetic `IssueItem` with the supplied `code` (defaults to `VALUE_INVALID`) and `path` (defaults to `[]`). Used by compose's collect-all catch AND `composeAnyOf`'s per-branch wrapper.
+- `buildOneOfFailedGroup(branchIssues, { path?, message? })` (`helpers/one-of-failed.ts`) — single source of truth for the `IssueCode.ONE_OF_FAILED` wrapping shape. Used by both `composeAnyOf` and `Container.finalizeOutput` so consumers / i18n catalogs only have one variant to format.
+
+`Container.collectExecutionFailure`'s own ValidupError / Error / non-Error cascade stays inline rather than going through `errorToIssues` — its per-branch transforms (`prefixIssuePath` on the spread issues only, `markOptional` / `markOptionalDeep` gated on mount kind) make the cascade non-portable.
+
 ## Issues & Errors
 
 `packages/validup/src/issue/types.ts` — `Issue = IssueItem | IssueGroup` (discriminated by `type`).

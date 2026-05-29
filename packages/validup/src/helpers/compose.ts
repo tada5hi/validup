@@ -7,11 +7,12 @@
 
 import { isContainer } from '../container/check';
 import type { IContainer } from '../container/types';
-import { ValidupError, isError, isValidupError } from '../error';
-import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
+import { ValidupError } from '../error';
 import type { Issue } from '../issue';
 import type { Validator, ValidatorContext } from '../types';
 import { isObject } from '../utils';
+import { errorToIssues } from './error-to-issues';
+import { buildOneOfFailedGroup } from './one-of-failed';
 
 /**
  * A composable element — either a bare `Validator<C>` function or a
@@ -170,30 +171,13 @@ export function compose<C = unknown>(
                 // Failing stage doesn't get to mutate the threaded
                 // value — `value` keeps whatever the last successful
                 // stage produced, so the next validator runs against a
-                // well-defined input.
-                if (isValidupError(e)) {
-                    for (const issue of e.issues) {
-                        issues.push(issue);
-                    }
-                    continue;
+                // well-defined input. Use the shared `errorToIssues`
+                // cascade so the ValidupError / Error / non-Error fold
+                // stays in lockstep with composeAnyOf and other
+                // call sites.
+                for (const issue of errorToIssues(e)) {
+                    issues.push(issue);
                 }
-
-                if (isError(e)) {
-                    issues.push(defineIssueItem({
-                        path: [],
-                        code: IssueCode.VALUE_INVALID,
-                        message: e.message,
-                    }));
-                    continue;
-                }
-
-                issues.push(defineIssueItem({
-                    path: [],
-                    code: IssueCode.VALUE_INVALID,
-                    message: typeof e === 'string' && e.length > 0 ?
-                        e :
-                        `Non-Error throw: ${String(e)}`,
-                }));
             }
         }
 
@@ -262,15 +246,10 @@ function composeAnyOf<C>(elements: ComposeElement<C>[]): Validator<C> {
         }
 
         // Every branch (including the empty-branch-list case) failed.
-        // Wrap in a single ONE_OF_FAILED group so consumers /
+        // Use the shared `buildOneOfFailedGroup` so consumers /
         // i18n catalogs handle compose's any-of the same way they
-        // handle Container.options.oneOf.
-        throw new ValidupError([defineIssueGroup({
-            code: IssueCode.ONE_OF_FAILED,
-            message: 'None of the branches succeeded',
-            path: [],
-            issues: branchIssues,
-        })]);
+        // handle `Container.options.oneOf`.
+        throw new ValidupError([buildOneOfFailedGroup(branchIssues)]);
     };
 }
 
@@ -318,35 +297,16 @@ async function invokeComposeElement<C>(
  * "branch N failed because ..." without needing to reconstruct
  * registration order.
  *
- * - `ValidupError` → spread its issues, stamping each with
- *   `params.branch`.
- * - `Error` → one `IssueItem` carrying the message.
- * - Anything else → defensive stringify, mirroring
- *   `Container.recordMountError`.
+ * Delegates the unknown-throw → `Issue[]` fold to the shared
+ * `errorToIssues` cascade; only the per-branch stamping is local
+ * concern. Spread issues are shallow-cloned before stamping so the
+ * `ValidupError` instance's `issues` array on the caller side isn't
+ * mutated when a consumer reads `.params.branch` later.
  */
 function wrapBranchIssues(error: unknown, index: number): Issue[] {
     const stamp = <I extends Issue>(issue: I): I => {
         issue.params = { ...(issue.params ?? {}), branch: index };
         return issue;
     };
-
-    if (isValidupError(error)) {
-        return error.issues.map((i) => stamp({ ...i }));
-    }
-
-    if (isError(error)) {
-        return [stamp(defineIssueItem({
-            path: [],
-            code: IssueCode.VALUE_INVALID,
-            message: error.message,
-        }))];
-    }
-
-    return [stamp(defineIssueItem({
-        path: [],
-        code: IssueCode.VALUE_INVALID,
-        message: typeof error === 'string' && error.length > 0 ?
-            error :
-            `Non-Error throw: ${String(error)}`,
-    }))];
+    return errorToIssues(error).map((issue) => stamp({ ...issue }));
 }

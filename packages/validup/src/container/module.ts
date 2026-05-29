@@ -21,6 +21,7 @@ import { GroupKey } from '../constants';
 import { ValidupError, isError, isValidupError } from '../error';
 import {
     buildErrorMessageForAttribute,
+    buildOneOfFailedGroup,
     isOptionalValue,
     resolveDefaults,
     resolvePathFilter,
@@ -1248,15 +1249,12 @@ export class Container<
             // Guard against the "all branches filtered out" case (group /
             // pathsToInclude / pathsToExclude can leave itemCount === 0).
             // Without it, a oneOf container with nothing to run would throw
-            // ONE_OF_FAILED with an empty issues list.
+            // ONE_OF_FAILED with an empty issues list. Shared
+            // `buildOneOfFailedGroup` keeps the ONE_OF_FAILED shape in
+            // lockstep with compose's any-of path so consumers / i18n
+            // catalogs only format one variant.
             if (itemCount > 0 && errorCount === itemCount) {
-                const group = defineIssueGroup({
-                    code: IssueCode.ONE_OF_FAILED,
-                    message: 'None of the branches succeeded',
-                    issues,
-                    path: options.path ? options.path : [],
-                });
-                throw new ValidupError([group]);
+                throw new ValidupError([buildOneOfFailedGroup(issues, { path: options.path ? options.path : [] })]);
             }
         } else if (errorCount > 0) {
             throw new ValidupError(issues);
