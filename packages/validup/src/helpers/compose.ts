@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { ValidupError, isValidupError } from '../error';
+import { ValidupError, isError, isValidupError } from '../error';
 import { IssueCode, defineIssueItem } from '../issue';
 import type { Issue } from '../issue';
 import type { Validator } from '../types';
@@ -18,6 +18,10 @@ export interface ComposeOptions {
      *   stops the chain; the thrown error bubbles up unchanged. Each
      *   validator's output feeds the next as `ctx.value`, so
      *   sanitize-then-validate patterns work (`trim()` → `isEmail()`).
+     *   A validator that returns `undefined` is treated as a
+     *   pass-through — the prior stage's value continues down the chain
+     *   unchanged, so pure checks that don't re-emit `ctx.value` compose
+     *   cleanly with transformers.
      *
      * - `false` — **collect-all.** Every validator runs against the
      *   original `ctx.value` (no threading); failures are collected and
@@ -70,7 +74,21 @@ export function compose<C = unknown>(
         return async (ctx) => {
             let { value } = ctx;
             for (const validator of validators) {
-                value = await validator({ ...ctx, value });
+                const result = await validator({ ...ctx, value });
+                // Only adopt the validator's return when it actually
+                // produced one — a pure check that throws-or-passes
+                // typically returns nothing, and clobbering `value` to
+                // `undefined` between stages would break
+                // sanitize-then-validate chains
+                // (e.g. `compose([trim(), isEmail()])` where `isEmail`
+                // doesn't bother re-emitting `ctx.value`). Validators
+                // that DO want to explicitly null out the field must
+                // throw or use a sentinel; returning `undefined` is
+                // treated as "no opinion, pass the upstream value
+                // through."
+                if (typeof result !== 'undefined') {
+                    value = result;
+                }
             }
             return value;
         };
@@ -89,7 +107,7 @@ export function compose<C = unknown>(
                     }
                     continue;
                 }
-                if (e instanceof Error) {
+                if (isError(e)) {
                     issues.push(defineIssueItem({
                         path: [],
                         code: IssueCode.VALUE_INVALID,

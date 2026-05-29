@@ -102,6 +102,27 @@ describe('compose (default — bail: true, fail-fast + threaded)', () => {
         const items = flattenIssueItems(err.issues);
         expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
     });
+
+    it('treats an undefined-returning validator as pass-through', async () => {
+        // `voidCheck` is a pure validator that throws on a bad value but
+        // doesn't bother re-emitting `ctx.value`. Without the
+        // pass-through rule it would clobber the threaded value to
+        // `undefined` and the downstream `minLength` check would see
+        // `'undefined'` (the string), passing length 9. With the rule,
+        // the trimmed value from the prior stage flows through and the
+        // chain returns it cleanly.
+        const voidCheck: Validator = (ctx) => {
+            if (typeof ctx.value !== 'string') {
+                throw new Error('not a string');
+            }
+            // no return — implicit undefined
+        };
+        const out = await run(
+            compose([trim(), voidCheck, minLength(3)]),
+            '  hello  ',
+        );
+        expect(out).toBe('hello');
+    });
 });
 
 describe('compose with { bail: false } — collect-all', () => {
