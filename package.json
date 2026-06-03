@@ -11,7 +11,8 @@
     },
     "workspaces": [
         "packages/*",
-        "docs"
+        "docs",
+        "playground/*"
     ],
     "repository": {
         "type": "git",

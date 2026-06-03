@@ -1,0 +1,35 @@
+{
+    "name": "@validup-playground/vite-vue",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "description": "Multi-route Vite + Vue 3 playground that exercises @validup/vue against the local workspace packages.",
+    "author": {
+        "name": "Peter Placzek",
+        "email": "contact@tada5hi.net",
+        "url": "https://github.com/tada5hi"
+    },
+    "license": "Apache-2.0",
+    "engines": {
+        "node": ">=24.0.0"
+    },
+    "scripts": {
+        "dev": "vite",
+        "build": "vue-tsc --noEmit && vite build",
+        "preview": "vite preview",
+        "typecheck": "vue-tsc --noEmit"
+    },
+    "dependencies": {
+        "@validup/vue": "*",
+        "@validup/zod": "*",
+        "validup": "*",
+        "vue": "^3.5.34",
+        "vue-router": "^4.4.5",
+        "zod": "^4.0.0"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-vue": "^6.0.0",
+        "vite": "^8.0.0",
+        "vue-tsc": "^3.0.0"
+    }
+}

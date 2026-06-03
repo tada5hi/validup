@@ -103,11 +103,16 @@ validup/
 │   ├── zod/                  # @validup/zod
 │   ├── validator-js/         # @validup/validator-js
 │   └── vue/                  # @validup/vue
+├── docs/                     # VitePress site (private)
+├── playground/
+│   └── vite-vue/             # Vite + Vue 3 demo app (private, multi-route)
 ├── nx.json                   # Nx caching for build / lint / test
 └── release-please-config.json
 ```
 
-The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Integration packages depend on `validup`; the core has a single runtime dep on `@ebec/core`.
+The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Integration packages depend on `validup`; the core has a single runtime dep on `@ebec/core`. `docs/` and every `playground/*` workspace are private — excluded from release-please and `monoship`.
+
+The Vite + Vue playground lives at [`playground/vite-vue`](./playground/vite-vue) and exercises `@validup/vue` end-to-end (basic form, groups, nested forms, async + debounce, server errors, severity). Run it with `npm run dev --workspace=@validup-playground/vite-vue`.
 
 ## Development
 

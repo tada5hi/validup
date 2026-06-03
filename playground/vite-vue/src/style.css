@@ -1,0 +1,266 @@
+/*
+ * Copyright (c) 2026.
+ * Author Peter Placzek (tada5hi)
+ * For the full copyright and license information,
+ * view the LICENSE file that was distributed with this source code.
+ */
+
+:root {
+    color-scheme: light dark;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.5;
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1f2630;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #7c8cff;
+    --accent-2: #5dd3a5;
+    --warn: #d29922;
+    --err: #f85149;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg: #f6f8fa;
+        --panel: #ffffff;
+        --panel-2: #f0f3f6;
+        --border: #d0d7de;
+        --text: #1f2328;
+        --muted: #57606a;
+        --accent: #3858f9;
+        --accent-2: #1a7f5a;
+        --warn: #9a6700;
+        --err: #cf222e;
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+button {
+    font: inherit;
+    color: var(--text);
+    background: var(--accent);
+    color: #fff;
+    border: 0;
+    border-radius: 6px;
+    padding: 0.5rem 0.9rem;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+button.secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+}
+
+input,
+select,
+textarea {
+    font: inherit;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.45rem 0.6rem;
+    width: 100%;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.app {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.app header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+}
+
+.app header h1 {
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+.app nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.app nav a {
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.875rem;
+}
+
+.app nav a.router-link-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.page {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+@media (max-width: 720px) {
+    .page {
+        grid-template-columns: 1fr;
+    }
+}
+
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+}
+
+.panel h2 {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+}
+
+.panel p.lede {
+    margin: 0 0 1rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.9rem;
+}
+
+.field label {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.field .hint {
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
+.field .errors,
+.field .warnings {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.8rem;
+}
+
+.field .errors li {
+    color: var(--err);
+}
+
+.field .warnings li {
+    color: var(--warn);
+}
+
+.field input.invalid {
+    border-color: var(--err);
+}
+
+.field input.warning {
+    border-color: var(--warn);
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.status {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.6rem;
+}
+
+pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.8rem;
+    overflow: auto;
+    font-size: 0.78rem;
+    max-height: 30rem;
+}
+
+.tag {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    margin-left: 0.4rem;
+}
+
+.tag.ok {
+    color: var(--accent-2);
+    border-color: var(--accent-2);
+}
+
+.tag.err {
+    color: var(--err);
+    border-color: var(--err);
+}
+
+.tag.warn {
+    color: var(--warn);
+    border-color: var(--warn);
+}
+
+.cross-cutting {
+    margin: 0 0 1rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 6px;
+    border: 1px solid var(--err);
+    background: color-mix(in oklab, var(--err) 12%, transparent);
+    color: var(--err);
+    font-size: 0.85rem;
+}

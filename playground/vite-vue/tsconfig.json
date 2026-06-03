@@ -1,0 +1,18 @@
+{
+    "extends": "../../tsconfig.build.json",
+    "compilerOptions": {
+        "jsx": "preserve",
+        "types": ["vite/client"],
+        "paths": {
+            "validup": ["../../packages/validup/src/index.ts"],
+            "@validup/vue": ["../../packages/vue/src/index.ts"],
+            "@validup/zod": ["../../packages/zod/src/index.ts"],
+            "vue": ["../../node_modules/vue"],
+            "@vue/reactivity": ["../../node_modules/@vue/reactivity"],
+            "@vue/runtime-core": ["../../node_modules/@vue/runtime-core"],
+            "@vue/runtime-dom": ["../../node_modules/@vue/runtime-dom"],
+            "@vue/shared": ["../../node_modules/@vue/shared"]
+        }
+    },
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "vite.config.ts"]
+}

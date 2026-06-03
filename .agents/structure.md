@@ -11,6 +11,8 @@ validup/
 │   ├── validator-js/         # validator.js bridge (npm: @validup/validator-js)
 │   └── vue/                  # Vue 3 composable (npm: @validup/vue)
 ├── docs/                     # VitePress site (private workspace, npm: @validup/docs)
+├── playground/
+│   └── vite-vue/             # Vite + Vue 3 multi-route demo (private, npm: @validup-playground/vite-vue)
 ├── nx.json                   # Nx caching config (build, lint, test cacheable)
 ├── tsconfig.json             # Shared TS base — extends @tada5hi/tsconfig, noEmit
 ├── release-please-config.json
@@ -31,6 +33,8 @@ validup/
 All packages are `"type": "module"` and publish **ESM-only** (`dist/index.mjs` + `dist/index.d.mts`). No CJS output. License: Apache-2.0 across the board (root + every package).
 
 The `docs/` workspace is `private: true` (excluded from `release-please-config.json` and from monoship). It depends on the local `validup` workspace package via `"validup": "*"` so the Hero playground can SSR a real `Container.safeRunSync(...)` against the current core.
+
+The `playground/*` tree holds private demo apps that exercise the published packages end-to-end. The first one — `playground/vite-vue` — is a multi-route Vite + Vue 3 app (routes for basic / groups / nested / async / server-errors / severity) wired to `@validup/vue` and `@validup/zod` via path aliases at the Vite config and tsconfig levels so edits in `packages/**` hot-reload without a rebuild. Like `docs/`, it's `private: true`, excluded from release-please / monoship, and uses `"validup": "*"` workspace links. The playground also pins its `vue` types (via `paths` in `tsconfig.json`) to the root `node_modules/vue` to keep `Ref<>` identity consistent with what `@validup/vue` was typechecked against — the workspace tree resolves multiple `vue` installs (root override + per-package devDeps) and without the alias `MaybeRef<>` type-checks against the wrong copy.
 
 ## Dependency Layers
 
