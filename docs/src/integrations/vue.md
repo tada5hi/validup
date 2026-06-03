@@ -46,6 +46,10 @@ async function submit() {
 </template>
 ```
 
+::: warning Vue 3.5+ SSR gotcha — don't name the setup return `$v`
+Vue 3.5's [`PublicInstanceProxyHandlers.get`](https://github.com/vuejs/core/blob/main/packages/runtime-core/src/componentPublicInstance.ts) treats every template identifier starting with `$` as a Vue built-in lookup, skipping the `setupState` resolution chain. `$v` is not in Vue's allowlist (`$attrs`, `$emit`, `$props`, `$refs`, …), so a template that reads `$v.fields.X` resolves `$v` to `undefined` and crashes at first SSR render with `Cannot read properties of undefined`. `vue-tsc` does not flag this. Use `v`, `validation`, or any non-`$`-prefixed name — inner `$`-prefixed properties (`v.$invalid`, `v.fields.name.$model`) are fine. See [#396](https://github.com/tada5hi/validup/issues/396).
+:::
+
 ## Public shape
 
 ```typescript

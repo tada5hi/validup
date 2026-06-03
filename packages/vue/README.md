@@ -61,15 +61,15 @@ userValidator.mount('email', createValidator(z.string().email()));
 export default {
     setup() {
         const form = reactive({ name: '', email: '' });
-        const $v = useValidup(userValidator, form);
+        const v = useValidup(userValidator, form);
 
         async function submit() {
-            const result = await $v.$validate();
+            const result = await v.$validate();
             if (!result.success) return;
             // result.data: { name, email }
         }
 
-        return { form, $v, submit };
+        return { form, v, submit };
     },
 };
 ```
@@ -77,9 +77,12 @@ export default {
 In the template:
 
 ```vue
-<input v-model="$v.fields.name.$model" :class="getSeverity($v.fields.name)" />
-<small v-for="err in $v.fields.name.$errors" :key="err.code">{{ err.message }}</small>
+<input v-model="v.fields.name.$model" :class="getSeverity(v.fields.name)" />
+<small v-for="err in v.fields.name.$errors" :key="err.code">{{ err.message }}</small>
 ```
+
+> **⚠️ Don't name the setup return `$v` (Vue 3.5+ SSR gotcha).**
+> Vue 3.5's [`PublicInstanceProxyHandlers.get`](https://github.com/vuejs/core/blob/main/packages/runtime-core/src/componentPublicInstance.ts) treats every template identifier starting with `$` as a Vue built-in lookup, skipping the `setupState` resolution chain entirely. `$v` isn't in Vue's built-in allowlist (`$attrs`, `$emit`, `$props`, `$refs`, …), so a template that reads `$v.fields.X` resolves `$v` to `undefined` and crashes at first SSR render with `Cannot read properties of undefined (reading 'fields')`. `vue-tsc` does not flag this — the source type-checks fine. Use `v`, `validation`, or any non-`$`-prefixed name. Inner `$`-prefixed properties (`v.$invalid`, `v.fields.name.$model`) are unaffected — only the **outer setup-return name** has to be `$`-free. See [#396](https://github.com/tada5hi/validup/issues/396) for the full diagnosis.
 
 ## Real-World Pattern
 
@@ -119,14 +122,14 @@ import { RoleValidator } from '@my-app/validators';
 
 const form = reactive({ name: '', description: '' });
 const group = ref<'create' | 'update'>('create');
-const $v = useValidup(new RoleValidator(), form, { group });
+const v = useValidup(new RoleValidator(), form, { group });
 ```
 
-The `state` argument is typed as `Partial<T>`, so a form that only carries a subset of the validator's entity fields (e.g. a `Container<User>` against a `{ name, email }` create form where `id` / `createdAt` are server-set) type-checks without any cast. `T` stays bound to the container's entity type — typed-field access (`$v.fields.name`) still narrows against the full entity, not the narrower form.
+The `state` argument is typed as `Partial<T>`, so a form that only carries a subset of the validator's entity fields (e.g. a `Container<User>` against a `{ name, email }` create form where `id` / `createdAt` are server-set) type-checks without any cast. `T` stays bound to the container's entity type — typed-field access (`v.fields.name`) still narrows against the full entity, not the narrower form.
 
 ## Per-Field State
 
-`$v.fields.<key>` returns a `FieldState`. Top-level keys narrow to `FieldState<T[K]>` (strict-mode clean — never `| undefined`). For dotted / bracketed / runtime-computed paths use `$v.fields.at('user.email')` — see [Nested Paths](#nested-paths) below.
+`v.fields.<key>` returns a `FieldState`. Top-level keys narrow to `FieldState<T[K]>` (strict-mode clean — never `| undefined`). For dotted / bracketed / runtime-computed paths use `v.fields.at('user.email')` — see [Nested Paths](#nested-paths) below.
 
 | Member         | Type                                  | Description                                                          |
 |----------------|---------------------------------------|----------------------------------------------------------------------|
@@ -144,16 +147,16 @@ The `state` argument is typed as `Partial<T>`, so a form that only carries a sub
 `fields.at(<path>)` accepts dotted, bracketed, or mixed paths — and any runtime-computed key:
 
 ```typescript
-$v.fields.at('user.email').$model.value = 'peter@example.com';
-$v.fields.at('tags[0]').$model.value = 'urgent';
-$v.fields.at('matrix[0].name').$model.value = 'first';
+v.fields.at('user.email').$model.value = 'peter@example.com';
+v.fields.at('tags[0]').$model.value = 'urgent';
+v.fields.at('matrix[0].name').$model.value = 'first';
 ```
 
-Why `at(...)` instead of bracket access? Under strict-mode TypeScript (`noUncheckedIndexedAccess`, the default for Nuxt and most modern setups) a string-keyed index signature returns `FieldState | undefined`, forcing a non-null assertion on every template reference. `fields.at(...)` keeps the typed-key path (`$v.fields.name`) strict-mode clean *and* still gives you a dynamic accessor for paths the typed keys can't express. Caveat: a field literally named `at` is shadowed by the accessor — use `fields.at('at')` to reach it.
+Why `at(...)` instead of bracket access? Under strict-mode TypeScript (`noUncheckedIndexedAccess`, the default for Nuxt and most modern setups) a string-keyed index signature returns `FieldState | undefined`, forcing a non-null assertion on every template reference. `fields.at(...)` keeps the typed-key path (`v.fields.name`) strict-mode clean *and* still gives you a dynamic accessor for paths the typed keys can't express. Caveat: a field literally named `at` is shadowed by the accessor — use `fields.at('at')` to reach it.
 
-Touching an ancestor (`$v.fields.user.$touch()`) surfaces every descendant error (`user.email`, `user.profile.bio`, …) — useful for "validate this whole section on submit" UX.
+Touching an ancestor (`v.fields.user.$touch()`) surfaces every descendant error (`user.email`, `user.profile.bio`, …) — useful for "validate this whole section on submit" UX.
 
-Object/array intermediates are auto-created on write, so writing `$v.fields.at('address.city').$model.value = 'Berlin'` against `state = {}` produces `state.address = { city: 'Berlin' }`.
+Object/array intermediates are auto-created on write, so writing `v.fields.at('address.city').$model.value = 'Berlin'` against `state = {}` produces `state.address = { city: 'Berlin' }`.
 
 ## Groups
 
@@ -163,7 +166,7 @@ Pass a reactive `group` to drive `'create'` / `'update'` (or any custom) validat
 import { ref, reactive } from 'vue';
 
 const group = ref<'create' | 'update'>('create');
-const $v = useValidup(new RoleValidator(), reactive({ name: '' }), { group });
+const v = useValidup(new RoleValidator(), reactive({ name: '' }), { group });
 
 // Switching groups re-validates the whole form eagerly.
 // Per-field $errors stay quiet until that field is dirty.
@@ -197,7 +200,7 @@ A defensive `try/catch` wraps `safeRun` so a buggy `IContainer` implementation t
 For expensive async validators (e.g. uniqueness checks against an HTTP endpoint), set `options.debounce`:
 
 ```typescript
-const $v = useValidup(uniqueUsernameValidator, form, { debounce: 300 });
+const v = useValidup(uniqueUsernameValidator, form, { debounce: 300 });
 ```
 
 When a state change schedules a new run, the previous in-flight run is aborted via `AbortSignal` — async validators that pass `ctx.signal` to their I/O (e.g. `fetch(url, { signal: ctx.signal })`) cancel cleanly instead of completing wasted work. The composable also aborts pending runs when the owning effect scope tears down (component unmount). `$validate()` is intentionally **not** auto-cancellable, so a submit-time check can't be aborted by an intervening keystroke.
@@ -207,16 +210,16 @@ When a state change schedules a new run, the previous in-flight run is aborted v
 By default, `useValidup` runs validation **on mount** so `$invalid` reflects the initial state. For forms with expensive async validators (e.g. an HTTP-backed uniqueness check), this on-mount probe is wasteful. Pass `lazy: true` to skip it:
 
 ```typescript
-const $v = useValidup(usernameValidator, form, { lazy: true });
+const v = useValidup(usernameValidator, form, { lazy: true });
 
 // At this point: no validation has run.
-// $v.$invalid.value === false, $v.$pending.value === false.
+// v.$invalid.value === false, v.$pending.value === false.
 
 // Validation kicks in on the first $model write…
-$v.fields.username.$model.value = 'peter';
+v.fields.username.$model.value = 'peter';
 
 // …or on an explicit $touch() / $validate() call.
-await $v.$validate();
+await v.$validate();
 ```
 
 `lazy` does **not** affect what happens *after* the first interaction. Subsequent state changes still trigger validation as normal (subject to `debounce`).
@@ -229,7 +232,7 @@ For Pinia-driven forms where the consumer wants store-action mutations to surfac
 
 ```typescript
 const store = useFormStore();
-const $v = useValidup(validator, store.form, { autoDirty: true });
+const v = useValidup(validator, store.form, { autoDirty: true });
 
 // A store action that mutates store.form will now mark every top-level
 // field dirty (errors surface, severity flips). Without `autoDirty`, the
@@ -239,7 +242,7 @@ const $v = useValidup(validator, store.form, { autoDirty: true });
 Notes:
 
 - `autoDirty` does **not** fire on the initial mount — only on subsequent state changes.
-- It marks every top-level field dirty (coarser than per-field). For wizard-style flows where this is too aggressive, use explicit `$v.fields.<name>.$touch()` calls instead.
+- It marks every top-level field dirty (coarser than per-field). For wizard-style flows where this is too aggressive, use explicit `v.fields.<name>.$touch()` calls instead.
 - Default-off keeps hydration semantics (`Object.assign(state, entity)` leaves the form clean).
 
 ## External (Server) Errors
@@ -254,7 +257,7 @@ async function submit() {
         await api.createRole(form);
     } catch (e) {
         if (isValidupError(e)) {
-            $v.setExternalIssues(e.issues);
+            v.setExternalIssues(e.issues);
         }
     }
 }
@@ -276,7 +279,7 @@ External issues:
 Cross-cutting errors are **always visible** — no dirty gate, no field to attach to. External entries also carry `meta.external = true`. Cleared by `$reset()` (external) or overwritten by the next run (internal).
 
 ```typescript
-<div v-for="err in $v.$crossCuttingErrors.value" :key="err.code">
+<div v-for="err in v.$crossCuttingErrors.value" :key="err.code">
     {{ err.message }}
 </div>
 ```
@@ -289,12 +292,12 @@ A parent form aggregates one or more child forms via `provide` / `inject`. Child
 // parent.vue
 import { useValidup, extractResultsFromChild } from '@validup/vue';
 
-const $v = useValidup(new Container(), {}, { stopPropagation: true });
+const v = useValidup(new Container(), {}, { stopPropagation: true });
 
 async function submit() {
     const data = {
-        ...extractResultsFromChild($v, 'basic'),
-        ...extractResultsFromChild($v, 'connection'),
+        ...extractResultsFromChild(v, 'basic'),
+        ...extractResultsFromChild(v, 'connection'),
     };
     await api.create(data);
 }
@@ -302,7 +305,7 @@ async function submit() {
 
 ```typescript
 // child.vue (BasicFields)
-const $v = useValidup(new BasicFieldsValidator(), form, { name: 'basic' });
+const v = useValidup(new BasicFieldsValidator(), form, { name: 'basic' });
 ```
 
 `onScopeDispose` automatically unregisters children when their component unmounts.
@@ -328,7 +331,7 @@ const tab1 = useValidup(new Container(), {}, { scope: 'tab1', stopPropagation: t
 const tab2 = useValidup(new Container(), {}, { scope: 'tab2', stopPropagation: true });
 
 // Child component in tab 1
-const $v = useValidup(profileValidator, form, { scope: 'tab1', name: 'profile' });
+const v = useValidup(profileValidator, form, { scope: 'tab1', name: 'profile' });
 
 // tab1.$getResultsForChild('profile') → defined
 // tab2.$getResultsForChild('profile') → undefined  (different scope)
@@ -377,8 +380,8 @@ The pristine `'warning'` lets a form communicate "there is work to do" on initia
 import { getSeverity } from '@validup/vue';
 
 buildFormGroup({
-    validationSeverity: getSeverity($v.fields.name),
-    validationMessages: $v.fields.name.$errors.value.map((i) => i.message),
+    validationSeverity: getSeverity(v.fields.name),
+    validationMessages: v.fields.name.$errors.value.map((i) => i.message),
     // …
 });
 ```
@@ -446,30 +449,30 @@ The composable shape is intentionally vuelidate-compatible. For most templates y
 - const $v = useVuelidate({
 -     name: { required, minLength: minLength(3), maxLength: maxLength(128) },
 - }, form);
-+ const $v = useValidup(new RoleValidator(), form, { group: 'create' });
++ const v = useValidup(new RoleValidator(), form, { group: 'create' });
 ```
 
 Templates rarely change:
 
 | Vuelidate                                         | `@validup/vue`                                    |
 |---------------------------------------------------|-----------------------------------------------------------|
-| `$v.value.$invalid`                               | `$v.$invalid.value`                                       |
-| `$v.value.<field>.$model`                         | `$v.fields.<field>.$model.value`                          |
-| `$v.value.<field>.$dirty`                         | `$v.fields.<field>.$dirty.value`                          |
-| `$v.value.<field>.$invalid`                       | `$v.fields.<field>.$invalid.value`                        |
-| `$v.value.<field>.$errors`                        | `$v.fields.<field>.$errors.value` (validup `IssueItem[]`) |
-| `$v.value.$touch()`                               | `$v.$touch()`                                             |
-| `$v.value.$reset()`                               | `$v.$reset()`                                             |
-| `getSeverity($v.value.<field>)` (`@ilingo/vuelidate`) | `getSeverity($v.fields.<field>)`               |
+| `$v.value.$invalid`                               | `v.$invalid.value`                                       |
+| `$v.value.<field>.$model`                         | `v.fields.<field>.$model.value`                          |
+| `$v.value.<field>.$dirty`                         | `v.fields.<field>.$dirty.value`                          |
+| `$v.value.<field>.$invalid`                       | `v.fields.<field>.$invalid.value`                        |
+| `$v.value.<field>.$errors`                        | `v.fields.<field>.$errors.value` (validup `IssueItem[]`) |
+| `$v.value.$touch()`                               | `v.$touch()`                                             |
+| `$v.value.$reset()`                               | `v.$reset()`                                             |
+| `getSeverity($v.value.<field>)` (`@ilingo/vuelidate`) | `getSeverity(v.fields.<field>)`               |
 | `useVuelidate({ $stopPropagation: true })` parent | `useValidup(container, state, { stopPropagation: true })` |
 | nested child `useVuelidate(rules, form)`          | nested child `useValidup(container, form, { name })`      |
-| `$v.value.$getResultsForChild(name)`              | `$v.$getResultsForChild(name)`                            |
-| `extractVuelidateResultsFromChild(...)` (custom)  | `extractResultsFromChild($v, name)`                |
+| `$v.value.$getResultsForChild(name)`              | `v.$getResultsForChild(name)`                            |
+| `extractVuelidateResultsFromChild(...)` (custom)  | `extractResultsFromChild(v, name)`                |
 
 What changes substantively:
 
 - **Per-field error keys** — Vuelidate's `$errors` is a list of `{ $validator, $message, $data }` objects keyed by rule name. validup's `$errors` is a list of `IssueItem` (`{ code, path, message, expected, received, meta }`). If your template iterates `$v.value.<field>.$errors`, switch the loop variable to read `err.message` and `err.code`.
-- **Translation** — built-in messages live in [`@ilingo/validup`](https://www.npmjs.com/package/@ilingo/validup) (sibling to the existing `@ilingo/vuelidate`). The migration replaces `useTranslationsForNestedValidation($v.value)` with `useTranslationsForValidup($v)`.
+- **Translation** — built-in messages live in [`@ilingo/validup`](https://www.npmjs.com/package/@ilingo/validup) (sibling to the existing `@ilingo/vuelidate`). The migration replaces `useTranslationsForNestedValidation($v.value)` with `useTranslationsForValidup(v)`.
 - **Async timing** — `options.lazy` is the analog of Vuelidate's `$lazy: true`. By default, validation runs eagerly internally and per-field error rendering is gated on `$dirty`, so the visible UX matches Vuelidate's `$lazy: true`. Pass `lazy: true` to additionally skip the on-mount probe (useful for expensive async validators).
 - **`$autoDirty`** — set `options.autoDirty: true` when state is mutated outside of `$model` (e.g. via Pinia store actions). Default-off preserves silent hydration.
 - **`$scope`** — set `options.scope` on both parent and children to partition multiple aggregation roots (multi-step wizards, tab panels). Replaces Vuelidate's `$scope` config.
