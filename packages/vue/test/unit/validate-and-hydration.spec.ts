@@ -82,7 +82,7 @@ describe('$validate', () => {
         await flush();
 
         expect($v.$errors.value.length).toBeGreaterThan(0);
-        expect($v.fields['address.city'].$errors.value.length).toBeGreaterThan(0);
+        expect($v.fields.at('address.city').$errors.value.length).toBeGreaterThan(0);
     });
 
     it('cancels a pending debounce timer (stale debounced runs cannot overwrite the result)', async () => {
@@ -182,9 +182,9 @@ describe('hydration', () => {
         const $v = useValidup(container, state);
         await flush();
 
-        $v.fields['user.email'].$touch();
+        $v.fields.at('user.email').$touch();
         await flush();
 
-        expect($v.fields['user.email'].$errors.value.length).toBeGreaterThan(0);
+        expect($v.fields.at('user.email').$errors.value.length).toBeGreaterThan(0);
     });
 });

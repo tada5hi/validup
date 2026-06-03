@@ -104,6 +104,10 @@ const outSync  = container.runSync(data);            // T — throws if any vali
 const resSync  = container.safeRunSync(data);        // Result<T>
 ```
 
+**Input type — `Partial<T>`.** `run` / `safeRun` / `runSync` / `safeRunSync` all take `input?: ContainerInput<T>` where `ContainerInput<T> = Partial<T>` (exported alongside the other public types). This reflects the runtime contract — unmounted keys are pass-through, so a form narrower than the validator entity is fine — and matches what `@validup/vue`'s `StateInput<T>` already lets through. Callers handing in a full `T` still satisfy `Partial<T>` (it's the wider type), so no migration on existing code paths. Internal recursion through nested containers also targets `Partial<T>`, which composes cleanly because nested `T` is `any` at the parent-loop call site (`item.data: IContainer<any, any>`).
+
+`ContainerRunOptions.defaults` is similarly partial-by-key (`{ [Key in Path<T>]?: any }`) — supply only the paths you want to backfill instead of having to enumerate every `Path<T>`.
+
 ### Mount semantics (`module.ts:62`)
 
 `mount(...args)` is variadic. It detects each arg by type:

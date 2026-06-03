@@ -79,7 +79,16 @@ type FieldState<V> = {
 };
 ```
 
-`v.fields.<key>` is a Proxy — reading any string key (including dotted paths like `'address.city'`) builds a `FieldState` lazily and caches it.
+`v.fields.<key>` returns a `FieldState<T[K]>` for top-level entity keys — strict-mode TypeScript clean (no `| undefined` from an index-signature fallback), so templates don't need a non-null assertion on every reference. For dotted (`'user.email'`), bracketed (`'tags[0]'`), or runtime-computed paths, use `v.fields.at(path)`:
+
+```typescript
+v.fields.at('user.email').$model.value = 'peter@example.com';
+v.fields.at('tags[0]').$model.value = 'urgent';
+```
+
+A field literally named `at` is shadowed by the dynamic accessor — reach it via `v.fields.at('at')` if needed.
+
+The `state` argument is typed as `Partial<T>`, so a form that only carries a subset of the validator's entity (e.g. a `Container<User>` driving a create form of `{ name, email }` where `id` / `createdAt` are server-set) type-checks without an `as any` cast. `T` stays bound to the container's entity type, so typed-field access still narrows against the full entity.
 
 ## Options
 

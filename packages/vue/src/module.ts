@@ -99,11 +99,21 @@ function isPrefixDirty(dirtyPaths: ReadonlySet<string>, key: string): boolean {
 
 export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>(
     container: ContainerInput<T, C>,
-    state: StateInput<T>,
+    // `NoInfer` keeps `T` bound to the container's entity type even when the
+    // caller's form is narrower (e.g. `{ name, email }` against
+    // `Container<User>`). Without it the narrower state would compete with
+    // the container's `T` and TypeScript falls back to `any`, which collapses
+    // `Composable<T>['fields']` to a strict-mode-broken `Record<string, ...>`.
+    state: StateInput<NoInfer<T>>,
     options: ComposableOptions<T, C> = {},
 ): Composable<T> {
     const containerRef = (isRef(container) ? container : ref(container)) as Ref<any>;
-    const stateRef = (isRef(state) ? state : ref(state)) as Ref<T>;
+    // Cast matches the public `state: StateInput<NoInfer<T>>` contract
+    // (= `Partial<T> | Ref<Partial<T>>`) instead of widening to `Ref<T>`.
+    // Keeps internal reads honest — `stateRef.value.someField` types as
+    // `T['someField'] | undefined`, which mirrors the runtime where the
+    // form may not have populated every entity field yet.
+    const stateRef = (isRef(state) ? state : ref(state)) as Ref<Partial<T>>;
     // Normalize MaybeRef explicitly — `toRef(maybeRef)` semantics shifted across
     // Vue 3.x minor versions; `isRef` keeps reactivity intact regardless.
     const groupRef = (isRef(options.group) ? options.group : ref(options.group)) as Ref<string | undefined>;
@@ -429,10 +439,27 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         return liveStateKeysRef.value;
     }
 
+    // Dedicated function for the dynamic-path accessor exposed as
+    // `fields.at(path)`. Defined once (not per-`get`-hit) so identity is
+    // stable for consumers that compare references (e.g. memoisation keys).
+    // Generic mirrors the public `FieldsAccessor.at<V>` signature so callers
+    // can pass an explicit `V` (`fields.at<string>('user.email')`) and read
+    // the result without re-narrowing from `unknown`.
+    function fieldAt<V = unknown>(path: string): FieldState<V> {
+        return getOrBuildFieldState(path) as FieldState<V>;
+    }
+
     const fields = new Proxy({} as Composable<T>['fields'], {
         get(_, prop) {
             if (typeof prop !== 'string') {
                 return undefined;
+            }
+            // `at` is reserved as the dynamic-path accessor (matches the
+            // public `FieldsAccessor` type). A field literally named `at`
+            // is therefore shadowed — documented trade-off, see
+            // `FieldsAccessor` in `./types`.
+            if (prop === 'at') {
+                return fieldAt;
             }
             return getOrBuildFieldState(prop);
         },

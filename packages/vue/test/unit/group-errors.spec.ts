@@ -68,7 +68,7 @@ describe('oneOf group surfacing', () => {
         expect($v.$invalid.value).toBe(false);
     });
 
-    it('exposes leaves nested inside an IssueGroup via fields[<path>].$issues', async () => {
+    it('exposes leaves nested inside an IssueGroup via fields.<key>.$issues', async () => {
         // Regression for CodeRabbit #5: rawIssuesAtPath only inspected
         // top-level entries, so leaves wrapped inside an IssueGroup (e.g.
         // ONE_OF_FAILED branches) never surfaced through fields.<path>.$issues.

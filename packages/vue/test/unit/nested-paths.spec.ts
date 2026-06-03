@@ -37,7 +37,7 @@ describe('nested paths', () => {
         const $v = useValidup(container, state);
         await flush();
 
-        expect($v.fields['user.email'].$model.value).toBe('peter@example.com');
+        expect($v.fields.at('user.email').$model.value).toBe('peter@example.com');
     });
 
     it('writes $model via dotted key and creates intermediate objects', async () => {
@@ -50,11 +50,11 @@ describe('nested paths', () => {
         const $v = useValidup(container, state as { address: { city: string } });
         await flush();
 
-        $v.fields['address.city'].$model.value = 'Berlin';
+        $v.fields.at('address.city').$model.value = 'Berlin';
         await flush();
 
         expect(state.address?.city).toBe('Berlin');
-        expect($v.fields['address.city'].$dirty.value).toBe(true);
+        expect($v.fields.at('address.city').$dirty.value).toBe(true);
     });
 
     it('supports bracket notation for array indices', async () => {
@@ -63,11 +63,11 @@ describe('nested paths', () => {
         const $v = useValidup(container, state);
         await flush();
 
-        $v.fields['tags[0]'].$model.value = 'urgent';
+        $v.fields.at('tags[0]').$model.value = 'urgent';
         await flush();
 
         expect(state.tags[0]).toBe('urgent');
-        expect($v.fields['tags[0]'].$dirty.value).toBe(true);
+        expect($v.fields.at('tags[0]').$dirty.value).toBe(true);
     });
 
     it('surfaces nested errors when an ancestor path is dirty', async () => {
@@ -84,7 +84,7 @@ describe('nested paths', () => {
         $v.fields.address.$touch();
         await flush();
 
-        expect($v.fields['address.city'].$errors.value.length).toBeGreaterThan(0);
+        expect($v.fields.at('address.city').$errors.value.length).toBeGreaterThan(0);
         expect($v.fields.address.$invalid.value).toBe(true);
     });
 
@@ -99,12 +99,12 @@ describe('nested paths', () => {
         await flush();
 
         // touch only the leaf — sibling/parent fields should not auto-surface their own state
-        $v.fields['address.city'].$touch();
+        $v.fields.at('address.city').$touch();
         await flush();
 
-        expect($v.fields['address.city'].$dirty.value).toBe(true);
+        expect($v.fields.at('address.city').$dirty.value).toBe(true);
         // parent reports invalid because it has descendant errors, but $dirty is the leaf-only state
-        expect($v.fields['address.city'].$errors.value.length).toBeGreaterThan(0);
+        expect($v.fields.at('address.city').$errors.value.length).toBeGreaterThan(0);
     });
 
     it('whole-form $errors honours prefix-dirty matching', async () => {

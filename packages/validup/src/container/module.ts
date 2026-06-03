@@ -31,6 +31,7 @@ import type { Validator, ValidatorDescriptor } from '../validator';
 import { isValidatorDescriptor } from '../validator';
 import { isContainer } from './check';
 import type {
+    ContainerInput,
     ContainerOptions,
     ContainerRunOptions,
     IContainer,
@@ -253,7 +254,7 @@ export class Container<
      *         already-aborted run — re-raised as-is rather than wrapped.
      */
     async run(
-        data: Record<string, any> = {},
+        data: ContainerInput<T> = {},
         options: ContainerRunOptions<T, C> = {},
     ): Promise<T> {
         if (options.parallel) {
@@ -432,7 +433,7 @@ export class Container<
      * See `ContainerRunOptions.parallel` for the trade-off note.
      */
     private async runParallel(
-        data: Record<string, any>,
+        data: ContainerInput<T>,
         options: ContainerRunOptions<T, C>,
     ): Promise<T> {
         const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
@@ -690,7 +691,7 @@ export class Container<
         return this.finalizeOutput(output, options, issues, errorCount, itemCount);
     }
 
-    async safeRun(input: Record<string, any> = {}, options: ContainerRunOptions<T, C> = {}): Promise<Result<T>> {
+    async safeRun(input: ContainerInput<T> = {}, options: ContainerRunOptions<T, C> = {}): Promise<Result<T>> {
         try {
             const data = await this.run(input, options);
             return { success: true, data };
@@ -729,7 +730,7 @@ export class Container<
      *         already-aborted run.
      */
     runSync(
-        data: Record<string, any> = {},
+        data: ContainerInput<T> = {},
         options: ContainerRunOptions<T, C> = {},
     ): T {
         const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
@@ -910,7 +911,7 @@ export class Container<
         return this.finalizeOutput(output, options, issues, errorCount, itemCount);
     }
 
-    safeRunSync(input: Record<string, any> = {}, options: ContainerRunOptions<T, C> = {}): Result<T> {
+    safeRunSync(input: ContainerInput<T> = {}, options: ContainerRunOptions<T, C> = {}): Result<T> {
         try {
             const data = this.runSync(input, options);
             return { success: true, data };
