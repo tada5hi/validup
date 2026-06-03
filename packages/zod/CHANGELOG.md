@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1](https://github.com/tada5hi/validup/compare/zod-v0.3.0...zod-v0.3.1) (2026-06-03)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^0.4.0 to ^0.4.1
+
 ## [0.3.0](https://github.com/tada5hi/validup/compare/zod-v0.2.5...zod-v0.3.0) (2026-05-29)
 
 
