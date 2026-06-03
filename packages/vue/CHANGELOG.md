@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.2](https://github.com/tada5hi/validup/compare/vue-v0.3.1...vue-v0.3.2) (2026-06-03)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^0.4.1 to ^0.5.0
+
 ## [0.3.1](https://github.com/tada5hi/validup/compare/vue-v0.3.0...vue-v0.3.1) (2026-06-03)
 
 

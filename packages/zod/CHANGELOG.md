@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.2](https://github.com/tada5hi/validup/compare/zod-v0.3.1...zod-v0.3.2) (2026-06-03)
+
+
+### Bug Fixes
+
+* **zod:** map invalid_value → ONE_OF_FAILED, recover REQUIRED from missing keys ([#398](https://github.com/tada5hi/validup/issues/398)) ([49df8fb](https://github.com/tada5hi/validup/commit/49df8fbdb6c091372a5d9b8c4576a28eee555e11))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^0.4.1 to ^0.5.0
+
 ## [0.3.1](https://github.com/tada5hi/validup/compare/zod-v0.3.0...zod-v0.3.1) (2026-06-03)
 
 
