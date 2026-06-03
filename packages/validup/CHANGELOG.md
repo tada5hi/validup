@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/tada5hi/validup/compare/validup-v0.4.0...validup-v0.4.1) (2026-06-03)
+
+
+### Features
+
+* strict-mode typings — Partial&lt;T&gt; input + clean fields accessor ([#393](https://github.com/tada5hi/validup/issues/393)) ([9590445](https://github.com/tada5hi/validup/commit/9590445e1958fe296af8538e8851ea78154c72ce))
+
 ## [0.4.0](https://github.com/tada5hi/validup/compare/validup-v0.3.0...validup-v0.4.0) (2026-05-29)
 
 

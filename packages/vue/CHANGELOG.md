@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.1](https://github.com/tada5hi/validup/compare/vue-v0.3.0...vue-v0.3.1) (2026-06-03)
+
+
+### Features
+
+* strict-mode typings — Partial&lt;T&gt; input + clean fields accessor ([#393](https://github.com/tada5hi/validup/issues/393)) ([9590445](https://github.com/tada5hi/validup/commit/9590445e1958fe296af8538e8851ea78154c72ce))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^0.4.0 to ^0.4.1
+
 ## [0.3.0](https://github.com/tada5hi/validup/compare/vue-v0.2.0...vue-v0.3.0) (2026-05-29)
 
 

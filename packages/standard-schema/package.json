@@ -1,6 +1,6 @@
 {
     "name": "@validup/standard-schema",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "type": "module",
     "description": "A validup integration for any Standard Schema validator (zod, valibot, arktype, effect-schema, …).",
     "author": {
@@ -50,7 +50,7 @@
         "zod": "^4.4.3"
     },
     "peerDependencies": {
-        "validup": "^0.4.0"
+        "validup": "^0.4.1"
     },
     "publishConfig": {
         "access": "public"
