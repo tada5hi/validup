@@ -249,7 +249,7 @@ export function createValidator<C, Z extends ZodType>(
             const zod = typeof input === 'function' ? input(ctx) : input;
             const outcome = await zod.safeParseAsync(ctx.value);
             if (outcome.success) return outcome.data as ZodOutput<Z>;
-            throw new ValidupError(buildIssuesForZodError(outcome.error));
+            throw new ValidupError(buildIssuesForZodError(outcome.error, ctx.value));
         },
     });
 }
@@ -260,7 +260,7 @@ export function createValidator<C, Z extends ZodType>(
    - **Accept `T | (ctx: ValidatorContext<C>) => T`** — letting users build per-context validators (e.g. depending on `ctx.data`, `ctx.group`, or `ctx.context`).
    - **Make `createValidator<C>` generic over the validup context type** so the parent `Container<T, C>` keeps `ctx.context` typed end-to-end.
    - **Return a `ValidatorDescriptor<C, Out>`, not a bare `Validator<C, Out>`** — wrap the closure via `defineValidator({ sideEffect, run })`. Accept a `sideEffect?: boolean` option on the public factory so callers can flip it for known-impure schemas (async refines, `superRefine` reading external state); default to undefined (cached). `@validup/validator-js` is a special case — its shipped factories know their own contract (`equals` flips `sideEffect: true` when no `expectedValue` is provided because the comparison target is read from `ctx.data`) and don't surface the option.
-   - **Translate foreign errors into `Issue[]`** in a separate `error.ts` module, then throw `new ValidupError(issues)`. Use `defineIssueItem`/`defineIssueGroup` — never construct issue objects literally. (`@validup/standard-schema` is a special case: the spec only exposes `message + path`, so the resulting issues carry only the portable subset.)
+   - **Translate foreign errors into `Issue[]`** in a separate `error.ts` module, then throw `new ValidupError(issues)`. Use `defineIssueItem`/`defineIssueGroup` — never construct issue objects literally. (`@validup/standard-schema` is a special case: the spec only exposes `message + path`, so the resulting issues carry only the portable subset.) When the foreign library strips structural information the validup vocabulary needs (e.g. zod 4 drops `received` / `input` from the formatted `ZodError`, hiding the missing-key signal needed to emit `REQUIRED`), accept the original input as a second arg on the error-builder and probe it via `getPathValue(input, issue.path)` to recover the signal — `@validup/zod`'s `buildIssuesForZodError(error, input?)` does exactly this. Preserve the single-arg overload (gate the probe on `arguments.length > 1`) so ad-hoc callers without the input keep their existing behavior.
 
 2. **Framework / runtime integrations** (`@validup/vue`) — consume a whole `Container<T, C>` and wire it into a host environment.
    - `@validup/vue` exposes a `useValidup<T, C>(container, state, options?)` composable that drives reactive form state from `Container.safeRun()`. Reactive `options.context` re-runs validation on change; an internal `AbortController` per scheduled run cancels the previous when state/group/context updates (and on `onScopeDispose`). `$validate()` deliberately runs *without* a signal so submit-time runs aren't aborted by intervening keystrokes. Issues come pre-shaped from validup, so there is no `error.ts` module here.

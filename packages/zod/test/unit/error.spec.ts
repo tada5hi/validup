@@ -64,11 +64,14 @@ describe('error', () => {
         // here surfaces it immediately rather than relying on i18n consumers
         // to notice "wait, my catalog entry never fires."
         //
-        // Helper to keep each test compact.
+        // Helper to keep each test compact. Threads the parsed input
+        // through so the `invalid_type` → REQUIRED promotion (which
+        // depends on a missing-key lookup against the input) is exercised
+        // by the same code path the runtime uses via `createValidator`.
         const parseAndMap = (schema: z.ZodTypeAny, value: unknown) => {
             const parsed = schema.safeParse(value);
             if (parsed.success) throw new Error('expected zod parse to fail');
-            return flattenIssueItems(buildIssuesForZodError(parsed.error));
+            return flattenIssueItems(buildIssuesForZodError(parsed.error, value));
         };
 
         // ── too_small / too_big — length axis vs. magnitude axis ───────────
@@ -158,23 +161,36 @@ describe('error', () => {
             const items = parseAndMap(z.string(), 42);
             expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
         });
-        it('invalid_type (missing key, zod-4 limitation) → VALUE_INVALID', () => {
+        it('invalid_type (missing key) → REQUIRED', () => {
             // zod 4 collapses "missing key" and "wrong type" into the same
-            // `invalid_type` issue without surfacing `received`, so we can't
-            // structurally promote this to REQUIRED. The zod-supplied
-            // English message still mentions "received undefined" for
-            // consumers that need to render something.
+            // `invalid_type` issue and strips `input` from the formatted
+            // ZodError. We recover the REQUIRED signal by looking the
+            // issue path up against the original parsed input — when the
+            // leaf is `undefined`, the field was absent.
             const items = parseAndMap(z.object({ email: z.string() }), {});
+            expect(items[0]?.code).toBe(IssueCode.REQUIRED);
+        });
+        it('invalid_type → falls back to VALUE_INVALID when input not threaded', () => {
+            // Without the second argument we can't run the missing-key
+            // probe, so the mapper stays on the safe VALUE_INVALID
+            // fallback. Preserves the contract of the single-arg overload
+            // for callers that hold a ZodError but not the input.
+            const parsed = z.object({ email: z.string() }).safeParse({});
+            if (parsed.success) throw new Error('expected zod parse to fail');
+            const items = flattenIssueItems(buildIssuesForZodError(parsed.error));
             expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
-            expect(items[0]?.message).toMatch(/undefined/i);
         });
 
-        // ── fallback for codes outside the vocabulary ─────────────────────
-        it('invalid_value (enum) → VALUE_INVALID', () => {
+        // ── invalid_value — enum / literal mismatches ────────────────────
+        it('invalid_value (enum) → ONE_OF_FAILED', () => {
             const items = parseAndMap(z.enum(['a', 'b']), 'c');
-            expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
+            expect(items[0]?.code).toBe(IssueCode.ONE_OF_FAILED);
             // Original zod message survives as the fallback display string.
-            expect(items[0]?.message).toMatch(/Invalid|enum/i);
+            expect(items[0]?.message).toMatch(/Invalid|expected/i);
+        });
+        it('invalid_value (literal) → ONE_OF_FAILED', () => {
+            const items = parseAndMap(z.literal('foo'), 'bar');
+            expect(items[0]?.code).toBe(IssueCode.ONE_OF_FAILED);
         });
     });
 });
