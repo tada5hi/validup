@@ -107,13 +107,35 @@ describe('nested paths', () => {
         expect($v.fields.at('address.city').$errors.value.length).toBeGreaterThan(0);
     });
 
-    it('whole-form $errors honours prefix-dirty matching', async () => {
+    it('surfaces required-mount issues across the whole form pre-touch', async () => {
         const container = new Container<{ user: { email: string }; tags: string[] }>();
         const userChild = new Container<{ email: string }>();
         userChild.mount('email', isNonEmptyString);
         container.mount('user', userChild);
         container.mount('tags[0]', isNonEmptyString);
 
+        const state = reactive({ user: { email: '' }, tags: [''] });
+        const $v = useValidup(container, state);
+        await flush();
+
+        // Both required-mount issues surface immediately — no $touch needed.
+        // This is what lets the form render a warning hint on initial load
+        // without the user having to engage with every field first.
+        expect($v.$errors.value.some((i) => String(i.path[0]) === 'user')).toBe(true);
+        expect($v.$errors.value.some((i) => String(i.path[0]) === 'tags')).toBe(true);
+    });
+
+    it('whole-form $errors honours prefix-dirty matching for optional-mount items', async () => {
+        const container = new Container<{ user: { email: string }; tags: string[] }>();
+        const userChild = new Container<{ email: string }>();
+        userChild.mount('email', { optional: true }, isNonEmptyString);
+        container.mount('user', userChild);
+        container.mount('tags[0]', { optional: true }, isNonEmptyString);
+
+        // Empty strings trigger the optional mounts (UNDEFINED default for
+        // optionalValue), so each mount runs and the required-string check
+        // fails — but with `meta.optional: true` stamped, so the items only
+        // surface in `$errors` once the path becomes dirty.
         const state = reactive({ user: { email: '' }, tags: [''] });
         const $v = useValidup(container, state);
         await flush();

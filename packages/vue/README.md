@@ -358,17 +358,20 @@ const widget = useValidup(widgetValidator, widgetForm, { detached: true });
 
 `getSeverity(field)` returns a literal that drops straight into design-system components (e.g. `@vuecs/form-controls`):
 
-| Field state                                                       | Severity      |
-|-------------------------------------------------------------------|---------------|
-| not yet `$dirty`                                                  | `undefined`   |
-| `$dirty` + `$pending`                                             | `'warning'`   |
-| `$dirty` + `$invalid` + at least one issue from a required mount  | `'error'`     |
-| `$dirty` + `$invalid` + all issues from optional mounts           | `'warning'`   |
-| `$dirty` + valid                                                  | `'success'`   |
+| Field state                                                                 | Severity      |
+|-----------------------------------------------------------------------------|---------------|
+| `$pending`                                                                  | `'warning'`   |
+| not yet `$dirty` + `$errors` contains a required-mount item                 | `'warning'`   |
+| not yet `$dirty` + `$errors` empty                                          | `undefined`   |
+| `$dirty` + `$errors` contains at least one required-mount item              | `'error'`     |
+| `$dirty` + `$errors` contains only optional-mount items                     | `'warning'`   |
+| `$dirty` + `$errors` empty                                                  | `'success'`   |
 
 The required-vs-optional split is driven by `IssueItem.meta.optional`, which the validup runtime stamps on issues emitted from mounts declared as `optional: true`. The rationale: if the schema permits a field to be blank, invalid content shouldn't gate the user as hard as a required-field failure. Mixed bags (one required + one optional issue on the same path) surface as `'error'` — the required one wins.
 
 `meta.optional` reflects only the most-local mount, so a required leaf inside an optional sub-form still surfaces as `'error'`. ("Role is optional" means *you don't have to provide a role*; once you do, the role's required fields stay required.)
+
+The pristine `'warning'` lets a form communicate "there is work to do" on initial render — e.g. a required `email` field outlines as amber and shows its message before the user touches anything. This works because **`$errors` already filters the items it contains**: required-mount items surface as soon as validation has run (pre-touch included); optional-mount items wait until `$dirty` flips. Consumers using `field.$errors.value.map((i) => i.message)` for rendering automatically pair with `getSeverity` — no `$issues` walk required.
 
 ```typescript
 import { getSeverity } from '@validup/vue';
@@ -409,7 +412,7 @@ interface ComposableOptions<T, C = unknown> {
 | Member                            | Description                                                                                                |
 |-----------------------------------|------------------------------------------------------------------------------------------------------------|
 | `$invalid` / `$pending` / `$dirty`| Form-level computeds. `$pending` is form-wide (one run per container).                                     |
-| `$errors`                         | Flat list of every leaf issue (dirty-gated, path-attached only).                                           |
+| `$errors`                         | Flat list of visible leaf issues (path-attached only). Required-mount items show immediately; optional-mount items wait for `$dirty`. |
 | `$issues`                         | Raw `Issue[]` for the whole form.                                                                          |
 | `$crossCuttingErrors`             | Path-less `IssueItem[]` (always visible). Sources: internal runs + `setExternalIssues`.                    |
 | `$groupErrors`                    | `IssueGroup[]` — group-level issues like `ONE_OF_FAILED`, dirty-gated.                                     |

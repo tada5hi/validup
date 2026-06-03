@@ -35,7 +35,7 @@ async function flush() {
 }
 
 describe('useValidup', () => {
-    it('reports invalid initially but does not surface field errors until dirty', async () => {
+    it('surfaces required-mount errors immediately, even before $touch', async () => {
         const container = new Container<{ name: string }>();
         container.mount('name', isString);
 
@@ -47,7 +47,37 @@ describe('useValidup', () => {
         expect($v.$invalid.value).toBe(true);
         expect($v.fields.name.$invalid.value).toBe(true);
         expect($v.fields.name.$dirty.value).toBe(false);
-        expect($v.fields.name.$errors.value).toEqual([]); // dirty-gated
+        // Required-mount issues surface pre-touch so the form can render a
+        // warning hint on initial load without the user having to engage
+        // with every field first.
+        expect($v.fields.name.$errors.value.length).toBeGreaterThan(0);
+        expect($v.fields.name.$errors.value.every((i) => !i.meta?.optional)).toBe(true);
+    });
+
+    it('hides optional-mount errors until $touch', async () => {
+        const container = new Container<{ bio: string }>();
+        // Optional mount that runs against non-empty values and fails.
+        container.mount('bio', { optional: true }, (ctx) => {
+            if (typeof ctx.value !== 'string' || ctx.value.length < 5) {
+                throw new Error('Bio is too short');
+            }
+            return ctx.value;
+        });
+
+        const state = reactive({ bio: 'a' });
+        const $v = useValidup(container, state);
+
+        await flush();
+
+        expect($v.fields.bio.$invalid.value).toBe(true);
+        expect($v.fields.bio.$dirty.value).toBe(false);
+        // Optional-mount items stay hidden pre-touch — the schema permits
+        // leaving this field blank, so don't nag before the user engages.
+        expect($v.fields.bio.$errors.value).toEqual([]);
+
+        $v.fields.bio.$touch();
+        await flush();
+        expect($v.fields.bio.$errors.value.length).toBeGreaterThan(0);
     });
 
     it('surfaces field errors after $touch()', async () => {

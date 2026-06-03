@@ -93,10 +93,14 @@ describe('$reset preserves internalIssues (T2)', () => {
         $v.$reset();
         await flush();
 
-        // dirty cleared → field-level $errors hidden again
+        // dirty cleared, but `name` came from a required (non-optional) mount,
+        // so its issue stays in `$errors` after reset — same as on initial
+        // load. The form is still invalid; hiding the error here would let
+        // `$invalid` linger silently. Severity downgrades from `'error'` to
+        // `'warning'` (pre-touch) to reflect the "not yet engaged" state.
         expect($v.fields.name.$dirty.value).toBe(false);
-        expect($v.fields.name.$errors.value).toEqual([]);
-        // …but internal invalidity is preserved (it's a property of state)
+        expect($v.fields.name.$errors.value.length).toBeGreaterThan(0);
+        expect($v.fields.name.$errors.value.every((i) => !i.meta?.optional)).toBe(true);
         expect($v.$invalid.value).toBe(true);
     });
 });

@@ -10,16 +10,18 @@ import type { FieldState, Severity } from '../types';
 /**
  * Map a per-field state to a presentational severity token.
  *
- * Mapping:
- * - not yet `$dirty`             → `undefined` (don't render anything)
- * - `$dirty` + `$pending`        → `'warning'` (validation in flight)
- * - `$dirty` + `$invalid`:
- *     - any error from a non-optional mount → `'error'` (hard failure —
- *       the schema requires this field, so the user must fix it)
- *     - all errors from optional mounts     → `'warning'` (soft failure —
- *       the user could have left the field blank; surfaced as a hint rather
- *       than a blocker)
- * - `$dirty` + valid             → `'success'`
+ * Mapping (reads `$errors`, which is already "visible items" — see
+ * `useValidup`'s `isIssueItemVisible` helper):
+ *
+ * - `$pending`                                         → `'warning'`
+ * - has any visible error from a non-optional mount    → `'error'` when
+ *   the field is `$dirty`, `'warning'` when still pristine (the form
+ *   communicates "there is work to do" before the user touches anything)
+ * - has visible errors but all from optional mounts    → `'warning'`
+ *   (the user could leave the field blank; surfaced as a hint, never as
+ *   a blocker)
+ * - no visible errors and `$dirty`                     → `'success'`
+ * - no visible errors and not `$dirty`                 → `undefined`
  *
  * "Optional" is inferred from `IssueItem.meta.optional`, which the validup
  * runtime stamps on issues emitted from mounts declared as `optional: true`.
@@ -27,18 +29,27 @@ import type { FieldState, Severity } from '../types';
  * the parent's optional flag does not bleed down into the child's required
  * fields), so a required inner field inside an optional sub-form still
  * surfaces as `'error'`.
+ *
+ * Because `$errors` already filters optional-mount items pre-touch,
+ * consumers using `field.$errors.value.map((i) => i.message)` for rendering
+ * automatically pair with the severity returned here — no `$issues` walk
+ * required.
  */
 export function getSeverity(state: FieldState<any>): Severity {
-    if (!state.$dirty.value) {
-        return undefined;
-    }
     if (state.$pending.value) {
         return 'warning';
     }
-    if (state.$invalid.value) {
-        const errors = state.$errors.value;
-        const hasRequiredError = errors.some((e) => !e.meta?.optional);
-        return hasRequiredError ? 'error' : 'warning';
+    const errors = state.$errors.value;
+    if (errors.length === 0) {
+        return state.$dirty.value ? 'success' : undefined;
     }
-    return 'success';
+    const hasRequiredError = errors.some((e) => !e.meta?.optional);
+    if (!state.$dirty.value) {
+        // Pre-touch — `$errors` only contains required-mount items here
+        // (optional ones are filtered by `isIssueItemVisible`), so any
+        // entry means there's work to do. Surface as warning, not error:
+        // the user hasn't engaged yet, this is a hint not a blocker.
+        return hasRequiredError ? 'warning' : undefined;
+    }
+    return hasRequiredError ? 'error' : 'warning';
 }

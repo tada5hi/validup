@@ -97,6 +97,24 @@ function isPrefixDirty(dirtyPaths: ReadonlySet<string>, key: string): boolean {
     return false;
 }
 
+/**
+ * "Should this issue surface as a visible `$errors` entry right now?"
+ *
+ * Rule: items from required mounts (no `meta.optional`) surface
+ * unconditionally — they communicate "this field has unresolved work"
+ * the moment validation has run, so a form can render the issue (and the
+ * matching `getSeverity` → `'warning'`) on initial load without needing
+ * the user to touch every field first. Items from optional mounts stay
+ * hidden until the user engages with the field (`isPrefixDirty`), since
+ * the schema permits leaving the field blank and we shouldn't nag.
+ *
+ * Shared between per-field `FieldState.$errors` and the form-level
+ * `Composable.$errors` so both views apply the same rule.
+ */
+function isIssueItemVisible(item: IssueItem, dirty: boolean): boolean {
+    return dirty || !item.meta?.optional;
+}
+
 export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>(
     container: ContainerInput<T, C>,
     // `NoInfer` keeps `T` bound to the container's entity type even when the
@@ -401,7 +419,14 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
             $invalid: computed(() => items.value.length > 0),
             $pending: computed(() => pending.value),
             $dirty: computed(() => isPrefixDirty(dirtyPaths, path)),
-            $errors: computed(() => (isPrefixDirty(dirtyPaths, path) ? items.value : [])),
+            // Visible items only — required-mount issues surface pre-touch
+            // so a form communicates "there is work to do" on initial load;
+            // optional-mount issues stay hidden until the user engages with
+            // the field. See `isIssueItemVisible`.
+            $errors: computed(() => {
+                const dirty = isPrefixDirty(dirtyPaths, path);
+                return items.value.filter((i) => isIssueItemVisible(i, dirty));
+            }),
             $issues: computed(() => rawIssuesAtPath(path)),
             $touch: () => {
                 dirtyPaths.add(path);
@@ -585,8 +610,13 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         $invalid: computed(() => internalIssues.value.length > 0 || externalIssues.value.length > 0),
         $pending: computed(() => pending.value),
         $dirty: computed(() => dirtyPaths.size > 0),
+        // Form-level visible items — same rule as `FieldState.$errors`:
+        // required-mount issues surface pre-touch; optional-mount issues
+        // wait until the matching path is dirty. Path-less issues are
+        // surfaced separately via `$crossCuttingErrors`.
         $errors: computed(() => flattenIssueItems([...internalIssues.value, ...externalIssues.value])
-            .filter((i) => i.path.length > 0 && isPrefixDirty(dirtyPaths, pathKey(i.path)))),
+            .filter((i) => i.path.length > 0 &&
+                isIssueItemVisible(i, isPrefixDirty(dirtyPaths, pathKey(i.path))))),
         $issues: computed(() => [...internalIssues.value, ...externalIssues.value]),
         // Path-less issues (cross-cutting failures like rate limit, CSRF, or
         // schema-level container errors) — always visible, no dirty gate.

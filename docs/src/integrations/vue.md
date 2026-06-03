@@ -53,7 +53,7 @@ type Composable<T> = {
     $invalid: ComputedRef<boolean>;
     $pending: ComputedRef<boolean>;
     $dirty:   ComputedRef<boolean>;
-    $errors:  ComputedRef<IssueItem[]>;       // dirty-gated leaf items
+    $errors:  ComputedRef<IssueItem[]>;       // visible leaf items (see Severity)
     $issues:  ComputedRef<Issue[]>;           // raw items + groups
     $crossCuttingErrors: ComputedRef<IssueItem[]>; // path-less issues, always visible
     $groupErrors: ComputedRef<IssueGroup[]>;  // ONE_OF_FAILED, etc.
@@ -72,7 +72,7 @@ type FieldState<V> = {
     $invalid: ComputedRef<boolean>;
     $pending: ComputedRef<boolean>;
     $dirty:   ComputedRef<boolean>;
-    $errors:  ComputedRef<IssueItem[]>;       // dirty-gated
+    $errors:  ComputedRef<IssueItem[]>;       // required-mount items show immediately; optional-mount items wait for $dirty
     $issues:  ComputedRef<Issue[]>;           // raw
     $touch:   () => void;
     $reset:   () => void;

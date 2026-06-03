@@ -45,7 +45,7 @@ type IssueItem = {
 };
 
 const v = useValidup(container, state);
-v.fields.email.$errors.value; // IssueItem[] — dirty-gated leaves at this path
+v.fields.email.$errors.value; // IssueItem[] — visible leaves at this path (required-mount items show immediately; optional-mount items wait for $dirty)
 ```
 
 ## Bridge: `messagesFromField()`
@@ -129,7 +129,7 @@ The composable owns *state* — `$model`, `$dirty`, `$pending`, `$errors`. The v
 
 ## Severity mapping
 
-`@validup/vue` already ships a per-field severity helper, [`getSeverity`](/integrations/vue#severity), that returns `'success' | 'warning' | 'error' | undefined` based on `$dirty` / `$pending` / `$invalid`, and downgrades to `'warning'` when every issue at the field came from a mount declared `optional: true` (via `meta.optional`). `<VCValidationGroup>` only accepts `'error' | 'warning'`, so map the unsupported values to `undefined` (skip rendering):
+`@validup/vue` already ships a per-field severity helper, [`getSeverity`](/integrations/vue#severity), that returns `'success' | 'warning' | 'error' | undefined` based on `$dirty` / `$pending` / `$invalid`, and downgrades to `'warning'` when every issue at the field came from a mount declared `optional: true` (via `meta.optional`). Pre-touch (not yet `$dirty`) it returns `'warning'` whenever a required-mount issue is pending on the field, so the form communicates "there is work to do" on initial render. `<VCValidationGroup>` only accepts `'error' | 'warning'`, so map the unsupported values to `undefined` (skip rendering):
 
 ```typescript
 import { getSeverity } from '@validup/vue';

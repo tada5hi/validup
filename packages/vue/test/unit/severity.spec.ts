@@ -7,11 +7,11 @@
 
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { 
-    defineComponent, 
-    nextTick, 
-    reactive, 
-    ref, 
+import {
+    defineComponent,
+    nextTick,
+    reactive,
+    ref,
 } from 'vue';
 import { Container } from 'validup';
 import type { IssueItem, Validator } from 'validup';
@@ -37,6 +37,12 @@ async function flush() {
  * Minimal `FieldState` shim — only the fields `getSeverity` actually reads
  * are populated. Lets each case state exactly what it cares about without
  * spinning up a Vue component + Container per assertion.
+ *
+ * The shim simulates the post-filter state — i.e. the items the host
+ * `FieldState.$errors` would already have surfaced. In real usage,
+ * optional-mount items are stripped from `$errors` pre-touch by
+ * `isIssueItemVisible`, so passing them here pre-touch represents a
+ * defensive call site (the helper still does the right thing).
  */
 function buildFieldState(opts: {
     dirty: boolean;
@@ -53,9 +59,47 @@ function buildFieldState(opts: {
 }
 
 describe('getSeverity', () => {
-    it('returns undefined while the field is not dirty', () => {
+    it('returns undefined while the field is not dirty and has no visible errors', () => {
         expect(getSeverity(buildFieldState({ dirty: false }))).toBeUndefined();
-        expect(getSeverity(buildFieldState({ dirty: false, invalid: true }))).toBeUndefined();
+    });
+
+    it('returns warning when not dirty and a required-mount error is visible', () => {
+        // Required-mount items are NOT filtered from `$errors` pre-touch,
+        // so this mirrors the real `FieldState.$errors` shape on initial load.
+        const errors: IssueItem[] = [
+            {
+                type: 'item',
+                code: 'REQUIRED',
+                path: ['email'],
+                message: 'Email is required',
+            } as IssueItem,
+        ];
+        expect(getSeverity(buildFieldState({
+            dirty: false,
+            invalid: true,
+            errors,
+        }))).toBe('warning');
+    });
+
+    it('returns undefined when not dirty even if optional-mount items somehow leaked into $errors', () => {
+        // Defensive: in real usage `isIssueItemVisible` strips optional items
+        // from `$errors` pre-touch, so this state shouldn't occur — but if a
+        // consumer wires a custom field-state, severity must still degrade
+        // gracefully.
+        const errors: IssueItem[] = [
+            {
+                type: 'item',
+                code: 'MIN_LENGTH',
+                path: ['bio'],
+                message: 'too short',
+                meta: { optional: true },
+            } as IssueItem,
+        ];
+        expect(getSeverity(buildFieldState({
+            dirty: false,
+            invalid: true,
+            errors,
+        }))).toBeUndefined();
     });
 
     it('returns success when dirty and valid', () => {
@@ -147,13 +191,20 @@ describe('getSeverity', () => {
         await flush();
         const { $v } = wrapper.vm as unknown as { $v: Composable };
 
+        // Pristine — required field surfaces as warning so the consumer
+        // knows the form isn't valid yet; the optional field with an
+        // optional-tagged issue stays silent.
+        expect(getSeverity($v.fields.required)).toBe('warning');
+        expect(getSeverity($v.fields.optional)).toBeUndefined();
+
         $v.fields.required.$touch();
         $v.fields.optional.$touch();
         await flush();
 
-        // The required field has no meta.optional on its issues → error.
+        // After touching: the required field has no meta.optional on its
+        // issues → error; the optional field's issues are all tagged with
+        // meta.optional → warning.
         expect(getSeverity($v.fields.required)).toBe('error');
-        // The optional field's issues are all tagged with meta.optional → warning.
         expect(getSeverity($v.fields.optional)).toBe('warning');
 
         wrapper.unmount();

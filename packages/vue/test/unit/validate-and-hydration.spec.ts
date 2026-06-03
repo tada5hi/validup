@@ -42,7 +42,7 @@ describe('$validate', () => {
         }
     });
 
-    it('marks every state key dirty so failures surface immediately', async () => {
+    it('marks every state key dirty so severity escalates from warning to error', async () => {
         const container = new Container<{ name: string; email: string }>();
         container.mount('name', isNonEmptyString);
         container.mount('email', isNonEmptyString);
@@ -51,14 +51,18 @@ describe('$validate', () => {
         const $v = useValidup(container, state);
         await flush();
 
-        // before validate: invalid internally, but no field is dirty
+        // before validate: dirty isn't flipped yet, but required-mount
+        // errors are already visible in `$errors` (the schema doesn't permit
+        // emptiness, so the form should communicate the gap right away).
         expect($v.fields.name.$dirty.value).toBe(false);
-        expect($v.fields.name.$errors.value).toEqual([]);
+        expect($v.fields.name.$errors.value.length).toBeGreaterThan(0);
 
         const result = await $v.$validate();
         expect(result.success).toBe(false);
 
         await flush();
+        // `$validate` marks every state key dirty so severity flips from
+        // `'warning'` (pristine) to `'error'` (engaged) on every field.
         expect($v.fields.name.$dirty.value).toBe(true);
         expect($v.fields.email.$dirty.value).toBe(true);
         expect($v.fields.name.$errors.value.length).toBeGreaterThan(0);
@@ -128,7 +132,7 @@ describe('hydration', () => {
         expect($v.fields.name.$errors.value).toEqual([]);
     });
 
-    it('hydration + $touch makes everything visible', async () => {
+    it('hydration leaves $dirty false; required-mount errors are visible, $touch escalates them', async () => {
         const container = new Container<{ name: string; email: string }>();
         container.mount('name', isNonEmptyString);
         container.mount('email', isNonEmptyString);
@@ -137,15 +141,23 @@ describe('hydration', () => {
         const $v = useValidup(container, state);
         await flush();
 
-        // Hydrate from "loaded entity" — leaves are still invalid but quiet.
+        // Hydrate from "loaded entity" — `Object.assign` writes around
+        // `$model`, so `$dirty` stays false. Required-mount errors are
+        // already in `$errors` (severity → `'warning'`) so the form can
+        // hint at missing data without the user touching every field.
         Object.assign(state, { name: '', email: '' });
         await flush();
-        expect($v.fields.name.$errors.value).toEqual([]);
+        expect($v.fields.name.$dirty.value).toBe(false);
+        expect($v.fields.name.$errors.value.length).toBeGreaterThan(0);
 
-        // Force everything visible (e.g. on entering edit mode).
+        // Force everything visible (e.g. on entering edit mode) — severity
+        // flips from `'warning'` to `'error'`; optional-mount items (none
+        // here) would also start surfacing.
         $v.$touch();
         await flush();
 
+        expect($v.fields.name.$dirty.value).toBe(true);
+        expect($v.fields.email.$dirty.value).toBe(true);
         expect($v.fields.name.$errors.value.length).toBeGreaterThan(0);
         expect($v.fields.email.$errors.value.length).toBeGreaterThan(0);
     });

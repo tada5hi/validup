@@ -32,7 +32,18 @@ export type FieldState<V = unknown> = {
      */
     readonly $pending: ComputedRef<boolean>;
     readonly $dirty: ComputedRef<boolean>;
-    /** Visible errors — gated on `$dirty`. Includes external issues at this path. */
+    /**
+     * Visible errors at or below this path. Includes external issues.
+     *
+     * Required-mount items surface unconditionally — they communicate
+     * "this field has unresolved work" the moment validation has run,
+     * so a form can render the issue (and the matching `getSeverity` →
+     * `'warning'`) on initial load without the user touching every field.
+     * Optional-mount items (those with `meta.optional: true`, stamped by
+     * the validup runtime for `optional: true` mounts) stay hidden until
+     * `$dirty` flips — the schema permits leaving the field blank, so
+     * we don't nag.
+     */
     readonly $errors: ComputedRef<IssueItem[]>;
     /** Raw issues at or below this path (groups + items), regardless of dirty state. */
     readonly $issues: ComputedRef<Issue[]>;
@@ -44,7 +55,14 @@ export type Composable<T extends ObjectLiteral = ObjectLiteral> = {
     readonly $invalid: ComputedRef<boolean>;
     readonly $pending: ComputedRef<boolean>;
     readonly $dirty: ComputedRef<boolean>;
-    /** Flat list of every leaf issue across the form (dirty-gated). */
+    /**
+     * Flat list of every visible leaf issue across the form (path-attached
+     * only — `$crossCuttingErrors` carries the path-less ones).
+     *
+     * Required-mount items surface unconditionally; optional-mount items
+     * (`meta.optional: true`) only surface once the matching path is dirty.
+     * Same rule as `FieldState.$errors` — see its JSDoc for the rationale.
+     */
     readonly $errors: ComputedRef<IssueItem[]>;
     /** Raw issues for the whole form (groups + items), regardless of dirty state. */
     readonly $issues: ComputedRef<Issue[]>;
