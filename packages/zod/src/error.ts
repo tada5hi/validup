@@ -11,6 +11,7 @@ import {
     hasOwnProperty,
     isIssueItem,
 } from 'validup';
+import { getPathValue } from 'pathtrace';
 import type { $ZodIssue, $ZodRawIssue } from 'zod/v4/core';
 import type { ZodError } from 'zod';
 import type { Issue, ValidupError } from 'validup';
@@ -35,22 +36,35 @@ const LENGTH_LIKE_ORIGINS = new Set(['string', 'array', 'set', 'file']);
  * resulting validup `IssueItem.message` so consumer-side rendering still
  * has something to display.
  */
-function mapZodIssue(raw: ZodIssue | $ZodIssue): {
+function mapZodIssue(
+    raw: ZodIssue | $ZodIssue,
+    input: unknown,
+    inputProvided: boolean,
+): {
     code: string,
     data?: Record<string, unknown>,
 } {
     switch (raw.code) {
         case 'invalid_type': {
-            // zod 4 collapses "missing key" and "wrong type" into a single
-            // `invalid_type` issue and does not surface the original
-            // `received` value on the issue (only `expected` is populated).
-            // That means we can't structurally distinguish REQUIRED from
-            // type-mismatch the way zod 3 allowed. Both map to
-            // VALUE_INVALID; the zod-supplied message ("Invalid input:
-            // expected string, received undefined" vs. "...received
-            // number") still surfaces as the fallback display string.
-            // Hand-rolled validators that need REQUIRED can throw it
-            // directly via `defineIssueItem({ code: IssueCode.REQUIRED, … })`.
+            // zod 4 strips `input` / `received` from the formatted issue
+            // (only `expected` is populated), so structurally we can't tell
+            // missing-key from wrong-type from the issue alone. When the
+            // caller threads the original parsed input through, we can
+            // recover REQUIRED by looking up the leaf value at the issue
+            // path — if it's `undefined`, the field was absent (or
+            // explicitly `undefined`), which is the REQUIRED case.
+            // Wrong-type stays on VALUE_INVALID; the zod-supplied English
+            // message still surfaces as the fallback display string in
+            // both branches.
+            if (inputProvided) {
+                const path = raw.path ?? [];
+                const leaf = path.length === 0 ?
+                    input :
+                    getPathValue(input, path as PropertyKey[]);
+                if (typeof leaf === 'undefined') {
+                    return { code: IssueCode.REQUIRED };
+                }
+            }
             return { code: IssueCode.VALUE_INVALID };
         }
         case 'too_small': {
@@ -114,11 +128,18 @@ function mapZodIssue(raw: ZodIssue | $ZodIssue): {
                     return { code: IssueCode.VALUE_INVALID };
             }
         }
+        case 'invalid_value':
+            // zod 4 emits `invalid_value` for both enum (`z.enum([...])`)
+            // and literal (`z.literal(...)`) mismatches — the value didn't
+            // match any of a closed set of options. That's the same shape
+            // as a failed `oneOf` container, so reuse the existing
+            // vocabulary entry.
+            return { code: IssueCode.ONE_OF_FAILED };
         // The remaining zod codes don't have a clean vocabulary match —
-        // `invalid_value` (enum / literal mismatch), `invalid_union`,
-        // `invalid_key`, `invalid_element`, `unrecognized_keys`,
-        // `not_multiple_of`, `custom`. Fall back to the generic code; the
-        // zod-supplied `message` still surfaces verbatim on the IssueItem.
+        // `invalid_union`, `invalid_key`, `invalid_element`,
+        // `unrecognized_keys`, `not_multiple_of`, `custom`. Fall back to
+        // the generic code; the zod-supplied `message` still surfaces
+        // verbatim on the IssueItem.
         default:
             return { code: IssueCode.VALUE_INVALID };
     }
@@ -139,14 +160,22 @@ function mapZodIssue(raw: ZodIssue | $ZodIssue): {
  *   carries no parameters.
  * - `expected` / `received` — vendor-specific zod fields, passed
  *   through when present.
+ *
+ * Pass the original parsed input as the second argument to enable the
+ * `invalid_type` → `REQUIRED` promotion: zod 4's formatted issues don't
+ * carry `received`, so we recover the missing-key signal by looking up
+ * the issue's path against the input and checking whether the leaf is
+ * `undefined`. {@link createValidator} threads `ctx.value` through
+ * automatically; ad-hoc callers can opt in by passing it explicitly.
  */
-export function buildIssuesForZodError(error: ZodError): Issue[] {
+export function buildIssuesForZodError(error: ZodError, input?: unknown): Issue[] {
     const issues : Issue[] = [];
+    const inputProvided = arguments.length > 1;
 
     for (let i = 0; i < error.issues.length; i++) {
         const issue = error.issues[i];
 
-        const { code, data } = mapZodIssue(issue);
+        const { code, data } = mapZodIssue(issue, input, inputProvided);
 
         let expected : unknown;
         if (hasOwnProperty(issue, 'expected')) {

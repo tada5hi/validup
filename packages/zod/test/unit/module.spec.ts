@@ -9,8 +9,10 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
     Container,
+    IssueCode,
     ResultCache,
     ValidupError,
+    flattenIssueItems,
 } from 'validup';
 import { createValidator } from '../../src';
 
@@ -129,6 +131,32 @@ describe('src/module', () => {
         await container.run(data, { cache });
         await container.run(data, { cache });
         expect(calls).toBe(2);
+    });
+
+    it('createValidator threads input so missing keys map to REQUIRED', async () => {
+        // End-to-end check: the runtime path through createValidator must
+        // pass ctx.value to buildIssuesForZodError so the invalid_type →
+        // REQUIRED promotion fires for missing-key cases. Without the
+        // thread, every missing field would collapse back to VALUE_INVALID
+        // (the historical bug described in #397).
+        const validator = new Container<{ user: { email: string } }>();
+        validator.mount('user', createValidator(z.object({
+            email: z.string(),
+            name: z.string(),
+        })));
+
+        expect.assertions(2);
+
+        try {
+            await validator.run({ user: { email: 'present' } });
+        } catch (e) {
+            if (e instanceof ValidupError) {
+                const items = flattenIssueItems(e.issues);
+                const missing = items.find((it) => it.path.join('.') === 'user.name');
+                expect(missing).toBeDefined();
+                expect(missing?.code).toBe(IssueCode.REQUIRED);
+            }
+        }
     });
 
     it('should not validate array', async () => {

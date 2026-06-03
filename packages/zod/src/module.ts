@@ -60,7 +60,7 @@ export function createValidator<
                 return outcome.data as ZodOutput<Z>;
             }
 
-            throw new ValidupError(buildIssuesForZodError(outcome.error));
+            throw new ValidupError(buildIssuesForZodError(outcome.error, ctx.value));
         },
     });
 }
