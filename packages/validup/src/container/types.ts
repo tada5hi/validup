@@ -184,9 +184,12 @@ export type Result<T extends ObjectLiteral = ObjectLiteral> = ResultSuccess<T> |
  * of the form). The runtime treats unmounted keys as pass-through, so the
  * type just reflects what the validator actually inspects.
  *
- * `Partial<T>` accepts both full-T objects and arbitrary extra keys via TS's
- * structural object-type rules — no additional `Record<string, any>`
- * intersection is required here.
+ * **Extra keys.** A variable-typed object with extra keys not in `T` is
+ * accepted via TS's structural object-type rules (no excess-property check
+ * outside of fresh literals). An object **literal** with extra keys does
+ * trigger TS's excess-property check against `Partial<T>` — pre-fix
+ * `Record<string, any>` accepted such literals silently; if a call site
+ * relies on that, cast the literal or assign it to a variable first.
  */
 export type ContainerInput<T extends ObjectLiteral = ObjectLiteral> = Partial<T>;
 
