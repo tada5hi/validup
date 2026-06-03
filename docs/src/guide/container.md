@@ -65,7 +65,7 @@ If a glob path expands to multiple keys, the validator runs once per expanded ke
 type MountOptions = {
     group?: string | string[];
     optional?: boolean | ((value: unknown) => boolean);
-    optionalValue?: OptionalValue | OptionalValue[]; // FALSY (default) | UNDEFINED | NULL | EMPTY_STRING | ZERO | FALSE | NAN
+    optionalValue?: OptionalValue | OptionalValue[]; // UNDEFINED (default) | NULL | EMPTY_STRING | ZERO | FALSE | NAN | FALSY
     optionalInclude?: boolean;     // copy optional value through to output
 };
 ```

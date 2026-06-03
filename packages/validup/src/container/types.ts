@@ -154,11 +154,11 @@ export type MountOptions = {
      * set (e.g. `['undefined', 'null', 'empty_string']` for the common
      * "missing or blank" intent).
      *
-     * Atoms match exactly one runtime value — `'null'` no longer also
-     * includes `undefined`. Pass `['null', 'undefined']` explicitly when
+     * Atoms match exactly one runtime value — `'null'` does NOT also
+     * include `undefined`. Pass `['null', 'undefined']` explicitly when
      * both should qualify.
      *
-     * default: 'falsy'
+     * default: 'undefined'
      */
     optionalValue?: `${OptionalValue}` | readonly `${OptionalValue}`[],
 

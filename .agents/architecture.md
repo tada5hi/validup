@@ -153,19 +153,19 @@ All three variants share the private helpers `resolveContainerFilters` / `record
 
 `OptionalValue` is the atomic vocabulary that controls what counts as "optional" when `MountOptions.optional: true`. Each atom matches **exactly one** runtime value (`FALSY` is the only composite):
 
-- `UNDEFINED` — `value === undefined`
-- `NULL` — `value === null` (does NOT include `undefined` — pre-2.0 semantics widened to "null or undefined" were dropped in favor of the atomic split)
+- `UNDEFINED` (default) — `value === undefined`
+- `NULL` — `value === null` (does NOT include `undefined` — earlier "null or undefined" widening was dropped in favor of the atomic split)
 - `EMPTY_STRING` — `value === ''`
 - `ZERO` — `value === 0`
 - `FALSE` — `value === false`
 - `NAN` — `Number.isNaN(value)`
-- `FALSY` (default) — any of the above (`!value`, plus the `NaN` case)
+- `FALSY` — composite shortcut for any of the above (`!value`, plus the `NaN` case)
 
 `MountOptions.optionalValue` accepts a single atom or an array — the array form is any-of, so `['undefined', 'null', 'empty_string']` skips on any of those three. An empty array never matches (mount is effectively non-optional). The composite `FALSY` can be mixed with atoms without effect; redundancy is silent.
 
-`optional` is the **gate** (does this mount permit being skipped?); `optionalValue` is the **definition** (which runtime values qualify as "absent"?). The default is `FALSY` so `{ optional: true }` alone matches the typical form-input case (an untouched `<input>` holds `''`, not `undefined`). Callers where `0` / `false` are meaningful values should compose specific atoms (e.g. `['undefined', 'null', 'empty_string']`) or use `optional: (value) => boolean` for cases the vocabulary can't express.
+`optional` is the **gate** (does this mount permit being skipped?); `optionalValue` is the **definition** (which runtime values qualify as "absent"?). The default `UNDEFINED` keeps the core conservative — `0` / `''` / `false` / `null` are real values that reach the validator unless the caller opts in. Form-input authors (where an untouched `<input>` holds `''`) should set `optionalValue: ['undefined', 'empty_string']` per mount, broaden to `'falsy'`, or use `optional: (value) => boolean` for cases the vocabulary can't express.
 
-The matcher lives in `isOptionalValue(value, input)` (`helpers/optional-value.ts`) — single helper, switch over atom kind, array form delegates to `Array.prototype.some` over the same matcher. The three `Container` run-loops (`run` / `runParallel` / `runSync`) all consult it the same way; nothing else in the code knows about individual atoms.
+The matcher lives in `isOptionalValue(value, input)` (`helpers/optional-value.ts`) — single helper, switch over atom kind, array form delegates to a loop over the same matcher. The three `Container` run-loops (`run` / `runParallel` / `runSync`) all consult it the same way; nothing else in the code knows about individual atoms.
 
 ### Validator composition (`helpers/compose.ts`)
 

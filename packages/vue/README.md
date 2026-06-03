@@ -175,7 +175,7 @@ group.value = 'update';
 
 ## Optional Validation
 
-Optional mounts on the container behave the same way they do server-side — pass `{ optional: true }` to `Container.mount(...)` and the field is skipped when its value is falsy (`''`, `null`, `undefined`, `0`, `false`, `NaN`). This matches the typical form case: an untouched `<input>` bound via `v-model` holds `''`, which now counts as "not set". For finer control, pick a specific atom (`optionalValue: 'undefined'`, `'null'`, `'empty_string'`, …), compose an array (`optionalValue: ['undefined', 'null', 'empty_string']`), or use the predicate form. See validup's [Optional Values](https://www.npmjs.com/package/validup#optional-values) docs.
+Optional mounts on the container behave the same way they do server-side — pass `{ optional: true }` to `Container.mount(...)` and the field is skipped when its value is `undefined` (the conservative default). For the common form-input case — an untouched `<input>` bound via `v-model` holds `''`, not `undefined` — compose the empty-string atom in: `{ optional: true, optionalValue: ['undefined', 'empty_string'] }`. Other shapes: pick a single atom (`'null'`, `'empty_string'`, …), broaden to `'falsy'`, or use the predicate form. See validup's [Optional Values](https://www.npmjs.com/package/validup#optional-values) docs.
 
 ## Result Caching (automatic)
 

@@ -18,7 +18,7 @@ import type { Issue, IssueItem } from '../../src';
 import { stringValidator } from '../data';
 
 describe('optional', () => {
-    it('should work with default optionalValue (FALSY) — undefined skipped', async () => {
+    it('should work with default optionalValue (UNDEFINED)', async () => {
         const child = new Container<{ foo: string }>();
         child.mount('foo', stringValidator);
 
@@ -33,24 +33,7 @@ describe('optional', () => {
         expect(Object.keys(output)).toHaveLength(0);
     });
 
-    it('should treat empty string as missing under the default FALSY', async () => {
-        // Regression: a `{ optional: true }` mount on a form-style string
-        // field used to require the host to clear the field to `undefined`
-        // because the old default was UNDEFINED-only. With FALSY as the
-        // default, an untouched `<input>` (holding `''`) skips the validator
-        // without further configuration.
-        const container = new Container<{ description: string }>();
-        container.mount(
-            'description',
-            { optional: true },
-            stringValidator,
-        );
-
-        const output = await container.run({ description: '' });
-        expect(output.description).toBeUndefined();
-    });
-
-    it('should work with explicit UNDEFINED optionalValue and optionalInclude', async () => {
+    it('should work with default optionalValue and optionalInclude', async () => {
         const child = new Container<{ foo: string }>();
         child.mount('foo', stringValidator);
 
@@ -140,10 +123,7 @@ describe('optional', () => {
         expect(output.child).toEqual('');
     });
 
-    it('should not skip a truthy invalid value under the default (FALSY)', async () => {
-        // `null` would now count as optional under FALSY — use a truthy
-        // child whose own required field fails so we exercise the
-        // "validator runs anyway" branch.
+    it('should not work with default optionalValue and invalid value', async () => {
         const child = new Container<{ foo: string }>();
         child.mount('foo', stringValidator);
 
@@ -151,27 +131,6 @@ describe('optional', () => {
         parent.mount(
             'child',
             { optional: true },
-            child,
-        );
-
-        expect.assertions(1);
-
-        try {
-            await parent.run({ child: { foo: 42 } });
-        } catch (e) {
-            expect(e).toBeDefined();
-        }
-    });
-
-    it('should not skip when optionalValue is explicitly UNDEFINED and value is null', async () => {
-        // Preserves the pre-2.0 contract for callers that opt back in.
-        const child = new Container<{ foo: string }>();
-        child.mount('foo', stringValidator);
-
-        const parent = new Container();
-        parent.mount(
-            'child',
-            { optional: true, optionalValue: OptionalValue.UNDEFINED },
             child,
         );
 

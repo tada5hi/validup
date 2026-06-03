@@ -17,28 +17,31 @@ type MountOptions = {
 
 The vocabulary is atomic: each enum value matches exactly one runtime value. The only exception is `FALSY`, a composite shortcut for any JS falsy value.
 
-| Atom                | Matches                          |
-|---------------------|----------------------------------|
-| `UNDEFINED`         | `value === undefined`            |
-| `NULL`              | `value === null` (NOT undefined) |
-| `EMPTY_STRING`      | `value === ''`                   |
-| `ZERO`              | `value === 0`                    |
-| `FALSE`             | `value === false`                |
-| `NAN`               | `Number.isNaN(value)`            |
-| `FALSY` (default)   | any of the above                 |
+| Atom                  | Matches                          |
+|-----------------------|----------------------------------|
+| `UNDEFINED` (default) | `value === undefined`            |
+| `NULL`                | `value === null` (NOT undefined) |
+| `EMPTY_STRING`        | `value === ''`                   |
+| `ZERO`                | `value === 0`                    |
+| `FALSE`               | `value === false`                |
+| `NAN`                 | `Number.isNaN(value)`            |
+| `FALSY`               | any of the above                 |
 
 ```typescript
 import { Container, OptionalValue } from 'validup';
 
-container.mount('description', { optional: true }, isString);
-// → skipped when description is any falsy value
-//   matches the typical form-input case where an untouched <input> holds ''
+container.mount('age', { optional: true }, isNumber);
+// → skipped only when age === undefined (the conservative default)
 
 container.mount('phone', { optional: true, optionalValue: OptionalValue.NULL }, isPhone);
 // → skipped only when phone === null
 
-container.mount('age', { optional: true, optionalValue: OptionalValue.UNDEFINED }, isNumber);
-// → skipped only when age === undefined (use this when 0 / '' / null are meaningful)
+container.mount('description', {
+    optional: true,
+    optionalValue: [OptionalValue.UNDEFINED, OptionalValue.EMPTY_STRING],
+}, isString);
+// → skipped on undefined OR '' (the form-input case where an untouched
+//   <input> bound via v-model holds '')
 ```
 
 ### Composing atoms with an array
@@ -56,11 +59,11 @@ container.mount('name', {
 An empty array (`optionalValue: []`) matches nothing — the mount is effectively non-optional.
 
 ::: warning NULL semantics
-`NULL` matches `null` only — it does **not** also include `undefined`. Pass `[NULL, UNDEFINED]` (or use `FALSY`) when both should qualify. This was widened in pre-2.0 releases for ergonomic reasons; the atomic split is more predictable.
+`NULL` matches `null` only — it does **not** also include `undefined`. Pass `[NULL, UNDEFINED]` (or use `FALSY`) when both should qualify. This was widened in earlier releases for ergonomic reasons; the atomic split is more predictable.
 :::
 
-::: warning FALSY as default
-Before v2 the default was `UNDEFINED`. The switch to `FALSY` was made because the common case — `{ optional: true }` on a string-typed form field bound via `v-model` — only matched when the host code initialised the field as `undefined`, not `''`. The new default fits the form case out of the box; callers where `0` / `false` is a meaningful value should pick specific atoms or use the predicate form.
+::: tip Form inputs
+For form fields where an untouched `<input>` holds `''` (bound via `v-model`), set `optionalValue: [UNDEFINED, EMPTY_STRING]` on the mount so an empty input counts as missing. `@validup/vue` users can rely on per-mount configuration to capture this idiom.
 :::
 
 ## Predicate `optional`

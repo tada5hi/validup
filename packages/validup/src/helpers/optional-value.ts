@@ -20,16 +20,14 @@ export type OptionalValueInput = `${OptionalValue}` | readonly `${OptionalValue}
  * shortcut for "any JS falsy value"). To skip on `null` *or* `undefined`,
  * pass `['null', 'undefined']` explicitly.
  *
- * Default is `'falsy'` so `{ optional: true }` alone matches the typical
- * form-input case (an untouched `<input>` holds `''`, not `undefined`).
- * Callers where `0`/`false` are meaningful should pick specific atoms or
- * the predicate form (`optional: (v) => …`).
+ * Default is `'undefined'` so the core stays conservative — `0` / `''` /
+ * `false` reach the validator unless the caller explicitly opts in.
  */
 export function isOptionalValue(
     value: unknown,
     optionalValue?: OptionalValueInput,
 ) {
-    const input = optionalValue ?? OptionalValue.FALSY;
+    const input = optionalValue ?? OptionalValue.UNDEFINED;
     if (Array.isArray(input)) {
         for (const atom of input) {
             if (matchAtom(value, atom)) {
