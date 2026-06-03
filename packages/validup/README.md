@@ -420,6 +420,26 @@ container.mount('nickname',
 await container.run({});  // → { nickname: undefined }
 ```
 
+Set `optionalAs: <value>` to collapse every optional sentinel to one canonical value — useful when the consumer expects a single shape (e.g. `null` for "no value provided" while the form input holds `''`):
+
+```typescript
+container.mount('description',
+    {
+        optional: true,
+        optionalValue: ['undefined', 'null', 'empty_string'],
+        optionalAs: null,
+    },
+    isString,
+);
+
+await container.run({ description: '' });          // → { description: null }
+await container.run({ description: undefined });   // → { description: null }
+await container.run({ description: null });        // → { description: null }
+await container.run({ description: 'real' });      // → { description: 'real' }
+```
+
+`optionalAs` wins over `optionalInclude` when paired; presence (not value) matters, so `{ optionalAs: undefined }` deliberately emits the key as `undefined`.
+
 For cases the `optionalValue` vocabulary can't express (e.g. context-dependent), pass `optional` as a predicate. Custom predicates win when present and `optionalValue` is ignored:
 
 ```typescript
@@ -808,6 +828,7 @@ class Container<
 | `optional`                | `MountOptions`         | Skip this mount when value is "optional"                          |
 | `optionalValue`           | `MountOptions`, `ContainerRunOptions` | What counts as optional (per-mount; run-level fallback when the mount doesn't set its own). Single atom or array of atoms; core default `'undefined'`. |
 | `optionalInclude`         | `MountOptions`         | Copy optional value into the output instead of dropping it        |
+| `optionalAs`              | `MountOptions`         | Canonical value written to the output when the mount is optional. Implies include; wins over `optionalInclude`. |
 
 ### defineSchema
 

@@ -187,6 +187,31 @@ export type MountOptions = {
      * default: false
      */
     optionalInclude?: boolean,
+
+    /**
+     * Canonical value written to the output when the mount qualifies
+     * as optional. Useful for normalizing multiple "missing" sentinels
+     * (`undefined` / `null` / `''`) into a single shape the consumer
+     * expects (e.g. always `null` when posting to a backend).
+     *
+     * When set, the runtime ignores `optionalInclude` and writes
+     * `optionalAs` regardless of the input value. Property presence
+     * matters (not "is undefined"): `{ optionalAs: undefined }` is a
+     * meaningful directive ("emit `undefined` for this key") and
+     * differs from omitting the option entirely.
+     *
+     * @example
+     * container.mount('description', {
+     *     optional: true,
+     *     optionalValue: ['undefined', 'null', 'empty_string'],
+     *     optionalAs: null,
+     * }, isString);
+     *
+     * await container.run({ description: '' });       // → { description: null }
+     * await container.run({ description: undefined }); // → { description: null }
+     * await container.run({ description: null });     // → { description: null }
+     */
+    optionalAs?: unknown,
 };
 
 export type ResultSuccess<T> = {

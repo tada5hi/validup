@@ -404,6 +404,65 @@ describe('optional', () => {
         });
     });
 
+    describe('optionalAs (canonical normalization)', () => {
+        it('writes optionalAs to output when the mount qualifies as optional', async () => {
+            const container = new Container<{ description: string | null }>();
+            container.mount(
+                'description',
+                {
+                    optional: true,
+                    optionalValue: [OptionalValue.UNDEFINED, OptionalValue.NULL, OptionalValue.EMPTY_STRING],
+                    optionalAs: null,
+                },
+                stringValidator,
+            );
+
+            // Multiple optional sentinels collapse to one canonical value.
+            await expect(container.run({ description: '' })).resolves.toEqual({ description: null });
+            await expect(container.run({ description: undefined })).resolves.toEqual({ description: null });
+            await expect(container.run({ description: null })).resolves.toEqual({ description: null });
+
+            // Real value still flows through the validator (and out unchanged).
+            await expect(container.run({ description: 'real' })).resolves.toEqual({ description: 'real' });
+        });
+
+        it('takes precedence over optionalInclude when both set', async () => {
+            const container = new Container<{ x: any }>();
+            container.mount(
+                'x',
+                {
+                    optional: true,
+                    optionalValue: OptionalValue.EMPTY_STRING,
+                    optionalAs: 'CANONICAL',
+                    optionalInclude: true,
+                },
+                (ctx) => ctx.value,
+            );
+
+            // optionalInclude would emit '', but optionalAs wins.
+            await expect(container.run({ x: '' })).resolves.toEqual({ x: 'CANONICAL' });
+        });
+
+        it('honors `optionalAs: undefined` as an explicit directive (presence over value)', async () => {
+            const container = new Container<{ x: any }>();
+            container.mount(
+                'x',
+                {
+                    optional: true,
+                    optionalValue: OptionalValue.EMPTY_STRING,
+                    // Explicit undefined → emit the key as undefined.
+                    optionalAs: undefined,
+                },
+                (ctx) => ctx.value,
+            );
+
+            const out = await container.run({ x: '' });
+            // Distinguish "key emitted with value undefined" from "key omitted".
+            expect(Object.prototype.hasOwnProperty.call(out, 'x')).toBe(true);
+            expect(out.x).toBeUndefined();
+        });
+    });
+
     describe('meta.optional tagging', () => {
         // Helper — runs a container, throws if the run unexpectedly succeeded,
         // returns the ValidupError's issues otherwise.

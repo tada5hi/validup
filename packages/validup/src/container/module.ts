@@ -322,7 +322,9 @@ export class Container<
                             isOptionalValue(value, item.options.optionalValue ?? options.optionalValue);
 
                     if (isOptional) {
-                        if (item.options.optionalInclude) {
+                        if (hasOwnProperty(item.options, 'optionalAs')) {
+                            output[key] = item.options.optionalAs;
+                        } else if (item.options.optionalInclude) {
                             output[key] = value;
                         }
                     } else if (item.type === 'container') {
@@ -515,7 +517,9 @@ export class Container<
                         isOptionalValue(value, item.options.optionalValue ?? options.optionalValue);
 
                 if (isOptional) {
-                    if (item.options.optionalInclude) {
+                    if (hasOwnProperty(item.options, 'optionalAs')) {
+                        output[key] = item.options.optionalAs;
+                    } else if (item.options.optionalInclude) {
                         output[key] = value;
                     }
                     syncPathCount++;
@@ -793,7 +797,9 @@ export class Container<
                             isOptionalValue(value, item.options.optionalValue ?? options.optionalValue);
 
                     if (isOptional) {
-                        if (item.options.optionalInclude) {
+                        if (hasOwnProperty(item.options, 'optionalAs')) {
+                            output[key] = item.options.optionalAs;
+                        } else if (item.options.optionalInclude) {
                             output[key] = value;
                         }
                     } else if (item.type === 'container') {

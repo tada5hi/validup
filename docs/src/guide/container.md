@@ -67,6 +67,7 @@ type MountOptions = {
     optional?: boolean | ((value: unknown) => boolean);
     optionalValue?: OptionalValue | OptionalValue[]; // UNDEFINED (default) | NULL | EMPTY_STRING | ZERO | FALSE | NAN | FALSY
     optionalInclude?: boolean;     // copy optional value through to output
+    optionalAs?: unknown;          // canonical value written when optional (wins over optionalInclude)
 };
 ```
 

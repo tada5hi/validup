@@ -7,6 +7,7 @@ type MountOptions = {
     optional?: boolean | ((value: unknown) => boolean);
     optionalValue?: OptionalValue | OptionalValue[];
     optionalInclude?: boolean;
+    optionalAs?: unknown;
     // ... groups, etc.
 };
 ```
@@ -107,6 +108,25 @@ await container.run({});
 ```
 
 This is useful when you need to distinguish "user explicitly set null" from "user omitted the field".
+
+## `optionalAs` (canonical normalization)
+
+When you want every optional sentinel to collapse to one canonical value (e.g. the backend expects `null` for "no value provided", but the form holds `''`), set `optionalAs`:
+
+```typescript
+container.mount('description', {
+    optional: true,
+    optionalValue: [OptionalValue.UNDEFINED, OptionalValue.NULL, OptionalValue.EMPTY_STRING],
+    optionalAs: null,
+}, isString);
+
+await container.run({ description: '' });          // → { description: null }
+await container.run({ description: undefined });   // → { description: null }
+await container.run({ description: null });        // → { description: null }
+await container.run({ description: 'value' });     // → { description: 'value' }  (validator ran)
+```
+
+`optionalAs` implies include semantics and wins when paired with `optionalInclude`. Presence — not value — matters: `{ optionalAs: undefined }` is a meaningful directive ("emit the key as `undefined`") and differs from omitting the option.
 
 ## Optional + transforming validators
 
