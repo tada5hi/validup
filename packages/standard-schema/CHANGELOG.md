@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.2](https://github.com/tada5hi/validup/compare/standard-schema-v0.2.1...standard-schema-v0.2.2) (2026-06-03)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^0.4.1 to ^0.5.0
+
 ## [0.2.1](https://github.com/tada5hi/validup/compare/standard-schema-v0.2.0...standard-schema-v0.2.1) (2026-06-03)
 
 
