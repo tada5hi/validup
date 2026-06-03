@@ -151,13 +151,21 @@ All three variants share the private helpers `resolveContainerFilters` / `record
 
 ### Optional values (`helpers/optional-value.ts`)
 
-`OptionalValue` enum controls what counts as "optional" when `MountOptions.optional: true`:
+`OptionalValue` is the atomic vocabulary that controls what counts as "optional" when `MountOptions.optional: true`. Each atom matches **exactly one** runtime value (`FALSY` is the only composite):
 
-- `UNDEFINED` (default) — only `undefined`
-- `NULL` — `null` or `undefined`
-- `FALSY` — any falsy value
+- `UNDEFINED` — `value === undefined`
+- `NULL` — `value === null` (does NOT include `undefined` — pre-2.0 semantics widened to "null or undefined" were dropped in favor of the atomic split)
+- `EMPTY_STRING` — `value === ''`
+- `ZERO` — `value === 0`
+- `FALSE` — `value === false`
+- `NAN` — `Number.isNaN(value)`
+- `FALSY` (default) — any of the above (`!value`, plus the `NaN` case)
 
-Pass `optional: (value) => boolean` for cases the enum can't express (e.g. drop empty strings but keep `0`).
+`MountOptions.optionalValue` accepts a single atom or an array — the array form is any-of, so `['undefined', 'null', 'empty_string']` skips on any of those three. An empty array never matches (mount is effectively non-optional). The composite `FALSY` can be mixed with atoms without effect; redundancy is silent.
+
+`optional` is the **gate** (does this mount permit being skipped?); `optionalValue` is the **definition** (which runtime values qualify as "absent"?). The default is `FALSY` so `{ optional: true }` alone matches the typical form-input case (an untouched `<input>` holds `''`, not `undefined`). Callers where `0` / `false` are meaningful values should compose specific atoms (e.g. `['undefined', 'null', 'empty_string']`) or use `optional: (value) => boolean` for cases the vocabulary can't express.
+
+The matcher lives in `isOptionalValue(value, input)` (`helpers/optional-value.ts`) — single helper, switch over atom kind, array form delegates to `Array.prototype.some` over the same matcher. The three `Container` run-loops (`run` / `runParallel` / `runSync`) all consult it the same way; nothing else in the code knows about individual atoms.
 
 ### Validator composition (`helpers/compose.ts`)
 

@@ -18,7 +18,7 @@ import type { Issue, IssueItem } from '../../src';
 import { stringValidator } from '../data';
 
 describe('optional', () => {
-    it('should work with default optionalValue', async () => {
+    it('should work with default optionalValue (FALSY) — undefined skipped', async () => {
         const child = new Container<{ foo: string }>();
         child.mount('foo', stringValidator);
 
@@ -33,7 +33,24 @@ describe('optional', () => {
         expect(Object.keys(output)).toHaveLength(0);
     });
 
-    it('should work with default optionalValue and optionalInclude', async () => {
+    it('should treat empty string as missing under the default FALSY', async () => {
+        // Regression: a `{ optional: true }` mount on a form-style string
+        // field used to require the host to clear the field to `undefined`
+        // because the old default was UNDEFINED-only. With FALSY as the
+        // default, an untouched `<input>` (holding `''`) skips the validator
+        // without further configuration.
+        const container = new Container<{ description: string }>();
+        container.mount(
+            'description',
+            { optional: true },
+            stringValidator,
+        );
+
+        const output = await container.run({ description: '' });
+        expect(output.description).toBeUndefined();
+    });
+
+    it('should work with explicit UNDEFINED optionalValue and optionalInclude', async () => {
         const child = new Container<{ foo: string }>();
         child.mount('foo', stringValidator);
 
@@ -123,7 +140,10 @@ describe('optional', () => {
         expect(output.child).toEqual('');
     });
 
-    it('should not work with default optionalValue and invalid value', async () => {
+    it('should not skip a truthy invalid value under the default (FALSY)', async () => {
+        // `null` would now count as optional under FALSY — use a truthy
+        // child whose own required field fails so we exercise the
+        // "validator runs anyway" branch.
         const child = new Container<{ foo: string }>();
         child.mount('foo', stringValidator);
 
@@ -131,6 +151,27 @@ describe('optional', () => {
         parent.mount(
             'child',
             { optional: true },
+            child,
+        );
+
+        expect.assertions(1);
+
+        try {
+            await parent.run({ child: { foo: 42 } });
+        } catch (e) {
+            expect(e).toBeDefined();
+        }
+    });
+
+    it('should not skip when optionalValue is explicitly UNDEFINED and value is null', async () => {
+        // Preserves the pre-2.0 contract for callers that opt back in.
+        const child = new Container<{ foo: string }>();
+        child.mount('foo', stringValidator);
+
+        const parent = new Container();
+        parent.mount(
+            'child',
+            { optional: true, optionalValue: OptionalValue.UNDEFINED },
             child,
         );
 
@@ -214,6 +255,120 @@ describe('optional', () => {
 
         const output = await container.run({ tag: 42 } as any);
         expect(output.tag).toEqual(42);
+    });
+
+    describe('atomic optionalValue', () => {
+        // Each atom matches exactly one runtime value (FALSY is the only
+        // composite). These specs lock the contract — a regression that
+        // widens an atom (e.g. NULL → null|undefined like pre-2.0) trips here.
+        function buildContainer(optionalValue: any): Container<{ x: any }> {
+            const c = new Container<{ x: any }>();
+            c.mount('x', {
+                optional: true, 
+                optionalValue, 
+                optionalInclude: true, 
+            }, (ctx) => {
+                throw new Error(`validator ran on ${String(ctx.value)}`);
+            });
+            return c;
+        }
+
+        it('NULL matches null only, NOT undefined', async () => {
+            const c = buildContainer(OptionalValue.NULL);
+            // null → optional → skipped (validator never throws), value preserved via optionalInclude
+            await expect(c.run({ x: null })).resolves.toEqual({ x: null });
+            // undefined → NOT optional under atomic NULL → validator runs → throws
+            await expect(c.run({ x: undefined })).rejects.toBeDefined();
+        });
+
+        it('EMPTY_STRING matches "" only', async () => {
+            const c = buildContainer(OptionalValue.EMPTY_STRING);
+            await expect(c.run({ x: '' })).resolves.toEqual({ x: '' });
+            await expect(c.run({ x: ' ' })).rejects.toBeDefined();
+            await expect(c.run({ x: 0 })).rejects.toBeDefined();
+        });
+
+        it('ZERO matches 0 only', async () => {
+            const c = buildContainer(OptionalValue.ZERO);
+            await expect(c.run({ x: 0 })).resolves.toEqual({ x: 0 });
+            await expect(c.run({ x: 1 })).rejects.toBeDefined();
+            await expect(c.run({ x: false })).rejects.toBeDefined();
+        });
+
+        it('FALSE matches false only', async () => {
+            const c = buildContainer(OptionalValue.FALSE);
+            await expect(c.run({ x: false })).resolves.toEqual({ x: false });
+            await expect(c.run({ x: 0 })).rejects.toBeDefined();
+            await expect(c.run({ x: '' })).rejects.toBeDefined();
+        });
+
+        it('NAN matches NaN only', async () => {
+            const c = buildContainer(OptionalValue.NAN);
+            const result = await c.run({ x: Number.NaN });
+            expect(Number.isNaN(result.x)).toBe(true);
+            await expect(c.run({ x: 0 })).rejects.toBeDefined();
+            // String "NaN" is not a numeric NaN.
+            await expect(c.run({ x: 'NaN' })).rejects.toBeDefined();
+        });
+    });
+
+    describe('array optionalValue', () => {
+        it('matches if any atom matches', async () => {
+            const container = new Container<{ x: any }>();
+            container.mount(
+                'x',
+                {
+                    optional: true,
+                    optionalValue: [OptionalValue.NULL, OptionalValue.UNDEFINED, OptionalValue.EMPTY_STRING],
+                    optionalInclude: true,
+                },
+                (ctx) => {
+                    throw new Error(`validator ran on ${String(ctx.value)}`);
+                },
+            );
+
+            await expect(container.run({ x: null })).resolves.toEqual({ x: null });
+            await expect(container.run({ x: undefined })).resolves.toEqual({ x: undefined });
+            await expect(container.run({ x: '' })).resolves.toEqual({ x: '' });
+            // `0` and `false` are NOT in the list — validator runs.
+            await expect(container.run({ x: 0 })).rejects.toBeDefined();
+            await expect(container.run({ x: false })).rejects.toBeDefined();
+        });
+
+        it('empty array never matches (effectively non-optional)', async () => {
+            const container = new Container<{ x: any }>();
+            container.mount(
+                'x',
+                { optional: true, optionalValue: [] },
+                (ctx) => {
+                    throw new Error(`validator ran on ${String(ctx.value)}`);
+                },
+            );
+
+            await expect(container.run({ x: undefined })).rejects.toBeDefined();
+            await expect(container.run({ x: '' })).rejects.toBeDefined();
+        });
+
+        it('composite FALSY mixed with atoms is harmless (any-of)', async () => {
+            const container = new Container<{ x: any }>();
+            container.mount(
+                'x',
+                {
+                    optional: true,
+                    // FALSY already subsumes the others — exercising the
+                    // "redundant atoms are silent" path.
+                    optionalValue: [OptionalValue.FALSY, OptionalValue.UNDEFINED],
+                    optionalInclude: true,
+                },
+                (ctx) => {
+                    throw new Error(`validator ran on ${String(ctx.value)}`);
+                },
+            );
+
+            await expect(container.run({ x: 0 })).resolves.toEqual({ x: 0 });
+            await expect(container.run({ x: '' })).resolves.toEqual({ x: '' });
+            await expect(container.run({ x: 'x' })).rejects.toBeDefined();
+        });
     });
 
     describe('meta.optional tagging', () => {

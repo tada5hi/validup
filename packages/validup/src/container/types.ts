@@ -147,12 +147,20 @@ export type MountOptions = {
     optional?: boolean | ((value: unknown) => boolean),
 
     /**
-     * Which values are considered optional.
-     * An optional value won't be passed to the underlying container/validator.
+     * Which values are considered optional. Pass a single atom
+     * (`'undefined'` / `'null'` / `'empty_string'` / `'zero'` / `'false'`
+     * / `'nan'`) for a one-value match, the composite shortcut `'falsy'`
+     * for any JS falsy value, or an array of atoms to compose a custom
+     * set (e.g. `['undefined', 'null', 'empty_string']` for the common
+     * "missing or blank" intent).
      *
-     * default: 'undefined'
+     * Atoms match exactly one runtime value — `'null'` no longer also
+     * includes `undefined`. Pass `['null', 'undefined']` explicitly when
+     * both should qualify.
+     *
+     * default: 'falsy'
      */
-    optionalValue?: `${OptionalValue}`,
+    optionalValue?: `${OptionalValue}` | readonly `${OptionalValue}`[],
 
     /**
      * Include optional value as property in output.

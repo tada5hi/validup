@@ -381,25 +381,32 @@ The wildcard token `'*'` (also exported as `GroupKey.WILDCARD`) bypasses the fil
 
 ## Optional Values
 
-Mark a mount as `optional` to skip it when the input value is "missing". You decide what counts as missing via `optionalValue`:
+Mark a mount as `optional` to skip it when the input value is "missing". You decide what counts as missing via `optionalValue`. The vocabulary is atomic — each entry matches exactly one runtime value, with `'falsy'` as the composite shortcut:
 
 | `optionalValue`           | Treats as optional                            |
 |---------------------------|-----------------------------------------------|
-| `'undefined'` (default)   | only `undefined`                              |
-| `'null'`                  | `null` and `undefined`                        |
-| `'falsy'`                 | any falsy value (`null`, `undefined`, `''`, `0`, `false`) |
+| `'falsy'` (default)       | any falsy value (`undefined`, `null`, `''`, `0`, `false`, `NaN`) |
+| `'undefined'`             | only `undefined`                              |
+| `'null'`                  | only `null` (NOT `undefined`)                 |
+| `'empty_string'`          | only `''`                                     |
+| `'zero'`                  | only `0`                                      |
+| `'false'`                 | only `false`                                  |
+| `'nan'`                   | only `NaN`                                    |
+
+Pass an array to skip on any of several atoms:
 
 ```typescript
 import { OptionalValue } from 'validup';
 
-container.mount('age',
-    { optional: true, optionalValue: OptionalValue.NULL },
-    isNumber,
+container.mount('name',
+    { optional: true, optionalValue: [OptionalValue.UNDEFINED, OptionalValue.NULL, OptionalValue.EMPTY_STRING] },
+    isString,
 );
 
-await container.run({ age: null });  // ✅ age is skipped
-await container.run({});              // ✅ age is skipped
-await container.run({ age: 28 });     // ✅ age is validated
+await container.run({ name: undefined });  // ✅ skipped
+await container.run({ name: null });       // ✅ skipped
+await container.run({ name: '' });         // ✅ skipped
+await container.run({ name: 'Peter' });    // ✅ validated
 ```
 
 Set `optionalInclude: true` to copy the optional value through into the output instead of dropping it:
@@ -413,7 +420,7 @@ container.mount('nickname',
 await container.run({});  // → { nickname: undefined }
 ```
 
-For cases the `optionalValue` enum can't express (e.g. "drop empty string but keep `0`"), pass `optional` as a predicate. Custom predicates win when present and `optionalValue` is ignored:
+For cases the `optionalValue` vocabulary can't express (e.g. context-dependent), pass `optional` as a predicate. Custom predicates win when present and `optionalValue` is ignored:
 
 ```typescript
 container.mount('name',
@@ -799,7 +806,7 @@ class Container<
 | `path`                    | `ContainerRunOptions`  | Used internally when nesting; rarely set by hand                  |
 | `group` (mount)           | `MountOptions`         | Group(s) this mount belongs to (`string \| string[]`)             |
 | `optional`                | `MountOptions`         | Skip this mount when value is "optional"                          |
-| `optionalValue`           | `MountOptions`         | What counts as optional: `'undefined'` / `'null'` / `'falsy'`     |
+| `optionalValue`           | `MountOptions`         | What counts as optional: single atom or array of atoms (`'falsy'` default; `'undefined'` / `'null'` / `'empty_string'` / `'zero'` / `'false'` / `'nan'`) |
 | `optionalInclude`         | `MountOptions`         | Copy optional value into the output instead of dropping it        |
 
 ### defineSchema
@@ -819,7 +826,7 @@ See [Builder API](#builder-api-compile-time-typing). Each `.mount(...)` call ret
 | `createValidupError`  | Build a `ValidupError` carrying one `IssueItem` (sugar for the most common single-issue failure shape). Caller throws. |
 | `IssueCode`           | Vocabulary of well-known issue codes (`VALUE_INVALID`, `REQUIRED`, `MIN_LENGTH`, …; full table above) |
 | `GroupKey`            | `WILDCARD = '*'`                                     |
-| `OptionalValue`       | `UNDEFINED` / `NULL` / `FALSY`                       |
+| `OptionalValue`       | `FALSY` (default) / `UNDEFINED` / `NULL` / `EMPTY_STRING` / `ZERO` / `FALSE` / `NAN` (each atom matches exactly one value; arrays compose them) |
 
 ### Validator Composition
 

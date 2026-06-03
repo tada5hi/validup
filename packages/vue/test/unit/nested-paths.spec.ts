@@ -128,14 +128,18 @@ describe('nested paths', () => {
     it('whole-form $errors honours prefix-dirty matching for optional-mount items', async () => {
         const container = new Container<{ user: { email: string }; tags: string[] }>();
         const userChild = new Container<{ email: string }>();
-        userChild.mount('email', { optional: true }, isNonEmptyString);
+        // Pin `optionalValue` to UNDEFINED so the empty-string sentinel
+        // below still trips the validator — the test needs an
+        // optional-tagged issue to exist so it can assert prefix-dirty
+        // filtering. Under the FALSY default, '' would skip outright.
+        userChild.mount('email', { optional: true, optionalValue: 'undefined' }, isNonEmptyString);
         container.mount('user', userChild);
-        container.mount('tags[0]', { optional: true }, isNonEmptyString);
+        container.mount('tags[0]', { optional: true, optionalValue: 'undefined' }, isNonEmptyString);
 
-        // Empty strings trigger the optional mounts (UNDEFINED default for
-        // optionalValue), so each mount runs and the required-string check
-        // fails — but with `meta.optional: true` stamped, so the items only
-        // surface in `$errors` once the path becomes dirty.
+        // Empty strings do NOT satisfy `optionalValue: 'undefined'`, so each
+        // mount runs and the required-string check fails — but with
+        // `meta.optional: true` stamped, so the items only surface in
+        // `$errors` once the path becomes dirty.
         const state = reactive({ user: { email: '' }, tags: [''] });
         const $v = useValidup(container, state);
         await flush();
