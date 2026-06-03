@@ -175,7 +175,26 @@ group.value = 'update';
 
 ## Optional Validation
 
-Optional mounts on the container behave the same way they do server-side — pass `{ optional: true }` to `Container.mount(...)` and the field is skipped when its value is `undefined` (the conservative default). For the common form-input case — an untouched `<input>` bound via `v-model` holds `''`, not `undefined` — compose the empty-string atom in: `{ optional: true, optionalValue: ['undefined', 'empty_string'] }`. Other shapes: pick a single atom (`'null'`, `'empty_string'`, …), broaden to `'falsy'`, or use the predicate form. See validup's [Optional Values](https://www.npmjs.com/package/validup#optional-values) docs.
+Optional mounts on the container behave the same way they do server-side — pass `{ optional: true }` to `Container.mount(...)` and the field is skipped when its value qualifies as missing.
+
+`useValidup` threads a **form-friendly default** through every run: `optionalValue: ['undefined', 'empty_string']` so an untouched `<input>` bound via `v-model` (which holds `''`, not `undefined`) counts as missing without per-mount configuration. This overrides validup core's conservative `'undefined'`-only default for this composable scope only. Per-mount `optionalValue` still wins — set it explicitly when one field needs different semantics (e.g. a numeric field where `0` is meaningful: `{ optional: true, optionalValue: 'undefined' }`).
+
+Override the composable default via `ComposableOptions.optionalValue`:
+
+```typescript
+useValidup(container, state, {
+    // opt back into the core-conservative default
+    optionalValue: 'undefined',
+
+    // or broaden further
+    // optionalValue: 'falsy',
+
+    // or pick a custom set
+    // optionalValue: ['undefined', 'null', 'empty_string'],
+});
+```
+
+See validup's [Optional Values](https://www.npmjs.com/package/validup#optional-values) docs for the atomic vocabulary.
 
 ## Result Caching (automatic)
 

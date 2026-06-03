@@ -319,7 +319,7 @@ export class Container<
                     const isOptional = typeof item.options.optional === 'function' ?
                         item.options.optional(value) :
                         item.options.optional &&
-                            isOptionalValue(value, item.options.optionalValue);
+                            isOptionalValue(value, item.options.optionalValue ?? options.optionalValue);
 
                     if (isOptional) {
                         if (item.options.optionalInclude) {
@@ -338,6 +338,7 @@ export class Container<
                                 context: options.context,
                                 signal: options.signal,
                                 cache: options.cache,
+                                optionalValue: options.optionalValue,
                             },
                         );
 
@@ -511,7 +512,7 @@ export class Container<
                 const isOptional = typeof item.options.optional === 'function' ?
                     item.options.optional(value) :
                     item.options.optional &&
-                        isOptionalValue(value, item.options.optionalValue);
+                        isOptionalValue(value, item.options.optionalValue ?? options.optionalValue);
 
                 if (isOptional) {
                     if (item.options.optionalInclude) {
@@ -536,6 +537,7 @@ export class Container<
                             signal: options.signal,
                             parallel: true,
                             cache: options.cache,
+                            optionalValue: options.optionalValue,
                         },
                     );
                 } else {
@@ -788,7 +790,7 @@ export class Container<
                     const isOptional = typeof item.options.optional === 'function' ?
                         item.options.optional(value) :
                         item.options.optional &&
-                            isOptionalValue(value, item.options.optionalValue);
+                            isOptionalValue(value, item.options.optionalValue ?? options.optionalValue);
 
                     if (isOptional) {
                         if (item.options.optionalInclude) {
@@ -814,6 +816,7 @@ export class Container<
                             context: options.context,
                             signal: options.signal,
                             cache: options.cache,
+                            optionalValue: options.optionalValue,
                         });
 
                         const tmpKeys = Object.keys(tmp);

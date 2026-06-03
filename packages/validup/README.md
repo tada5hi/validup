@@ -806,7 +806,7 @@ class Container<
 | `path`                    | `ContainerRunOptions`  | Used internally when nesting; rarely set by hand                  |
 | `group` (mount)           | `MountOptions`         | Group(s) this mount belongs to (`string \| string[]`)             |
 | `optional`                | `MountOptions`         | Skip this mount when value is "optional"                          |
-| `optionalValue`           | `MountOptions`         | What counts as optional: single atom or array of atoms (`'undefined'` default; `'null'` / `'empty_string'` / `'zero'` / `'false'` / `'nan'` / `'falsy'`) |
+| `optionalValue`           | `MountOptions`, `ContainerRunOptions` | What counts as optional (per-mount; run-level fallback when the mount doesn't set its own). Single atom or array of atoms; core default `'undefined'`. |
 | `optionalInclude`         | `MountOptions`         | Copy optional value into the output instead of dropping it        |
 
 ### defineSchema

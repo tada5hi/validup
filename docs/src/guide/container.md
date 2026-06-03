@@ -85,6 +85,7 @@ type ContainerRunOptions<T, C> = {
     context?: C;                   // becomes ctx.context for every validator
     signal?: AbortSignal;          // cancellation
     parallel?: boolean;            // switch to runParallel
+    optionalValue?: OptionalValue | OptionalValue[];  // run-level fallback for MountOptions.optionalValue
 };
 ```
 

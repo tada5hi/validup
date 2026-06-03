@@ -157,6 +157,15 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
     // reference swaps (different container = different mount identities).
     const cache = new ResultCache();
 
+    // Form-input idiom: an untouched `<input>` bound via `v-model` holds
+    // `''`, not `undefined`, so we broaden the run-level fallback to skip
+    // both. Per-mount `optionalValue` still wins (e.g. a numeric field
+    // can set `optionalValue: 'undefined'` to keep `0` reaching the
+    // validator). Callers that prefer the conservative core default
+    // pass `optionalValue: 'undefined'` (or any other shape) via
+    // `ComposableOptions`.
+    const optionalValueDefault = options.optionalValue ?? ['undefined', 'empty_string'];
+
     async function runOnce(signal?: AbortSignal): Promise<Result<T>> {
         const id = ++runId;
         pending.value = true;
@@ -171,6 +180,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
                         context: contextRef.value,
                         signal,
                         cache,
+                        optionalValue: optionalValueDefault,
                     },
                 );
             } catch (rawError) {

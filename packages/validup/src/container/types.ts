@@ -126,6 +126,25 @@ export type ContainerRunOptions<
      * runs every time, regardless of any `sideEffect` declaration.
      */
     cache?: IResultCache,
+
+    /**
+     * Run-level fallback for `MountOptions.optionalValue`. When a mount
+     * declares `optional: true` (or a predicate that returns falsy) but
+     * does NOT set its own `optionalValue`, this value decides what
+     * counts as "absent". Per-mount setting wins; this is only the
+     * fallback.
+     *
+     * Forwarded into nested container `run()` calls so the entire
+     * sub-tree shares the same default unless a child mount overrides.
+     *
+     * Hosts that know their idiom set this once. `@validup/vue` passes
+     * `['undefined', 'empty_string']` on every `safeRun` so an
+     * untouched `<input>` (`v-model` holds `''`) is treated as missing
+     * without per-mount configuration. Server / CLI callers typically
+     * leave it unset and let the conservative core default
+     * (`'undefined'`) apply.
+     */
+    optionalValue?: `${OptionalValue}` | readonly `${OptionalValue}`[],
 };
 
 export type MountOptions = {

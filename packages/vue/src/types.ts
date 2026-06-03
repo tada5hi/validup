@@ -12,6 +12,7 @@ import type {
     WritableComputedRef,
 } from 'vue';
 import type {
+    ContainerRunOptions,
     IContainer,
     Issue,
     IssueGroup,
@@ -193,6 +194,20 @@ export type ComposableOptions<T extends ObjectLiteral, C = unknown> = {
      * needs its own aggregation root.
      */
     scope?: string;
+
+    /**
+     * Run-level fallback for `MountOptions.optionalValue`. Forwarded to
+     * `safeRun` (and `$validate()`'s internal run) so any mount that
+     * declares `optional: true` without setting its own `optionalValue`
+     * picks this up.
+     *
+     * Defaults to `['undefined', 'empty_string']` — matches the form-input
+     * idiom where an untouched `<input>` bound via `v-model` holds `''`,
+     * not `undefined`. Pass `undefined` (or the core default
+     * `'undefined'`) to opt back into the conservative core behavior; pass
+     * `'falsy'` to broaden further.
+     */
+    optionalValue?: ContainerRunOptions<T, C>['optionalValue'];
 };
 
 export type ParentRegistry = {

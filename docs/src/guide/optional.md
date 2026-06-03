@@ -63,8 +63,20 @@ An empty array (`optionalValue: []`) matches nothing — the mount is effectivel
 :::
 
 ::: tip Form inputs
-For form fields where an untouched `<input>` holds `''` (bound via `v-model`), set `optionalValue: [UNDEFINED, EMPTY_STRING]` on the mount so an empty input counts as missing. `@validup/vue` users can rely on per-mount configuration to capture this idiom.
+For form fields where an untouched `<input>` holds `''` (bound via `v-model`), the per-mount escape is `optionalValue: [UNDEFINED, EMPTY_STRING]`. Or thread the same default through the whole run via `ContainerRunOptions.optionalValue` — `@validup/vue` does this automatically (`['undefined', 'empty_string']`), so individual mounts only need to override when they want something different.
 :::
+
+## Run-level fallback (`ContainerRunOptions.optionalValue`)
+
+The same vocabulary is accepted at the run level as a fallback when a mount doesn't set its own `optionalValue`. Useful when a single decision applies to every optional mount in a form / API surface:
+
+```typescript
+await container.run(input, {
+    optionalValue: ['undefined', 'empty_string'],
+});
+```
+
+Precedence: per-mount `MountOptions.optionalValue` wins over the run-level fallback. When neither is set, the core default `'undefined'` applies. The run-level value is forwarded into nested container `run()` calls so the entire sub-tree picks it up unless a child mount overrides.
 
 ## Predicate `optional`
 

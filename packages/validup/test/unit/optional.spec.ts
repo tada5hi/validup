@@ -330,6 +330,80 @@ describe('optional', () => {
         });
     });
 
+    describe('ContainerRunOptions.optionalValue (run-level fallback)', () => {
+        it('applies when the mount does not set its own optionalValue', async () => {
+            const container = new Container<{ x: any }>();
+            container.mount(
+                'x',
+                { optional: true, optionalInclude: true },
+                (ctx) => {
+                    throw new Error(`validator ran on ${String(ctx.value)}`);
+                },
+            );
+
+            // No mount-level optionalValue + run-level ['undefined', 'empty_string']
+            // → '' is skipped.
+            await expect(
+                container.run({ x: '' }, { optionalValue: ['undefined', 'empty_string'] }),
+            ).resolves.toEqual({ x: '' });
+
+            // Same container WITHOUT the run-level fallback falls back to the
+            // core default ('undefined') — '' reaches the validator.
+            await expect(container.run({ x: '' })).rejects.toBeDefined();
+        });
+
+        it('per-mount optionalValue wins over the run-level fallback', async () => {
+            const container = new Container<{ x: any }>();
+            container.mount(
+                'x',
+                {
+                    optional: true,
+                    // Mount-level wins → only `undefined` is skipped, even if
+                    // the run-level broadens to falsy.
+                    optionalValue: OptionalValue.UNDEFINED,
+                    optionalInclude: true,
+                },
+                (ctx) => {
+                    throw new Error(`validator ran on ${String(ctx.value)}`);
+                },
+            );
+
+            await expect(
+                container.run({ x: undefined }, { optionalValue: OptionalValue.FALSY }),
+            ).resolves.toEqual({ x: undefined });
+
+            // '' falls through to the mount-level UNDEFINED, NOT the run-level
+            // FALSY → validator runs.
+            await expect(
+                container.run({ x: '' }, { optionalValue: OptionalValue.FALSY }),
+            ).rejects.toBeDefined();
+        });
+
+        it('is forwarded into nested containers', async () => {
+            const child = new Container<{ inner: string }>();
+            child.mount(
+                'inner',
+                { optional: true, optionalInclude: true },
+                (ctx) => {
+                    throw new Error(`validator ran on ${String(ctx.value)}`);
+                },
+            );
+
+            const parent = new Container<{ wrap: { inner: string } }>();
+            parent.mount('wrap', child);
+
+            // Run-level `['undefined', 'empty_string']` on the parent should
+            // reach the child's mount via forwarding — otherwise child would
+            // run its validator on the empty string.
+            await expect(
+                parent.run(
+                    { wrap: { inner: '' } },
+                    { optionalValue: ['undefined', 'empty_string'] },
+                ),
+            ).resolves.toEqual({ wrap: { inner: '' } });
+        });
+    });
+
     describe('meta.optional tagging', () => {
         // Helper — runs a container, throws if the run unexpectedly succeeded,
         // returns the ValidupError's issues otherwise.
