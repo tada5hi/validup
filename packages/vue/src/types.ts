@@ -75,11 +75,42 @@ export type Composable<T extends ObjectLiteral = ObjectLiteral> = {
     $getResultsForChild<C extends ObjectLiteral = ObjectLiteral>(name: string): Composable<C> | undefined;
 
     /**
-     * Per-field accessor. Top-level keys narrow to `FieldState<T[K]>`;
-     * dotted (`'user.email'`) and bracketed (`'tags[0]'`) paths fall back to
-     * `FieldState<any>` since their value type can't be derived structurally.
+     * Per-field accessor. Top-level keys narrow to `FieldState<T[K]>` —
+     * strict-mode clean (no `| undefined` from a fallback index signature).
+     * Use `fields.at('user.email')` for dotted / bracketed / runtime-computed
+     * paths where the typed proxy keys can't express what you need.
      */
-    readonly fields: { readonly [K in keyof T]: FieldState<T[K]> } & Record<string, FieldState<any>>;
+    readonly fields: FieldsAccessor<T>;
+};
+
+/**
+ * Typed accessor returned by `Composable.fields`.
+ *
+ * - `fields.<key>` — typed access for known keys of `T`. Returns
+ *   `FieldState<T[K]>` (NOT `| undefined`) so strict-mode TypeScript
+ *   (`noUncheckedIndexedAccess`) doesn't require non-null assertions on
+ *   every template reference.
+ * - `fields.at(path)` — dynamic accessor for dotted (`'user.email'`),
+ *   bracketed (`'tags[0]'`), or mixed (`'matrix[0].name'`) paths and any
+ *   runtime-computed key. Returns `FieldState<V>`; the underlying Proxy
+ *   materialises a `FieldState` on first access so the return is never
+ *   actually undefined at runtime.
+ *
+ * Caveat: a field literally named `at` is shadowed by the dynamic
+ * accessor. Access it via `fields.at('at')` (or pick a different field
+ * name) — a deliberate trade-off to keep the accessor discoverable on
+ * the same object as the typed keys.
+ */
+export type FieldsAccessor<T extends ObjectLiteral> = {
+    readonly [K in keyof T as K extends 'at' ? never : K]: FieldState<T[K]>;
+} & {
+    /**
+     * Look up field state by dotted / bracketed path or any
+     * runtime-computed key. Returns `FieldState<V>` (no `| undefined`):
+     * the Proxy materialises a `FieldState` on first access, so the
+     * lookup never fails at runtime.
+     */
+    at<V = unknown>(path: string): FieldState<V>;
 };
 
 export type ComposableOptions<T extends ObjectLiteral, C = unknown> = {
@@ -151,5 +182,16 @@ export type ParentRegistry = {
     unregister(name: string): void;
 };
 
-export type StateInput<T extends ObjectLiteral> = T | Ref<T>;
+/**
+ * State accepted by `useValidup`. Typed as `Partial<T>` so a form that only
+ * carries a subset of the validator's entity fields type-checks without a
+ * cast (e.g. a `Container<User>` driving a `{ name, email }` create form
+ * where `id` / `createdAt` are server-set). The runtime treats unmounted
+ * keys as pass-through.
+ *
+ * Wrapped in `NoInfer` at the call site so the form's narrower shape
+ * doesn't pull `T` toward itself — `T` stays bound to the container's
+ * entity type, keeping `Composable<T>['fields']` strict-mode-clean.
+ */
+export type StateInput<T extends ObjectLiteral> = Partial<T> | Ref<Partial<T>>;
 export type ContainerInput<T extends ObjectLiteral, C = unknown> = IContainer<T, C> | Ref<IContainer<T, C>>;

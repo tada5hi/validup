@@ -122,9 +122,11 @@ const group = ref<'create' | 'update'>('create');
 const $v = useValidup(new RoleValidator(), form, { group });
 ```
 
+The `state` argument is typed as `Partial<T>`, so a form that only carries a subset of the validator's entity fields (e.g. a `Container<User>` against a `{ name, email }` create form where `id` / `createdAt` are server-set) type-checks without any cast. `T` stays bound to the container's entity type — typed-field access (`$v.fields.name`) still narrows against the full entity, not the narrower form.
+
 ## Per-Field State
 
-`$v.fields[<key>]` returns a `FieldState`:
+`$v.fields.<key>` returns a `FieldState`. Top-level keys narrow to `FieldState<T[K]>` (strict-mode clean — never `| undefined`). For dotted / bracketed / runtime-computed paths use `$v.fields.at('user.email')` — see [Nested Paths](#nested-paths) below.
 
 | Member         | Type                                  | Description                                                          |
 |----------------|---------------------------------------|----------------------------------------------------------------------|
@@ -139,17 +141,19 @@ const $v = useValidup(new RoleValidator(), form, { group });
 
 ## Nested Paths
 
-`fields[<key>]` accepts dotted, bracketed, or mixed paths:
+`fields.at(<path>)` accepts dotted, bracketed, or mixed paths — and any runtime-computed key:
 
 ```typescript
-$v.fields['user.email'].$model.value = 'peter@example.com';
-$v.fields['tags[0]'].$model.value = 'urgent';
-$v.fields['matrix[0].name'].$model.value = 'first';
+$v.fields.at('user.email').$model.value = 'peter@example.com';
+$v.fields.at('tags[0]').$model.value = 'urgent';
+$v.fields.at('matrix[0].name').$model.value = 'first';
 ```
+
+Why `at(...)` instead of bracket access? Under strict-mode TypeScript (`noUncheckedIndexedAccess`, the default for Nuxt and most modern setups) a string-keyed index signature returns `FieldState | undefined`, forcing a non-null assertion on every template reference. `fields.at(...)` keeps the typed-key path (`$v.fields.name`) strict-mode clean *and* still gives you a dynamic accessor for paths the typed keys can't express. Caveat: a field literally named `at` is shadowed by the accessor — use `fields.at('at')` to reach it.
 
 Touching an ancestor (`$v.fields.user.$touch()`) surfaces every descendant error (`user.email`, `user.profile.bio`, …) — useful for "validate this whole section on submit" UX.
 
-Object/array intermediates are auto-created on write, so writing `$v.fields['address.city'].$model.value = 'Berlin'` against `state = {}` produces `state.address = { city: 'Berlin' }`.
+Object/array intermediates are auto-created on write, so writing `$v.fields.at('address.city').$model.value = 'Berlin'` against `state = {}` produces `state.address = { city: 'Berlin' }`.
 
 ## Groups
 
@@ -413,7 +417,8 @@ interface ComposableOptions<T, C = unknown> {
 | `$validate()`                     | Touch every field, run, return the `Result<T>`. Cancels any pending debounced run first.                   |
 | `setExternalIssues(issues)`       | Inject server-side issues. Tagged `meta.external = true` (deep — group children too). Cleared by `$reset()`. |
 | `$getResultsForChild(name)`       | Resolve a registered child composable (only if `options.name` was set on the child).                       |
-| `fields[<key>]`                   | Per-field `FieldState` (dotted / bracketed paths).                                                         |
+| `fields.<key>`                    | Per-field `FieldState<T[K]>` for top-level entity keys (strict-mode clean — never `\| undefined`).         |
+| `fields.at(<path>)`               | Per-field `FieldState` accessor for dotted / bracketed / runtime-computed paths (`'user.email'`, `'tags[0]'`). |
 
 ### Helpers
 
