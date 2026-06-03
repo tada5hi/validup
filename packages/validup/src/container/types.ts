@@ -40,10 +40,12 @@ export type ContainerRunOptions<
     C = unknown,
 > = {
     /**
-     * Default values for the container output.
+     * Default values for the container output. Each key is optional — supply
+     * only the paths you want to backfill. When the validated output is missing
+     * a key (or holds `undefined`), the matching entry from `defaults` is used.
      */
     defaults?: {
-        [Key in Path<T>]: any
+        [Key in Path<T>]?: any
     },
     /**
      * Group to execute.
@@ -174,6 +176,20 @@ export type ResultFailure = {
 
 export type Result<T extends ObjectLiteral = ObjectLiteral> = ResultSuccess<T> | ResultFailure;
 
+/**
+ * Input shape accepted by `IContainer.run` (and siblings). Typed as
+ * `Partial<T>` so callers can hand in form objects that are narrower than the
+ * validator's full entity type (the typical "create/edit form for a server
+ * entity" case — fields like `id` / `createdAt` are server-set and not part
+ * of the form). The runtime treats unmounted keys as pass-through, so the
+ * type just reflects what the validator actually inspects.
+ *
+ * `Partial<T>` accepts both full-T objects and arbitrary extra keys via TS's
+ * structural object-type rules — no additional `Record<string, any>`
+ * intersection is required here.
+ */
+export type ContainerInput<T extends ObjectLiteral = ObjectLiteral> = Partial<T>;
+
 export interface IContainer<T extends ObjectLiteral = ObjectLiteral, C = unknown> {
     /**
      * Run the container against `input`. Throws `ValidupError` on validation
@@ -181,7 +197,7 @@ export interface IContainer<T extends ObjectLiteral = ObjectLiteral, C = unknown
      * `options.signal`.
      */
     run(
-        input?: Record<string, any>,
+        input?: ContainerInput<T>,
         options?: ContainerRunOptions<T, C>,
     ): Promise<T>
 
@@ -199,7 +215,7 @@ export interface IContainer<T extends ObjectLiteral = ObjectLiteral, C = unknown
      *   such throws as a synthetic path-less failure.
      */
     safeRun(
-        input?: Record<string, any>,
+        input?: ContainerInput<T>,
         options?: ContainerRunOptions<T, C>,
     ): Promise<Result<T>>
 
@@ -215,7 +231,7 @@ export interface IContainer<T extends ObjectLiteral = ObjectLiteral, C = unknown
      * and surface verbatim.
      */
     runSync?(
-        input?: Record<string, any>,
+        input?: ContainerInput<T>,
         options?: ContainerRunOptions<T, C>,
     ): T
 
@@ -227,7 +243,7 @@ export interface IContainer<T extends ObjectLiteral = ObjectLiteral, C = unknown
      * structural mismatch, not a validation outcome.
      */
     safeRunSync?(
-        input?: Record<string, any>,
+        input?: ContainerInput<T>,
         options?: ContainerRunOptions<T, C>,
     ): Result<T>
 }

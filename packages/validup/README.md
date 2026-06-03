@@ -773,12 +773,15 @@ class Container<
     mount(key: Path<T>, data: IContainer | Validator<C>): void;
     mount(key: Path<T>, options: MountOptions, data: IContainer | Validator<C>): void;
 
-    run(input?: Record<string, any>, options?: ContainerRunOptions<T, C>): Promise<T>;
-    safeRun(input?: Record<string, any>, options?: ContainerRunOptions<T, C>): Promise<Result<T>>;
+    // `input` is typed `Partial<T>` so a form narrower than the validator's
+    // entity type (e.g. a create-form against `Container<User>` where `id` /
+    // `createdAt` are server-set) type-checks without a cast.
+    run(input?: Partial<T>, options?: ContainerRunOptions<T, C>): Promise<T>;
+    safeRun(input?: Partial<T>, options?: ContainerRunOptions<T, C>): Promise<Result<T>>;
 
     // Sync variants — throw if any validator returns a Promise.
-    runSync(input?: Record<string, any>, options?: ContainerRunOptions<T, C>): T;
-    safeRunSync(input?: Record<string, any>, options?: ContainerRunOptions<T, C>): Result<T>;
+    runSync(input?: Partial<T>, options?: ContainerRunOptions<T, C>): T;
+    safeRunSync(input?: Partial<T>, options?: ContainerRunOptions<T, C>): Result<T>;
 }
 ```
 
