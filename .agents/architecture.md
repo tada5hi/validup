@@ -165,7 +165,16 @@ All three variants share the private helpers `resolveContainerFilters` / `record
 
 `optional` is the **gate** (does this mount permit being skipped?); `optionalValue` is the **definition** (which runtime values qualify as "absent"?). The default `UNDEFINED` keeps the core conservative — `0` / `''` / `false` / `null` are real values that reach the validator unless the caller opts in.
 
-Two layers can supply the definition: **`MountOptions.optionalValue`** (per-mount, wins) and **`ContainerRunOptions.optionalValue`** (run-level fallback when the mount doesn't set its own). The run-level value is forwarded into nested container `run()` calls so the entire sub-tree shares the same default unless a child mount overrides. `@validup/vue` threads `['undefined', 'empty_string']` on every `safeRun` so an untouched `<input>` (`v-model` holds `''`) is treated as missing without per-mount configuration; consumers can override at the composable level via `ComposableOptions.optionalValue`. Form-input authors who want a different shape per mount (e.g. a numeric field where `0` is meaningful: `optionalValue: 'undefined'`) override on the mount itself. Use `optional: (value) => boolean` for cases the atom vocabulary can't express.
+Three core layers can supply the definition. **Precedence (highest → lowest):**
+
+1. `MountOptions.optionalValue` / `MountOptions.optionalAs` (per-mount, wins)
+2. `ContainerRunOptions.optionalValue` / `ContainerRunOptions.optionalAs` (per-run; forwarded into nested container `run()` calls)
+3. `ContainerOptions.optionalValue` / `ContainerOptions.optionalAs` (container-wide, set on `new Container(...)`)
+4. Core default (`'undefined'` for `optionalValue`; no `optionalAs`)
+
+Resolution in `Container.run` / `runParallel` / `runSync` is `item.options.optionalValue ?? options.optionalValue ?? this.options.optionalValue` for the gate, and the same fallback chain via `hasOwnProperty` for `optionalAs` (presence — not value — activates the directive, so `{ optionalAs: undefined }` at any layer is a deliberate "emit `undefined`" directive). `optionalAs` and `optionalValue` are forwarded into nested container `run()` calls so the entire sub-tree shares the same defaults unless a child mount overrides. The forward uses `hasOwnProperty` for `optionalAs` so the child sees the layer's intent (emit-undefined vs. not-set) verbatim.
+
+`@validup/vue` adds two additional layers ABOVE the core run-level: `ComposableOptions` (per `useValidup`) and install options (`app.use(createValidup({ optionalValue, optionalAs }))`). The composable resolves `composable ?? install` for both fields and threads the result into `ContainerRunOptions` on every `safeRun` / `$validate()`. No hard-coded form-friendly default — apps that want the empty-string-skip idiom opt in explicitly via install. Per-mount `optionalValue` / `optionalAs` still wins. Use `optional: (value) => boolean` for cases the atom vocabulary can't express.
 
 The matcher lives in `isOptionalValue(value, input)` (`helpers/optional-value.ts`) — single helper, switch over atom kind, array form delegates to a loop over the same matcher. The three `Container` run-loops (`run` / `runParallel` / `runSync`) all consult it the same way; nothing else in the code knows about individual atoms.
 

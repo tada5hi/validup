@@ -77,7 +77,18 @@ await container.run(input, {
 });
 ```
 
-Precedence: per-mount `MountOptions.optionalValue` wins over the run-level fallback. When neither is set, the core default `'undefined'` applies. The run-level value is forwarded into nested container `run()` calls so the entire sub-tree picks it up unless a child mount overrides.
+Precedence (highest → lowest) for both `optionalValue` and `optionalAs`:
+
+1. **`MountOptions`** — `container.mount(path, { optionalValue, optionalAs }, fn)`
+2. **`ContainerRunOptions`** — `.run(input, { optionalValue, optionalAs })`
+3. **`ContainerOptions`** — `new Container({ optionalValue, optionalAs })`
+4. **Core default** — `optionalValue: 'undefined'`, no `optionalAs`
+
+`optionalValue` and the run-level `optionalAs` are forwarded into nested container `run()` calls, so the entire sub-tree picks them up unless a child mount overrides. `optionalAs` activation is governed by property **presence** (via `hasOwnProperty`), so `{ optionalAs: undefined }` at any layer is a meaningful directive — "emit `undefined`" — and differs from omitting the option.
+
+::: tip @validup/vue layers
+Vue users get two extra layers slotted between `ContainerOptions` and the core default: `ComposableOptions` (per `useValidup`) and install options (per `app.use(createValidup(...))`). See the [Vue integration page](/integrations/vue#optional-validation).
+:::
 
 ## Predicate `optional`
 

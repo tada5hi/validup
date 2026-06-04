@@ -32,7 +32,29 @@ export type ContainerOptions<T> = {
      * By default, all mounted containers/validators will
      * be considered for execution.
      */
-    pathsToExclude?: Path<T>[]
+    pathsToExclude?: Path<T>[],
+
+    /**
+     * Container-wide default for `MountOptions.optionalValue`. Applied
+     * to mounts in this container that declare `optional: true` (or a
+     * truthy predicate) without setting their own `optionalValue`.
+     *
+     * Precedence (highest → lowest): `MountOptions` → `ContainerRunOptions`
+     * → `ContainerOptions` → core default (`'undefined'`).
+     */
+    optionalValue?: `${OptionalValue}` | readonly `${OptionalValue}`[],
+
+    /**
+     * Container-wide default for `MountOptions.optionalAs`. Applied to
+     * mounts in this container that qualify as optional without setting
+     * their own `optionalAs`. Presence (not value) activates the
+     * directive — `{ optionalAs: undefined }` means "emit `undefined`",
+     * which differs from omitting the option.
+     *
+     * Precedence (highest → lowest): `MountOptions` → `ContainerRunOptions`
+     * → `ContainerOptions`.
+     */
+    optionalAs?: unknown,
 };
 
 export type ContainerRunOptions<
@@ -137,14 +159,31 @@ export type ContainerRunOptions<
      * Forwarded into nested container `run()` calls so the entire
      * sub-tree shares the same default unless a child mount overrides.
      *
-     * Hosts that know their idiom set this once. `@validup/vue` passes
-     * `['undefined', 'empty_string']` on every `safeRun` so an
-     * untouched `<input>` (`v-model` holds `''`) is treated as missing
-     * without per-mount configuration. Server / CLI callers typically
-     * leave it unset and let the conservative core default
-     * (`'undefined'`) apply.
+     * Hosts that know their idiom set this once — e.g. an app using
+     * `@validup/vue` can `app.use(createValidup({ optionalValue:
+     * ['undefined', 'empty_string'] }))` to make untouched `<input>`
+     * fields (`v-model` holds `''`) count as missing across every form.
+     * Server / CLI callers typically leave it unset and let the
+     * conservative core default (`'undefined'`) apply.
+     *
+     * Precedence (highest → lowest): `MountOptions` → `ContainerRunOptions`
+     * → `ContainerOptions` → core default.
      */
     optionalValue?: `${OptionalValue}` | readonly `${OptionalValue}`[],
+
+    /**
+     * Run-level fallback for `MountOptions.optionalAs`. When a mount
+     * qualifies as optional without setting its own `optionalAs`, this
+     * value is written to the output. Presence (not value) activates
+     * the directive — `{ optionalAs: undefined }` is meaningful
+     * ("emit `undefined`") and differs from omitting the option.
+     *
+     * Forwarded into nested container `run()` calls.
+     *
+     * Precedence (highest → lowest): `MountOptions` → `ContainerRunOptions`
+     * → `ContainerOptions`.
+     */
+    optionalAs?: unknown,
 };
 
 export type MountOptions = {

@@ -6,10 +6,17 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { nextTick, reactive } from 'vue';
+import { 
+    createApp, 
+    defineComponent, 
+    h, 
+    nextTick, 
+    reactive, 
+} from 'vue';
 import { Container } from 'validup';
 import type { Validator } from 'validup';
-import { useValidup } from '../../src';
+import { createValidup, useValidup } from '../../src';
+import type { Composable } from '../../src';
 
 const failsAlways: Validator = (ctx) => {
     throw new Error(`validator ran on ${String(ctx.value)}`);
@@ -23,12 +30,40 @@ async function flush() {
     await nextTick();
 }
 
+/**
+ * Mount a component that runs `useValidup` under a plugin-wired app so
+ * `inject(VALIDUP_INSTALL_KEY)` resolves. Returns the `$v` composable
+ * the component exposed, plus a `cleanup()` to tear the app down.
+ */
+function mountWithPlugin<T>(
+    setup: () => { $v: Composable<T> },
+    plugin?: ReturnType<typeof createValidup>,
+): { v: Composable<T>; cleanup: () => void } {
+    const captured: { v?: Composable<T> } = {};
+    const Comp = defineComponent({
+        setup() {
+            const { $v } = setup();
+            captured.v = $v;
+            return () => h('div');
+        },
+    });
+    const app = createApp(Comp);
+    if (plugin) {
+        app.use(plugin);
+    }
+    const root = document.createElement('div');
+    app.mount(root);
+    return {
+        v: captured.v as Composable<T>,
+        cleanup: () => app.unmount(),
+    };
+}
+
 describe('useValidup optionalValue default', () => {
-    it('skips empty-string mounts by default (form-input idiom)', async () => {
-        // Core default is UNDEFINED, but @validup/vue threads
-        // ['undefined', 'empty_string'] as the run-level fallback so an
-        // untouched <input> bound via v-model (holding '') counts as
-        // missing without per-mount configuration.
+    it('does NOT skip empty strings by default (no install, no composable opt-in)', async () => {
+        // Vue intentionally has no hard-coded form-friendly default.
+        // The core default ('undefined') applies, so '' reaches the
+        // validator and the form is invalid.
         const container = new Container<{ description: string }>();
         container.mount('description', { optional: true }, failsAlways);
 
@@ -36,39 +71,53 @@ describe('useValidup optionalValue default', () => {
         const $v = useValidup(container, state);
         await flush();
 
-        // No issue surfaced — the validator was skipped, not failed-but-hidden.
-        expect($v.$errors.value).toEqual([]);
-        expect($v.$invalid.value).toBe(false);
-    });
-
-    it('still runs the validator on a non-empty value', async () => {
-        const container = new Container<{ description: string }>();
-        container.mount('description', { optional: true }, failsAlways);
-
-        const state = reactive({ description: 'a' });
-        const $v = useValidup(container, state);
-        await flush();
-
-        // 'a' is truthy and not '' — not optional, validator runs and fails.
         expect($v.$invalid.value).toBe(true);
     });
 
-    it('honors composable-level optionalValue override', async () => {
-        // Form author opts back into the core conservative default.
+    it('install option drives the form-friendly default app-wide', async () => {
         const container = new Container<{ description: string }>();
         container.mount('description', { optional: true }, failsAlways);
 
-        const state = reactive({ description: '' });
-        const $v = useValidup(container, state, { optionalValue: 'undefined' });
+        const { v, cleanup } = mountWithPlugin<{ description: string }>(
+            () => {
+                const state = reactive({ description: '' });
+                return { $v: useValidup(container, state) };
+            },
+            createValidup({ optionalValue: ['undefined', 'empty_string'] }),
+        );
         await flush();
 
-        // Override: empty string no longer skipped — validator runs and fails.
-        expect($v.$invalid.value).toBe(true);
+        // Install fallback skips '' → no error.
+        expect(v.$invalid.value).toBe(false);
+
+        cleanup();
     });
 
-    it('per-mount optionalValue still wins over the composable default', async () => {
-        // Composable default is ['undefined', 'empty_string'], but this mount
-        // narrows to UNDEFINED so '' reaches the validator.
+    it('composable optionalValue overrides install', async () => {
+        const container = new Container<{ description: string }>();
+        container.mount('description', { optional: true }, failsAlways);
+
+        const { v, cleanup } = mountWithPlugin<{ description: string }>(
+            () => {
+                const state = reactive({ description: '' });
+                return {
+                    $v: useValidup(container, state, {
+                        // Composable narrows back to UNDEFINED only.
+                        optionalValue: 'undefined',
+                    }),
+                };
+            },
+            createValidup({ optionalValue: ['undefined', 'empty_string'] }),
+        );
+        await flush();
+
+        // Composable wins → '' is NOT skipped, validator runs.
+        expect(v.$invalid.value).toBe(true);
+
+        cleanup();
+    });
+
+    it('mount optionalValue still wins over both install and composable', async () => {
         const container = new Container<{ description: string }>();
         container.mount(
             'description',
@@ -76,11 +125,76 @@ describe('useValidup optionalValue default', () => {
             failsAlways,
         );
 
-        const state = reactive({ description: '' });
-        const $v = useValidup(container, state);
+        const { v, cleanup } = mountWithPlugin<{ description: string }>(
+            () => {
+                const state = reactive({ description: '' });
+                return { $v: useValidup(container, state, { optionalValue: ['undefined', 'empty_string'] }) };
+            },
+            createValidup({ optionalValue: 'falsy' }),
+        );
         await flush();
 
-        // Mount-level UNDEFINED beats the run-level default → validator runs.
-        expect($v.$invalid.value).toBe(true);
+        // Mount-level UNDEFINED beats composable and install.
+        expect(v.$invalid.value).toBe(true);
+
+        cleanup();
+    });
+});
+
+describe('useValidup optionalAs default', () => {
+    it('install optionalAs collapses sentinels to a canonical value', async () => {
+        const container = new Container<{ description: string | null }>();
+        container.mount(
+            'description',
+            {
+                optional: true,
+                optionalValue: ['undefined', 'empty_string', 'null'],
+            },
+            (ctx) => ctx.value,
+        );
+
+        const { v, cleanup } = mountWithPlugin<{ description: string | null }>(
+            () => {
+                const state = reactive<{ description: string | null }>({ description: '' });
+                return { $v: useValidup(container, state) };
+            },
+            createValidup({ optionalAs: null }),
+        );
+        await flush();
+
+        // No error, and $validate() emits null for the canonical output.
+        const result = await v.$validate();
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data.description).toBeNull();
+        }
+
+        cleanup();
+    });
+
+    it('composable optionalAs overrides install', async () => {
+        const container = new Container<{ description: string | null }>();
+        container.mount(
+            'description',
+            { optional: true, optionalValue: 'empty_string' },
+            (ctx) => ctx.value,
+        );
+
+        const { v, cleanup } = mountWithPlugin<{ description: string | null }>(
+            () => {
+                const state = reactive<{ description: string | null }>({ description: '' });
+                return { $v: useValidup(container, state, { optionalAs: 'COMPOSABLE' }) };
+            },
+            createValidup({ optionalAs: 'INSTALL' }),
+        );
+        await flush();
+
+        const result = await v.$validate();
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data.description).toBe('COMPOSABLE');
+        }
+
+        cleanup();
     });
 });

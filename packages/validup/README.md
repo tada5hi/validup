@@ -826,9 +826,9 @@ class Container<
 | `path`                    | `ContainerRunOptions`  | Used internally when nesting; rarely set by hand                  |
 | `group` (mount)           | `MountOptions`         | Group(s) this mount belongs to (`string \| string[]`)             |
 | `optional`                | `MountOptions`         | Skip this mount when value is "optional"                          |
-| `optionalValue`           | `MountOptions`, `ContainerRunOptions` | What counts as optional (per-mount; run-level fallback when the mount doesn't set its own). Single atom or array of atoms; core default `'undefined'`. |
+| `optionalValue`           | `MountOptions`, `ContainerRunOptions`, `ContainerOptions` | What counts as optional. Precedence: mount > run > container > core (`'undefined'`). Single atom or array of atoms. |
 | `optionalInclude`         | `MountOptions`         | Copy optional value into the output instead of dropping it        |
-| `optionalAs`              | `MountOptions`         | Canonical value written to the output when the mount is optional. Implies include; wins over `optionalInclude`. |
+| `optionalAs`              | `MountOptions`, `ContainerRunOptions`, `ContainerOptions` | Canonical value written to the output when the mount is optional. Implies include; wins over `optionalInclude`. Precedence: mount > run > container. Presence-not-value activation (so `{ optionalAs: undefined }` is a meaningful directive). |
 
 ### defineSchema
 

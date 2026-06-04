@@ -463,6 +463,120 @@ describe('optional', () => {
         });
     });
 
+    describe('ContainerOptions precedence (mount > run > container > default)', () => {
+        it('ContainerOptions.optionalValue applies when neither mount nor run set it', async () => {
+            const container = new Container<{ x: any }>({ optionalValue: [OptionalValue.UNDEFINED, OptionalValue.EMPTY_STRING] });
+            container.mount(
+                'x',
+                { optional: true, optionalInclude: true },
+                (ctx) => {
+                    throw new Error(`validator ran on ${String(ctx.value)}`);
+                },
+            );
+
+            // Container default → '' is skipped via optionalInclude.
+            await expect(container.run({ x: '' })).resolves.toEqual({ x: '' });
+            // Without the container default, '' would reach the validator.
+        });
+
+        it('ContainerRunOptions.optionalValue overrides ContainerOptions', async () => {
+            const container = new Container<{ x: any }>({ optionalValue: OptionalValue.EMPTY_STRING });
+            container.mount(
+                'x',
+                { optional: true, optionalInclude: true },
+                (ctx) => {
+                    throw new Error(`validator ran on ${String(ctx.value)}`);
+                },
+            );
+
+            // Run-level narrows to UNDEFINED only → '' is no longer optional.
+            await expect(
+                container.run({ x: '' }, { optionalValue: OptionalValue.UNDEFINED }),
+            ).rejects.toBeDefined();
+        });
+
+        it('MountOptions.optionalValue overrides ContainerRunOptions and ContainerOptions', async () => {
+            const container = new Container<{ x: any }>({ optionalValue: OptionalValue.FALSY });
+            container.mount(
+                'x',
+                {
+                    optional: true,
+                    optionalValue: OptionalValue.UNDEFINED,
+                    optionalInclude: true,
+                },
+                (ctx) => {
+                    throw new Error(`validator ran on ${String(ctx.value)}`);
+                },
+            );
+
+            // Mount-level UNDEFINED wins over both run-level FALSY and
+            // container-level FALSY → '' reaches the validator.
+            await expect(
+                container.run({ x: '' }, { optionalValue: OptionalValue.FALSY }),
+            ).rejects.toBeDefined();
+        });
+
+        it('ContainerOptions.optionalAs writes its canonical value when neither mount nor run set it', async () => {
+            const container = new Container<{ x: any }>({ optionalAs: 'CONTAINER_DEFAULT' });
+            container.mount(
+                'x',
+                { optional: true, optionalValue: OptionalValue.EMPTY_STRING },
+                (ctx) => ctx.value,
+            );
+
+            await expect(container.run({ x: '' })).resolves.toEqual({ x: 'CONTAINER_DEFAULT' });
+        });
+
+        it('ContainerRunOptions.optionalAs overrides ContainerOptions.optionalAs', async () => {
+            const container = new Container<{ x: any }>({ optionalAs: 'CONTAINER_DEFAULT' });
+            container.mount(
+                'x',
+                { optional: true, optionalValue: OptionalValue.EMPTY_STRING },
+                (ctx) => ctx.value,
+            );
+
+            await expect(
+                container.run({ x: '' }, { optionalAs: 'RUN_LEVEL' }),
+            ).resolves.toEqual({ x: 'RUN_LEVEL' });
+        });
+
+        it('MountOptions.optionalAs overrides every higher layer', async () => {
+            const container = new Container<{ x: any }>({ optionalAs: 'CONTAINER' });
+            container.mount(
+                'x',
+                {
+                    optional: true,
+                    optionalValue: OptionalValue.EMPTY_STRING,
+                    optionalAs: 'MOUNT',
+                },
+                (ctx) => ctx.value,
+            );
+
+            await expect(
+                container.run({ x: '' }, { optionalAs: 'RUN' }),
+            ).resolves.toEqual({ x: 'MOUNT' });
+        });
+
+        it('optionalAs is forwarded into nested containers', async () => {
+            const child = new Container<{ inner: any }>();
+            child.mount(
+                'inner',
+                { optional: true, optionalValue: OptionalValue.EMPTY_STRING },
+                (ctx) => ctx.value,
+            );
+
+            const parent = new Container<{ wrap: { inner: any } }>();
+            parent.mount('wrap', child);
+
+            await expect(
+                parent.run(
+                    { wrap: { inner: '' } },
+                    { optionalAs: null },
+                ),
+            ).resolves.toEqual({ wrap: { inner: null } });
+        });
+    });
+
     describe('meta.optional tagging', () => {
         // Helper — runs a container, throws if the run unexpectedly succeeded,
         // returns the ValidupError's issues otherwise.

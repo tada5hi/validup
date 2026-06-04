@@ -6,5 +6,6 @@
  */
 
 export * from './helpers';
+export * from './install';
 export * from './module';
 export * from './types';
