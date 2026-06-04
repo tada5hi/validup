@@ -161,8 +161,8 @@ describe('child registry reactivity', () => {
             };
 
             expose({
-                $v, 
-                initial, 
+                $v,
+                initial,
                 hide,
             });
             return () => h('div', [
