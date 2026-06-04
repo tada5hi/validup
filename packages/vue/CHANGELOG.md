@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.3](https://github.com/tada5hi/validup/compare/vue-v0.3.2...vue-v0.3.3) (2026-06-04)
+
+
+### Features
+
+* **validup:** atomic optionalValue vocabulary + FALSY default ([ef8463c](https://github.com/tada5hi/validup/commit/ef8463caf219cbc2c7da45dde6725c806df8f2cc))
+* **vue:** reactive child registry + nested-forms demo rewiring ([#403](https://github.com/tada5hi/validup/issues/403)) ([fbc7c6d](https://github.com/tada5hi/validup/commit/fbc7c6d5190bc970b0e105ba7ec8b7002850c71d))
+
+
+### Bug Fixes
+
+* **deps:** bump the minorandpatch group across 1 directory with 3 updates ([#402](https://github.com/tada5hi/validup/issues/402)) ([17af0d5](https://github.com/tada5hi/validup/commit/17af0d564c949e922cd195c45643840ff3ec93fc))
+* **validup:** revert default optionalValue to UNDEFINED ([#400](https://github.com/tada5hi/validup/issues/400)) ([1ee670b](https://github.com/tada5hi/validup/commit/1ee670b5fadc4bb8d2b41779f2df7bffb3feaf9d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^0.5.0 to ^0.5.1
+
 ## [0.3.2](https://github.com/tada5hi/validup/compare/vue-v0.3.1...vue-v0.3.2) (2026-06-03)
 
 
