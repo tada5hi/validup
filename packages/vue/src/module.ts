@@ -8,6 +8,7 @@
 import {
     computed,
     getCurrentScope,
+    inject,
     isRef,
     onScopeDispose,
     reactive,
@@ -32,6 +33,8 @@ import {
     isValidupError,
 } from 'validup';
 import { useCollector } from './helpers/collector';
+import { VALIDUP_INSTALL_KEY } from './install';
+import type { InstallOptions } from './install';
 import type {
     Composable,
     ComposableOptions,
@@ -157,6 +160,30 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
     // reference swaps (different container = different mount identities).
     const cache = new ResultCache();
 
+    // Resolve composable → install → undefined for both option families.
+    // Vue intentionally does NOT hard-code a form-friendly default — the
+    // app opts in via `app.use(createValidup({ optionalValue,
+    // optionalAs }))`. Without an install / composable opt-in, the run
+    // loop falls through to `ContainerOptions.*` and then the core
+    // default (`'undefined'` for optionalValue; no optionalAs).
+    //
+    // Property presence (not value) governs `optionalAs` — the install
+    // bag is consulted via `hasOwnProperty` so an explicit
+    // `optionalAs: undefined` on either layer is honored.
+    const installOptions = inject<InstallOptions | undefined>(VALIDUP_INSTALL_KEY, undefined);
+    const resolvedOptionalValue: ComposableOptions<T, C>['optionalValue'] | undefined =        options.optionalValue ?? installOptions?.optionalValue;
+    const composableHasOptionalAs = Object.prototype.hasOwnProperty.call(options, 'optionalAs');
+    const installHasOptionalAs = installOptions ?
+        Object.prototype.hasOwnProperty.call(installOptions, 'optionalAs') :
+        false;
+    let resolvedOptionalAs: unknown;
+    if (composableHasOptionalAs) {
+        resolvedOptionalAs = options.optionalAs;
+    } else if (installHasOptionalAs) {
+        resolvedOptionalAs = installOptions!.optionalAs;
+    }
+    const propagateOptionalAs = composableHasOptionalAs || installHasOptionalAs;
+
     async function runOnce(signal?: AbortSignal): Promise<Result<T>> {
         const id = ++runId;
         pending.value = true;
@@ -171,6 +198,10 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
                         context: contextRef.value,
                         signal,
                         cache,
+                        ...(typeof resolvedOptionalValue !== 'undefined' ?
+                            { optionalValue: resolvedOptionalValue } : {}),
+                        ...(propagateOptionalAs ?
+                            { optionalAs: resolvedOptionalAs } : {}),
                     },
                 );
             } catch (rawError) {

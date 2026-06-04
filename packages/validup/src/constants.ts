@@ -16,7 +16,11 @@ export enum GroupKey {
  * `optionalValue: ['undefined', 'null', 'empty_string']`.
  */
 export enum OptionalValue {
-    /** `value === undefined`. */
+    /**
+     * `value === undefined`. **Default** when `optionalValue` is not set,
+     * so the core stays conservative — `0` / `''` / `false` are real
+     * values and reach the validator unless the caller opts in.
+     */
     UNDEFINED = 'undefined',
     /** `value === null` (does **not** include `undefined`). */
     NULL = 'null',
@@ -30,13 +34,10 @@ export enum OptionalValue {
     NAN = 'nan',
     /**
      * Composite shortcut — any JS falsy value
-     * (`undefined`, `null`, `''`, `0`, `false`, `NaN`). **Default** when
-     * `optionalValue` is not set, so `{ optional: true }` alone handles
-     * the common form-input case (untouched `<input>` holds `''`).
-     *
-     * For fields where `0` or `false` is a meaningful value, pick the
-     * specific atoms instead (e.g. `optionalValue: ['undefined', 'null',
-     * 'empty_string']`) or use the predicate form `optional: (v) => …`.
+     * (`undefined`, `null`, `''`, `0`, `false`, `NaN`). Use when you
+     * really mean "any of the JS falsy sentinels"; otherwise pick
+     * specific atoms (or compose an array) so a `0` / `false` / `''`
+     * with a meaningful semantic isn't silently swallowed.
      */
     FALSY = 'falsy',
 }

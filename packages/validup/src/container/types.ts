@@ -32,7 +32,29 @@ export type ContainerOptions<T> = {
      * By default, all mounted containers/validators will
      * be considered for execution.
      */
-    pathsToExclude?: Path<T>[]
+    pathsToExclude?: Path<T>[],
+
+    /**
+     * Container-wide default for `MountOptions.optionalValue`. Applied
+     * to mounts in this container that declare `optional: true` (or a
+     * truthy predicate) without setting their own `optionalValue`.
+     *
+     * Precedence (highest → lowest): `MountOptions` → `ContainerRunOptions`
+     * → `ContainerOptions` → core default (`'undefined'`).
+     */
+    optionalValue?: `${OptionalValue}` | readonly `${OptionalValue}`[],
+
+    /**
+     * Container-wide default for `MountOptions.optionalAs`. Applied to
+     * mounts in this container that qualify as optional without setting
+     * their own `optionalAs`. Presence (not value) activates the
+     * directive — `{ optionalAs: undefined }` means "emit `undefined`",
+     * which differs from omitting the option.
+     *
+     * Precedence (highest → lowest): `MountOptions` → `ContainerRunOptions`
+     * → `ContainerOptions`.
+     */
+    optionalAs?: unknown,
 };
 
 export type ContainerRunOptions<
@@ -126,6 +148,44 @@ export type ContainerRunOptions<
      * runs every time, regardless of any `sideEffect` declaration.
      */
     cache?: IResultCache,
+
+    /**
+     * Run-level fallback for `MountOptions.optionalValue`. When a mount
+     * declares `optional: true` but does NOT set its own `optionalValue`,
+     * this value decides what counts as "absent". Per-mount setting
+     * wins; this is only the fallback.
+     *
+     * Predicate-form `optional: (value) => boolean` does not consult
+     * `optionalValue` at all — the predicate decides directly.
+     *
+     * Forwarded into nested container `run()` calls so the entire
+     * sub-tree shares the same default unless a child mount overrides.
+     *
+     * Hosts that know their idiom set this once — e.g. an app using
+     * `@validup/vue` can `app.use(createValidup({ optionalValue:
+     * ['undefined', 'empty_string'] }))` to make untouched `<input>`
+     * fields (`v-model` holds `''`) count as missing across every form.
+     * Server / CLI callers typically leave it unset and let the
+     * conservative core default (`'undefined'`) apply.
+     *
+     * Precedence (highest → lowest): `MountOptions` → `ContainerRunOptions`
+     * → `ContainerOptions` → core default.
+     */
+    optionalValue?: `${OptionalValue}` | readonly `${OptionalValue}`[],
+
+    /**
+     * Run-level fallback for `MountOptions.optionalAs`. When a mount
+     * qualifies as optional without setting its own `optionalAs`, this
+     * value is written to the output. Presence (not value) activates
+     * the directive — `{ optionalAs: undefined }` is meaningful
+     * ("emit `undefined`") and differs from omitting the option.
+     *
+     * Forwarded into nested container `run()` calls.
+     *
+     * Precedence (highest → lowest): `MountOptions` → `ContainerRunOptions`
+     * → `ContainerOptions`.
+     */
+    optionalAs?: unknown,
 };
 
 export type MountOptions = {
@@ -154,11 +214,11 @@ export type MountOptions = {
      * set (e.g. `['undefined', 'null', 'empty_string']` for the common
      * "missing or blank" intent).
      *
-     * Atoms match exactly one runtime value — `'null'` no longer also
-     * includes `undefined`. Pass `['null', 'undefined']` explicitly when
+     * Atoms match exactly one runtime value — `'null'` does NOT also
+     * include `undefined`. Pass `['null', 'undefined']` explicitly when
      * both should qualify.
      *
-     * default: 'falsy'
+     * default: 'undefined'
      */
     optionalValue?: `${OptionalValue}` | readonly `${OptionalValue}`[],
 
@@ -168,6 +228,31 @@ export type MountOptions = {
      * default: false
      */
     optionalInclude?: boolean,
+
+    /**
+     * Canonical value written to the output when the mount qualifies
+     * as optional. Useful for normalizing multiple "missing" sentinels
+     * (`undefined` / `null` / `''`) into a single shape the consumer
+     * expects (e.g. always `null` when posting to a backend).
+     *
+     * When set, the runtime ignores `optionalInclude` and writes
+     * `optionalAs` regardless of the input value. Property presence
+     * matters (not "is undefined"): `{ optionalAs: undefined }` is a
+     * meaningful directive ("emit `undefined` for this key") and
+     * differs from omitting the option entirely.
+     *
+     * @example
+     * container.mount('description', {
+     *     optional: true,
+     *     optionalValue: ['undefined', 'null', 'empty_string'],
+     *     optionalAs: null,
+     * }, isString);
+     *
+     * await container.run({ description: '' });       // → { description: null }
+     * await container.run({ description: undefined }); // → { description: null }
+     * await container.run({ description: null });     // → { description: null }
+     */
+    optionalAs?: unknown,
 };
 
 export type ResultSuccess<T> = {

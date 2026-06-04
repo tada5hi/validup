@@ -12,6 +12,7 @@ import type {
     WritableComputedRef,
 } from 'vue';
 import type {
+    ContainerRunOptions,
     IContainer,
     Issue,
     IssueGroup,
@@ -193,6 +194,35 @@ export type ComposableOptions<T extends ObjectLiteral, C = unknown> = {
      * needs its own aggregation root.
      */
     scope?: string;
+
+    /**
+     * Run-level fallback for `MountOptions.optionalValue`. Forwarded to
+     * `safeRun` (and `$validate()`'s internal run) so any mount that
+     * declares `optional: true` without setting its own `optionalValue`
+     * picks this up.
+     *
+     * When unset, falls back to the install option supplied via
+     * `app.use(createValidup({ optionalValue }))`. When neither is set,
+     * the run-loop falls through to `ContainerOptions.optionalValue`
+     * and then the core default (`'undefined'`).
+     */
+    optionalValue?: ContainerRunOptions<T, C>['optionalValue'];
+
+    /**
+     * Run-level fallback for `MountOptions.optionalAs`. Forwarded to
+     * `safeRun`; written to the output whenever an optional mount
+     * doesn't set its own `optionalAs`.
+     *
+     * Presence (not value) matters — `{ optionalAs: undefined }` is a
+     * meaningful directive ("emit `undefined`") and differs from
+     * omitting the option.
+     *
+     * When unset, falls back to the install option supplied via
+     * `app.use(createValidup({ optionalAs }))`. When neither is set,
+     * the run-loop falls through to `ContainerOptions.optionalAs` (if
+     * any) or otherwise behaves as if no `optionalAs` were configured.
+     */
+    optionalAs?: unknown;
 };
 
 export type ParentRegistry = {

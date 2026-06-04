@@ -175,7 +175,37 @@ group.value = 'update';
 
 ## Optional Validation
 
-Optional mounts on the container behave the same way they do server-side — pass `{ optional: true }` to `Container.mount(...)` and the field is skipped when its value is falsy (`''`, `null`, `undefined`, `0`, `false`, `NaN`). This matches the typical form case: an untouched `<input>` bound via `v-model` holds `''`, which now counts as "not set". For finer control, pick a specific atom (`optionalValue: 'undefined'`, `'null'`, `'empty_string'`, …), compose an array (`optionalValue: ['undefined', 'null', 'empty_string']`), or use the predicate form. See validup's [Optional Values](https://www.npmjs.com/package/validup#optional-values) docs.
+Optional mounts on the container behave the same way they do server-side — pass `{ optional: true }` to `Container.mount(...)` and the field is skipped when its value qualifies as missing. Without configuration, `@validup/vue` uses validup core's conservative defaults (`optionalValue: 'undefined'`, no `optionalAs`). To opt into a form-friendly app-wide idiom, install the plugin:
+
+```typescript
+import { createApp } from 'vue';
+import { createValidup } from '@validup/vue';
+
+const app = createApp(/* ... */);
+app.use(createValidup({
+    // Treat both `undefined` AND empty string as "missing" — fits the
+    // typical untouched-<input>-via-v-model case.
+    optionalValue: ['undefined', 'empty_string'],
+
+    // Collapse every optional sentinel to `null` on the way out, so
+    // the backend always sees one canonical shape for "no value".
+    optionalAs: null,
+}));
+```
+
+With the plugin installed, every `useValidup` in the app picks up those defaults; per-mount `optionalValue` / `optionalAs` still wins, and `ComposableOptions` can override per-form.
+
+```typescript
+useValidup(container, state, {
+    // Override the install default for this form only.
+    optionalValue: 'falsy',
+    optionalAs: '',
+});
+```
+
+Precedence (highest → lowest): `MountOptions` → `ContainerRunOptions` (forwarded from `ComposableOptions`) → `ContainerOptions` → `ComposableOptions` (when no install) → install options → core default.
+
+For the atomic vocabulary (`'undefined'`, `'null'`, `'empty_string'`, `'zero'`, `'false'`, `'nan'`, `'falsy'`) see validup's [Optional Values](https://www.npmjs.com/package/validup#optional-values) docs.
 
 ## Result Caching (automatic)
 

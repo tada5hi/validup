@@ -16,11 +16,13 @@ const c = new Container<{ name: string; email: string }>(/* options? */);
 
 `ContainerOptions<T>` accepts:
 
-| Option            | Type            | Purpose                                                                                  |
-|-------------------|-----------------|------------------------------------------------------------------------------------------|
-| `oneOf`           | `boolean`       | Treat the container as a branch: succeed if **any** mount passes; fail only when **all** fail. See [One-Of](/guide/one-of). |
-| `pathsToInclude`  | `string[]`      | Only run mounts whose expanded path is included.                                         |
-| `pathsToExclude`  | `string[]`      | Skip mounts whose expanded path matches.                                                 |
+| Option            | Type                          | Purpose                                                                                  |
+|-------------------|-------------------------------|------------------------------------------------------------------------------------------|
+| `oneOf`           | `boolean`                     | Treat the container as a branch: succeed if **any** mount passes; fail only when **all** fail. See [One-Of](/guide/one-of). |
+| `pathsToInclude`  | `string[]`                    | Only run mounts whose expanded path is included.                                         |
+| `pathsToExclude`  | `string[]`                    | Skip mounts whose expanded path matches.                                                 |
+| `optionalValue`   | `OptionalValue \| OptionalValue[]` | Container-wide default for `MountOptions.optionalValue`. See [Optional Values](/guide/optional). |
+| `optionalAs`      | `unknown`                     | Container-wide default for `MountOptions.optionalAs`. Activation is presence-not-value.  |
 
 The second generic, `C`, is the type of `ctx.context` — the caller-supplied context that flows unchanged into every nested container's mounts.
 
@@ -65,8 +67,9 @@ If a glob path expands to multiple keys, the validator runs once per expanded ke
 type MountOptions = {
     group?: string | string[];
     optional?: boolean | ((value: unknown) => boolean);
-    optionalValue?: OptionalValue | OptionalValue[]; // FALSY (default) | UNDEFINED | NULL | EMPTY_STRING | ZERO | FALSE | NAN
+    optionalValue?: OptionalValue | OptionalValue[]; // UNDEFINED (default) | NULL | EMPTY_STRING | ZERO | FALSE | NAN | FALSY
     optionalInclude?: boolean;     // copy optional value through to output
+    optionalAs?: unknown;          // canonical value written when optional (wins over optionalInclude)
 };
 ```
 
@@ -85,6 +88,8 @@ type ContainerRunOptions<T, C> = {
     context?: C;                   // becomes ctx.context for every validator
     signal?: AbortSignal;          // cancellation
     parallel?: boolean;            // switch to runParallel
+    optionalValue?: OptionalValue | OptionalValue[];  // run-level fallback for MountOptions.optionalValue
+    optionalAs?: unknown;                              // run-level fallback for MountOptions.optionalAs
 };
 ```
 

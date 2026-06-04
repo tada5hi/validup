@@ -7,6 +7,7 @@ type MountOptions = {
     optional?: boolean | ((value: unknown) => boolean);
     optionalValue?: OptionalValue | OptionalValue[];
     optionalInclude?: boolean;
+    optionalAs?: unknown;
     // ... groups, etc.
 };
 ```
@@ -17,28 +18,31 @@ type MountOptions = {
 
 The vocabulary is atomic: each enum value matches exactly one runtime value. The only exception is `FALSY`, a composite shortcut for any JS falsy value.
 
-| Atom                | Matches                          |
-|---------------------|----------------------------------|
-| `UNDEFINED`         | `value === undefined`            |
-| `NULL`              | `value === null` (NOT undefined) |
-| `EMPTY_STRING`      | `value === ''`                   |
-| `ZERO`              | `value === 0`                    |
-| `FALSE`             | `value === false`                |
-| `NAN`               | `Number.isNaN(value)`            |
-| `FALSY` (default)   | any of the above                 |
+| Atom                  | Matches                          |
+|-----------------------|----------------------------------|
+| `UNDEFINED` (default) | `value === undefined`            |
+| `NULL`                | `value === null` (NOT undefined) |
+| `EMPTY_STRING`        | `value === ''`                   |
+| `ZERO`                | `value === 0`                    |
+| `FALSE`               | `value === false`                |
+| `NAN`                 | `Number.isNaN(value)`            |
+| `FALSY`               | any of the above                 |
 
 ```typescript
 import { Container, OptionalValue } from 'validup';
 
-container.mount('description', { optional: true }, isString);
-// → skipped when description is any falsy value
-//   matches the typical form-input case where an untouched <input> holds ''
+container.mount('age', { optional: true }, isNumber);
+// → skipped only when age === undefined (the conservative default)
 
 container.mount('phone', { optional: true, optionalValue: OptionalValue.NULL }, isPhone);
 // → skipped only when phone === null
 
-container.mount('age', { optional: true, optionalValue: OptionalValue.UNDEFINED }, isNumber);
-// → skipped only when age === undefined (use this when 0 / '' / null are meaningful)
+container.mount('description', {
+    optional: true,
+    optionalValue: [OptionalValue.UNDEFINED, OptionalValue.EMPTY_STRING],
+}, isString);
+// → skipped on undefined OR '' (the form-input case where an untouched
+//   <input> bound via v-model holds '')
 ```
 
 ### Composing atoms with an array
@@ -56,11 +60,34 @@ container.mount('name', {
 An empty array (`optionalValue: []`) matches nothing — the mount is effectively non-optional.
 
 ::: warning NULL semantics
-`NULL` matches `null` only — it does **not** also include `undefined`. Pass `[NULL, UNDEFINED]` (or use `FALSY`) when both should qualify. This was widened in pre-2.0 releases for ergonomic reasons; the atomic split is more predictable.
+`NULL` matches `null` only — it does **not** also include `undefined`. Pass `[OptionalValue.NULL, OptionalValue.UNDEFINED]` (or use `OptionalValue.FALSY`) when both should qualify. This was widened in earlier releases for ergonomic reasons; the atomic split is more predictable.
 :::
 
-::: warning FALSY as default
-Before v2 the default was `UNDEFINED`. The switch to `FALSY` was made because the common case — `{ optional: true }` on a string-typed form field bound via `v-model` — only matched when the host code initialised the field as `undefined`, not `''`. The new default fits the form case out of the box; callers where `0` / `false` is a meaningful value should pick specific atoms or use the predicate form.
+::: tip Form inputs
+For form fields where an untouched `<input>` holds `''` (bound via `v-model`), the per-mount escape is `optionalValue: [OptionalValue.UNDEFINED, OptionalValue.EMPTY_STRING]`. To apply the same default across every form in a Vue app, install `@validup/vue`'s plugin: `app.use(createValidup({ optionalValue: ['undefined', 'empty_string'] }))`, or pass `optionalValue` per-form via `useValidup(..., { optionalValue: [...] })`. Without an install or composable opt-in, `@validup/vue` honors the core conservative default (`'undefined'` only).
+:::
+
+## Run-level fallback (`ContainerRunOptions.optionalValue`)
+
+The same vocabulary is accepted at the run level as a fallback when a mount doesn't set its own `optionalValue`. Useful when a single decision applies to every optional mount in a form / API surface:
+
+```typescript
+await container.run(input, {
+    optionalValue: ['undefined', 'empty_string'],
+});
+```
+
+Precedence (highest → lowest) for both `optionalValue` and `optionalAs`:
+
+1. **`MountOptions`** — `container.mount(path, { optionalValue, optionalAs }, fn)`
+2. **`ContainerRunOptions`** — `.run(input, { optionalValue, optionalAs })`
+3. **`ContainerOptions`** — `new Container({ optionalValue, optionalAs })`
+4. **Core default** — `optionalValue: 'undefined'`, no `optionalAs`
+
+`optionalValue` and the run-level `optionalAs` are forwarded into nested container `run()` calls, so the entire sub-tree picks them up unless a child mount overrides. `optionalAs` activation is governed by property **presence** (via `hasOwnProperty`), so `{ optionalAs: undefined }` at any layer is a meaningful directive — "emit `undefined`" — and differs from omitting the option.
+
+::: tip @validup/vue layers
+Vue users get two extra layers slotted between `ContainerOptions` and the core default: `ComposableOptions` (per `useValidup`) and install options (per `app.use(createValidup(...))`). See the [Vue integration page](/integrations/vue#optional-validation).
 :::
 
 ## Predicate `optional`
@@ -92,6 +119,25 @@ await container.run({});
 ```
 
 This is useful when you need to distinguish "user explicitly set null" from "user omitted the field".
+
+## `optionalAs` (canonical normalization)
+
+When you want every optional sentinel to collapse to one canonical value (e.g. the backend expects `null` for "no value provided", but the form holds `''`), set `optionalAs`:
+
+```typescript
+container.mount('description', {
+    optional: true,
+    optionalValue: [OptionalValue.UNDEFINED, OptionalValue.NULL, OptionalValue.EMPTY_STRING],
+    optionalAs: null,
+}, isString);
+
+await container.run({ description: '' });          // → { description: null }
+await container.run({ description: undefined });   // → { description: null }
+await container.run({ description: null });        // → { description: null }
+await container.run({ description: 'value' });     // → { description: 'value' }  (validator ran)
+```
+
+`optionalAs` implies include semantics and wins when paired with `optionalInclude`. Presence — not value — matters: `{ optionalAs: undefined }` is a meaningful directive ("emit the key as `undefined`") and differs from omitting the option.
 
 ## Optional + transforming validators
 

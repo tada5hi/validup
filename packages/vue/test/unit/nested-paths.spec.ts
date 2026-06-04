@@ -131,7 +131,8 @@ describe('nested paths', () => {
         // Pin `optionalValue` to UNDEFINED so the empty-string sentinel
         // below still trips the validator — the test needs an
         // optional-tagged issue to exist so it can assert prefix-dirty
-        // filtering. Under the FALSY default, '' would skip outright.
+        // filtering. Without the pin, `@validup/vue`'s default
+        // (`['undefined', 'empty_string']`) would skip `''` outright.
         userChild.mount('email', { optional: true, optionalValue: 'undefined' }, isNonEmptyString);
         container.mount('user', userChild);
         container.mount('tags[0]', { optional: true, optionalValue: 'undefined' }, isNonEmptyString);

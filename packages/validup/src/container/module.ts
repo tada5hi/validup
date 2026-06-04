@@ -316,13 +316,22 @@ export class Container<
                 }
 
                 try {
+                    const resolvedOptionalValue = item.options.optionalValue ??
+                        options.optionalValue ??
+                        this.options.optionalValue;
                     const isOptional = typeof item.options.optional === 'function' ?
                         item.options.optional(value) :
                         item.options.optional &&
-                            isOptionalValue(value, item.options.optionalValue);
+                            isOptionalValue(value, resolvedOptionalValue);
 
                     if (isOptional) {
-                        if (item.options.optionalInclude) {
+                        if (hasOwnProperty(item.options, 'optionalAs')) {
+                            output[key] = item.options.optionalAs;
+                        } else if (hasOwnProperty(options, 'optionalAs')) {
+                            output[key] = options.optionalAs;
+                        } else if (hasOwnProperty(this.options, 'optionalAs')) {
+                            output[key] = this.options.optionalAs;
+                        } else if (item.options.optionalInclude) {
                             output[key] = value;
                         }
                     } else if (item.type === 'container') {
@@ -338,6 +347,9 @@ export class Container<
                                 context: options.context,
                                 signal: options.signal,
                                 cache: options.cache,
+                                optionalValue: options.optionalValue,
+                                ...(hasOwnProperty(options, 'optionalAs') ?
+                                    { optionalAs: options.optionalAs } : {}),
                             },
                         );
 
@@ -508,13 +520,22 @@ export class Container<
                     continue;
                 }
 
+                const resolvedOptionalValue = item.options.optionalValue ??
+                    options.optionalValue ??
+                    this.options.optionalValue;
                 const isOptional = typeof item.options.optional === 'function' ?
                     item.options.optional(value) :
                     item.options.optional &&
-                        isOptionalValue(value, item.options.optionalValue);
+                        isOptionalValue(value, resolvedOptionalValue);
 
                 if (isOptional) {
-                    if (item.options.optionalInclude) {
+                    if (hasOwnProperty(item.options, 'optionalAs')) {
+                        output[key] = item.options.optionalAs;
+                    } else if (hasOwnProperty(options, 'optionalAs')) {
+                        output[key] = options.optionalAs;
+                    } else if (hasOwnProperty(this.options, 'optionalAs')) {
+                        output[key] = this.options.optionalAs;
+                    } else if (item.options.optionalInclude) {
                         output[key] = value;
                     }
                     syncPathCount++;
@@ -536,6 +557,9 @@ export class Container<
                             signal: options.signal,
                             parallel: true,
                             cache: options.cache,
+                            optionalValue: options.optionalValue,
+                            ...(hasOwnProperty(options, 'optionalAs') ?
+                                { optionalAs: options.optionalAs } : {}),
                         },
                     );
                 } else {
@@ -785,13 +809,22 @@ export class Container<
                 }
 
                 try {
+                    const resolvedOptionalValue = item.options.optionalValue ??
+                        options.optionalValue ??
+                        this.options.optionalValue;
                     const isOptional = typeof item.options.optional === 'function' ?
                         item.options.optional(value) :
                         item.options.optional &&
-                            isOptionalValue(value, item.options.optionalValue);
+                            isOptionalValue(value, resolvedOptionalValue);
 
                     if (isOptional) {
-                        if (item.options.optionalInclude) {
+                        if (hasOwnProperty(item.options, 'optionalAs')) {
+                            output[key] = item.options.optionalAs;
+                        } else if (hasOwnProperty(options, 'optionalAs')) {
+                            output[key] = options.optionalAs;
+                        } else if (hasOwnProperty(this.options, 'optionalAs')) {
+                            output[key] = this.options.optionalAs;
+                        } else if (item.options.optionalInclude) {
                             output[key] = value;
                         }
                     } else if (item.type === 'container') {
@@ -814,6 +847,9 @@ export class Container<
                             context: options.context,
                             signal: options.signal,
                             cache: options.cache,
+                            optionalValue: options.optionalValue,
+                            ...(hasOwnProperty(options, 'optionalAs') ?
+                                { optionalAs: options.optionalAs } : {}),
                         });
 
                         const tmpKeys = Object.keys(tmp);

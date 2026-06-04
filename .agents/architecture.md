@@ -130,7 +130,7 @@ For each mounted item, in registration order:
 1. **Group filter** — `isItemGroupIncluded(item, options.group)`. `'*'` always passes; otherwise the item's `group` (string or string[]) must include the active group, or the item must declare no group.
 2. **Path expansion** — `expandPath(data, item.path)` from `pathtrace` (returns `['']` if no path was given, meaning "operate on the whole input").
 3. **Include/exclude filter** — `pathsToInclude` / `pathsToExclude` (run-time options take precedence over container-level options) via `helpers/path-filter.ts:resolvePathFilter`.
-4. **Optional short-circuit** — `item.options.optional` is either a boolean (paired with `optionalValue`) or a predicate `(value) => boolean`; predicate wins when present. If optional, skip; if `optionalInclude` is set, copy the optional value through to output.
+4. **Optional short-circuit** — `item.options.optional` is either a boolean (paired with `optionalValue`) or a predicate `(value) => boolean`; predicate wins when present. If optional: write `optionalAs` to output when the option is present on the mount (canonical normalization, presence-not-value), else copy through when `optionalInclude` is set, else omit the key.
 5. **Dispatch**:
    - `validator` → `await item.data(ctx)` (or `item.data(ctx)` in `runSync`, which throws if the result is thenable). Writes `output[key]`.
    - `container` → `await item.data.run(value, { group, flat: true, path, pathsToInclude, pathsToExclude, defaults: resolveDefaults(...), context, signal, parallel })`. `runSync` calls `item.data.runSync(...)` (throws `RunSyncViolationError` if the child doesn't implement it). Nested results are merged by `mergePaths(key, childKey)` so dotted paths flatten correctly.
@@ -153,19 +153,30 @@ All three variants share the private helpers `resolveContainerFilters` / `record
 
 `OptionalValue` is the atomic vocabulary that controls what counts as "optional" when `MountOptions.optional: true`. Each atom matches **exactly one** runtime value (`FALSY` is the only composite):
 
-- `UNDEFINED` — `value === undefined`
-- `NULL` — `value === null` (does NOT include `undefined` — pre-2.0 semantics widened to "null or undefined" were dropped in favor of the atomic split)
+- `UNDEFINED` (default) — `value === undefined`
+- `NULL` — `value === null` (does NOT include `undefined` — earlier "null or undefined" widening was dropped in favor of the atomic split)
 - `EMPTY_STRING` — `value === ''`
 - `ZERO` — `value === 0`
 - `FALSE` — `value === false`
 - `NAN` — `Number.isNaN(value)`
-- `FALSY` (default) — any of the above (`!value`, plus the `NaN` case)
+- `FALSY` — composite shortcut for any of the above (`!value`, plus the `NaN` case)
 
 `MountOptions.optionalValue` accepts a single atom or an array — the array form is any-of, so `['undefined', 'null', 'empty_string']` skips on any of those three. An empty array never matches (mount is effectively non-optional). The composite `FALSY` can be mixed with atoms without effect; redundancy is silent.
 
-`optional` is the **gate** (does this mount permit being skipped?); `optionalValue` is the **definition** (which runtime values qualify as "absent"?). The default is `FALSY` so `{ optional: true }` alone matches the typical form-input case (an untouched `<input>` holds `''`, not `undefined`). Callers where `0` / `false` are meaningful values should compose specific atoms (e.g. `['undefined', 'null', 'empty_string']`) or use `optional: (value) => boolean` for cases the vocabulary can't express.
+`optional` is the **gate** (does this mount permit being skipped?); `optionalValue` is the **definition** (which runtime values qualify as "absent"?). The default `UNDEFINED` keeps the core conservative — `0` / `''` / `false` / `null` are real values that reach the validator unless the caller opts in.
 
-The matcher lives in `isOptionalValue(value, input)` (`helpers/optional-value.ts`) — single helper, switch over atom kind, array form delegates to `Array.prototype.some` over the same matcher. The three `Container` run-loops (`run` / `runParallel` / `runSync`) all consult it the same way; nothing else in the code knows about individual atoms.
+Three core layers can supply the definition. **Precedence (highest → lowest):**
+
+1. `MountOptions.optionalValue` / `MountOptions.optionalAs` (per-mount, wins)
+2. `ContainerRunOptions.optionalValue` / `ContainerRunOptions.optionalAs` (per-run; forwarded into nested container `run()` calls)
+3. `ContainerOptions.optionalValue` / `ContainerOptions.optionalAs` (container-wide, set on `new Container(...)`)
+4. Core default (`'undefined'` for `optionalValue`; no `optionalAs`)
+
+Resolution in `Container.run` / `runParallel` / `runSync` is `item.options.optionalValue ?? options.optionalValue ?? this.options.optionalValue` for the gate, and the same fallback chain via `hasOwnProperty` for `optionalAs` (presence — not value — activates the directive, so `{ optionalAs: undefined }` at any layer is a deliberate "emit `undefined`" directive). `optionalAs` and `optionalValue` are forwarded into nested container `run()` calls so the entire sub-tree shares the same defaults unless a child mount overrides. The forward uses `hasOwnProperty` for `optionalAs` so the child sees the layer's intent (emit-undefined vs. not-set) verbatim.
+
+`@validup/vue` adds two additional layers ABOVE the core run-level: `ComposableOptions` (per `useValidup`) and install options (`app.use(createValidup({ optionalValue, optionalAs }))`). The composable resolves `composable ?? install` for both fields and threads the result into `ContainerRunOptions` on every `safeRun` / `$validate()`. No hard-coded form-friendly default — apps that want the empty-string-skip idiom opt in explicitly via install. Per-mount `optionalValue` / `optionalAs` still wins. Use `optional: (value) => boolean` for cases the atom vocabulary can't express.
+
+The matcher lives in `isOptionalValue(value, input)` (`helpers/optional-value.ts`) — single helper, switch over atom kind, array form delegates to a loop over the same matcher. The three `Container` run-loops (`run` / `runParallel` / `runSync`) all consult it the same way; nothing else in the code knows about individual atoms.
 
 ### Validator composition (`helpers/compose.ts`)
 
