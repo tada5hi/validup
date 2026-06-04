@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.1](https://github.com/tada5hi/validup/compare/validup-v0.5.0...validup-v0.5.1) (2026-06-04)
+
+
+### Features
+
+* **validup:** atomic optionalValue vocabulary + FALSY default ([ef8463c](https://github.com/tada5hi/validup/commit/ef8463caf219cbc2c7da45dde6725c806df8f2cc))
+
+
+### Bug Fixes
+
+* **validup:** revert default optionalValue to UNDEFINED ([#400](https://github.com/tada5hi/validup/issues/400)) ([1ee670b](https://github.com/tada5hi/validup/commit/1ee670b5fadc4bb8d2b41779f2df7bffb3feaf9d))
+
 ## [0.5.0](https://github.com/tada5hi/validup/compare/validup-v0.4.1...validup-v0.5.0) (2026-06-03)
 
 

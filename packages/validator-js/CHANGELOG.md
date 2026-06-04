@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.3](https://github.com/tada5hi/validup/compare/validator-js-v0.2.2...validator-js-v0.2.3) (2026-06-04)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^0.5.0 to ^0.5.1
+
 ## [0.2.2](https://github.com/tada5hi/validup/compare/validator-js-v0.2.1...validator-js-v0.2.2) (2026-06-03)
 
 
