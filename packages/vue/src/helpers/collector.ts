@@ -12,6 +12,7 @@ import {
     inject,
     onScopeDispose,
     provide,
+    shallowReactive,
 } from 'vue';
 import type { Composable, ParentRegistry } from '../types';
 import { PARENT_INJECTION_KEY } from './child';
@@ -49,10 +50,11 @@ export type CollectorOptions = {
 export type Collector = {
     /**
      * Live map of name → composable for child forms that registered with
-     * this collector. Plain `Map` (not `reactive()`) on purpose — children
-     * are consumed imperatively (typically inside a submit handler), and a
-     * reactive wrapper would unwrap nested refs in the child composable's
-     * public type.
+     * this collector. `shallowReactive` (not `reactive()`) on purpose —
+     * lookups via `$getResultsForChild` track the map, so a parent template
+     * or `computed` re-evaluates when a child registers/unregisters, while
+     * the shallow wrapper returns stored values raw and therefore does NOT
+     * unwrap the nested refs in the child composable's public type.
      */
     readonly childRegistry: Map<string, Composable<ObjectLiteral>>;
 
@@ -77,7 +79,9 @@ export type Collector = {
  * concrete need for the split.
  */
 export function useCollector(options: CollectorOptions): Collector {
-    const childRegistry = new Map<string, Composable<ObjectLiteral>>();
+    const childRegistry = shallowReactive(
+        new Map<string, Composable<ObjectLiteral>>(),
+    );
 
     const ownRegistry: ParentRegistry = {
         register(name, child) {

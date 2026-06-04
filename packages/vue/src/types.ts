@@ -90,7 +90,11 @@ export type Composable<T extends ObjectLiteral = ObjectLiteral> = {
     /** Inject server-side issues. Auto-cleared at a path when its `$model` is written. */
     setExternalIssues(issues: Issue[]): void;
 
-    /** Resolve a registered child composable by `options.name`. */
+    /**
+     * Resolve a registered child composable by `options.name`. Reactive —
+     * the registry is `shallowReactive`, so calling this inside a template
+     * or `computed` re-evaluates when the child registers/unregisters.
+     */
     $getResultsForChild<C extends ObjectLiteral = ObjectLiteral>(name: string): Composable<C> | undefined;
 
     /**

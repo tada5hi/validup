@@ -133,14 +133,25 @@ Cross-field validators must declare themselves with `sideEffect: true` (via `def
 ## Nested forms
 
 ```typescript
-const parent = useValidup(parentContainer, parentState);
-const child  = useValidup(childContainer,  childState, { name: 'address' });
+// ParentForm.vue — the aggregation root
+const parent = useValidup(parentContainer, parentState, { stopPropagation: true });
 
-// Inside parent's submit handler:
-const childResult = parent.$getResultsForChild<AddressShape>('address');
+// reactive — re-evaluates when the section registers/unregisters
+const address = computed(() => parent.$getResultsForChild<AddressShape>('address'));
+```
+
+```typescript
+// AddressSection.vue — a child COMPONENT rendered by ParentForm.vue
+const child = useValidup(childContainer, childState, { name: 'address' });
 ```
 
 `$getResultsForChild(name)` returns the child composable (or `undefined`). Nested forms register/unregister via Vue's `provide` / `inject`; `stopPropagation` and `detached` opt out of the registration to keep composables invisible to ancestors and/or descendants.
+
+::: warning Parent and child must live in different components
+Vue's `inject()` only resolves values provided by **ancestor components** — a component never sees its own `provide()`. Two `useValidup()` calls in the same `<script setup>` therefore never link; the child has to be a real child component of the one that owns the parent composable.
+:::
+
+The child registry is `shallowReactive`, so `$getResultsForChild` works **reactively** too: a template binding or `computed` over it re-evaluates when the child registers/unregisters, and tracking continues through the returned composable's refs (`$invalid`, `$dirty`, …) for live parent-side aggregation — not just submit-time reads.
 
 ## External issues
 
