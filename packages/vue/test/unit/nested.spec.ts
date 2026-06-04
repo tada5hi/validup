@@ -10,10 +10,13 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import {
+    computed,
     defineComponent,
     h,
+    isRef,
     nextTick,
     reactive,
+    ref,
 } from 'vue';
 import { Container } from 'validup';
 import type { Validator } from 'validup';
@@ -135,5 +138,90 @@ describe('nested forms', () => {
         // After unmount, the parent's registry should have been cleared via onScopeDispose.
         expect($v.$getResultsForChild('basic')).toBeUndefined();
         expect($v.$getResultsForChild('credentials')).toBeUndefined();
+    });
+});
+
+describe('child registry reactivity', () => {
+    // Parent that consumes the registry REACTIVELY: a computed primed before
+    // any child has registered, plus a template binding that walks
+    // registry → child → $invalid. Both only work because the registry is
+    // `shallowReactive` — a plain Map would cache the initial miss forever.
+    const AggregatingParent = defineComponent({
+        setup(_, { expose }) {
+            const show = ref(true);
+            const $v = useValidup(new Container(), {}, { stopPropagation: true });
+
+            const basic = computed(() => $v.$getResultsForChild<{ name: string }>('basic'));
+            // Prime the computed BEFORE the child's setup has run — with a
+            // non-reactive registry this miss would be cached forever.
+            const initial = basic.value;
+
+            const hide = () => {
+                show.value = false;
+            };
+
+            expose({
+                $v, 
+                initial, 
+                hide,
+            });
+            return () => h('div', [
+                show.value ? h(ChildBasic) : null,
+                h('span', { class: 'agg' }, basic.value ?
+                    String(basic.value.$invalid.value) :
+                    'unregistered'),
+            ]);
+        },
+    });
+
+    it('a computed over $getResultsForChild re-evaluates when the child registers', async () => {
+        const wrapper = mount(AggregatingParent);
+        await flush();
+
+        const vm = wrapper.vm as unknown as { $v: Composable, initial: unknown };
+
+        // setup-time lookup ran before the child registered …
+        expect(vm.initial).toBeUndefined();
+        // … but the same computed now resolves the child (registry tracked).
+        expect(wrapper.find('.agg').text()).toBe('true');
+
+        wrapper.unmount();
+    });
+
+    it('parent template tracks a child\'s $invalid through the registry', async () => {
+        const wrapper = mount(AggregatingParent);
+        await flush();
+
+        const vm = wrapper.vm as unknown as { $v: Composable, hide: () => void };
+
+        const child = vm.$v.$getResultsForChild<{ name: string }>('basic')!;
+        child.fields.name.$model.value = 'peter';
+        await flush();
+
+        expect(wrapper.find('.agg').text()).toBe('false');
+
+        // Removing the child unregisters it — the registry lookup reactively
+        // flips back to the miss branch.
+        vm.hide();
+        await flush();
+        expect(wrapper.find('.agg').text()).toBe('unregistered');
+
+        wrapper.unmount();
+    });
+
+    it('registry lookups return the child composable raw — nested refs are not unwrapped', async () => {
+        const wrapper = mount(Parent);
+        await flush();
+
+        const { $v } = (wrapper.vm as unknown as { $v: Composable });
+        const child = $v.$getResultsForChild('basic')!;
+
+        // `shallowReactive` returns stored values verbatim; a deep `reactive`
+        // wrapper would unwrap these refs and break the public type.
+        expect(isRef(child.$invalid)).toBe(true);
+        expect(isRef(child.$dirty)).toBe(true);
+        expect(isRef(child.$errors)).toBe(true);
+
+        wrapper.unmount();
     });
 });

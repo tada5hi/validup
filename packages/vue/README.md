@@ -349,6 +349,17 @@ The composable wires up child forms with Vue's `provide` / `inject`. The flow:
 3. If a parent is found **and** the child specifies `options.name`, the child auto-registers with the parent's registry under that name.
 4. When the child component's setup scope disposes, `onScopeDispose` fires and the child unregisters automatically — no leaks, no manual cleanup.
 
+> [!IMPORTANT]
+> Vue's `inject()` only resolves values provided by **ancestor components** — a component never sees its own `provide()`. Two `useValidup()` calls in the same `<script setup>` therefore never link; the child must live in its own component, rendered below the one that owns the parent composable.
+
+The registry is `shallowReactive`, so `$getResultsForChild(name)` is usable **reactively** — a template binding or `computed` over it re-evaluates when the child registers/unregisters, and tracking continues through the returned composable's refs (`$invalid`, `$dirty`, …):
+
+```typescript
+// live parent-side aggregation, not just submit-time reads
+const address = computed(() => v.$getResultsForChild<AddressShape>('address'));
+const sectionInvalid = computed(() => address.value?.$invalid.value ?? false);
+```
+
 The injection key is exported as `PARENT_INJECTION_KEY` if you ever need to reach into the registry directly. Scoped trees use a per-scope `Symbol.for('validup:parent:<scope>')` key (see below).
 
 ### Scoped Parent / Child Trees
@@ -452,7 +463,7 @@ interface ComposableOptions<T, C = unknown> {
 | `$touch()` / `$reset()`           | Form-level dirty toggles. `$reset` does **not** clear internal issues (they reflect current state).        |
 | `$validate()`                     | Touch every field, run, return the `Result<T>`. Cancels any pending debounced run first.                   |
 | `setExternalIssues(issues)`       | Inject server-side issues. Tagged `meta.external = true` (deep — group children too). Cleared by `$reset()`. |
-| `$getResultsForChild(name)`       | Resolve a registered child composable (only if `options.name` was set on the child).                       |
+| `$getResultsForChild(name)`       | Resolve a registered child composable (only if `options.name` was set on the child). Reactive — the registry is `shallowReactive`, so templates / `computed`s track register/unregister. |
 | `fields.<key>`                    | Per-field `FieldState<T[K]>` for top-level entity keys (strict-mode clean — never `\| undefined`).         |
 | `fields.at(<path>)`               | Per-field `FieldState` accessor for dotted / bracketed / runtime-computed paths (`'user.email'`, `'tags[0]'`). |
 
