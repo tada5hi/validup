@@ -60,11 +60,11 @@ container.mount('name', {
 An empty array (`optionalValue: []`) matches nothing — the mount is effectively non-optional.
 
 ::: warning NULL semantics
-`NULL` matches `null` only — it does **not** also include `undefined`. Pass `[NULL, UNDEFINED]` (or use `FALSY`) when both should qualify. This was widened in earlier releases for ergonomic reasons; the atomic split is more predictable.
+`NULL` matches `null` only — it does **not** also include `undefined`. Pass `[OptionalValue.NULL, OptionalValue.UNDEFINED]` (or use `OptionalValue.FALSY`) when both should qualify. This was widened in earlier releases for ergonomic reasons; the atomic split is more predictable.
 :::
 
 ::: tip Form inputs
-For form fields where an untouched `<input>` holds `''` (bound via `v-model`), the per-mount escape is `optionalValue: [UNDEFINED, EMPTY_STRING]`. Or thread the same default through the whole run via `ContainerRunOptions.optionalValue` — `@validup/vue` does this automatically (`['undefined', 'empty_string']`), so individual mounts only need to override when they want something different.
+For form fields where an untouched `<input>` holds `''` (bound via `v-model`), the per-mount escape is `optionalValue: [OptionalValue.UNDEFINED, OptionalValue.EMPTY_STRING]`. To apply the same default across every form in a Vue app, install `@validup/vue`'s plugin: `app.use(createValidup({ optionalValue: ['undefined', 'empty_string'] }))`, or pass `optionalValue` per-form via `useValidup(..., { optionalValue: [...] })`. Without an install or composable opt-in, `@validup/vue` honors the core conservative default (`'undefined'` only).
 :::
 
 ## Run-level fallback (`ContainerRunOptions.optionalValue`)

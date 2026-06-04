@@ -42,7 +42,6 @@ describe('optional', () => {
             'child',
             {
                 optional: true,
-                optionalValue: OptionalValue.UNDEFINED,
                 optionalInclude: true,
             },
             child,
