@@ -43,8 +43,8 @@
     ],
     "license": "Apache-2.0",
     "devDependencies": {
-        "@vue/test-utils": "^2.4.10",
-        "happy-dom": "^20.10.1",
+        "@vue/test-utils": "^2.4.11",
+        "happy-dom": "^20.10.2",
         "vue": "^3.5.35"
     },
     "peerDependencies": {
