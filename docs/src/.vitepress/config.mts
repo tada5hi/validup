@@ -99,7 +99,7 @@ export default defineConfig({
                         { text: 'Zod', link: '/integrations/zod' },
                         { text: 'validator.js', link: '/integrations/validator-js' },
                         { text: 'Vue', link: '/integrations/vue' },
-                        { text: 'Vuecs Forms (preview)', link: '/integrations/vuecs-forms' },
+                        { text: 'Vuecs Forms', link: '/integrations/vuecs-forms' },
                     ],
                 },
             ],
