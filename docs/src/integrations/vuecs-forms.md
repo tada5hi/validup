@@ -4,180 +4,158 @@ outline: deep
 
 # Pairing with @vuecs/forms
 
-[`@vuecs/forms`](https://github.com/tada5hi/vuecs) ships a small messages-only component, `<VCValidationGroup>`, that renders a list of validation messages with theming, severity, and slot-customizable item markup. It does **not** wrap the input itself — the input stays whatever you choose (`<VCFormInput>`, a plain `<input>`, anything).
+[`@vuecs/forms`](https://github.com/tada5hi/vuecs) (5.x) ships a form-group wrapper, `<VCFormGroup>`, whose `:validation` prop drives message rendering **and** severity styling (input border / focus ring) from a single bundle. You don't talk to its internal `<VCValidationGroup>` directly anymore — `<VCFormGroup :validation>` is the canonical integration point.
 
-`@validup/vue` produces those messages via `useValidup(...).fields.<key>.$errors`. The bridge between the two is a one-line adapter: map `IssueItem[]` → `ValidationMessages`.
+The bundle that prop expects — `{ severity, messages, issues }` — is produced for you by [`@ilingo/validup-vue`](https://www.npmjs.com/package/@ilingo/validup-vue)'s `useFieldValidation()` (or the renderless `<IFieldValidation>`), which translates a `@validup/vue` field's `$errors` and resolves its `getSeverity`. So the three packages layer cleanly:
 
-> 🚧 **Coming soon.** `<VCValidationGroup>` is part of the unreleased `@vuecs/forms` line. The contract sketched below matches the current vuecs source but the published API may change.
-
-## What `<VCValidationGroup>` expects
-
-```typescript
-type ValidationMessages =
-    | Record<string, string>                    // record style — { key: message }
-    | { key: string; value: string }[];         // array style
-
-type ValidationSeverity = 'error' | 'warning';
+```
+@validup/vue        →  @ilingo/validup-vue      →  @vuecs/forms
+reactive $errors /     translate + bundle into     <VCFormGroup :validation>
+getSeverity            FieldValidation             renders messages + paints severity
 ```
 
-Props (current vuecs `main`):
+`@validup/vue` stays UI-free (it's `vue`-only); the i18n + presentational bridge lives in `@ilingo/validup-vue`; `@vuecs/forms` owns the rendering. Nothing in `@validup/vue` knows about either of the others.
 
-| Prop      | Type                  | Default   |
-|-----------|-----------------------|-----------|
-| `messages`| `ValidationMessages`  | `{}`      |
-| `severity`| `ValidationSeverity`  | `'error'` |
-| `itemTag` | `string`              | `'div'`   |
+## Install & setup
 
-Slots: `default(props)` for full custom rendering, `item({ key, value, ... })` for per-message control. With no slots provided, each message is rendered as `<div class="form-group-hint group-required">{value}</div>`.
-
-## What `useValidup` produces
-
-```typescript
-type IssueItem = {
-    type: 'item';
-    code: IssueCode | (string & {});
-    path: PropertyKey[];
-    message: string;
-    received?: unknown;
-    expected?: unknown;
-    data?: Record<string, unknown>;
-    meta?: Record<string, unknown>;
-};
-
-const v = useValidup(container, state);
-v.fields.email.$errors.value; // IssueItem[] — visible leaves at this path (required-mount items show immediately; optional-mount items wait for $dirty)
+```bash
+npm install @validup/vue @ilingo/validup-vue @ilingo/validup @ilingo/vue ilingo @vuecs/forms vue
 ```
 
-## Bridge: `messagesFromField()`
-
-A 6-line adapter is enough. Use the issue `code` as the message key — that gives the consumer side stable selectors and avoids array-index churn when issues come and go:
+`@ilingo/validup-vue` registers its catalog onto the `Ilingo` instance installed by `@ilingo/vue`, so **install order matters — `@ilingo/vue` first**:
 
 ```typescript
-import type { IssueItem } from 'validup';
+import { createApp } from 'vue';
+import { install as installIlingo } from '@ilingo/vue';
+import { install as installIlingoValidup } from '@ilingo/validup-vue';
+import App from './App.vue';
 
-type ValidationMessages = Record<string, string>;
-
-export function messagesFromField(items: IssueItem[]): ValidationMessages {
-    const output: ValidationMessages = {};
-    for (const item of items) {
-        // `code` defaults to `IssueCode.VALUE_INVALID`; multiple issues with
-        // the same code collapse to the *first* — fine for the common case
-        // (one rule, one message). Use the array-style adapter below if you
-        // need to surface every message.
-        if (!(item.code in output)) {
-            output[item.code] = item.message;
-        }
-    }
-    return output;
-}
+const app = createApp(App);
+installIlingo(app, { locale: 'en' });
+installIlingoValidup(app); // looks up the Ilingo from @ilingo/vue
+app.mount('#app');
 ```
 
-If you want **every** message visible (one rule may produce several issues at the same path), use the array form so duplicate codes don't collapse:
+Calling `installIlingoValidup` without a pre-installed `Ilingo` throws a pointed error rather than silently constructing a second instance the translation composables wouldn't see.
 
-```typescript
-import type { IssueItem } from 'validup';
+## The shipped pattern: `useFieldValidation` + `<VCFormGroup :validation>`
 
-type ValidationMessage = { key: string; value: string };
-
-export function messagesArrayFromField(items: IssueItem[]): ValidationMessage[] {
-    return items.map((item, idx) => ({
-        // Per-issue stable key: prefer `code`, fall back to index when several
-        // issues share a code so Vue's keyed v-for stays well-defined.
-        key: items.filter((j) => j.code === item.code).length > 1
-            ? `${item.code}:${idx}`
-            : item.code,
-        value: item.message,
-    }));
-}
-```
-
-## Putting it together
+`useFieldValidation(field)` collapses the three reactive shims a per-field block used to need — severity, translated messages, and the `{ code, message }` → `{ key, value }` reshape — into one binding:
 
 ```vue
 <script setup lang="ts">
-import { computed, reactive } from 'vue';
+import { reactive } from 'vue';
 import { Container } from 'validup';
+import { createValidator } from '@validup/zod';
 import { useValidup } from '@validup/vue';
-import { VCFormInput, VCValidationGroup } from '@vuecs/forms';
-import { messagesFromField } from './validup-vuecs-bridge';
+import { useFieldValidation } from '@ilingo/validup-vue';
+import { VCFormGroup, VCFormInput } from '@vuecs/forms';
+import { z } from 'zod';
 
-const signup = new Container<{ email: string; password: string }>();
-signup.mount('email', isEmail);
-signup.mount('password', isStrongPassword);
+class SignupValidator extends Container<{ email: string; password: string }> {
+    protected override initialize() {
+        super.initialize();
+        this.mount('email', createValidator(z.string().email()));
+        this.mount('password', createValidator(z.string().min(8)));
+    }
+}
 
 const state = reactive({ email: '', password: '' });
-const v = useValidup(signup, state, { debounce: 200 });
+const v = useValidup(new SignupValidator(), state);
 
-const emailMessages = computed(() => messagesFromField(v.fields.email.$errors.value));
-const passwordMessages = computed(() => messagesFromField(v.fields.password.$errors.value));
+const emailValidation = useFieldValidation(v.fields.email);
+const passwordValidation = useFieldValidation(v.fields.password);
 </script>
 
 <template>
-    <form @submit.prevent="onSubmit">
-        <VCFormInput v-model="v.fields.email.$model" placeholder="Email" />
-        <VCValidationGroup :messages="emailMessages" />
+    <form>
+        <VCFormGroup :validation="emailValidation">
+            <VCFormInput v-model="v.fields.email.$model" />
+        </VCFormGroup>
 
-        <VCFormInput v-model="v.fields.password.$model" type="password" />
-        <VCValidationGroup :messages="passwordMessages" />
-
-        <button :disabled="v.$invalid || v.$pending">Sign up</button>
+        <VCFormGroup :validation="passwordValidation">
+            <VCFormInput v-model="v.fields.password.$model" type="password" />
+        </VCFormGroup>
     </form>
 </template>
 ```
 
-The composable owns *state* — `$model`, `$dirty`, `$pending`, `$errors`. The vuecs component owns *presentation* — theming, severity styling, item rendering. Neither package needs to know about the other.
+::: warning Don't name the composable return `$v`
+The `@ilingo/validup-vue` examples use `$v`, but a `$`-prefixed setup return crashes under Vue 3.5+ SSR (template identifiers starting with `$` skip the `setupState` lookup). Use `v` / `validation` instead — inner `$`-prefixed props (`v.$invalid`, `v.fields.email.$model`) are fine. See [@validup/vue → quick start](/integrations/vue#quick-start) and [#396](https://github.com/tada5hi/validup/issues/396).
+:::
 
-## Severity mapping
+### Template-only with `<IFieldValidation>`
 
-`@validup/vue` already ships a per-field severity helper, [`getSeverity`](/integrations/vue#severity), that returns `'success' | 'warning' | 'error' | undefined` based on `$dirty` / `$pending` / `$invalid`, and downgrades to `'warning'` when every issue at the field came from a mount declared `optional: true` (via `meta.optional`). Pre-touch (not yet `$dirty`) it returns `'warning'` whenever a required-mount issue is pending on the field, so the form communicates "there is work to do" on initial render. `<VCValidationGroup>` only accepts `'error' | 'warning'`, so map the unsupported values to `undefined` (skip rendering):
-
-```typescript
-import { getSeverity } from '@validup/vue';
-import type { FieldState } from '@validup/vue';
-
-function vcSeverity(field: FieldState<unknown>): 'error' | 'warning' | undefined {
-    const sev = getSeverity(field);
-    return sev === 'error' || sev === 'warning' ? sev : undefined;
-}
-```
-
-Then conditionally hide the group on `success`:
+If you'd rather not declare each `useFieldValidation` call in `setup()`, the renderless `<IFieldValidation>` (shipped in `@ilingo/validup-vue@1.0.1`) owns the lifecycle for you and hands the bundle to its default slot as `value`:
 
 ```vue
-<VCValidationGroup
-    v-if="vcSeverity(v.fields.email)"
-    :severity="vcSeverity(v.fields.email)"
-    :messages="emailMessages"
-/>
+<template>
+    <IFieldValidation :field="v.fields.email" v-slot="{ value }">
+        <VCFormGroup :validation="value">
+            <VCFormInput v-model="v.fields.email.$model" />
+        </VCFormGroup>
+    </IFieldValidation>
+</template>
 ```
+
+Without a default slot it renders nothing.
+
+## The `FieldValidation` bundle
+
+`useFieldValidation` returns a **`reactive`** bundle — its keys auto-unwrap (and stay reactive) when bound onto `<VCFormGroup :validation>`:
+
+```typescript
+import type { Severity } from '@validup/vue';
+import type { IssueTranslation, KeyValue } from '@ilingo/validup';
+
+type FieldValidation = {
+    severity: Severity;            // 'error' | 'warning' | 'success' | undefined
+    messages: KeyValue<string>[];  // { key: issue.code ?? 'validation', value: message }[]
+    issues: IssueTranslation[];    // raw translated issues — escape hatch for richer rendering
+};
+```
+
+- **`severity`** is `getSeverity(field)` from `@validup/vue` — dirty / pending / optional aware. It is `undefined` while the field is pristine, `'warning'` for a pre-touch required-mount issue or an optional-mount-only failure, and `'error'` once a required-mount issue is touched. `@vuecs/forms` reads it to paint the field state.
+- **`messages`** keys on the issue `code` (falling back to `'validation'`) so consumer-side selectors stay stable and don't churn with array indices.
+- **`issues`** is the original `IssueTranslation[]` for consumers that want to render their own structure instead of the reshaped `messages`.
+
+The severity union widened to include `'success'` (and the pristine `undefined`) — the old `'error' | 'warning'`-only contract is gone.
+
+::: danger Call `useFieldValidation` in `setup()`, never inline in the template
+Like every composable in `@ilingo/validup-vue` it wires a `computedAsync` watcher owned by the effect scope active at call time. From `setup()` that is the component scope — created once, disposed on unmount. Called **inline** in the template — `:validation="useFieldValidation(...)"` — there is no active scope on the render path, so it registers a fresh, never-disposed watcher on *every render* and hangs the page on typing ([@ilingo/validup-vue#965](https://github.com/tada5hi/ilingo/issues/965)). For template-only use, reach for `<IFieldValidation>` above — that's exactly what it exists for.
+:::
+
+## Severity flows down to the input
+
+Wrapping the input in `<VCFormGroup :validation>` doesn't just render the message list — recent `@vuecs/forms` lets the form group push the resolved `severity` *down* to the wrapped control (via its `provideFormGroupContext`), so `<VCFormInput>` paints its border / focus ring red, amber, or green to match the field. Pristine (`severity: undefined`) leaves the control in its neutral state. The vuecs side of this contract is documented in the [validation feedback guide](https://vuecs.dev/guide/validation-feedback.html).
 
 ## Cross-cutting and group-level errors
 
-`useValidup` exposes two collections that don't belong to a single field:
+`useValidup` exposes two collections that don't belong to a single field, so they don't go through `useFieldValidation`:
 
-- **`v.$crossCuttingErrors`** — `IssueItem[]` with `path: []` (rate limits, CSRF, schema-level container failures). Render once near the form, not per-field.
-- **`v.$groupErrors`** — `IssueGroup[]` (e.g. `IssueCode.ONE_OF_FAILED` from a `oneOf` container). Each group has a `message` and a recursive `issues` list.
+- **`v.$crossCuttingErrors`** — `IssueItem[]` with `path: []` (rate limits, CSRF, schema-level container failures). Render once near the form.
+- **`v.$groupErrors`** — `IssueGroup[]` (e.g. `IssueCode.ONE_OF_FAILED` from a `oneOf` container). Each group carries its own `message` and a recursive `issues` list.
 
-The same bridge works for both — flatten down to `IssueItem[]` first if you want a flat message list:
-
-```typescript
-import { flattenIssueItems } from 'validup';
-
-const formMessages = computed(() => messagesFromField(
-    flattenIssueItems([...v.$crossCuttingErrors.value, ...v.$groupErrors.value]),
-));
-```
+For a whole-form banner, translate the groups by their own code with `useTranslationsForGroupErrors` (it deliberately does **not** descend into per-branch leaves):
 
 ```vue
-<VCValidationGroup
-    v-if="Object.keys(formMessages).length > 0"
-    :messages="formMessages"
-    severity="error"
-/>
+<script setup lang="ts">
+import { useTranslationsForGroupErrors } from '@ilingo/validup-vue';
+
+const groupErrors = useTranslationsForGroupErrors(v);
+</script>
+
+<template>
+    <ul v-if="groupErrors.length">
+        <li v-for="t in groupErrors" :key="t.issue.code">{{ t.message }}</li>
+    </ul>
+</template>
 ```
 
-## Why not bundle the bridge in `@validup/vue`?
+`<IValidup :composable="v">` (also from `@ilingo/validup-vue`) renders all three channels — cross-cutting, groups, and fields — each via its own named slot, when you want one component to cover the lot.
 
-We considered it. The reason it stays out: `@validup/vue` has zero UI dependencies on purpose — it's `vue` only. Importing `@vuecs/forms` would pull in the entire vuecs theme + design-token machinery, which would break adopters who use `@validup/vue` with a different UI library (Vuetify, PrimeVue, Naive UI, plain HTML). The 6-line `messagesFromField` adapter is intentionally something you copy into your project — it lets you stay on whichever component library you're already shipping.
+## Where to next
 
-If you'd rather not write that adapter, file an issue once `@vuecs/forms` ships and we can publish a tiny `@validup/vuecs` companion package that does just this mapping.
+- [`@validup/vue`](/integrations/vue) — the composable that produces the reactive field state these bundles wrap.
+- [`@validup/zod`](/integrations/zod) — the adapter used to mount the schema in the example above.
+- [vuecs validation feedback guide](https://vuecs.dev/guide/validation-feedback.html) — the `<VCFormGroup>` / severity side, in detail.
