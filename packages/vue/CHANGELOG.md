@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.4](https://github.com/tada5hi/validup/compare/vue-v0.3.3...vue-v0.3.4) (2026-06-23)
+
+
+### Bug Fixes
+
+* **deps:** bump the minorandpatch group across 1 directory with 10 updates ([#411](https://github.com/tada5hi/validup/issues/411)) ([490419d](https://github.com/tada5hi/validup/commit/490419da9240460cab6bc173e9d4c1fe9317ef4e))
+* **deps:** bump the minorandpatch group across 1 directory with 5 updates ([#416](https://github.com/tada5hi/validup/issues/416)) ([00c099a](https://github.com/tada5hi/validup/commit/00c099a3d59c81aad763c9618ed6be7db786ece2))
+
 ## [0.3.3](https://github.com/tada5hi/validup/compare/vue-v0.3.2...vue-v0.3.3) (2026-06-04)
 
 

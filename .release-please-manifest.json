@@ -1,7 +1,7 @@
 {
     "packages/validup": "0.5.1",
     "packages/validator-js": "0.2.3",
-    "packages/vue": "0.3.3",
+    "packages/vue": "0.3.4",
     "packages/zod": "0.3.3",
     "packages/standard-schema": "0.2.3"
 }
