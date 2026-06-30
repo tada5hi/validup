@@ -23,13 +23,13 @@
         "@validup/vue": "*",
         "@validup/zod": "*",
         "validup": "*",
-        "vue": "^3.5.38",
+        "vue": "^3.5.39",
         "vue-router": "^5.1.0",
         "zod": "^4.0.0"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^6.0.0",
-        "vite": "^8.1.0",
+        "vite": "^8.1.1",
         "vue-tsc": "^3.3.5"
     }
 }
