@@ -52,6 +52,32 @@ describe('typing: fields strict-mode access (issue #391)', () => {
         expect(nameField).toBeDefined();
     });
 
+    it('optional keys of T also return FieldState (never undefined)', async () => {
+        // `nickname?: string | null` — an optional key. Without the `-?`
+        // modifier on the FieldsAccessor mapped type, the homomorphic
+        // mapping preserves the optional marker and `$v.fields.nickname`
+        // widens to `FieldState<...> | undefined`, forcing strict-mode
+        // consumers into non-null assertions (the Proxy materialises the
+        // state on first access, so it is never undefined at runtime).
+        type Profile = {
+            name: string,
+            nickname?: string | null,
+        };
+
+        const container = new Container<Profile>();
+        container.mount('name', isString);
+
+        const state = reactive({ name: '', nickname: '' });
+        const $v = useValidup(container, state);
+        await flush();
+
+        // Compile-time: assignment to a non-optional target proves the
+        // absence of `| undefined` on the property itself.
+        const nicknameField: FieldState<string | null | undefined> = $v.fields.nickname;
+        expect(nicknameField).toBeDefined();
+        expect(nicknameField.$model.value).toBe('');
+    });
+
     it('fields.at(path) accepts dotted / bracketed paths', async () => {
         const container = new Container<{ user: { email: string }; tags: string[] }>();
         const child = new Container<{ email: string }>();
