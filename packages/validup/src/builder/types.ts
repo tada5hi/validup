@@ -101,6 +101,13 @@ export interface IBuilder<T extends Record<string, any>, C = unknown> {
     /** Restrict the resulting container's `pathsToExclude`. */
     pathsToExclude(...paths: (keyof T & string)[]): IBuilder<T, C>;
 
+    /**
+     * Set the resulting container's `pathsStrict` flag (defaults to `true`) —
+     * fail loud when a `pathsToInclude` / `pathsToExclude` entry matches no
+     * mount.
+     */
+    pathsStrict(strict?: boolean): IBuilder<T, C>;
+
     /** Materialize a `Container<T, C>` and replay every accumulated mount. */
     build(): Container<T, C>;
 }

@@ -35,6 +35,33 @@ export type ContainerOptions<T> = {
     pathsToExclude?: Path<T>[],
 
     /**
+     * Fail loud when a `pathsToInclude` / `pathsToExclude` entry matches no
+     * mount. By default, an include/exclude path that addresses nothing is
+     * silently ignored (the run just executes fewer mounts) — so if a shared
+     * validator renames a mounted key out from under a caller's static path
+     * list, the scoped validation for that field silently disappears instead
+     * of failing.
+     *
+     * With `pathsStrict: true`, each container verifies — before running any
+     * validator — that every include/exclude entry is satisfied locally
+     * (exact key match, or prefix descent into a container mount). Any entry
+     * that isn't throws a structural {@link PathsStrictViolationError} listing
+     * the unmatched (absolute) paths. Nested containers self-check the
+     * forwarded remainder because the flag threads into child `run()` calls
+     * alongside the already-stripped filter lists.
+     *
+     * Group filtering stays orthogonal — a mount excluded from the active
+     * group still counts as "existing", so a valid path targeting it does not
+     * trip strict mode.
+     *
+     * Precedence: `ContainerRunOptions.pathsStrict` (per-run) wins over
+     * `ContainerOptions.pathsStrict` (container-wide).
+     *
+     * default: false
+     */
+    pathsStrict?: boolean,
+
+    /**
      * Container-wide default for `MountOptions.optionalValue`. Applied
      * to mounts in this container that declare `optional: true` (or a
      * truthy predicate) without setting their own `optionalValue`.
@@ -97,6 +124,16 @@ export type ContainerRunOptions<
      * be considered for execution.
      */
     pathsToExclude?: Path<T>[]
+
+    /**
+     * Fail loud when a `pathsToInclude` / `pathsToExclude` entry matches no
+     * mount. Per-run counterpart of `ContainerOptions.pathsStrict` (and wins
+     * over it). See that field for the full semantics. Forwarded unchanged
+     * into nested container `run()` calls so the entire tree is checked.
+     *
+     * default: false
+     */
+    pathsStrict?: boolean
 
     /**
      * Caller-supplied context surfaced on `ValidatorContext.context`. Forwarded

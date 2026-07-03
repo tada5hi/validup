@@ -7,4 +7,5 @@
 
 export * from './check';
 export * from './module';
+export * from './paths-strict-violation';
 export * from './types';

@@ -223,6 +223,7 @@ interface IBuilder<T extends Record<string, any>, C = unknown> {
     oneOf(): IBuilder<T, C>;
     pathsToInclude(...paths: (keyof T & string)[]): IBuilder<T, C>;
     pathsToExclude(...paths: (keyof T & string)[]): IBuilder<T, C>;
+    pathsStrict(strict?: boolean): IBuilder<T, C>;
     build(): Container<T, C>;
 }
 ```
@@ -489,6 +490,20 @@ await container.run(input, { pathsToExclude: ['password'] });        // skip the
 ```
 
 The same options can be set at the container level via `new Container({ pathsToInclude: [...] })`. Run-time options take precedence.
+
+By default a filter path that matches no mount is silently ignored. Add `pathsStrict: true` to **fail loud** instead — the run throws a structural `PathsStrictViolationError` (caught with `isPathsStrictViolation`, re-thrown by `safeRun`/`safeRunSync`) listing the unmatched paths, so a renamed mount key can't make a scoped validation silently disappear:
+
+```typescript
+import { isPathsStrictViolation } from 'validup';
+
+try {
+    await container.run(input, { pathsToInclude: ['clientId'], pathsStrict: true });
+} catch (e) {
+    if (isPathsStrictViolation(e)) {
+        e.pathsToInclude; // → ['clientId']  (no mount matched)
+    }
+}
+```
 
 ## Defaults
 
@@ -817,6 +832,7 @@ class Container<
 | `oneOf`                   | `ContainerOptions`     | Succeed when any mount succeeds                                   |
 | `pathsToInclude`          | `ContainerOptions`, `ContainerRunOptions` | Only mount paths in this list are executed     |
 | `pathsToExclude`          | `ContainerOptions`, `ContainerRunOptions` | Mount paths in this list are skipped           |
+| `pathsStrict`             | `ContainerOptions`, `ContainerRunOptions` | Throw `PathsStrictViolationError` when an include/exclude path matches no mount |
 | `defaults`                | `ContainerRunOptions`  | Fallback values for missing/`undefined` keys                      |
 | `context`                 | `ContainerRunOptions`  | Caller-supplied value surfaced on `ValidatorContext.context`      |
 | `signal`                  | `ContainerRunOptions`  | `AbortSignal` — checked between mounts and forwarded to `ctx.signal` |

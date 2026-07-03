@@ -112,12 +112,18 @@ export type Composable<T extends ObjectLiteral = ObjectLiteral> = {
  * - `fields.<key>` — typed access for known keys of `T`. Returns
  *   `FieldState<T[K]>` (NOT `| undefined`) so strict-mode TypeScript
  *   (`noUncheckedIndexedAccess`) doesn't require non-null assertions on
- *   every template reference. The `-?` modifier strips the optional
- *   marker from optional keys of `T` (`nickname?: string` still yields
- *   a bare `FieldState<string | undefined>`, not
- *   `FieldState<string | undefined> | undefined`) — the Proxy
+ *   every template reference. The mapping is deliberately
+ *   **non-homomorphic** (`K in Exclude<keyof T, 'at'>` rather than
+ *   `K in keyof T as …`): it does not preserve the optional marker of
+ *   optional keys of `T`, so `nickname?: string` still yields a bare
+ *   `FieldState<string | undefined>`, not
+ *   `FieldState<string | undefined> | undefined` — the Proxy
  *   materialises a `FieldState` for every key on first access, so the
- *   property itself is never undefined at runtime.
+ *   property itself is never undefined at runtime. (A homomorphic
+ *   `-?` variant strips the marker too, but forces the mapped type to
+ *   collapse to a concrete index signature when `T` widens to
+ *   `ObjectLiteral`, which then captures the `at` method and breaks
+ *   `Composable<Specific>` → `Composable<ObjectLiteral>` assignability.)
  * - `fields.at(path)` — dynamic accessor for dotted (`'user.email'`),
  *   bracketed (`'tags[0]'`), or mixed (`'matrix[0].name'`) paths and any
  *   runtime-computed key. Returns `FieldState<V>`; the underlying Proxy
@@ -130,7 +136,7 @@ export type Composable<T extends ObjectLiteral = ObjectLiteral> = {
  * the same object as the typed keys.
  */
 export type FieldsAccessor<T extends ObjectLiteral> = {
-    readonly [K in keyof T as K extends 'at' ? never : K]-?: FieldState<T[K]>;
+    readonly [K in Exclude<keyof T, 'at'>]: FieldState<T[K]>;
 } & {
     /**
      * Look up field state by dotted / bracketed path or any

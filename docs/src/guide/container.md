@@ -21,6 +21,7 @@ const c = new Container<{ name: string; email: string }>(/* options? */);
 | `oneOf`           | `boolean`                     | Treat the container as a branch: succeed if **any** mount passes; fail only when **all** fail. See [One-Of](/guide/one-of). |
 | `pathsToInclude`  | `string[]`                    | Only run mounts whose expanded path is included.                                         |
 | `pathsToExclude`  | `string[]`                    | Skip mounts whose expanded path matches.                                                 |
+| `pathsStrict`     | `boolean`                     | Fail loud when an include/exclude path matches no mount. See [Path Filtering › Strict mode](/guide/path-filtering#strict-mode-pathsstrict). |
 | `optionalValue`   | `OptionalValue \| OptionalValue[]` | Container-wide default for `MountOptions.optionalValue`. See [Optional Values](/guide/optional). |
 | `optionalAs`      | `unknown`                     | Container-wide default for `MountOptions.optionalAs`. Activation is presence-not-value.  |
 
@@ -84,6 +85,7 @@ type ContainerRunOptions<T, C> = {
     path?: PropertyKey[];          // parent path prefix (used internally for nested containers)
     pathsToInclude?: string[];
     pathsToExclude?: string[];
+    pathsStrict?: boolean;         // throw PathsStrictViolationError if a filter path matches no mount
     defaults?: Partial<T>;         // filled in for missing/undefined keys before return
     context?: C;                   // becomes ctx.context for every validator
     signal?: AbortSignal;          // cancellation
