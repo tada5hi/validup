@@ -17,6 +17,7 @@ import {
     type Validator,
     ValidupError,
     defineSchema,
+    isPathsStrictViolation,
 } from '../../src';
 
 const stringValidator: Validator<unknown, string> = (ctx) => {
@@ -193,6 +194,22 @@ describe('src/builder', () => {
 
         const out2 = await excluded.run({ foo: 'b', bar: 'not-a-number' });
         expect(out2.foo).toEqual('b');
+    });
+
+    it('sets pathsStrict so a stale include path fails loud', async () => {
+        expect.assertions(1);
+
+        const container = defineSchema()
+            .mount('foo', stringValidator)
+            .pathsToInclude('bar')
+            .pathsStrict()
+            .build();
+
+        try {
+            await container.run({ foo: 'a' });
+        } catch (e) {
+            expect(isPathsStrictViolation(e)).toBe(true);
+        }
     });
 
     it('infers Out from validators', () => {

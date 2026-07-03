@@ -25,6 +25,7 @@ import {
     isOptionalValue,
     resolveDefaults,
     resolvePathFilter,
+    stringifyPath,
 } from '../helpers';
 import { hasOwnProperty, isObject } from '../utils';
 import type { Validator, ValidatorDescriptor } from '../validator';
@@ -42,6 +43,7 @@ import type {
 import type { Issue } from '../issue';
 import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
 import { RunSyncViolationError, isRunSyncViolation } from './run-sync-violation';
+import { PathsStrictViolationError, isPathsStrictViolation } from './paths-strict-violation';
 
 /**
  * Bundle of state the error path needs from the surrounding run loop.
@@ -257,11 +259,15 @@ export class Container<
         data: ContainerInput<T> = {},
         options: ContainerRunOptions<T, C> = {},
     ): Promise<T> {
+        const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
+        const pathsStrict = this.resolvePathsStrict(options);
+        // Structural pre-flight — throws before any validator runs, covering
+        // both the sequential loop below and the delegated parallel run.
+        this.assertPathsStrict(pathsStrict, data, pathsToInclude, pathsToExclude, options.path);
+
         if (options.parallel) {
             return this.runParallel(data, options);
         }
-
-        const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
 
         const output: Record<string, any> = {};
         const issues: Issue[] = [];
@@ -343,6 +349,13 @@ export class Container<
                                 path: pathAbsolute,
                                 pathsToInclude: filter.pathsToInclude,
                                 pathsToExclude: filter.pathsToExclude,
+                                // Not forwarded into keyless (`key === ''`)
+                                // children: they share the parent namespace and
+                                // receive the filter list verbatim, so strict
+                                // there would throw for paths owned by the
+                                // parent's own sibling mounts. Keyless subtrees
+                                // are a deliberate strict blind spot.
+                                ...(pathsStrict && key.length > 0 ? { pathsStrict: true } : {}),
                                 defaults: resolveDefaults(options.defaults, key),
                                 context: options.context,
                                 signal: options.signal,
@@ -449,6 +462,9 @@ export class Container<
         options: ContainerRunOptions<T, C>,
     ): Promise<T> {
         const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
+        // Strict pre-flight already ran in `run()` before it delegated here;
+        // this container only needs the resolved flag to forward downward.
+        const pathsStrict = this.resolvePathsStrict(options);
 
         const output: Record<string, any> = {};
         const issues: Issue[] = [];
@@ -552,6 +568,9 @@ export class Container<
                             path: pathAbsolute,
                             pathsToInclude: filter.pathsToInclude,
                             pathsToExclude: filter.pathsToExclude,
+                            // Keyless children are a strict blind spot — see
+                            // the note at the sequential `run()` forward site.
+                            ...(pathsStrict && key.length > 0 ? { pathsStrict: true } : {}),
                             defaults: resolveDefaults(options.defaults, key),
                             context: options.context,
                             signal: options.signal,
@@ -758,6 +777,8 @@ export class Container<
         options: ContainerRunOptions<T, C> = {},
     ): T {
         const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
+        const pathsStrict = this.resolvePathsStrict(options);
+        this.assertPathsStrict(pathsStrict, data, pathsToInclude, pathsToExclude, options.path);
 
         const output: Record<string, any> = {};
         const issues: Issue[] = [];
@@ -843,6 +864,9 @@ export class Container<
                             path: pathAbsolute,
                             pathsToInclude: filter.pathsToInclude,
                             pathsToExclude: filter.pathsToExclude,
+                            // Keyless children are a strict blind spot — see
+                            // the note at the sequential `run()` forward site.
+                            ...(pathsStrict && key.length > 0 ? { pathsStrict: true } : {}),
                             defaults: resolveDefaults(options.defaults, key),
                             context: options.context,
                             signal: options.signal,
@@ -1052,6 +1076,112 @@ export class Container<
     }
 
     /**
+     * Resolve the effective `pathsStrict` flag. Run-level wins over
+     * container-level; unset anywhere is `false` (the silent, back-compatible
+     * default).
+     */
+    private resolvePathsStrict(options: ContainerRunOptions<T, C>): boolean {
+        return options.pathsStrict ?? this.options.pathsStrict ?? false;
+    }
+
+    /**
+     * Structural pre-flight for `pathsStrict`. Verifies every resolved
+     * `pathsToInclude` / `pathsToExclude` entry is satisfied by *this*
+     * container — either an exact match against an expanded mount key, or a
+     * prefix descent into a container mount (whose child re-checks the
+     * forwarded remainder, since `pathsStrict` threads downward). Anything
+     * unmatched throws {@link PathsStrictViolationError} with absolute paths.
+     *
+     * No-ops unless strict is on AND at least one filter list is present, so
+     * the overhead on the common (non-strict) path is a single `??` chain.
+     *
+     * Notes on the match rules (kept in lockstep with `resolvePathFilter`):
+     * - Keyless container mounts share the parent namespace and receive the
+     *   filter list verbatim, so a path could be owned by the keyless child
+     *   OR by a keyed sibling here — the parent can't tell without recursing.
+     *   To avoid false positives it treats every entry as satisfied when any
+     *   keyless container is present, and `pathsStrict` is NOT forwarded into
+     *   keyless children (that would throw for parent-sibling paths). Net:
+     *   keyless subtrees are a strict blind spot ("out of scope" per the issue).
+     * - Group filtering is intentionally ignored: a mount excluded from the
+     *   active group still exists, so a path targeting it is not "stale".
+     * - Expansion uses the same `expandPath(data, item.path)` the run loop
+     *   uses, so glob mounts are matched against the keys they actually
+     *   expand to for the given `data`.
+     */
+    private assertPathsStrict(
+        strict: boolean,
+        data: ContainerInput<T>,
+        pathsToInclude: string[] | undefined,
+        pathsToExclude: string[] | undefined,
+        parentPath: PropertyKey[] | undefined,
+    ): void {
+        if (!strict) {
+            return;
+        }
+        const hasInclude = typeof pathsToInclude !== 'undefined' && pathsToInclude.length > 0;
+        const hasExclude = typeof pathsToExclude !== 'undefined' && pathsToExclude.length > 0;
+        if (!hasInclude && !hasExclude) {
+            return;
+        }
+
+        const expanded: { keys: string[], isContainer: boolean }[] = [];
+        let hasKeylessContainer = false;
+        for (const item of this.items) {
+            const keys: string[] = item.path ? expandPath(data, item.path) : [''];
+            const itemIsContainer = item.type === 'container';
+            if (itemIsContainer && keys.some((key) => key.length === 0)) {
+                hasKeylessContainer = true;
+            }
+            expanded.push({ keys, isContainer: itemIsContainer });
+        }
+
+        const isSatisfied = (path: string): boolean => {
+            // A keyless container forwards the whole filter list verbatim, so
+            // the remainder is strict-checked inside that child — treat every
+            // entry as locally satisfied to avoid a false positive here.
+            if (hasKeylessContainer) {
+                return true;
+            }
+            for (const entry of expanded) {
+                for (const key of entry.keys) {
+                    if (key.length === 0) {
+                        continue;
+                    }
+                    if (path === key) {
+                        return true;
+                    }
+                    if (entry.isContainer && path.startsWith(`${key}.`)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
+        const toAbsolute = (path: string): string => {
+            if (!parentPath || parentPath.length === 0) {
+                return path;
+            }
+            return stringifyPath([...parentPath, ...pathToArray(path)]);
+        };
+
+        const unmatchedInclude = hasInclude ?
+            pathsToInclude!.filter((path) => !isSatisfied(path)).map(toAbsolute) :
+            [];
+        const unmatchedExclude = hasExclude ?
+            pathsToExclude!.filter((path) => !isSatisfied(path)).map(toAbsolute) :
+            [];
+
+        if (unmatchedInclude.length > 0 || unmatchedExclude.length > 0) {
+            throw new PathsStrictViolationError({
+                pathsToInclude: unmatchedInclude,
+                pathsToExclude: unmatchedExclude,
+            });
+        }
+    }
+
+    /**
      * Prepend `keyParts` to a child issue's `path` and — when the child is
      * an `IssueGroup` — recurse into its nested issues so every leaf carries
      * the parent prefix. Without recursion, a child container that already
@@ -1113,6 +1243,13 @@ export class Container<
         // mean the caller can't use runSync against this graph. Surface the
         // diagnostic verbatim instead of wrapping it as "Property X is invalid".
         if (isRunSyncViolation(error)) {
+            throw error;
+        }
+        // Same treatment for a nested container's strict-paths violation: it
+        // reaches this parent's per-mount catch (the child `run()` is awaited
+        // inside the `try`), and folding it into an issue would bury the
+        // misconfiguration under a generic "Property X is invalid".
+        if (isPathsStrictViolation(error)) {
             throw error;
         }
 
@@ -1332,6 +1469,13 @@ export class Container<
         }
         // Same reasoning for `runSync` structural violations.
         if (isRunSyncViolation(e)) {
+            throw e;
+        }
+        // A strict-paths violation is a misconfigured graph, not a validation
+        // outcome — re-throw it verbatim rather than reshaping it into a
+        // path-less `Result.failure` (consistent with how runSync violations
+        // escape `safeRunSync`).
+        if (isPathsStrictViolation(e)) {
             throw e;
         }
 

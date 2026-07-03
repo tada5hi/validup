@@ -69,6 +69,7 @@ interface IBuilder<T extends Record<string, any>, C = unknown> {
     oneOf(): IBuilder<T, C>;
     pathsToInclude(...paths: (keyof T & string)[]): IBuilder<T, C>;
     pathsToExclude(...paths: (keyof T & string)[]): IBuilder<T, C>;
+    pathsStrict(strict?: boolean): IBuilder<T, C>;
     build(): Container<T, C>;
 }
 ```

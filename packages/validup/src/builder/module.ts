@@ -118,6 +118,13 @@ export class Builder<T extends Record<string, any>, C> implements IBuilder<T, C>
         );
     }
 
+    pathsStrict(strict = true): IBuilder<T, C> {
+        return new Builder<T, C>(
+            { ...this.options, pathsStrict: strict },
+            this.steps,
+        );
+    }
+
     build(): Container<T, C> {
         const container = new Container<T, C>(this.options as ContainerOptions<T>);
         for (const step of this.steps) {
