@@ -53,12 +53,14 @@ describe('typing: fields strict-mode access (issue #391)', () => {
     });
 
     it('optional keys of T also return FieldState (never undefined)', async () => {
-        // `nickname?: string | null` — an optional key. Without the `-?`
-        // modifier on the FieldsAccessor mapped type, the homomorphic
-        // mapping preserves the optional marker and `$v.fields.nickname`
-        // widens to `FieldState<...> | undefined`, forcing strict-mode
-        // consumers into non-null assertions (the Proxy materialises the
-        // state on first access, so it is never undefined at runtime).
+        // `nickname?: string | null` — an optional key. A homomorphic
+        // FieldsAccessor mapping (`K in keyof T as …`) would preserve the
+        // optional marker and widen `$v.fields.nickname` to
+        // `FieldState<...> | undefined`, forcing strict-mode consumers
+        // into non-null assertions (the Proxy materialises the state on
+        // first access, so it is never undefined at runtime). The
+        // non-homomorphic `K in Exclude<keyof T, 'at'>` mapping drops the
+        // marker instead.
         type Profile = {
             name: string,
             nickname?: string | null,
