@@ -113,6 +113,8 @@ The path codec is deliberately **not** `pathtrace`'s `arrayToPath` / `pathToArra
 
 The one place the local codec deliberately **converges** with pathtrace is the unsafe-key set. `readNested` / `writeNested` refuse to traverse `__proto__` / `constructor` / `prototype` — the same three keys as pathtrace's `isUnsafeKey`, with the same abandon-the-operation semantics rather than a throw (a `$model` setter is not a place a consumer can catch from). Without it, `fields.at('__proto__.polluted').$model.value = x` assigns to `Object.prototype`, so any field key derived from user input, a route param, or a server response is a prototype-pollution vector. **When forking a path helper from pathtrace, port the safety guard even when you deliberately diverge on the traversal semantics.**
 
+Two consequences worth knowing. A form field literally named `constructor` (or `prototype` / `__proto__`) is **not addressable** through `fields.at(...)` — the same class of documented trade-off as a field named `at` being shadowed by the accessor. And because the guard sits inside `writeNested` rather than at the `$model` setter, a rejected write still runs `dirtyPaths.add(path)` / `clearExternalAtPath(path)`: the field reports dirty even though nothing was written. Both are deliberate — narrowing the guard would mean duplicating the key list at every call site — but neither is free.
+
 ## Tests
 
 Tests live under each package in `test/` (not a top-level `tests/` dir):
