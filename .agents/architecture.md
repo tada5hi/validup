@@ -2,6 +2,8 @@
 
 Validup's model has three nouns — **Container**, **Validator**, **Issue** — and one verb: `Container.run(data)` (with `runSync` / `runParallel` / `safeRun` / `safeRunSync` siblings). Integration packages either produce a `Validator` from a foreign validation library (`@validup/standard-schema`, `@validup/zod`, `@validup/validator-js`) or wire a `Container` into a runtime / framework (`@validup/vue`).
 
+There are **two ways to build a container**: the imperative `new Container<T>()` + `mount(...)` API described below, and the opt-in `defineSchema()` builder that accumulates `T` from the registered mounts (see [Builder](#builder-packagesvalidupsrcbuilder)). The builder is a type-level front-end only — it calls `Container.mount` under the hood, so every runtime behavior documented here applies to both.
+
 ## Core Types
 
 `packages/validup/src/types.ts`:
@@ -207,6 +209,48 @@ Symmetric with `Container.options.oneOf`, just at the validator level — both s
 - `buildOneOfFailedGroup(branchIssues, { path?, message? })` (`helpers/one-of-failed.ts`) — single source of truth for the `IssueCode.ONE_OF_FAILED` wrapping shape. Used by both `composeAnyOf` and `Container.finalizeOutput` so consumers / i18n catalogs only have one variant to format.
 
 `Container.collectExecutionFailure`'s own ValidupError / Error / non-Error cascade stays inline rather than going through `errorToIssues` — its per-branch transforms (`prefixIssuePath` on the spread issues only, `markOptional` / `markOptionalDeep` gated on mount kind) make the cascade non-portable.
+
+## Builder (`packages/validup/src/builder/`)
+
+`defineSchema()` is an **opt-in, compile-time type-accumulating** front-end for `Container`. It is not a second runtime — `build()` materializes a real `Container` and replays every accumulated mount through `Container.mount`, so everything documented above (run variants, groups, optional resolution, cache, `pathsStrict`) applies unchanged.
+
+```ts
+const schema = defineSchema()
+    .mount('name', isString)                                   // T = { name: string }
+    .mount('age', { optional: true }, isNumber)                 // T = { name: string, age?: number }
+    .mount('address', defineSchema().mount('city', isString))   // T & { address: { city: string } }
+    .pathsStrict();
+
+const container = schema.build();      // Container<{ name: string, age?: number, address: {…} }>
+const out = await container.run(data); // statically typed from the mounts
+```
+
+**Why it exists.** `new Container<T>()` requires the author to declare `T` up front and keep mounts in sync with it by hand. The builder inverts that: `T` is *derived* from what was registered. Pick per situation:
+
+| Goal | API |
+|---|---|
+| Static schema, want compile-time exhaustiveness | `defineSchema()` |
+| Dynamic mounts (loops, conditional registration, `initialize()` hook) | `new Container<T>()` |
+| Ship a domain-scoped reusable validator class | `class extends Container<T>` |
+
+### Type accumulation
+
+The interface lives in `builder/types.ts`. Three type-level pieces do the work:
+
+- **`MountTarget<C>`** = `Validator<C, any> | IBuilder<any, C> | IContainer<any, C>` — the three things mountable under a key.
+- **`Mounted<K, V, O>`** resolves the field shape per target kind: a builder or container contributes its own accumulated `U`; a validator contributes `Awaited<Out>` from its return type.
+- **`IsOptional<O>`** widens the accumulated key to `{ K?: … }` when `options.optional` is the literal `true` or a predicate — mirroring the runtime fact that an optional mount may be skipped, leaving the key absent. This relies on the `const` modifier on `mount`'s options generic to preserve the literal `true` from inline option objects; a variable typed as plain `boolean` stays required.
+- **`Spread<T>`** is cosmetic only — flattens the intersection so editors render `{ foo: string, bar: number }` rather than a chain of `&`.
+
+Re-mounting the same key overrides the previous registration's *type*, matching `Container.mount`'s runtime last-write-wins.
+
+### Immutability + dispatch
+
+Every method (`mount`, `oneOf`, `pathsToInclude`, `pathsToExclude`, `pathsStrict`, and `build`) returns a **new** `Builder` over copied `options` / `steps` — chains may fork without leaking state. Steps are held as a discriminated `Step<C>` union (`{ kind: 'validator' | 'nest' }`) and only replayed at `build()`.
+
+`mount`'s target dispatch has its own ordering constraint, parallel to (but separate from) `Container.mount`'s: a private `isBuilder` guard (duck-typed on `build` + `mount` being functions) is tested **first**, then `isContainer`, then everything else falls through to validator. A nested builder is auto-`.build()`-ed at mount time, so the child is materialized before the parent's `build()` runs.
+
+Note the builder deliberately exposes only the **keyed** `mount` forms — `(key, target)` and `(key, options, target)`. `Container`'s keyless container mount has no builder equivalent, because a keyless mount contributes nothing to the accumulated type.
 
 ## Issues & Errors
 

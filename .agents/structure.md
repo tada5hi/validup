@@ -25,10 +25,12 @@ validup/
 | Package                        | Path                          | Public name                  | Depends on (runtime)                | Peer deps                                       |
 |--------------------------------|-------------------------------|------------------------------|-------------------------------------|-------------------------------------------------|
 | Core                           | `packages/validup`            | `validup`                    | `@ebec/core`, `pathtrace`, `smob`   | —                                               |
-| Standard Schema integration    | `packages/standard-schema`    | `@validup/standard-schema`   | `@standard-schema/spec`             | `validup ^1.0.0`                                |
-| Zod integration                | `packages/zod`                | `@validup/zod`               | —                                   | `validup ^1.0.0`, `zod ^4.0.0`                  |
-| validator.js integration       | `packages/validator-js`       | `@validup/validator-js`      | —                                   | `validup ^1.0.0`, `validator ^13.0.0`           |
-| Vue integration                | `packages/vue`                | `@validup/vue`               | —                                   | `validup ^1.0.0`, `vue ^3.3`                    |
+| Standard Schema integration    | `packages/standard-schema`    | `@validup/standard-schema`   | `@standard-schema/spec`             | `validup ^0.5.1`                                |
+| Zod integration                | `packages/zod`                | `@validup/zod`               | `pathtrace`                         | `validup ^0.5.1`, `zod ^4.0.0`                  |
+| validator.js integration       | `packages/validator-js`       | `@validup/validator-js`      | `pathtrace`                         | `validup ^0.5.1`, `validator ^13.0.0`           |
+| Vue integration                | `packages/vue`                | `@validup/vue`               | —                                   | `validup ^0.5.1`, `vue ^3.3`                    |
+
+`@validup/zod` and `@validup/validator-js` declare `pathtrace` as a **direct runtime dependency** — both import `getPathValue` from it (`zod/src/error.ts` for the `invalid_type` → `REQUIRED` probe, `validator-js/src/factories/comparison.ts` for `equals`' sibling-field read). It must stay declared even though the core also depends on it: reaching it transitively through the `validup` peer happens to resolve under npm's hoisting in this workspace, but breaks for consumers on pnpm's strict node-linker or Yarn PnP. **Any adapter that imports a package the core happens to depend on must declare it directly.**
 
 All packages are `"type": "module"` and publish **ESM-only** (`dist/index.mjs` + `dist/index.d.mts`). No CJS output. License: Apache-2.0 across the board (root + every package).
 
@@ -79,12 +81,13 @@ Build scripts per package:
 | `container/` | `Container` class (`module.ts`), `IContainer`/`Mount`/`MountOptions` types, `isContainer`. `ValidatorMount` gains a `sideEffect?: boolean` resolved from descriptor at mount time. `ContainerRunOptions` gains `cache?: IResultCache`. `ContainerOptions`/`ContainerRunOptions` gain `pathsStrict?: boolean`; `paths-strict-violation.ts` holds the exported `PathsStrictViolationError` + `isPathsStrictViolation` guard (run-sync's internal violation lives in `run-sync-violation.ts`) |
 | `error/`     | `ValidupError` class (`base.ts`) and `isError`/`isValidupError` guards (`check.ts`)         |
 | `issue/`     | `Issue` types (item/group), `IssueCode` enum, `defineIssueItem`/`defineIssueGroup` factories, `isIssue`/`isIssueItem`/`isIssueGroup` guards, `flattenIssueItems`/`flattenIssueGroups` |
+| `builder/` | `defineSchema()` entry point + `Builder` class (`module.ts`), `IBuilder`/`MountTarget`/`Mounted`/`IsOptional`/`Spread` types (`types.ts`). The opt-in, **compile-time type-accumulating** alternative to `new Container()` — see [Architecture → Builder](architecture.md#builder-packagesvalidupsrcbuilder). Immutable: every method returns a new `Builder`; `build()` replays the accumulated steps onto a real `Container` |
 | `validator/` | `ValidatorDescriptor<C, Out>` type, `defineValidator(descriptor)` factory, `isValidatorDescriptor` duck-typed guard. The wrap layer that lets a validator declare per-mount contract metadata (currently `sideEffect`) without mutating the function object |
 | `cache/`     | `IResultCache` interface, `ResultCache` class (Map-backed default impl), `ResultCacheSnapshot` / `ResultCacheOutcome` / `ResultCacheEntry` types, `isResultCache` duck-typed guard. Storage-only — equality + skip logic lives in `container/module.ts:resolveCachedOutcome` |
-| `helpers/`   | `buildErrorMessageForAttribute(s)`, `isOptionalValue`, `stringifyPath`, `resolveDefaults`, `resolvePathFilter` |
+| `helpers/`   | `compose`/`composeOneOf` (`compose.ts` — a 340-line execution engine, the largest module here), `createValidupError`, `errorToIssues`, `buildOneOfFailedGroup`, `buildErrorMessageForAttribute(s)`, `isOptionalValue`, `stringifyPath`, `resolveDefaults`, `resolvePathFilter` |
 | `utils/`     | Internal helpers — `isObject`, `hasOwnProperty`                                             |
-| `constants.ts` | `GroupKey.WILDCARD = '*'`, `OptionalValue` enum (`UNDEFINED` / `NULL` / `FALSY`)          |
-| `types.ts`   | `Validator`, `ValidatorContext`, `ObjectLiteral`                                            |
+| `constants.ts` | `GroupKey.WILDCARD = '*'`, `OptionalValue` enum — 7 members: `UNDEFINED` / `NULL` / `EMPTY_STRING` / `ZERO` / `FALSE` / `NAN` / `FALSY` (the last is the only composite) |
+| `types.ts`   | `ObjectLiteral` only. `Validator` / `ValidatorContext` live in `validator/types.ts`         |
 | `index.ts`   | Re-exports every subdir (barrel — preserve when adding modules)                             |
 
 ## Integration Package Layout
@@ -108,7 +111,7 @@ src/
 
 Tests live under each package in `test/` (not a top-level `tests/` dir):
 
-- `packages/validup/test/unit/*.spec.ts` — covers the core (module, group, mount-key, optional, one-of, paths-to-include, error, issue, initialize, define-validator, cache)
+- `packages/validup/test/unit/*.spec.ts` — 22 specs covering the core (module, group, mount-key, optional, one-of, paths-to-include, paths-strict, error, error-to-issues, issue, format, initialize, define-validator, cache, compose, builder, parallel, run-sync, abort-signal, context, typing)
 - `packages/validup/test/data/` — shared fixtures (`string-validator.ts`)
 - Integration packages each have their own `test/vitest.config.ts` and `test/unit/*.spec.ts`
 - `@validup/vue` uses `environment: 'happy-dom'` in its vitest config (the only package that needs a DOM); the others use the default Node env.
