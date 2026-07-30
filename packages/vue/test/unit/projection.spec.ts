@@ -297,7 +297,12 @@ describe('rawIssuesAtPath', () => {
     });
 
     it('returns a group whole when the group itself sits at the path', () => {
-        const g = group(['address'], [item(['address', 'city'])]);
+        // The child deliberately does NOT match the target. If the whole-group
+        // early-push were removed, the rebuild path would filter `name` out,
+        // leave `inner` empty and drop the group entirely — so this fixture
+        // distinguishes the branch. A child that also matched would make the
+        // rebuild produce a structurally identical group and pass either way.
+        const g = group(['address'], [item(['name'])]);
         expect(rawIssuesAtPath([g], 'address')).toEqual([g]);
     });
 
@@ -416,7 +421,11 @@ describe('pruneExternalAtPath', () => {
     });
 
     it('drops a group that fully matches the cleared path', () => {
-        const g = group(['address'], [item(['address', 'city'])]);
+        // As with rawIssuesAtPath above, the child must NOT match the target.
+        // Otherwise removing the whole-group drop still yields `[]` via the
+        // emptied-group path and the test passes vacuously. With a
+        // non-matching child, dropping the branch pushes the group back.
+        const g = group(['address'], [item(['name'])]);
         expect(pruneExternalAtPath([g], 'address')).toEqual([]);
     });
 
@@ -455,10 +464,13 @@ describe('pruneExternalAtPath', () => {
         // "did anything change?" test is `inner.length === issue.issues.length`,
         // a count comparison — so a group whose sole child was *rebuilt*
         // (same count, different content) is pushed back by identity and the
-        // rebuilt child is discarded. Only reachable with a group nested two
-        // levels deep; `oneOf` emits a single level today, which is why the
-        // composable never trips it. Fixing it is a behaviour change and
-        // belongs in its own commit.
+        // rebuilt child is discarded. It needs a group nested two levels deep,
+        // which the core's `oneOf` does not emit today — but this function is
+        // never applied to core-produced issues. Its only caller is
+        // `clearExternalAtPath`, which operates on `externalIssues`, populated
+        // exclusively by the public `setExternalIssues(issues: Issue[])`. So a
+        // consumer or server response CAN supply two-level nesting and reach
+        // it. Fixing it is a behaviour change and belongs in its own commit.
         const inner = group([], [item(['name']), item(['email'])]);
         const outer = group([], [inner]);
         const output = pruneExternalAtPath([outer], 'name');
