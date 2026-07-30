@@ -164,4 +164,6 @@ express-validator wraps validator.js in a chain API meant for Express middleware
 
 ## License
 
-Apache-2.0 © Peter Placzek
+Made with 💚
+
+Published under [Apache 2.0 License](./LICENSE).

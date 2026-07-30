@@ -4,7 +4,7 @@
 
 - **Vitest 4** with the v8 coverage provider.
 - Each package has its own `test/vitest.config.ts` — there is no root-level Vitest config. Run from the package directory or via `npm run test` (which delegates to `nx run-many -t test`).
-- `globals: true` is enabled, so `describe`/`it`/`expect`/etc. are available without imports.
+- `globals: true` is set in four of the five packages (`@validup/validator-js` omits it deliberately), but **specs must import `describe` / `it` / `expect` explicitly from `vitest` regardless**. Every spec in the repo does; don't lean on the globals.
 
 ## Layout
 
@@ -23,7 +23,7 @@ Specs reach package source via relative imports — `import { Container } from '
 
 ## Coverage Thresholds
 
-All five integration packages currently use the same thresholds (`coverage.thresholds` in `vitest.config.ts`):
+All five packages use the same thresholds (`coverage.thresholds` in `vitest.config.ts`):
 
 | Metric     | Threshold |
 |------------|-----------|
@@ -45,7 +45,9 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `one-of.spec.ts`              | `ContainerOptions.oneOf` aggregation behavior             |
 | `paths-to-include.spec.ts`    | `pathsToInclude` / `pathsToExclude` filters               |
 | `error.spec.ts`               | `ValidupError` shape and `isValidupError` guard           |
-| `issue.spec.ts`               | `Issue` factories and guards                              |
+| `issue.spec.ts`               | `Issue` factories and guards (`isIssueItem` / `isIssueGroup` / `isIssue`) |
+| `flatten.spec.ts`             | `flattenIssueItems` / `flattenIssueGroups` — pre-order + reference identity |
+| `mount-dispatch.spec.ts`      | `Container.mount` / `Builder.mount` argument-dispatch order, `isContainer` |
 | `initialize.spec.ts`          | Subclass `initialize()` hook                              |
 | `run-sync.spec.ts`            | `runSync` / `safeRunSync` + `RunSyncViolationError`       |
 | `parallel.spec.ts`            | `runParallel` scheduling and issue ordering               |
@@ -55,6 +57,19 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `defaults.spec.ts`            | `resolveDefaults` child-slice helper                      |
 
 When adding a new container option or mount option, add or extend the matching spec — don't pile new cases into `module.spec.ts`.
+
+### Guard-ordering specs
+
+`Container.mount` and `Builder.mount` both classify their arguments by walking a chain of duck-typed predicates, and several of those predicates overlap on the same value. The order of the branches is therefore load-bearing, and `mount-dispatch.spec.ts` pins it:
+
+- `Container.mount` — `isContainer` and `isValidatorDescriptor` must both precede the generic `isObject` MountOptions branch. The two `run`-bearing guards are **mutually exclusive** by construction (`isValidatorDescriptor` requires `typeof input.safeRun !== 'function'`), so their relative order is defence-in-depth; the spec pins that negative check directly rather than pretending an object could satisfy both.
+- `Builder.mount` — `isBuilder` (`build` + `mount`) and `isContainer` (`run` + `safeRun`) genuinely overlap: an object exposing all four satisfies both. `isBuilder` must win, so the child is `target.build()` rather than the target itself.
+
+When adding a predicate to either chain, add its row here — a spec that only asserts "the happy shape works" will not catch a reorder.
+
+### `run-sync-violation` is imported by module path
+
+`container/run-sync-violation.ts` is deliberately absent from `container/index.ts` (internal plumbing — the public counterpart is `isPathsStrictViolation`). `run-sync.spec.ts` reaches it via `../../src/container/run-sync-violation`. Don't "fix" that import by adding a barrel line.
 
 ### Sync/async parity
 
@@ -82,4 +97,5 @@ import { Container, type Validator } from '../../src';
 
 - Use `expect.assertions(n)` when asserting in `catch` blocks (see `module.spec.ts`) — the codebase is consistent about this.
 - Integration-package tests instantiate the foreign library inline (zod, validator.js); `vue` uses `@vue/test-utils` + `happy-dom`.
+- **Prefer a DOM-free spec when the unit under test is DOM-free.** `@validup/vue` has two framework-free units, `helpers/projection.ts` and `helpers/severity.ts`, but only one DOM-free spec so far. `test/unit/projection.spec.ts` covers the projection layer with plain function calls against literal fixtures and adds a `// @vitest-environment node` docblock (matched anywhere in the file, so it sits below the copyright header) to opt out of the package-wide `happy-dom` env; it asserts `typeof globalThis.document === 'undefined'` so a framework dependency leaking back into the projection layer fails loudly. `test/unit/severity.spec.ts` drives `getSeverity` by direct call for its branch table but still `mount()`s a component for one end-to-end case, so it stays on `happy-dom` — converting it is an open opportunity, not a description of today. The mounted specs stay as integration nets; move a case down to a pure suite only when it exists purely to reach a pure branch.
 - Coverage is collected only from `src/**/*.{ts,tsx,js,jsx}`.
