@@ -111,6 +111,8 @@ src/
 
 The path codec is deliberately **not** `pathtrace`'s `arrayToPath` / `pathToArray` / `getPathValue` / `setPathValue`, even though the core already depends on them. The invariant holding the module together is that a path is canonically a **pure-dotted** string, so `pathKey(issue.path)` and `pathFromKey(fieldKey).join('.')` are directly comparable — `arrayToPath(['tags', 0])` is `'tags[0]'`, which would break ancestor-prefix matching (`'tags[0].name'.startsWith('tags.')` is false). `setPathValue` also picks array-vs-object auto-creation from the *current* key rather than the *next* one (so `a[0].b` materializes as `{ a: { '0': [] } }` and drops the write) and refuses to replace a pre-existing `null` intermediate. Keeping the codec local additionally keeps `@validup/vue` free of a direct `pathtrace` dependency.
 
+The one place the local codec deliberately **converges** with pathtrace is the unsafe-key set. `readNested` / `writeNested` refuse to traverse `__proto__` / `constructor` / `prototype` — the same three keys as pathtrace's `isUnsafeKey`, with the same abandon-the-operation semantics rather than a throw (a `$model` setter is not a place a consumer can catch from). Without it, `fields.at('__proto__.polluted').$model.value = x` assigns to `Object.prototype`, so any field key derived from user input, a route param, or a server response is a prototype-pollution vector. **When forking a path helper from pathtrace, port the safety guard even when you deliberately diverge on the traversal semantics.**
+
 ## Tests
 
 Tests live under each package in `test/` (not a top-level `tests/` dir):

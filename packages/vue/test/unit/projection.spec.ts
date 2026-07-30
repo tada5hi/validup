@@ -138,6 +138,13 @@ describe('readNested', () => {
         const state = { a: 1 };
         expect(readNested(state, [])).toBe(state);
     });
+
+    it('returns undefined rather than leaking a prototype object', () => {
+        // Symmetric with writeNested's guard: reading `__proto__` would hand
+        // Object.prototype straight to a `$model.value` binding.
+        expect(readNested({}, ['__proto__'])).toBeUndefined();
+        expect(readNested({}, ['constructor', 'prototype'])).toBeUndefined();
+    });
 });
 
 describe('writeNested', () => {
@@ -185,6 +192,40 @@ describe('writeNested', () => {
         const state: Record<string, unknown> = { a: 1 };
         writeNested(state, [], 'ignored');
         expect(state).toEqual({ a: 1 });
+    });
+
+    it('refuses to write through __proto__', () => {
+        // Prototype pollution. Before the unsafe-key guard this assigned to
+        // Object.prototype and left `state` empty, so any field key derived
+        // from user input, a route param or a server response was a vector:
+        // `fields.at('__proto__.polluted').$model.value = x`.
+        const state: Record<string, unknown> = {};
+        writeNested(state, pathFromKey('__proto__.polluted'), 'PWN');
+        expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+        expect(state).toEqual({});
+    });
+
+    it('refuses to write through constructor or prototype', () => {
+        const state: Record<string, unknown> = {};
+        writeNested(state, ['constructor', 'prototype', 'owned'], 'PWN');
+        writeNested(state, ['prototype', 'owned'], 'PWN');
+        expect(({} as Record<string, unknown>).owned).toBeUndefined();
+        expect(state).toEqual({});
+    });
+
+    it('abandons the whole write when an unsafe key appears mid-path', () => {
+        // The guard rejects the path up front rather than truncating it, so
+        // no partial intermediates are materialized.
+        const state: Record<string, unknown> = {};
+        writeNested(state, ['safe', '__proto__', 'x'], 'PWN');
+        expect(state).toEqual({});
+    });
+
+    it('still writes keys that merely resemble unsafe ones', () => {
+        const state: Record<string, unknown> = {};
+        writeNested(state, ['__proto__x'], 'ok');
+        writeNested(state, ['constructors'], 'ok');
+        expect(state).toEqual({ __proto__x: 'ok', constructors: 'ok' });
     });
 });
 

@@ -85,13 +85,33 @@ export function pathFromKey(key: string): string[] {
 }
 
 /**
+ * Keys that must never be traversed or written through. Writing to
+ * `__proto__` mutates `Object.prototype` instead of the form state, so any
+ * field key that reaches `writeNested` from user input, a route param, or a
+ * server response would otherwise be a prototype-pollution vector —
+ * `fields.at('__proto__.polluted').$model.value = x` is enough.
+ *
+ * Same key set and same abandon-the-operation semantics as `pathtrace`'s
+ * `isUnsafeKey`, which the core already relies on through `setPathValue` /
+ * `getPathValue`. Keeping them identical means both halves of the library
+ * refuse exactly the same paths, even though this module deliberately does
+ * not use pathtrace (see the module docblock).
+ */
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function isUnsafeKey(key: string): boolean {
+    return UNSAFE_KEYS.has(key);
+}
+
+/**
  * Read `segments` off `obj`, short-circuiting to `undefined` on any
- * nullish intermediate. An empty segment list returns `obj` itself.
+ * nullish intermediate or unsafe key. An empty segment list returns `obj`
+ * itself.
  */
 export function readNested(obj: any, segments: string[]): unknown {
     let cur: any = obj;
     for (const seg of segments) {
-        if (cur == null) {
+        if (cur == null || isUnsafeKey(seg)) {
             return undefined;
         }
         cur = cur[seg];
@@ -107,9 +127,13 @@ export function readNested(obj: any, segments: string[]): unknown {
  * (`items.0.name` → `{ items: [{ name: … }] }`) and a plain object
  * otherwise — lodash `_.set` semantics, so `fields.at('items[0].name')`
  * produces the array a form template expects to `v-for` over.
+ *
+ * Abandons the write entirely if any segment is an unsafe key (see
+ * {@link UNSAFE_KEYS}), rather than throwing — a `$model` setter is not a
+ * place a consumer can catch from.
  */
 export function writeNested(obj: any, segments: string[], value: unknown): void {
-    if (segments.length === 0) {
+    if (segments.length === 0 || segments.some(isUnsafeKey)) {
         return;
     }
     let cur: any = obj;
