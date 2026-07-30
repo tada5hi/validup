@@ -78,14 +78,14 @@ Build scripts per package:
 
 | Subdir       | Responsibility                                                                              |
 |--------------|---------------------------------------------------------------------------------------------|
-| `container/` | `Container` class (`module.ts`), `IContainer`/`Mount`/`MountOptions` types, `isContainer`. `ValidatorMount` gains a `sideEffect?: boolean` resolved from descriptor at mount time. `ContainerRunOptions` gains `cache?: IResultCache`. `ContainerOptions`/`ContainerRunOptions` gain `pathsStrict?: boolean`; `paths-strict-violation.ts` holds the exported `PathsStrictViolationError` + `isPathsStrictViolation` guard (run-sync's internal violation lives in `run-sync-violation.ts`) |
+| `container/` | `Container` class (`module.ts`), `IContainer`/`Mount`/`MountOptions` types, `isContainer`. `run` / `runSync` are thin drivers over one private generator, `runBody` — see [Architecture → the twin body](architecture.md#the-syncasync-twin-body-runbody); `runParallel` keeps its own scheduling loop but shares every per-key helper. `ValidatorMount` gains a `sideEffect?: boolean` resolved from descriptor at mount time. `ContainerRunOptions` gains `cache?: IResultCache`. `ContainerOptions`/`ContainerRunOptions` gain `pathsStrict?: boolean`; `paths-strict-violation.ts` holds the exported `PathsStrictViolationError` + `isPathsStrictViolation` guard (run-sync's internal violation lives in `run-sync-violation.ts`) |
 | `error/`     | `ValidupError` class (`base.ts`) and `isError`/`isValidupError` guards (`check.ts`)         |
 | `issue/`     | `Issue` types (item/group), `IssueCode` enum, `defineIssueItem`/`defineIssueGroup` factories, `isIssue`/`isIssueItem`/`isIssueGroup` guards, `flattenIssueItems`/`flattenIssueGroups` |
 | `builder/` | `defineSchema()` entry point + `Builder` class (`module.ts`), `IBuilder`/`MountTarget`/`Mounted`/`IsOptional`/`Spread` types (`types.ts`). The opt-in, **compile-time type-accumulating** alternative to `new Container()` — see [Architecture → Builder](architecture.md#builder-packagesvalidupsrcbuilder). Immutable: every method returns a new `Builder`; `build()` replays the accumulated steps onto a real `Container` |
 | `validator/` | `ValidatorDescriptor<C, Out>` type, `defineValidator(descriptor)` factory, `isValidatorDescriptor` duck-typed guard. The wrap layer that lets a validator declare per-mount contract metadata (currently `sideEffect`) without mutating the function object |
 | `cache/`     | `IResultCache` interface, `ResultCache` class (Map-backed default impl), `ResultCacheSnapshot` / `ResultCacheOutcome` / `ResultCacheEntry` types, `isResultCache` duck-typed guard. Storage-only — equality + skip logic lives in `container/module.ts:resolveCachedOutcome` |
 | `helpers/`   | `compose`/`composeOneOf` (`compose.ts` — a 340-line execution engine, the largest module here), `createValidupError`, `errorToIssues`, `buildOneOfFailedGroup`, `buildErrorMessageForAttribute(s)`, `isOptionalValue`, `stringifyPath`, `resolveDefaults`, `resolvePathFilter` |
-| `utils/`     | Internal helpers — `isObject`, `hasOwnProperty`                                             |
+| `utils/`     | Internal helpers — `isObject`, `hasOwnProperty`. Plus `twin.ts` (`op` / `runTwinAsync` / `runTwinSync` — the sync/async twin protocol behind `Container.runBody`), deliberately **not** in `utils/index.ts` and therefore not public, same treatment as `container/run-sync-violation.ts` |
 | `constants.ts` | `GroupKey.WILDCARD = '*'`, `OptionalValue` enum — 7 members: `UNDEFINED` / `NULL` / `EMPTY_STRING` / `ZERO` / `FALSE` / `NAN` / `FALSY` (the last is the only composite) |
 | `types.ts`   | `ObjectLiteral` only. `Validator` / `ValidatorContext` live in `validator/types.ts`         |
 | `index.ts`   | Re-exports every subdir (barrel — preserve when adding modules)                             |
@@ -111,7 +111,8 @@ src/
 
 Tests live under each package in `test/` (not a top-level `tests/` dir):
 
-- `packages/validup/test/unit/*.spec.ts` — 22 specs covering the core (module, group, mount-key, optional, one-of, paths-to-include, paths-strict, error, error-to-issues, issue, format, initialize, define-validator, cache, compose, builder, parallel, run-sync, abort-signal, context, typing)
-- `packages/validup/test/data/` — shared fixtures (`string-validator.ts`)
+- `packages/validup/test/unit/*.spec.ts` — 26 specs covering the core (module, group, mount-key, optional, optional-value, path-filter, defaults, one-of, paths-to-include, paths-strict, error, error-to-issues, issue, format, initialize, define-validator, cache, compose, builder, parallel, run-sync, run-parity, twin, abort-signal, context, typing)
+- `packages/validup/test/data/` — shared fixtures (`string-validator.ts`, exporting both `stringValidator` (async) and `stringValidatorSync`)
+- `packages/validup/test/helpers/` — spec helpers, not collected by vitest (`parity.ts` — `expectRunParity` / `expectRunFailureParity`, the `run` ↔ `runSync` twin contract)
 - Integration packages each have their own `test/vitest.config.ts` and `test/unit/*.spec.ts`
 - `@validup/vue` uses `environment: 'happy-dom'` in its vitest config (the only package that needs a DOM); the others use the default Node env.

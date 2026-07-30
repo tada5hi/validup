@@ -13,10 +13,11 @@ packages/<pkg>/test/
 ├── vitest.config.ts
 ├── unit/
 │   └── *.spec.ts        # one spec per concern
-└── data/                # shared fixtures (validup core only)
+├── data/                # shared fixtures (validup core only)
+└── helpers/             # assertion helpers, not collected (validup core only)
 ```
 
-Spec discovery (`test.include`): `test/unit/**/*.{test,spec}.{js,ts}`. New specs should live under `test/unit/` and end in `.spec.ts`.
+Spec discovery (`test.include`): `test/unit/**/*.{test,spec}.{js,ts}`. New specs should live under `test/unit/` and end in `.spec.ts`. `test/data/` and `test/helpers/` sit outside that glob on purpose, so nothing in them is collected as a suite.
 
 Specs reach package source via relative imports — `import { Container } from '../../src';` from inside `test/unit/`.
 
@@ -46,8 +47,31 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `error.spec.ts`               | `ValidupError` shape and `isValidupError` guard           |
 | `issue.spec.ts`               | `Issue` factories and guards                              |
 | `initialize.spec.ts`          | Subclass `initialize()` hook                              |
+| `run-sync.spec.ts`            | `runSync` / `safeRunSync` + `RunSyncViolationError`       |
+| `parallel.spec.ts`            | `runParallel` scheduling and issue ordering               |
+| `run-parity.spec.ts`          | `run` ↔ `runSync` twin contract, table-driven             |
+| `twin.spec.ts`                | The `src/utils/twin.ts` protocol itself                   |
+| `optional-value.spec.ts`      | `isOptionalValue` atom matcher, at its own edge           |
+| `path-filter.spec.ts`         | `resolvePathFilter` include/exclude verdict               |
+| `defaults.spec.ts`            | `resolveDefaults` child-slice helper                      |
 
 When adding a new container option or mount option, add or extend the matching spec — don't pile new cases into `module.spec.ts`.
+
+### Sync/async parity
+
+`run` and `runSync` are two drivers over one shared body (`Container.runBody`), so a mount-resolution rule that holds for one must hold for the other. Assert that once via the helpers in `test/helpers/parity.ts` rather than hand-duplicating each `it()` per variant:
+
+```ts
+import { expectRunFailureParity, expectRunParity } from '../helpers/parity';
+
+// success: both variants run, outputs must be deeply equal
+const output = await expectRunParity(container, input, options);
+
+// failure: both variants must fail with deeply-equal issue trees
+const issues = await expectRunFailureParity(container, input, options);
+```
+
+Parity specs need **synchronous** validators — `runSync` rejects any thenable return. Use `stringValidatorSync` from `test/data`, not the async `stringValidator`.
 
 ## Writing Tests
 

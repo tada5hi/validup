@@ -50,8 +50,9 @@ Run: `npm run lint` (root, lints the whole workspace via flat config) or `npm ru
    */
   ```
   New files must include this header. Update the year on substantive rewrites (existing files mix `2024`, `2025`, `2026`).
-- **Index barrels**: every directory under `src/` has an `index.ts` re-exporting its members. Keep this pattern when adding modules — `src/index.ts` re-exports each subdir wholesale.
+- **Index barrels**: every directory under `src/` has an `index.ts` re-exporting its members. Keep this pattern when adding modules — `src/index.ts` re-exports each subdir wholesale. Two modules are deliberately excluded because they are internal plumbing, not API: `container/run-sync-violation.ts` and `utils/twin.ts`. Don't "fix" them by adding a barrel line.
 - **Imports**: prefer `import type { ... }` for type-only imports. The codebase is consistent about this (see `container/module.ts`).
+- **Never hand-write a second sync/async loop.** `Container.run` / `runSync` derive from one twin body (`Container.runBody`, see [Architecture](architecture.md#the-syncasync-twin-body-runbody)). A new run option or mount option goes into the body plus `buildChildRunOptions` if children inherit it — and gets a case in `test/unit/run-parity.spec.ts`. `runParallel` is the one loop that stays separate (scheduling shape); it consumes the same per-key helpers, so most options need no edit there.
 
 ## Commit Messages
 

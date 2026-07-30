@@ -19,6 +19,7 @@ import type {
 } from '../cache';
 import { GroupKey } from '../constants';
 import { ValidupError, isError, isValidupError } from '../error';
+import type { PathFilterResolution } from '../helpers';
 import {
     buildErrorMessageForAttribute,
     buildOneOfFailedGroup,
@@ -28,7 +29,13 @@ import {
     stringifyPath,
 } from '../helpers';
 import { hasOwnProperty, isObject } from '../utils';
-import type { Validator, ValidatorDescriptor } from '../validator';
+import type { TwinBody } from '../utils/twin';
+import { op, runTwinAsync, runTwinSync } from '../utils/twin';
+import type {
+    Validator,
+    ValidatorContext,
+    ValidatorDescriptor,
+} from '../validator';
 import { isValidatorDescriptor } from '../validator';
 import { isContainer } from './check';
 import type {
@@ -70,6 +77,56 @@ type ExecutionFailureContext<C> = {
     /** Per-run abort signal. If aborted, the throw is re-raised verbatim. */
     signal: AbortSignal | undefined,
 };
+
+/**
+ * Everything a single `(mount, expanded key)` pair needs before the mount can
+ * be dispatched. Produced once per key by `Container.prepareMountKey` and
+ * consumed identically by the twin body and by `runParallel`.
+ *
+ * Notably absent: the mount's input `value`. Sequential runs chain-read
+ * `output` before `data` (so sanitize-then-validate works across sibling
+ * mounts) while `runParallel` reads `data` only — that asymmetry is a
+ * documented behavioural difference, so it stays in the caller and this stays
+ * pure.
+ */
+type MountKeyPlan = {
+    /** Expanded key split into segments. Prefixed onto child issue paths. */
+    keyParts: PropertyKey[],
+    /** Trailing segment. Drives the wrapping `IssueGroup` shape on failure. */
+    pathRelative: PropertyKey | undefined,
+    /** Global path (parent prefix + `keyParts`) handed to validators/children. */
+    pathAbsolute: PropertyKey[],
+    /** Include/exclude verdict plus the sub-lists to forward to a child. */
+    filter: PathFilterResolution,
+};
+
+/**
+ * Outcome of the optional gate for one `(mount, value)` pair.
+ *
+ * - `skip: false` — the mount runs normally.
+ * - `skip: true, write: true` — the mount is skipped and `value` is assigned
+ *   to `output[key]`.
+ * - `skip: true, write: false` — the mount is skipped and the key is omitted.
+ *
+ * `write` is what carries the presence-not-value semantics of `optionalAs`:
+ * `{ skip: true, write: true, value: undefined }` is the deliberate "emit
+ * `undefined`" directive, distinct from "omit the key".
+ */
+type OptionalDirective = {
+    skip: boolean,
+    write: boolean,
+    value?: unknown,
+};
+
+/**
+ * Structural thenable probe. Used by the sync side of the validator effect to
+ * reject the one thing a synchronous graph cannot tolerate: a validator that
+ * returned a promise.
+ */
+function isThenable(input: unknown): input is PromiseLike<unknown> {
+    return isObject(input) &&
+        typeof (input as { then?: unknown }).then === 'function';
+}
 
 export class Container<
     T extends Record<string, any> = Record<string, any>,
@@ -259,15 +316,45 @@ export class Container<
         data: ContainerInput<T> = {},
         options: ContainerRunOptions<T, C> = {},
     ): Promise<T> {
-        const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
-        const pathsStrict = this.resolvePathsStrict(options);
-        // Structural pre-flight — throws before any validator runs, covering
-        // both the sequential loop below and the delegated parallel run.
-        this.assertPathsStrict(pathsStrict, data, pathsToInclude, pathsToExclude, options.path);
-
         if (options.parallel) {
             return this.runParallel(data, options);
         }
+
+        return runTwinAsync(this.runBody(data, options));
+    }
+
+    /**
+     * The single mount-resolution loop behind {@link Container.run} and
+     * {@link Container.runSync}.
+     *
+     * Written as a **twin body** (`src/utils/twin.ts`): the two impure edges —
+     * invoking a validator and descending into a nested container — are yielded
+     * as `op(asyncThunk, syncThunk)` pairs, and the driver chosen by the public
+     * method (`runTwinAsync` / `runTwinSync`) executes the matching side. Effect
+     * errors are thrown back in at the `yield` site, so the cache-write and
+     * issue-collection `try`/`catch` blocks below run identically in both
+     * variants — no second copy of the loop to keep in lockstep.
+     *
+     * The sync thunks own the two structural probes that only `runSync` needs:
+     * a nested container that doesn't implement `runSync`, and a validator that
+     * returned a thenable. Both throw `RunSyncViolationError`, which the async
+     * side cannot produce.
+     *
+     * `runParallel` deliberately does NOT share this body — a generator is
+     * sequential by construction, and expressing "launch every mount, then
+     * settle" through it would mean yielding batches and giving up the
+     * chain-read. It shares the extracted per-key helpers instead
+     * (`prepareMountKey` / `resolveOptionalDirective` / `buildChildRunOptions` /
+     * `buildValidatorContext`).
+     */
+    private * runBody(
+        data: ContainerInput<T>,
+        options: ContainerRunOptions<T, C>,
+    ): TwinBody<T> {
+        const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
+        const pathsStrict = this.resolvePathsStrict(options);
+        // Structural pre-flight — throws before any validator runs.
+        this.assertPathsStrict(pathsStrict, data, pathsToInclude, pathsToExclude, options.path);
 
         const output: Record<string, any> = {};
         const issues: Issue[] = [];
@@ -294,13 +381,7 @@ export class Container<
             const keys: string[] = item.path ? expandPath(data, item.path) : [''];
 
             for (const key of keys) {
-                const keyParts = key ? pathToArray(key) : [];
-
-                const pathRelative = keyParts.at(-1);
-                const pathAbsolute = [
-                    ...(options.path ? options.path : []),
-                    ...keyParts,
-                ];
+                const plan = this.prepareMountKey(item, key, options, pathsToInclude, pathsToExclude);
 
                 let value: unknown;
                 if (key.length > 0) {
@@ -311,58 +392,35 @@ export class Container<
                     value = data;
                 }
 
-                const filter = resolvePathFilter(
-                    pathsToInclude,
-                    pathsToExclude,
-                    key,
-                    item.type === 'container',
-                );
-                if (filter.skip) {
+                if (plan.filter.skip) {
                     continue;
                 }
 
                 try {
-                    const resolvedOptionalValue = item.options.optionalValue ??
-                        options.optionalValue ??
-                        this.options.optionalValue;
-                    const isOptional = typeof item.options.optional === 'function' ?
-                        item.options.optional(value) :
-                        item.options.optional &&
-                            isOptionalValue(value, resolvedOptionalValue);
+                    const optional = this.resolveOptionalDirective(item, value, options);
 
-                    if (isOptional) {
-                        if (hasOwnProperty(item.options, 'optionalAs')) {
-                            output[key] = item.options.optionalAs;
-                        } else if (hasOwnProperty(options, 'optionalAs')) {
-                            output[key] = options.optionalAs;
-                        } else if (hasOwnProperty(this.options, 'optionalAs')) {
-                            output[key] = this.options.optionalAs;
-                        } else if (item.options.optionalInclude) {
-                            output[key] = value;
+                    if (optional.skip) {
+                        if (optional.write) {
+                            output[key] = optional.value;
                         }
                     } else if (item.type === 'container') {
-                        const tmp = await item.data.run(
-                            isObject(value) ? value : {},
-                            {
-                                group: options.group,
-                                flat: true,
-                                path: pathAbsolute,
-                                pathsToInclude: filter.pathsToInclude,
-                                pathsToExclude: filter.pathsToExclude,
-                                // Not forwarded into keyless (`key === ''`)
-                                // children: they share the parent namespace and
-                                // receive the filter list verbatim, so strict
-                                // there would throw for paths owned by the
-                                // parent's own sibling mounts. Keyless subtrees
-                                // are a deliberate strict blind spot.
-                                ...(pathsStrict && key.length > 0 ? { pathsStrict: true } : {}),
-                                defaults: resolveDefaults(options.defaults, key),
-                                context: options.context,
-                                signal: options.signal,
-                                cache: options.cache,
-                                optionalValue: options.optionalValue,
-                                ...(hasOwnProperty(options, 'optionalAs') ?
-                                    { optionalAs: options.optionalAs } : {}),
+                        const child = item.data;
+                        const childInput = isObject(value) ? value : {};
+                        const childOptions = this.buildChildRunOptions(options, key, plan, pathsStrict);
+
+                        const tmp: Record<string, any> = yield* op(
+                            () => child.run(childInput, childOptions),
+                            () => {
+                                const childRunSync = (
+                                    child as IContainer<any, any> & {
+                                        runSync?: (...args: any[]) => any
+                                    }
+                                ).runSync;
+                                if (typeof childRunSync !== 'function') {
+                                    throw new RunSyncViolationError(`runSync: nested container at "${key || '<root>'}" does not implement runSync`);
+                                }
+
+                                return childRunSync.call(child, childInput, childOptions);
                             },
                         );
 
@@ -389,18 +447,20 @@ export class Container<
                                 throw cached.error;
                             }
                         } else {
-                            try {
-                                const result = await item.data({
-                                    key,
-                                    path: pathAbsolute,
+                            const validator = item.data;
+                            const ctx = this.buildValidatorContext(key, plan, value, data, options);
 
-                                    value,
-                                    data,
-                                    group: options.group,
-                                    context: options.context as C,
-                                    signal: options.signal,
-                                    cache: options.cache,
-                                });
+                            try {
+                                const result = yield* op(
+                                    () => validator(ctx),
+                                    () => {
+                                        const outcome = validator(ctx);
+                                        if (isThenable(outcome)) {
+                                            throw new RunSyncViolationError(`runSync: validator at "${key || '<root>'}" returned a Promise`);
+                                        }
+                                        return outcome;
+                                    },
+                                );
                                 output[key] = result;
                                 this.writeCachedOutcome(
                                     item,
@@ -411,14 +471,22 @@ export class Container<
                                     options.signal,
                                 );
                             } catch (e) {
-                                this.writeCachedOutcome(
-                                    item,
-                                    key,
-                                    snapshot,
-                                    { ok: false, error: e },
-                                    options.cache,
-                                    options.signal,
-                                );
+                                // RunSyncViolation is structural — don't pollute the
+                                // cache with a graph-level error that the next run
+                                // might reach through different mounts. Only the sync
+                                // side can raise one from the effect above; guarding
+                                // unconditionally also covers the pathological case
+                                // of an async validator letting one escape.
+                                if (!isRunSyncViolation(e)) {
+                                    this.writeCachedOutcome(
+                                        item,
+                                        key,
+                                        snapshot,
+                                        { ok: false, error: e },
+                                        options.cache,
+                                        options.signal,
+                                    );
+                                }
                                 throw e;
                             }
                         }
@@ -428,8 +496,8 @@ export class Container<
                         error: e,
                         item,
                         value,
-                        keyParts,
-                        pathRelative,
+                        keyParts: plan.keyParts,
+                        pathRelative: plan.pathRelative,
                         issues,
                         signal: options.signal,
                     });
@@ -456,15 +524,21 @@ export class Container<
      * Parallel-execution variant of `run()`. All mounts kick off their
      * promises eagerly and the results are merged after `Promise.allSettled`.
      * See `ContainerRunOptions.parallel` for the trade-off note.
+     *
+     * Shares every per-key helper with the sequential twin body
+     * (`prepareMountKey` / `resolveOptionalDirective` / `buildChildRunOptions` /
+     * `buildValidatorContext` / the cache pair) but keeps its own scheduling
+     * loop — see the note on {@link Container.runBody} for why it can't be a
+     * third twin driver.
      */
     private async runParallel(
         data: ContainerInput<T>,
         options: ContainerRunOptions<T, C>,
     ): Promise<T> {
         const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
-        // Strict pre-flight already ran in `run()` before it delegated here;
-        // this container only needs the resolved flag to forward downward.
         const pathsStrict = this.resolvePathsStrict(options);
+        // Structural pre-flight — throws before any mount's promise is created.
+        this.assertPathsStrict(pathsStrict, data, pathsToInclude, pathsToExclude, options.path);
 
         const output: Record<string, any> = {};
         const issues: Issue[] = [];
@@ -509,12 +583,7 @@ export class Container<
 
             const keys: string[] = item.path ? expandPath(data, item.path) : [''];
             for (const key of keys) {
-                const keyParts = key ? pathToArray(key) : [];
-                const pathRelative = keyParts.at(-1);
-                const pathAbsolute = [
-                    ...(options.path ? options.path : []),
-                    ...keyParts,
-                ];
+                const plan = this.prepareMountKey(item, key, options, pathsToInclude, pathsToExclude);
 
                 let value: unknown;
                 if (key.length > 0) {
@@ -526,33 +595,14 @@ export class Container<
                     value = data;
                 }
 
-                const filter = resolvePathFilter(
-                    pathsToInclude,
-                    pathsToExclude,
-                    key,
-                    item.type === 'container',
-                );
-                if (filter.skip) {
+                if (plan.filter.skip) {
                     continue;
                 }
 
-                const resolvedOptionalValue = item.options.optionalValue ??
-                    options.optionalValue ??
-                    this.options.optionalValue;
-                const isOptional = typeof item.options.optional === 'function' ?
-                    item.options.optional(value) :
-                    item.options.optional &&
-                        isOptionalValue(value, resolvedOptionalValue);
-
-                if (isOptional) {
-                    if (hasOwnProperty(item.options, 'optionalAs')) {
-                        output[key] = item.options.optionalAs;
-                    } else if (hasOwnProperty(options, 'optionalAs')) {
-                        output[key] = options.optionalAs;
-                    } else if (hasOwnProperty(this.options, 'optionalAs')) {
-                        output[key] = this.options.optionalAs;
-                    } else if (item.options.optionalInclude) {
-                        output[key] = value;
+                const optional = this.resolveOptionalDirective(item, value, options);
+                if (optional.skip) {
+                    if (optional.write) {
+                        output[key] = optional.value;
                     }
                     syncPathCount++;
                     continue;
@@ -562,24 +612,7 @@ export class Container<
                 if (item.type === 'container') {
                     promise = item.data.run(
                         isObject(value) ? value : {},
-                        {
-                            group: options.group,
-                            flat: true,
-                            path: pathAbsolute,
-                            pathsToInclude: filter.pathsToInclude,
-                            pathsToExclude: filter.pathsToExclude,
-                            // Keyless children are a strict blind spot — see
-                            // the note at the sequential `run()` forward site.
-                            ...(pathsStrict && key.length > 0 ? { pathsStrict: true } : {}),
-                            defaults: resolveDefaults(options.defaults, key),
-                            context: options.context,
-                            signal: options.signal,
-                            parallel: true,
-                            cache: options.cache,
-                            optionalValue: options.optionalValue,
-                            ...(hasOwnProperty(options, 'optionalAs') ?
-                                { optionalAs: options.optionalAs } : {}),
-                        },
+                        this.buildChildRunOptions(options, key, plan, pathsStrict, true),
                     );
                 } else {
                     const snapshot: ResultCacheSnapshot = {
@@ -601,22 +634,14 @@ export class Container<
                         // `Promise.allSettled` always sees a thenable. Cache
                         // writes happen inside the wrapper so the entry is
                         // persisted before the promise settles.
-                        const itemData = item.data;
+                        const validator = item.data;
+                        const ctx = this.buildValidatorContext(key, plan, value, data, options);
                         const captureItem = item;
                         const captureKey = key;
                         const captureSnapshot = snapshot;
                         promise = (async () => {
                             try {
-                                const result = await itemData({
-                                    key,
-                                    path: pathAbsolute,
-                                    value,
-                                    data,
-                                    group: options.group,
-                                    context: options.context as C,
-                                    signal: options.signal,
-                                    cache: options.cache,
-                                });
+                                const result = await validator(ctx);
                                 this.writeCachedOutcome(
                                     captureItem,
                                     captureKey,
@@ -643,8 +668,8 @@ export class Container<
 
                 tasks.push({
                     key,
-                    keyParts,
-                    pathRelative,
+                    keyParts: plan.keyParts,
+                    pathRelative: plan.pathRelative,
                     value,
                     promise,
                     kind: item.type,
@@ -776,199 +801,7 @@ export class Container<
         data: ContainerInput<T> = {},
         options: ContainerRunOptions<T, C> = {},
     ): T {
-        const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
-        const pathsStrict = this.resolvePathsStrict(options);
-        this.assertPathsStrict(pathsStrict, data, pathsToInclude, pathsToExclude, options.path);
-
-        const output: Record<string, any> = {};
-        const issues: Issue[] = [];
-
-        let itemCount = 0;
-        let errorCount = 0;
-
-        for (let i = 0; i < this.items.length; i++) {
-            options.signal?.throwIfAborted();
-
-            const item = this.items[i];
-
-            if (!this.isItemGroupIncluded(item, options.group)) {
-                continue;
-            }
-
-            let pathCount = 0;
-            let pathFailed = false;
-            const branchStart = issues.length;
-
-            const keys: string[] = item.path ? expandPath(data, item.path) : [''];
-
-            for (const key of keys) {
-                const keyParts = key ? pathToArray(key) : [];
-
-                const pathRelative = keyParts.at(-1);
-                const pathAbsolute = [
-                    ...(options.path ? options.path : []),
-                    ...keyParts,
-                ];
-
-                let value: unknown;
-                if (key.length > 0) {
-                    value = hasOwnProperty(output, key) ?
-                        output[key] :
-                        getPathValue(data, key);
-                } else {
-                    value = data;
-                }
-
-                const filter = resolvePathFilter(
-                    pathsToInclude,
-                    pathsToExclude,
-                    key,
-                    item.type === 'container',
-                );
-                if (filter.skip) {
-                    continue;
-                }
-
-                try {
-                    const resolvedOptionalValue = item.options.optionalValue ??
-                        options.optionalValue ??
-                        this.options.optionalValue;
-                    const isOptional = typeof item.options.optional === 'function' ?
-                        item.options.optional(value) :
-                        item.options.optional &&
-                            isOptionalValue(value, resolvedOptionalValue);
-
-                    if (isOptional) {
-                        if (hasOwnProperty(item.options, 'optionalAs')) {
-                            output[key] = item.options.optionalAs;
-                        } else if (hasOwnProperty(options, 'optionalAs')) {
-                            output[key] = options.optionalAs;
-                        } else if (hasOwnProperty(this.options, 'optionalAs')) {
-                            output[key] = this.options.optionalAs;
-                        } else if (item.options.optionalInclude) {
-                            output[key] = value;
-                        }
-                    } else if (item.type === 'container') {
-                        const childRunSync = (
-                            item.data as IContainer<any, any> & {
-                                runSync?: (...args: any[]) => any
-                            }
-                        ).runSync;
-                        if (typeof childRunSync !== 'function') {
-                            throw new RunSyncViolationError(`runSync: nested container at "${key || '<root>'}" does not implement runSync`);
-                        }
-
-                        const tmp = childRunSync.call(item.data, isObject(value) ? value : {}, {
-                            group: options.group,
-                            flat: true,
-                            path: pathAbsolute,
-                            pathsToInclude: filter.pathsToInclude,
-                            pathsToExclude: filter.pathsToExclude,
-                            // Keyless children are a strict blind spot — see
-                            // the note at the sequential `run()` forward site.
-                            ...(pathsStrict && key.length > 0 ? { pathsStrict: true } : {}),
-                            defaults: resolveDefaults(options.defaults, key),
-                            context: options.context,
-                            signal: options.signal,
-                            cache: options.cache,
-                            optionalValue: options.optionalValue,
-                            ...(hasOwnProperty(options, 'optionalAs') ?
-                                { optionalAs: options.optionalAs } : {}),
-                        });
-
-                        const tmpKeys = Object.keys(tmp);
-                        for (const tmpKey of tmpKeys) {
-                            output[this.mergePaths(key, tmpKey)] = tmp[tmpKey];
-                        }
-                    } else if (item.type === 'validator') {
-                        const snapshot: ResultCacheSnapshot = {
-                            value,
-                            context: options.context,
-                            group: options.group,
-                        };
-                        const cached = this.resolveCachedOutcome(item, key, snapshot, options.cache);
-                        if (cached) {
-                            if (cached.ok) {
-                                output[key] = cached.value;
-                            } else {
-                                throw cached.error;
-                            }
-                        } else {
-                            try {
-                                const result = item.data({
-                                    key,
-                                    path: pathAbsolute,
-
-                                    value,
-                                    data,
-                                    group: options.group,
-                                    context: options.context as C,
-                                    signal: options.signal,
-                                    cache: options.cache,
-                                });
-                                if (
-                                    result !== null &&
-                                    typeof result === 'object' &&
-                                    typeof (result as { then?: unknown }).then === 'function'
-                                ) {
-                                    // Don't cache: structural violation, not a
-                                    // validation outcome.
-                                    throw new RunSyncViolationError(`runSync: validator at "${key || '<root>'}" returned a Promise`);
-                                }
-                                output[key] = result;
-                                this.writeCachedOutcome(
-                                    item,
-                                    key,
-                                    snapshot,
-                                    { ok: true, value: result },
-                                    options.cache,
-                                    options.signal,
-                                );
-                            } catch (e) {
-                                // RunSyncViolation is structural — don't pollute
-                                // the cache with a graph-level error that the
-                                // next run might reach through different mounts.
-                                if (!isRunSyncViolation(e)) {
-                                    this.writeCachedOutcome(
-                                        item,
-                                        key,
-                                        snapshot,
-                                        { ok: false, error: e },
-                                        options.cache,
-                                        options.signal,
-                                    );
-                                }
-                                throw e;
-                            }
-                        }
-                    }
-                } catch (e) {
-                    this.collectExecutionFailure({
-                        error: e,
-                        item,
-                        value,
-                        keyParts,
-                        pathRelative,
-                        issues,
-                        signal: options.signal,
-                    });
-                    pathFailed = true;
-                }
-
-                pathCount++;
-            }
-
-            if (pathCount > 0) {
-                itemCount++;
-
-                if (pathFailed) {
-                    errorCount++;
-                    this.wrapBranchForOneOf(issues, branchStart, item, i);
-                }
-            }
-        }
-
-        return this.finalizeOutput(output, options, issues, errorCount, itemCount);
+        return runTwinSync(this.runBody(data, options));
     }
 
     safeRunSync(input: ContainerInput<T> = {}, options: ContainerRunOptions<T, C> = {}): Result<T> {
@@ -978,6 +811,151 @@ export class Container<
         } catch (e) {
             return this.wrapSafeRunError(e, options);
         }
+    }
+
+    /**
+     * Resolve everything a single `(mount, expanded key)` pair needs before
+     * dispatch: the split path parts, the absolute path handed to validators
+     * and child containers, and the include/exclude verdict.
+     *
+     * Shared verbatim by the twin body and `runParallel`. The mount's input
+     * `value` is deliberately NOT read here — see {@link MountKeyPlan}.
+     */
+    private prepareMountKey(
+        item: Mount<C>,
+        key: string,
+        options: ContainerRunOptions<T, C>,
+        pathsToInclude: string[] | undefined,
+        pathsToExclude: string[] | undefined,
+    ): MountKeyPlan {
+        const keyParts = key ? pathToArray(key) : [];
+
+        return {
+            keyParts,
+            pathRelative: keyParts.at(-1),
+            pathAbsolute: [
+                ...(options.path ? options.path : []),
+                ...keyParts,
+            ],
+            filter: resolvePathFilter(
+                pathsToInclude,
+                pathsToExclude,
+                key,
+                item.type === 'container',
+            ),
+        };
+    }
+
+    /**
+     * Resolve the optional gate and — when it fires — what (if anything) the
+     * skipped key contributes to the output.
+     *
+     * `optional` is the gate ("may this mount be skipped?"); `optionalValue` is
+     * the definition of absent, resolved mount → run → container. A predicate
+     * `optional` wins over the atom vocabulary entirely.
+     *
+     * The write directive follows the same three layers, but keys off
+     * `optionalAs` **presence** rather than its value — `{ optionalAs:
+     * undefined }` at any layer is a deliberate "emit `undefined`". Only when
+     * no layer declares `optionalAs` does the mount-level `optionalInclude`
+     * fallback (copy the input through) apply.
+     */
+    private resolveOptionalDirective(
+        item: Mount<C>,
+        value: unknown,
+        options: ContainerRunOptions<T, C>,
+    ): OptionalDirective {
+        const resolvedOptionalValue = item.options.optionalValue ??
+            options.optionalValue ??
+            this.options.optionalValue;
+        const isOptional = typeof item.options.optional === 'function' ?
+            item.options.optional(value) :
+            item.options.optional &&
+                isOptionalValue(value, resolvedOptionalValue);
+
+        if (!isOptional) {
+            return { skip: false, write: false };
+        }
+
+        let write = true;
+        let writeValue: unknown;
+        if (hasOwnProperty(item.options, 'optionalAs')) {
+            writeValue = item.options.optionalAs;
+        } else if (hasOwnProperty(options, 'optionalAs')) {
+            writeValue = options.optionalAs;
+        } else if (hasOwnProperty(this.options, 'optionalAs')) {
+            writeValue = this.options.optionalAs;
+        } else if (item.options.optionalInclude) {
+            writeValue = value;
+        } else {
+            write = false;
+        }
+
+        return {
+            skip: true,
+            write,
+            value: writeValue,
+        };
+    }
+
+    /**
+     * Build the option bag forwarded into a nested container's `run` /
+     * `runSync`. Single source of truth for what a child inherits, so a new
+     * run option is threaded downward in one place instead of three.
+     */
+    private buildChildRunOptions(
+        options: ContainerRunOptions<T, C>,
+        key: string,
+        plan: MountKeyPlan,
+        pathsStrict: boolean,
+        parallel = false,
+    ): ContainerRunOptions<any, C> {
+        return {
+            group: options.group,
+            flat: true,
+            path: plan.pathAbsolute,
+            pathsToInclude: plan.filter.pathsToInclude,
+            pathsToExclude: plan.filter.pathsToExclude,
+            // Not forwarded into keyless (`key === ''`) children: they share
+            // the parent namespace and receive the filter list verbatim, so
+            // strict there would throw for paths owned by the parent's own
+            // sibling mounts. Keyless subtrees are a deliberate strict blind
+            // spot.
+            ...(pathsStrict && key.length > 0 ? { pathsStrict: true } : {}),
+            defaults: resolveDefaults(options.defaults, key),
+            context: options.context,
+            signal: options.signal,
+            cache: options.cache,
+            ...(parallel ? { parallel: true } : {}),
+            optionalValue: options.optionalValue,
+            // Presence, not value — see `resolveOptionalDirective`. The child
+            // must see the layer's intent (emit-undefined vs. not-set) verbatim.
+            ...(hasOwnProperty(options, 'optionalAs') ?
+                { optionalAs: options.optionalAs } : {}),
+        };
+    }
+
+    /**
+     * Build the context object handed to a mounted validator.
+     */
+    private buildValidatorContext(
+        key: string,
+        plan: MountKeyPlan,
+        value: unknown,
+        data: ContainerInput<T>,
+        options: ContainerRunOptions<T, C>,
+    ): ValidatorContext<C> {
+        return {
+            key,
+            path: plan.pathAbsolute,
+
+            value,
+            data: data as Record<string, any>,
+            group: options.group,
+            context: options.context as C,
+            signal: options.signal,
+            cache: options.cache,
+        };
     }
 
     /**
