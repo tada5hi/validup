@@ -29,8 +29,8 @@ import {
     stringifyPath,
 } from '../helpers';
 import { hasOwnProperty, isObject } from '../utils';
-import type { TwinBody } from '../utils/twin';
-import { op, runTwinAsync, runTwinSync } from '../utils/twin';
+import type { TwinBody } from 'twinop';
+import { op, runTwinAsync, runTwinSync } from 'twinop';
 import type {
     Validator,
     ValidatorContext,
@@ -327,13 +327,13 @@ export class Container<
      * The single mount-resolution loop behind {@link Container.run} and
      * {@link Container.runSync}.
      *
-     * Written as a **twin body** (`src/utils/twin.ts`): the two impure edges —
-     * invoking a validator and descending into a nested container — are yielded
+     * Written as a **twin body** (the `twinop` package): the two impure edges,
+     * invoking a validator and descending into a nested container, are yielded
      * as `op(asyncThunk, syncThunk)` pairs, and the driver chosen by the public
      * method (`runTwinAsync` / `runTwinSync`) executes the matching side. Effect
      * errors are thrown back in at the `yield` site, so the cache-write and
      * issue-collection `try`/`catch` blocks below run identically in both
-     * variants — no second copy of the loop to keep in lockstep.
+     * variants, with no second copy of the loop to keep in lockstep.
      *
      * The sync thunks own the two structural probes that only `runSync` needs:
      * a nested container that doesn't implement `runSync`, and a validator that

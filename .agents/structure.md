@@ -85,7 +85,7 @@ Build scripts per package:
 | `validator/` | `ValidatorDescriptor<C, Out>` type, `defineValidator(descriptor)` factory, `isValidatorDescriptor` duck-typed guard. The wrap layer that lets a validator declare per-mount contract metadata (currently `sideEffect`) without mutating the function object |
 | `cache/`     | `IResultCache` interface, `ResultCache` class (Map-backed default impl), `ResultCacheSnapshot` / `ResultCacheOutcome` / `ResultCacheEntry` types, `isResultCache` duck-typed guard. Storage-only — equality + skip logic lives in `container/module.ts:resolveCachedOutcome` |
 | `helpers/`   | `compose`/`composeOneOf` (`compose.ts` — a 340-line execution engine, the largest module here), `createValidupError`, `errorToIssues`, `buildOneOfFailedGroup`, `buildErrorMessageForAttribute(s)`, `isOptionalValue`, `stringifyPath`, `resolveDefaults`, `resolvePathFilter` |
-| `utils/`     | Internal helpers — `isObject`, `hasOwnProperty`. Plus `twin.ts` (`op` / `runTwinAsync` / `runTwinSync` — the sync/async twin protocol behind `Container.runBody`), deliberately **not** in `utils/index.ts` and therefore not public, same treatment as `container/run-sync-violation.ts` |
+| `utils/`     | Internal helpers — `isObject`, `hasOwnProperty`. The sync/async twin protocol behind `Container.runBody` (`op` / `runTwinAsync` / `runTwinSync`) comes from the [`twinop`](https://github.com/tada5hi/twinop) package |
 | `constants.ts` | `GroupKey.WILDCARD = '*'`, `OptionalValue` enum — 7 members: `UNDEFINED` / `NULL` / `EMPTY_STRING` / `ZERO` / `FALSE` / `NAN` / `FALSY` (the last is the only composite) |
 | `types.ts`   | `ObjectLiteral` only. `Validator` / `ValidatorContext` live in `validator/types.ts`         |
 | `index.ts`   | Re-exports every subdir (barrel — preserve when adding modules)                             |
@@ -117,7 +117,7 @@ The one place the local codec deliberately **converges** with pathtrace is the u
 
 Tests live under each package in `test/` (not a top-level `tests/` dir):
 
-- `packages/validup/test/unit/*.spec.ts` — 28 specs covering the core (module, group, mount-key, mount-dispatch, optional, optional-value, path-filter, defaults, one-of, paths-to-include, paths-strict, error, error-to-issues, issue, flatten, format, initialize, define-validator, cache, compose, builder, parallel, run-sync, run-parity, twin, abort-signal, context, typing)
+- `packages/validup/test/unit/*.spec.ts` — 27 specs covering the core (module, group, mount-key, mount-dispatch, optional, optional-value, path-filter, defaults, one-of, paths-to-include, paths-strict, error, error-to-issues, issue, flatten, format, initialize, define-validator, cache, compose, builder, parallel, run-sync, run-parity, abort-signal, context, typing)
 - `packages/validup/test/data/` — shared fixtures (`string-validator.ts`, exporting both `stringValidator` (async) and `stringValidatorSync`)
 - `packages/validup/test/helpers/` — spec helpers, not collected by vitest (`parity.ts` — `expectRunParity` / `expectRunFailureParity`, the `run` ↔ `runSync` twin contract)
 - Integration packages each have their own `test/vitest.config.ts` and `test/unit/*.spec.ts`
