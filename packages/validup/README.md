@@ -649,6 +649,8 @@ const out = container.runSync(input);  // returns T directly, not Promise<T>
 
 `runSync()` throws synchronously if a validator returns a Promise or if a nested container does not implement `runSync` — those are *structural* failures (not validation outcomes), so they're surfaced verbatim and never wrapped into `Result.failure` by `safeRunSync`. Use the async `run()` for any graph that mixes sync and async validators.
 
+`run()` and `runSync()` are **not two implementations**. Both drive one shared mount-resolution body, so every mount option (groups, `optional` / `optionalValue` / `optionalAs`, path filters, `defaults`, `pathsStrict`, `cache`) resolves identically in both — a sync run can't silently drift from its async twin. The only differences are the two structural probes above.
+
 ## Localized Messages
 
 `Issue.message` is rendered eagerly in English at construction time. For i18n / custom locales, every issue also carries a structured `data?: Record<string, unknown>` field (populated by the runtime where the message references a non-trivial value — e.g. `{ name: 'email' }` on the wrapping group at a failing mount). Pair it with `formatIssue` and a `code → template` map to render at the consumer side:

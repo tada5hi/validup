@@ -15,6 +15,20 @@ const stringValidator : Validator = async (ctx) : Promise<unknown> => {
     return ctx.value;
 };
 
+/**
+ * Synchronous twin of {@link stringValidator}. Required by specs that drive the
+ * same container through `run` *and* `runSync` (e.g. `run-parity.spec.ts`) —
+ * `runSync` rejects any validator that returns a thenable.
+ */
+const stringValidatorSync : Validator = (ctx) : unknown => {
+    if (typeof ctx.value !== 'string') {
+        throw new Error('Value is not a string');
+    }
+
+    return ctx.value;
+};
+
 export {
     stringValidator,
+    stringValidatorSync,
 };

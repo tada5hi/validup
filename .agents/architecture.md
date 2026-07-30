@@ -83,8 +83,7 @@ The cache is threaded through nested container `.run()` calls so a single `Resul
 
 ### Run-variant integration
 
-- **`run`** — synchronous cache check before `await item.data(ctx)`; on miss, an inner try/catch writes the outcome (success or failure) before re-raising into the outer catch.
-- **`runSync`** — same shape, plus the `RunSyncViolationError` carve-out (never cached — structural).
+- **`run` / `runSync`** — one code path (the shared twin body): synchronous cache check before the validator effect; on miss, an inner `try`/`catch` around the `yield*` writes the outcome (success or failure) before re-raising into the outer catch. `RunSyncViolationError`s are carved out of the failure write (never cached — structural).
 - **`runParallel`** — cache check happens before each per-mount promise is created. On hit the slot is materialized as `Promise.resolve(value)` / `Promise.reject(error)` so the existing `Promise.allSettled` merge loop handles cached and fresh outcomes identically. Cache writes happen inside the async wrapper that runs the validator, so the entry is persisted before the promise settles.
 
 ## Container
@@ -145,11 +144,42 @@ For each mounted item, in registration order:
 
 ### Execution variants
 
-- **`run`** (default) — sequential `await` per mount.
-- **`runSync`** — same loop without `await`. Validator return values must not be thenable; nested containers must implement `runSync`. Violations throw `RunSyncViolationError` (duck-type guard: `isRunSyncViolation`) and are *not* folded into the issue list.
+- **`run`** (default) — sequential `await` per mount. `runTwinAsync(this.runBody(...))`.
+- **`runSync`** — the *same* loop without `await`: `runTwinSync(this.runBody(...))`. Validator return values must not be thenable; nested containers must implement `runSync`. Violations throw `RunSyncViolationError` (duck-type guard: `isRunSyncViolation`) and are *not* folded into the issue list.
 - **`runParallel`** (selected via `ContainerRunOptions.parallel: true`) — eagerly kicks off every mount's promise, then awaits them with `Promise.allSettled`. Issues are merged in mount-registration order regardless of which validator rejects first. Trade-off: parallel mode reads `value` from the input `data` only, skipping the sequential mode's `hasOwnProperty(output, key)` chain-read for sanitize-then-validate patterns.
 
-All three variants share the private helpers `resolveContainerFilters` / `recordMountError` / `finalizeOutput` / `wrapSafeRunError` / `resolveCachedOutcome` / `writeCachedOutcome` so issue handling and cache consultation stay consistent.
+#### The sync/async twin body (`runBody`)
+
+`run` and `runSync` are **not two loops** — they are two drivers over one private generator, `Container.runBody`, using the internal twin protocol in `src/utils/twin.ts` (ported from [`tada5hi/locter`](https://github.com/tada5hi/locter)'s `src/utils/twin.ts`; same shape, one deviation: validup's async thunk may return a bare value as well as a promise, because a `Validator` is free to be synchronous).
+
+A twin body yields **effect pairs** — `yield* op(asyncThunk, syncThunk)` — and `runTwinAsync` / `runTwinSync` execute the side they stand for. Effect errors are re-entered via `Generator.throw`, so a `try`/`catch` wrapping a `yield*` site behaves identically in both variants; that is what lets the cache-write and `collectExecutionFailure` blocks exist once. Bodies compose via `yield*` delegation.
+
+`runBody` yields exactly **two** effects — the loop's only impure edges:
+
+| Effect | async thunk | sync thunk |
+|---|---|---|
+| nested container | `child.run(input, childOptions)` | `child.runSync(...)`, throwing `RunSyncViolationError` when the method is absent |
+| validator | `validator(ctx)` | `validator(ctx)`, throwing `RunSyncViolationError` when the return value is thenable (`isThenable`) |
+
+Both structural probes therefore live *inside the sync thunk*, where they belong — the async side cannot produce them. Everything else (abort checks, group filter, path expansion, path filter, optional resolution, cache gating, issue collection, `oneOf` branch wrapping, `finalizeOutput`) exists exactly once.
+
+**`runParallel` deliberately does NOT share the body.** A generator is sequential by construction; expressing "launch every mount, then settle" through it would mean yielding batches *and* giving up the chain-read that distinguishes sequential mode. Instead it shares every per-key helper:
+
+| Helper | Answers |
+|---|---|
+| `prepareMountKey(item, key, options, pathsToInclude, pathsToExclude)` | `keyParts` / `pathRelative` / `pathAbsolute` / include-exclude verdict (`MountKeyPlan`) |
+| `resolveOptionalDirective(item, value, options)` | skip or proceed, and what a skipped key writes (`OptionalDirective`) |
+| `buildChildRunOptions(options, key, plan, pathsStrict, parallel?)` | the child-container forward bag — one source of truth for what a nested container inherits |
+| `buildValidatorContext(key, plan, value, data, options)` | the `ValidatorContext` handed to a validator |
+| `resolveCachedOutcome` / `writeCachedOutcome` | cache gating (see [Result cache](#result-cache-packagesvalidupsrccache)) |
+
+`prepareMountKey` deliberately does **not** read the mount's input `value` — the sequential-vs-parallel value-source asymmetry is a documented behavioural difference, so it stays in the caller and the helper stays pure.
+
+All variants additionally share `resolveContainerFilters` / `resolvePathsStrict` / `assertPathsStrict` / `collectExecutionFailure` / `wrapBranchForOneOf` / `finalizeOutput` / `wrapSafeRunError`, so issue handling and cache consultation stay consistent.
+
+**When adding a run or mount option**, thread it through the twin body plus (if a child inherits it) `buildChildRunOptions` — two edits, not six. `runParallel` picks up anything the shared helpers resolve for free; only genuinely scheduling-specific behaviour needs a second touch there.
+
+One behaviour was unified in passing: the "don't cache a `RunSyncViolationError`" guard was previously `runSync`-only and now applies in both variants. It is unreachable on the async side except for the pathological case of a validator letting a `RunSyncViolationError` escape — which `collectExecutionFailure` already rethrows structurally, so not caching it is the consistent reading.
 
 ### Optional values (`helpers/optional-value.ts`)
 

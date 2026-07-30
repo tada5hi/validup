@@ -23,7 +23,9 @@ container.mount('name', isString);     // sees the trimmed value
 
 ## `runSync()`
 
-Same loop without `await`. Validator return values must not be thenable; nested containers must implement `runSync`. Violations throw a `RunSyncViolationError` (use the duck-type guard `isRunSyncViolation`) — these are **not** folded into the issue list, because they mean the caller can't use sync mode against this graph at all.
+Literally the same loop without `await` — `run()` and `runSync()` are two drivers over **one** shared mount-resolution body, not two implementations. Every mount option (groups, `optional` / `optionalValue` / `optionalAs`, path filters, `defaults`, `pathsStrict`, `cache`) resolves identically in both, including the sequential sibling chain-read above, so a sync run cannot silently drift from its async twin.
+
+Two things differ, both structural: validator return values must not be thenable, and nested containers must implement `runSync`. Violations throw a `RunSyncViolationError` (use the duck-type guard `isRunSyncViolation`) — these are **not** folded into the issue list, because they mean the caller can't use sync mode against this graph at all.
 
 ```typescript
 const out = container.runSync(input); // throws on async validator
