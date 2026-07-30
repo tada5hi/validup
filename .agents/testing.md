@@ -4,7 +4,7 @@
 
 - **Vitest 4** with the v8 coverage provider.
 - Each package has its own `test/vitest.config.ts` — there is no root-level Vitest config. Run from the package directory or via `npm run test` (which delegates to `nx run-many -t test`).
-- `globals: true` is enabled, so `describe`/`it`/`expect`/etc. are available without imports.
+- `globals: true` is set in four of the five packages (`@validup/validator-js` omits it deliberately), but **specs must import `describe` / `it` / `expect` explicitly from `vitest` regardless**. Every spec in the repo does; don't lean on the globals.
 
 ## Layout
 
@@ -23,7 +23,7 @@ Specs reach package source via relative imports — `import { Container } from '
 
 ## Coverage Thresholds
 
-All five integration packages currently use the same thresholds (`coverage.thresholds` in `vitest.config.ts`):
+All five packages use the same thresholds (`coverage.thresholds` in `vitest.config.ts`):
 
 | Metric     | Threshold |
 |------------|-----------|
