@@ -29,10 +29,28 @@ import {
     ResultCache,
     ValidupError,
     flattenIssueItems,
-    isIssueGroup,
     isValidupError,
 } from 'validup';
 import { useCollector } from './helpers/collector';
+// Framework-free projection layer — path codec, visibility rule, per-path
+// issue selection and external-issue pruning. Everything below takes plain
+// data and returns plain data; the `computed`s in this file are the only
+// place reactivity lives. See helpers/projection.ts.
+import {
+    crossCuttingItems,
+    flatItemsAtPath,
+    isPrefixDirty,
+    pathFromKey,
+    pathKey,
+    pruneExternalAtPath,
+    rawIssuesAtPath,
+    readNested,
+    tagExternal,
+    visibleFormItems,
+    visibleGroups,
+    visibleItems,
+    writeNested,
+} from './helpers/projection';
 import { VALIDUP_INSTALL_KEY } from './install';
 import type { InstallOptions } from './install';
 import type {
@@ -42,81 +60,6 @@ import type {
     FieldState,
     StateInput,
 } from './types';
-
-function pathKey(path: PropertyKey[]): string {
-    return path.map((p) => String(p)).join('.');
-}
-
-function pathFromKey(key: string): string[] {
-    // Accepts dotted (`a.b.c`), bracketed (`a[0].b`), or mixed (`a.b[0].c`).
-    //
-    // Caveat: top-level keys that *contain a dot* (e.g. `state['user.email']`
-    // as a single literal key) are not addressable via this composable —
-    // they collide with the dotted path syntax. This is an acknowledged
-    // trade-off: vuelidate's path syntax has the same limitation, and form
-    // state with literal-dot keys is vanishingly rare in practice.
-    return key
-        .replace(/\[(\w+)\]/g, '.$1')
-        .split('.')
-        .filter((s) => s.length > 0);
-}
-
-function readNested(obj: any, segments: string[]): unknown {
-    let cur: any = obj;
-    for (const seg of segments) {
-        if (cur == null) {
-            return undefined;
-        }
-        cur = cur[seg];
-    }
-    return cur;
-}
-
-function writeNested(obj: any, segments: string[], value: unknown): void {
-    if (segments.length === 0) {
-        return;
-    }
-    let cur: any = obj;
-    for (let i = 0; i < segments.length - 1; i++) {
-        const seg = segments[i];
-        if (cur[seg] == null || typeof cur[seg] !== 'object') {
-            cur[seg] = /^\d+$/.test(segments[i + 1] as string) ? [] : {};
-        }
-        cur = cur[seg];
-    }
-    cur[segments[segments.length - 1] as string] = value;
-}
-
-function isPrefixDirty(dirtyPaths: ReadonlySet<string>, key: string): boolean {
-    if (dirtyPaths.has(key)) {
-        return true;
-    }
-    const segments = key.split('.');
-    for (let n = 1; n < segments.length; n++) {
-        if (dirtyPaths.has(segments.slice(0, n).join('.'))) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/**
- * "Should this issue surface as a visible `$errors` entry right now?"
- *
- * Rule: items from required mounts (no `meta.optional`) surface
- * unconditionally — they communicate "this field has unresolved work"
- * the moment validation has run, so a form can render the issue (and the
- * matching `getSeverity` → `'warning'`) on initial load without needing
- * the user to touch every field first. Items from optional mounts stay
- * hidden until the user engages with the field (`isPrefixDirty`), since
- * the schema permits leaving the field blank and we shouldn't nag.
- *
- * Shared between per-field `FieldState.$errors` and the form-level
- * `Composable.$errors` so both views apply the same rule.
- */
-function isIssueItemVisible(item: IssueItem, dirty: boolean): boolean {
-    return dirty || !item.meta?.optional;
-}
 
 export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>(
     container: ContainerInput<T, C>,
@@ -335,83 +278,14 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         stopPropagation: options.stopPropagation,
     });
 
-    // ---- per-path issue selection ------------------------------------------
+    // ---- issue reads -------------------------------------------------------
+    // The selection rules themselves live in helpers/projection.ts and take
+    // plain `Issue[]`. What stays here is the reactive edge: `allIssues()` is
+    // only ever called from inside a `computed`, so Vue tracks both issue refs
+    // exactly as it did when the selection functions read them directly.
 
-    function flatItemsAtPath(path: string): IssueItem[] {
-        const all = [...internalIssues.value, ...externalIssues.value];
-        const flat = flattenIssueItems(all);
-        if (path === '') {
-            return flat;
-        }
-        return flat.filter((i) => {
-            const ip = pathKey(i.path);
-            return ip === path || ip.startsWith(`${path}.`);
-        });
-    }
-
-    function rawIssuesAtPath(path: string): Issue[] {
-        const all = [...internalIssues.value, ...externalIssues.value];
-        if (path === '') {
-            return all;
-        }
-        // Recurse through `IssueGroup` children — e.g. a root `oneOf` group
-        // (path `[]`) wraps leaves at `name`/`email`, and `fields.name.$issues`
-        // must surface those leaves even though the wrapping group itself
-        // doesn't sit at the requested path.
-        const collect = (issues: Issue[]): Issue[] => {
-            const output: Issue[] = [];
-            for (const issue of issues) {
-                const ip = pathKey(issue.path);
-                const matches = ip === path || ip.startsWith(`${path}.`);
-                if (isIssueGroup(issue)) {
-                    if (matches) {
-                        output.push(issue);
-                        continue;
-                    }
-                    const inner = collect(issue.issues);
-                    if (inner.length > 0) {
-                        output.push({ ...issue, issues: inner });
-                    }
-                    continue;
-                }
-                if (matches) {
-                    output.push(issue);
-                }
-            }
-            return output;
-        };
-        return collect(all);
-    }
-
-    function isUnderPath(itemPath: string, target: string): boolean {
-        return itemPath === target || itemPath.startsWith(`${target}.`);
-    }
-
-    function pruneExternalAtPath(issues: Issue[], target: string): Issue[] {
-        const output: Issue[] = [];
-        for (const issue of issues) {
-            const ip = pathKey(issue.path);
-            if (isIssueGroup(issue)) {
-                if (isUnderPath(ip, target)) {
-                    // Whole group sits under the cleared path — drop it.
-                    continue;
-                }
-                // The group itself is outside but its leaves may still match
-                // (e.g. a top-level `oneOf` group contains a leaf at `name`).
-                const inner = pruneExternalAtPath(issue.issues, target);
-                if (inner.length === issue.issues.length) {
-                    output.push(issue);
-                } else if (inner.length > 0) {
-                    output.push({ ...issue, issues: inner });
-                }
-                // empty group → drop entirely
-                continue;
-            }
-            if (!isUnderPath(ip, target)) {
-                output.push(issue);
-            }
-        }
-        return output;
+    function allIssues(): Issue[] {
+        return [...internalIssues.value, ...externalIssues.value];
     }
 
     function clearExternalAtPath(path: string) {
@@ -443,7 +317,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
             },
         });
 
-        const items = computed(() => flatItemsAtPath(path));
+        const items = computed(() => flatItemsAtPath(allIssues(), path));
 
         return {
             $model,
@@ -453,12 +327,9 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
             // Visible items only — required-mount issues surface pre-touch
             // so a form communicates "there is work to do" on initial load;
             // optional-mount issues stay hidden until the user engages with
-            // the field. See `isIssueItemVisible`.
-            $errors: computed(() => {
-                const dirty = isPrefixDirty(dirtyPaths, path);
-                return items.value.filter((i) => isIssueItemVisible(i, dirty));
-            }),
-            $issues: computed(() => rawIssuesAtPath(path)),
+            // the field. See `isIssueItemVisible` in helpers/projection.ts.
+            $errors: computed(() => visibleItems(items.value, isPrefixDirty(dirtyPaths, path))),
+            $issues: computed(() => rawIssuesAtPath(allIssues(), path)),
             $touch: () => {
                 dirtyPaths.add(path);
             },
@@ -550,7 +421,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         // `{}`, or any optional/nested object the user hasn't created yet.
         // Without this, `$errors` would stay empty after `$validate()` for
         // those paths because no state key matches.
-        for (const item of flattenIssueItems([...internalIssues.value, ...externalIssues.value])) {
+        for (const item of flattenIssueItems(allIssues())) {
             if (item.path.length > 0) {
                 dirtyPaths.add(pathKey(item.path));
             }
@@ -621,18 +492,6 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         return result;
     }
 
-    function tagExternal(issue: Issue): Issue {
-        const meta = { ...(issue.meta ?? {}), external: true };
-        if (isIssueGroup(issue)) {
-            return {
-                ...issue,
-                meta,
-                issues: issue.issues.map(tagExternal),
-            };
-        }
-        return { ...issue, meta };
-    }
-
     function setExternalIssues(issues: Issue[]) {
         externalIssues.value = issues.map(tagExternal);
     }
@@ -645,18 +504,13 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         // required-mount issues surface pre-touch; optional-mount issues
         // wait until the matching path is dirty. Path-less issues are
         // surfaced separately via `$crossCuttingErrors`.
-        $errors: computed(() => flattenIssueItems([...internalIssues.value, ...externalIssues.value])
-            .filter((i) => i.path.length > 0 &&
-                isIssueItemVisible(i, isPrefixDirty(dirtyPaths, pathKey(i.path))))),
-        $issues: computed(() => [...internalIssues.value, ...externalIssues.value]),
+        $errors: computed(() => visibleFormItems(allIssues(), dirtyPaths)),
+        $issues: computed(() => allIssues()),
         // Path-less issues (cross-cutting failures like rate limit, CSRF, or
         // schema-level container errors) — always visible, no dirty gate.
         // Pulled from BOTH internal runs and `setExternalIssues` so a synthetic
         // failure raised by a defensive `runOnce` catch surfaces here too.
-        $crossCuttingErrors: computed(() => flattenIssueItems([
-            ...internalIssues.value,
-            ...externalIssues.value,
-        ]).filter((i) => i.path.length === 0)),
+        $crossCuttingErrors: computed(() => crossCuttingItems(allIssues())),
         // Group-level issues (e.g. ONE_OF_FAILED). Empty-path groups surface
         // once any field is dirty; nested groups gate on prefix-dirty rules.
         //
@@ -665,14 +519,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         // identity (`data.branch` / `data.name`). Those sub-groups are
         // not themselves `$groupErrors` targets; consumers that need the
         // per-branch detail walk `$issues` instead.
-        $groupErrors: computed(() => [...internalIssues.value, ...externalIssues.value]
-            .filter(isIssueGroup)
-            .filter((g) => {
-                if (g.path.length === 0) {
-                    return dirtyPaths.size > 0;
-                }
-                return isPrefixDirty(dirtyPaths, pathKey(g.path));
-            })),
+        $groupErrors: computed(() => visibleGroups(allIssues(), dirtyPaths)),
         $touch,
         $reset,
         $validate,

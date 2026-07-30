@@ -248,6 +248,24 @@ describe('isInt', () => {
         expect(items[0]?.code).toBe(IssueCode.MAX_VALUE);
         expect(items[0]?.data).toEqual({ max: 10 });
     });
+
+    it('uses the shared range-ladder default messages', async () => {
+        // `isInt` and `isFloat` share one `assertNumericRange` helper, so the
+        // wording is a single contract — assert it on both factories.
+        expect((await fail(isInt({ min: 18 }), 5))[0]?.message)
+            .toBe('The value must be greater than or equal to 18');
+        expect((await fail(isInt({ gt: 10 }), 10))[0]?.message)
+            .toBe('The value must be greater than 10');
+        expect((await fail(isInt({ max: 120 }), 999))[0]?.message)
+            .toBe('The value must be less than or equal to 120');
+        expect((await fail(isInt({ lt: 10 }), 10))[0]?.message)
+            .toBe('The value must be less than 10');
+    });
+
+    it('lets options.message override every range failure', async () => {
+        expect((await fail(isInt({ min: 18, message: 'Too young' }), 5))[0]?.message)
+            .toBe('Too young');
+    });
 });
 
 describe('isFloat', () => {
@@ -269,6 +287,36 @@ describe('isFloat', () => {
         const onLt = await fail(isFloat({ lt: 10 }), 10);
         expect(onLt[0]?.code).toBe(IssueCode.MAX_VALUE);
         expect(onLt[0]?.data).toEqual({ max: 10 });
+    });
+
+    it('uses the shared range-ladder default messages', async () => {
+        expect((await fail(isFloat({ min: 1 }), 0.5))[0]?.message)
+            .toBe('The value must be greater than or equal to 1');
+        expect((await fail(isFloat({ gt: 1.5 }), 1.5))[0]?.message)
+            .toBe('The value must be greater than 1.5');
+        expect((await fail(isFloat({ max: 10 }), 11.5))[0]?.message)
+            .toBe('The value must be less than or equal to 10');
+        expect((await fail(isFloat({ lt: 10 }), 10))[0]?.message)
+            .toBe('The value must be less than 10');
+    });
+
+    it('checks bounds first-match-wins in min / gt / max / lt order', async () => {
+        // 2 violates BOTH bounds — it is below min (5) and not below lt (1) —
+        // so the two branches genuinely compete and the emitted code is decided
+        // purely by ladder order. Reordering `assertNumericRange` flips this to
+        // MAX_VALUE / { max: 1 }, which is what makes this a real ordering test.
+        const items = await fail(isFloat({ min: 5, lt: 1 }), 2);
+        expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
+        expect(items[0]?.data).toEqual({ min: 5 });
+    });
+
+    it('skips the range ladder for localized input that Number() cannot parse', async () => {
+        // A de-DE float passes its bounds check by falling through to
+        // validator.isFloat. Note this asserts the OUTCOME only: the
+        // `Number.isNaN` guard at isFloat's call site is defensive, not
+        // observable — every ladder comparison against NaN is already false,
+        // so no test can distinguish the guard's presence.
+        expect(await pass(isFloat({ locale: 'de-DE', min: 100 }), '123,45')).toBe('123,45');
     });
 });
 
