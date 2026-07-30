@@ -83,4 +83,5 @@ import { Container, type Validator } from '../../src';
 
 - Use `expect.assertions(n)` when asserting in `catch` blocks (see `module.spec.ts`) — the codebase is consistent about this.
 - Integration-package tests instantiate the foreign library inline (zod, validator.js); `vue` uses `@vue/test-utils` + `happy-dom`.
+- **Prefer a DOM-free spec when the unit under test is DOM-free.** `@validup/vue`'s framework-free units — `helpers/severity.ts` and `helpers/projection.ts` — are covered by plain function calls against literal fixtures, not by mounting a component. `test/unit/projection.spec.ts` adds a `// @vitest-environment node` docblock (matched anywhere in the file, so it sits below the copyright header) to opt out of the package-wide `happy-dom` env; it asserts `typeof globalThis.document === 'undefined'` so a framework dependency leaking back into the projection layer fails loudly. The mounted specs stay as integration nets — move a case down to the pure suite only when it exists purely to reach a pure branch.
 - Coverage is collected only from `src/**/*.{ts,tsx,js,jsx}`.
