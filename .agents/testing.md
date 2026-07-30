@@ -45,7 +45,9 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `one-of.spec.ts`              | `ContainerOptions.oneOf` aggregation behavior             |
 | `paths-to-include.spec.ts`    | `pathsToInclude` / `pathsToExclude` filters               |
 | `error.spec.ts`               | `ValidupError` shape and `isValidupError` guard           |
-| `issue.spec.ts`               | `Issue` factories and guards                              |
+| `issue.spec.ts`               | `Issue` factories and guards (`isIssueItem` / `isIssueGroup` / `isIssue`) |
+| `flatten.spec.ts`             | `flattenIssueItems` / `flattenIssueGroups` — pre-order + reference identity |
+| `mount-dispatch.spec.ts`      | `Container.mount` / `Builder.mount` argument-dispatch order, `isContainer` |
 | `initialize.spec.ts`          | Subclass `initialize()` hook                              |
 | `run-sync.spec.ts`            | `runSync` / `safeRunSync` + `RunSyncViolationError`       |
 | `parallel.spec.ts`            | `runParallel` scheduling and issue ordering               |
@@ -56,6 +58,19 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `defaults.spec.ts`            | `resolveDefaults` child-slice helper                      |
 
 When adding a new container option or mount option, add or extend the matching spec — don't pile new cases into `module.spec.ts`.
+
+### Guard-ordering specs
+
+`Container.mount` and `Builder.mount` both classify their arguments by walking a chain of duck-typed predicates, and several of those predicates overlap on the same value. The order of the branches is therefore load-bearing, and `mount-dispatch.spec.ts` pins it:
+
+- `Container.mount` — `isContainer` and `isValidatorDescriptor` must both precede the generic `isObject` MountOptions branch. The two `run`-bearing guards are **mutually exclusive** by construction (`isValidatorDescriptor` requires `typeof input.safeRun !== 'function'`), so their relative order is defence-in-depth; the spec pins that negative check directly rather than pretending an object could satisfy both.
+- `Builder.mount` — `isBuilder` (`build` + `mount`) and `isContainer` (`run` + `safeRun`) genuinely overlap: an object exposing all four satisfies both. `isBuilder` must win, so the child is `target.build()` rather than the target itself.
+
+When adding a predicate to either chain, add its row here — a spec that only asserts "the happy shape works" will not catch a reorder.
+
+### `run-sync-violation` is imported by module path
+
+`container/run-sync-violation.ts` is deliberately absent from `container/index.ts` (internal plumbing — the public counterpart is `isPathsStrictViolation`). `run-sync.spec.ts` reaches it via `../../src/container/run-sync-violation`. Don't "fix" that import by adding a barrel line.
 
 ### Sync/async parity
 
