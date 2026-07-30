@@ -5,6 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { getPathValue, setPathValue } from 'pathtrace';
 import type {
     Issue,
     IssueGroup,
@@ -36,22 +37,26 @@ import { flattenIssueItems, isIssueGroup } from 'validup';
  * into the same form. Every match in this module — exact, ancestor-prefix,
  * dirty-prefix — is a string comparison between two of those.
  *
- * This is why the local codec is NOT replaced by `pathtrace`'s
- * `arrayToPath` / `pathToArray` / `getPathValue` / `setPathValue`, even
- * though the core already depends on them:
+ * This is why the **string codec** (`pathKey` / `pathFromKey`) is still local
+ * rather than `pathtrace`'s `arrayToPath` / `pathToArray`:
  *
  * - `arrayToPath(['tags', 0])` is `'tags[0]'`, not `'tags.0'`, so
  *   `'tags[0].name'.startsWith('tags.')` is false and a parent field would
  *   silently stop aggregating its array children's issues.
- * - `setPathValue` decides array-vs-object auto-creation from the *current*
- *   key rather than the *next* one, so `a[0].b` materializes as
- *   `{ a: { '0': [] } }` and drops the value; it also refuses to replace a
- *   pre-existing `null` intermediate, silently dropping that write too.
  * - `pathToArray` keeps non-numeric brackets verbatim (`'meta[locale]'` →
  *   `['meta', '[locale]']`), which would break `fields.at('meta[locale]')`.
  *
- * They are near-misses, not equivalents. Keeping the codec local also keeps
- * `@validup/vue` free of a direct `pathtrace` dependency.
+ * **Traversal is not local.** `readNested` / `writeNested` delegate to
+ * pathtrace's `getPathValue` / `setPathValue`. They used to be hand-rolled,
+ * because pathtrace ≤ 2.2.2 decided array-vs-object creation from the
+ * *current* segment rather than the *next* and refused to replace a `null`
+ * intermediate — both fixed in 2.2.3 (tada5hi/pathtrace#200). Keeping a
+ * second copy of that logic is what let this module drift: its `/^\d+$/`
+ * index test lost values for non-canonical keys like `items.01.name`, the
+ * same defect pathtrace itself carried, and its hand-rolled traversal
+ * shipped without an unsafe-key guard at all until it was found in review.
+ * Delegating removes both classes of drift, and the prototype-pollution
+ * protection now comes from `isUnsafeKey` upstream.
  */
 
 // ---- path codec ------------------------------------------------------------
@@ -85,66 +90,44 @@ export function pathFromKey(key: string): string[] {
 }
 
 /**
- * Keys that must never be traversed or written through. Writing to
- * `__proto__` mutates `Object.prototype` instead of the form state, so any
- * field key that reaches `writeNested` from user input, a route param, or a
- * server response would otherwise be a prototype-pollution vector —
- * `fields.at('__proto__.polluted').$model.value = x` is enough.
+ * Read `segments` off `obj`, short-circuiting to `undefined` on any nullish
+ * intermediate or unsafe key (`__proto__` / `constructor` / `prototype`).
  *
- * Same key set and same abandon-the-operation semantics as `pathtrace`'s
- * `isUnsafeKey`, which the core already relies on through `setPathValue` /
- * `getPathValue`. Keeping them identical means both halves of the library
- * refuse exactly the same paths, even though this module deliberately does
- * not use pathtrace (see the module docblock).
- */
-const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-
-function isUnsafeKey(key: string): boolean {
-    return UNSAFE_KEYS.has(key);
-}
-
-/**
- * Read `segments` off `obj`, short-circuiting to `undefined` on any
- * nullish intermediate or unsafe key. An empty segment list returns `obj`
- * itself.
+ * Delegates to pathtrace's `getPathValue`. The one behaviour kept local is
+ * the empty-segment case: `getPathValue(obj, [])` is `undefined`, whereas
+ * this has always returned `obj` itself, and `pathFromKey('')` yields an
+ * empty segment list. Preserved rather than silently changed.
  */
 export function readNested(obj: any, segments: string[]): unknown {
-    let cur: any = obj;
-    for (const seg of segments) {
-        if (cur == null || isUnsafeKey(seg)) {
-            return undefined;
-        }
-        cur = cur[seg];
+    if (segments.length === 0) {
+        return obj;
     }
-    return cur;
+
+    return getPathValue(obj, segments);
 }
 
 /**
  * Write `value` at `segments` on `obj`, materializing missing (or
  * non-object) intermediates along the way.
  *
- * An intermediate becomes an array when the *next* segment is numeric
- * (`items.0.name` → `{ items: [{ name: … }] }`) and a plain object
- * otherwise — lodash `_.set` semantics, so `fields.at('items[0].name')`
- * produces the array a form template expects to `v-for` over.
+ * Delegates to pathtrace's `setPathValue`, which decides array-vs-object
+ * creation from the *next* segment using canonical array-index rules — so
+ * `fields.at('items[0].name')` produces the array a template expects to
+ * `v-for` over, while `items.01.name` correctly stays an object key.
  *
- * Abandons the write entirely if any segment is an unsafe key (see
- * {@link UNSAFE_KEYS}), rather than throwing — a `$model` setter is not a
- * place a consumer can catch from.
+ * Unsafe segments (`__proto__` / `constructor` / `prototype`) abandon the
+ * write rather than throwing — a `$model` setter is not a place a consumer
+ * can catch from. Note pathtrace stops *at* the unsafe segment rather than
+ * rejecting the path up front, so prefix intermediates named earlier in the
+ * path may already exist; nothing is written through the unsafe key and
+ * `Object.prototype` is never touched.
  */
 export function writeNested(obj: any, segments: string[], value: unknown): void {
-    if (segments.length === 0 || segments.some(isUnsafeKey)) {
+    if (segments.length === 0) {
         return;
     }
-    let cur: any = obj;
-    for (let i = 0; i < segments.length - 1; i++) {
-        const seg = segments[i];
-        if (cur[seg] == null || typeof cur[seg] !== 'object') {
-            cur[seg] = /^\d+$/.test(segments[i + 1] as string) ? [] : {};
-        }
-        cur = cur[seg];
-    }
-    cur[segments[segments.length - 1] as string] = value;
+
+    setPathValue(obj, segments, value);
 }
 
 // ---- prefix matching -------------------------------------------------------

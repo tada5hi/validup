@@ -42,6 +42,9 @@
         "composable"
     ],
     "license": "Apache-2.0",
+    "dependencies": {
+        "pathtrace": "^2.2.3"
+    },
     "devDependencies": {
         "@vue/test-utils": "^2.4.11",
         "happy-dom": "^20.11.1",
