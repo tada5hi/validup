@@ -19,7 +19,7 @@ import type { ValidatorDescriptor } from 'validup';
 export type ValidatorJsFn = (value: string, ...args: any[]) => boolean;
 
 /**
- * Options accepted by every factory (and {@link createValidator}). The
+ * Options accepted by every factory (and {@link createValidatorJsValidator}). The
  * factory layers vocabulary-specific fields on top of this shape.
  */
 export interface BaseFactoryOptions {
@@ -32,7 +32,7 @@ export interface BaseFactoryOptions {
 }
 
 /**
- * Options accepted by {@link createValidator}. The vocabulary code is
+ * Options accepted by {@link createValidatorJsValidator}. The vocabulary code is
  * required — that's the entire point of the generic wrap; if you just
  * want `VALUE_INVALID`, hand-roll a `Validator` instead.
  */
@@ -70,9 +70,9 @@ export function toValidatorString(value: unknown): string {
  *
  * @example
  *     import validator from 'validator';
- *     import { createValidator } from '@validup/validator-js';
+ *     import { createValidatorJsValidator } from '@validup/validator-js';
  *
- *     container.mount('card', createValidator(validator.isCreditCard, {
+ *     container.mount('card', createValidatorJsValidator(validator.isCreditCard, {
  *         code: 'credit_card',
  *         message: 'Invalid credit card number',
  *     }));
@@ -88,7 +88,7 @@ export function toValidatorString(value: unknown): string {
  * predicate captures external state and the caller knowingly opts
  * into that, pass `sideEffect: true` to bypass the cache.
  */
-export function createValidator<C = unknown>(
+export function createValidatorJsValidator<C = unknown>(
     fn: ValidatorJsFn,
     options: CreateValidatorOptions & { sideEffect?: boolean },
 ): ValidatorDescriptor<C> {

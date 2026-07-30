@@ -8,7 +8,7 @@
 import { toRef } from 'vue';
 import { z } from 'zod';
 import { Container } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { useValidup } from '@validup/vue';
 import Field from './Field.vue';
 import type { Profile } from './section-types';
@@ -21,8 +21,8 @@ import type { Profile } from './section-types';
 const props = defineProps<{ state: Profile }>();
 
 const container = new Container<Profile>();
-container.mount('firstName', createValidator(z.string().min(1, 'Required')));
-container.mount('lastName', createValidator(z.string().min(1, 'Required')));
+container.mount('firstName', createZodValidator(z.string().min(1, 'Required')));
+container.mount('lastName', createZodValidator(z.string().min(1, 'Required')));
 
 const form = useValidup<Profile>(container, toRef(props, 'state'), { name: 'profile' });
 </script>

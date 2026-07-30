@@ -14,13 +14,13 @@ import {
     ValidupError,
     flattenIssueItems,
 } from 'validup';
-import { createValidator } from '../../src';
+import { createZodValidator } from '../../src';
 
 describe('src/module', () => {
     it('should validate', async () => {
         const validator = new Container<{ email: string }>();
 
-        validator.mount('email', createValidator(z.string().email()));
+        validator.mount('email', createZodValidator(z.string().email()));
 
         const outcome = await validator.run({ email: 'foo@example.com' });
 
@@ -31,7 +31,7 @@ describe('src/module', () => {
     it('should validate with validator fn', async () => {
         const validator = new Container<{ email: string }>();
 
-        validator.mount('email', createValidator(() => z.string().email()));
+        validator.mount('email', createZodValidator(() => z.string().email()));
 
         const outcome = await validator.run({ email: 'foo@example.com' });
 
@@ -42,7 +42,7 @@ describe('src/module', () => {
     it('should not validate', async () => {
         const validator = new Container<{ email: string }>();
 
-        validator.mount('email', createValidator(z.string().email()));
+        validator.mount('email', createZodValidator(z.string().email()));
 
         expect.assertions(3);
 
@@ -59,7 +59,7 @@ describe('src/module', () => {
 
     it('should not validate nested container', async () => {
         const child = new Container<{ email: string }>();
-        child.mount('email', createValidator(z.string().email()));
+        child.mount('email', createZodValidator(z.string().email()));
 
         const parent = new Container<{ child: { email: string } }>();
         parent.mount('child', child);
@@ -83,7 +83,7 @@ describe('src/module', () => {
 
     it('should not validate nested container with empty child mount path', async () => {
         const child = new Container<{ email: string }>();
-        child.mount('email', createValidator(z.string().email()));
+        child.mount('email', createZodValidator(z.string().email()));
 
         const parent = new Container<{ child: { email: string } }>();
         parent.mount(child);
@@ -100,10 +100,10 @@ describe('src/module', () => {
         }
     });
 
-    it('createValidator participates in the result cache by default', async () => {
+    it('createZodValidator participates in the result cache by default', async () => {
         const container = new Container<{ email: string }>();
         let calls = 0;
-        container.mount('email', createValidator(() => {
+        container.mount('email', createZodValidator(() => {
             calls += 1;
             return z.string().email();
         }));
@@ -115,10 +115,10 @@ describe('src/module', () => {
         expect(calls).toBe(1);
     });
 
-    it('createValidator({ sideEffect: true }) bypasses the cache', async () => {
+    it('createZodValidator({ sideEffect: true }) bypasses the cache', async () => {
         const container = new Container<{ email: string }>();
         let calls = 0;
-        container.mount('email', createValidator(
+        container.mount('email', createZodValidator(
             () => {
                 calls += 1;
                 return z.string().email();
@@ -133,14 +133,14 @@ describe('src/module', () => {
         expect(calls).toBe(2);
     });
 
-    it('createValidator threads input so missing keys map to REQUIRED', async () => {
-        // End-to-end check: the runtime path through createValidator must
+    it('createZodValidator threads input so missing keys map to REQUIRED', async () => {
+        // End-to-end check: the runtime path through createZodValidator must
         // pass ctx.value to buildIssuesForZodError so the invalid_type →
         // REQUIRED promotion fires for missing-key cases. Without the
         // thread, every missing field would collapse back to VALUE_INVALID
         // (the historical bug described in #397).
         const validator = new Container<{ user: { email: string } }>();
-        validator.mount('user', createValidator(z.object({
+        validator.mount('user', createZodValidator(z.object({
             email: z.string(),
             name: z.string(),
         })));
@@ -162,7 +162,7 @@ describe('src/module', () => {
     it('should not validate array', async () => {
         const validator = new Container<{ foo: unknown[] }>();
 
-        validator.mount('foo', createValidator(z.object({ bar: z.string().array().min(2) })));
+        validator.mount('foo', createZodValidator(z.object({ bar: z.string().array().min(2) })));
 
         expect.assertions(5);
 

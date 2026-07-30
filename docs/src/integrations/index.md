@@ -4,13 +4,13 @@ validup keeps a pure-JS core. Integration packages bridge an existing validation
 
 ## Two shapes
 
-**Validator adapters** expose a `createValidator()` function that returns a validup `Validator`:
+**Validator adapters** expose a `createZodValidator()` function that returns a validup `Validator`:
 
 ```typescript
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { z } from 'zod';
 
-container.mount('email', createValidator(z.string().email()));
+container.mount('email', createZodValidator(z.string().email()));
 ```
 
 These come in three flavors today:
@@ -36,7 +36,7 @@ import { type Validator, type ValidatorContext, ValidupError } from 'validup';
 
 type CreateFn<C> = (ctx: ValidatorContext<C>) => Schema;
 
-export function createValidator<C = unknown>(input: Schema | CreateFn<C>): Validator<C> {
+export function createZodValidator<C = unknown>(input: Schema | CreateFn<C>): Validator<C> {
     return async (ctx): Promise<unknown> => {
         const schema = typeof input === 'function' ? input(ctx) : input;
         const outcome = await schema.safeParseAsync(ctx.value);
@@ -49,7 +49,7 @@ export function createValidator<C = unknown>(input: Schema | CreateFn<C>): Valid
 Three contract points to preserve:
 
 1. Accept either a schema or a `(ctx) => schema` factory.
-2. Make `createValidator<C>` generic over the validup context.
+2. Make `createZodValidator<C>` generic over the validup context.
 3. Translate foreign errors into `Issue[]` using `defineIssueItem` / `defineIssueGroup` — never construct issue objects literally.
 
 For framework integrations, study `@validup/vue` — a reactive composable that drives form state from `safeRun()`.

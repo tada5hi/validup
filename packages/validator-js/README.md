@@ -1,6 +1,6 @@
 # @validup/validator-js 🛡️
 
-A [validup](https://www.npmjs.com/package/validup) integration for [validator.js](https://github.com/validatorjs/validator.js) — pre-baked factories for the common string validators (`isEmail`, `isLength`, `isInt`, …) plus a generic `createValidator(fn, …)` for the long tail.
+A [validup](https://www.npmjs.com/package/validup) integration for [validator.js](https://github.com/validatorjs/validator.js) — pre-baked factories for the common string validators (`isEmail`, `isLength`, `isInt`, …) plus a generic `createValidatorJsValidator(fn, …)` for the long tail.
 
 Each factory stamps the right validup [`IssueCode`](https://www.npmjs.com/package/validup#issue-codes) on failure, with structured `data` matching the i18n catalog's placeholders. Drop into `@ilingo/validup` for free per-rule translations.
 
@@ -102,20 +102,20 @@ isStrongPassword({ minLength: 12, minNumbers: 2 });
 
 **Result caching.** Every factory returns a `ValidatorDescriptor` that participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — every shipped factory is a deterministic function of `ctx.value`, so cached `(value, context, group)` snapshots replay without re-running validator.js. The one exception is `equals(key)` **without** `expectedValue`, which stamps `sideEffect: true` automatically because the comparison target comes from `ctx.data[key]` (a sibling field the snapshot doesn't capture). When `expectedValue` is provided, `equals` is pure and participates in the cache like the rest.
 
-## Generic wrap — `createValidator`
+## Generic wrap — `createValidatorJsValidator`
 
 For validators not pre-baked (`isCreditCard`, `isJWT`, `isMobilePhone`, `isPostalCode`, …):
 
 ```typescript
 import validator from 'validator';
-import { createValidator } from '@validup/validator-js';
+import { createValidatorJsValidator } from '@validup/validator-js';
 
-container.mount('card', createValidator(validator.isCreditCard, {
+container.mount('card', createValidatorJsValidator(validator.isCreditCard, {
     code: 'credit_card',
     message: 'Invalid credit card number',
 }));
 
-container.mount('phone', createValidator(
+container.mount('phone', createValidatorJsValidator(
     (v) => validator.isMobilePhone(v, 'de-DE'),
     {
         code: 'mobile_phone',
@@ -125,7 +125,7 @@ container.mount('phone', createValidator(
 ));
 ```
 
-`createValidator(fn, { code, message, data?, sideEffect? })`:
+`createValidatorJsValidator(fn, { code, message, data?, sideEffect? })`:
 
 - `fn` — any function with the signature `(value: string, ...args: any[]) => boolean`. validator.js's predicates all fit.
 - `code` — the validup `IssueCode` (or any project-specific string) attached to the resulting `IssueItem`. `IssueItem.code` widens to `IssueCode | (string & {})`, so ad-hoc strings are accepted.
@@ -153,10 +153,10 @@ express-validator wraps validator.js in a chain API meant for Express middleware
 `@validup/validator-js` replaces `@validup/express-validator` outright. Migration is mechanical:
 
 ```diff
-- container.mount('email', createValidator(() => body().isEmail()));
+- container.mount('email', createValidatorJsValidator(() => body().isEmail()));
 + container.mount('email', isEmail());
 
-- container.mount('name', createValidator(() => body()
+- container.mount('name', createValidatorJsValidator(() => body()
 -     .isLength({ min: 3 })
 -     .withMessage({ code: IssueCode.MIN_LENGTH, message: 'Too short' })));
 + container.mount('name', isLength({ min: 3, message: 'Too short' }));

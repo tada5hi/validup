@@ -8,7 +8,7 @@
 import { reactive, ref } from 'vue';
 import { z } from 'zod';
 import { Container } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { useValidup } from '@validup/vue';
 import Field from '../components/Field.vue';
 import ResultPanel from '../components/ResultPanel.vue';
@@ -22,12 +22,12 @@ type User = {
 // `password` only participates when group === 'create' — the same container
 // covers the "edit profile" flow without forcing a password re-entry.
 const container = new Container<User>();
-container.mount('name', createValidator(z.string().min(2, 'Must be at least 2 characters')));
-container.mount('email', createValidator(z.string().email('Must be a valid email')));
+container.mount('name', createZodValidator(z.string().min(2, 'Must be at least 2 characters')));
+container.mount('email', createZodValidator(z.string().email('Must be a valid email')));
 container.mount(
     'password',
     { group: ['create'] },
-    createValidator(z.string().min(8, 'Must be at least 8 characters')),
+    createZodValidator(z.string().min(8, 'Must be at least 8 characters')),
 );
 
 const state = reactive<User>({

@@ -17,7 +17,7 @@ import {
 } from 'validup';
 import type { ValidatorDescriptor } from 'validup';
 import {
-    createValidator,
+    createValidatorJsValidator,
     equals,
     isEmail,
 } from '../../src';
@@ -165,7 +165,7 @@ describe('equals(): sideEffect makes the sibling read cache-safe', () => {
     });
 });
 
-describe('createValidator(): the generic escape hatch honours the cache', () => {
+describe('createValidatorJsValidator(): the generic escape hatch honours the cache', () => {
     // Parity with `@validup/zod` and `@validup/standard-schema`, which both
     // carry this pair. Until now `@validup/validator-js` never imported
     // `ResultCache` in any spec.
@@ -173,7 +173,7 @@ describe('createValidator(): the generic escape hatch honours the cache', () => 
     it('participates in the result cache by default', async () => {
         let calls = 0;
         const container = new Container<{ card: string }>();
-        container.mount('card', createValidator(
+        container.mount('card', createValidatorJsValidator(
             (value: string) => {
                 calls += 1;
                 return validator.isCreditCard(value);
@@ -192,7 +192,7 @@ describe('createValidator(): the generic escape hatch honours the cache', () => 
     it('bypasses the cache when sideEffect: true is opted into', async () => {
         let calls = 0;
         const container = new Container<{ card: string }>();
-        container.mount('card', createValidator(
+        container.mount('card', createValidatorJsValidator(
             (value: string) => {
                 calls += 1;
                 return validator.isCreditCard(value);
@@ -214,7 +214,7 @@ describe('createValidator(): the generic escape hatch honours the cache', () => 
         // must still be rebuilt with the right code.
         let calls = 0;
         const container = new Container<{ card: string }>();
-        container.mount('card', createValidator(
+        container.mount('card', createValidatorJsValidator(
             () => {
                 calls += 1;
                 return false;

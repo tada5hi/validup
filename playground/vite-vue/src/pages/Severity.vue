@@ -8,7 +8,7 @@
 import { reactive, ref } from 'vue';
 import { z } from 'zod';
 import { Container } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { useValidup } from '@validup/vue';
 import Field from '../components/Field.vue';
 import ResultPanel from '../components/ResultPanel.vue';
@@ -28,25 +28,25 @@ type Profile = {
 };
 
 const container = new Container<Profile>();
-container.mount('email', createValidator(z.string().email('Must be a valid email')));
+container.mount('email', createZodValidator(z.string().email('Must be a valid email')));
 
 container.mount(
     'bio',
     { optional: true },
-    createValidator(z.string().min(20, 'A longer bio looks more credible')),
+    createZodValidator(z.string().min(20, 'A longer bio looks more credible')),
 );
 
 const requireBio = ref(false);
 container.mount(
     'bio',
     { optional: (value) => !requireBio.value && (typeof value !== 'string' || value.length === 0) },
-    createValidator(z.string().min(1, 'Bio is required')),
+    createZodValidator(z.string().min(1, 'Bio is required')),
 );
 
 container.mount(
     'phone',
     { optional: true },
-    createValidator(z.string().regex(/^\+?[0-9 ()-]{6,}$/, 'Looks like an invalid phone number')),
+    createZodValidator(z.string().regex(/^\+?[0-9 ()-]{6,}$/, 'Looks like an invalid phone number')),
 );
 
 const state = reactive<Profile>({

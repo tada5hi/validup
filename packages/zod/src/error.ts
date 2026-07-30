@@ -165,7 +165,7 @@ function mapZodIssue(
  * `invalid_type` → `REQUIRED` promotion: zod 4's formatted issues don't
  * carry `received`, so we recover the missing-key signal by looking up
  * the issue's path against the input and checking whether the leaf is
- * `undefined`. {@link createValidator} threads `ctx.value` through
+ * `undefined`. {@link createZodValidator} threads `ctx.value` through
  * automatically; ad-hoc callers can opt in by passing it explicitly.
  */
 export function buildIssuesForZodError(error: ZodError, input?: unknown): Issue[] {

@@ -8,7 +8,7 @@
 import { reactive, ref } from 'vue';
 import { z } from 'zod';
 import { Container } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { useValidup } from '@validup/vue';
 import Field from '../components/Field.vue';
 import ResultPanel from '../components/ResultPanel.vue';
@@ -34,12 +34,12 @@ async function isUsernameAvailable(name: string, signal?: AbortSignal): Promise<
 }
 
 const container = new Container<Signup>();
-container.mount('email', createValidator(z.string().email('Must be a valid email')));
+container.mount('email', createZodValidator(z.string().email('Must be a valid email')));
 container.mount(
     'username',
     // `sideEffect: true` opts this validator out of the result cache — every
     // run re-hits `isUsernameAvailable` even if the value didn't change.
-    createValidator(
+    createZodValidator(
         (ctx) => z.string()
             .min(3, 'Must be at least 3 characters')
             .refine(

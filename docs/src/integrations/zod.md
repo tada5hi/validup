@@ -16,12 +16,12 @@ npm install @validup/zod validup zod --save
 
 ```typescript
 import { Container, isValidupError } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { z } from 'zod';
 
 const user = new Container<{ email: string; age: number }>();
-user.mount('email', createValidator(z.string().email()));
-user.mount('age',   createValidator(z.number().int().positive()));
+user.mount('email', createZodValidator(z.string().email()));
+user.mount('age',   createZodValidator(z.number().int().positive()));
 
 try {
     const valid = await user.run({ email: 'peter@example.com', age: 28 });
@@ -30,16 +30,16 @@ try {
 }
 ```
 
-`createValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Mount it with any other mount option:
+`createZodValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Mount it with any other mount option:
 
 ```typescript
-container.mount('field', { group: 'create' }, createValidator(z.string()));
-container.mount('opt',   { optional: true },  createValidator(z.number()));
+container.mount('field', { group: 'create' }, createZodValidator(z.string()));
+container.mount('opt',   { optional: true },  createZodValidator(z.number()));
 ```
 
 ## Result caching (`sideEffect`)
 
-The descriptor returned by `createValidator` participates in validup's [result cache](/guide/caching) by default. Most zod schemas (`z.string().email()`, length / regex / enum checks) are deterministic, so the framework can replay a cached `(ctx.value, ctx.context, ctx.group)` snapshot without re-running the schema:
+The descriptor returned by `createZodValidator` participates in validup's [result cache](/guide/caching) by default. Most zod schemas (`z.string().email()`, length / regex / enum checks) are deterministic, so the framework can replay a cached `(ctx.value, ctx.context, ctx.group)` snapshot without re-running the schema:
 
 ```typescript
 import { ResultCache } from 'validup';
@@ -52,7 +52,7 @@ await container.run(data, { cache }); // schema not re-invoked
 For schemas with async refines or `superRefine` calls reading external state, opt out per call site:
 
 ```typescript
-container.mount('email', createValidator(
+container.mount('email', createZodValidator(
     z.string().refine(async (v) => !(await isEmailTaken(v))),
     { sideEffect: true },
 ));
@@ -63,7 +63,7 @@ container.mount('email', createValidator(
 Pass a function instead of a schema to build the schema lazily from `ValidatorContext`:
 
 ```typescript
-const password = createValidator((ctx) => {
+const password = createZodValidator((ctx) => {
     if (ctx.group === 'create') return z.string().min(12);
     return z.string().min(12).optional();
 });
@@ -76,14 +76,14 @@ container.mount('password', { group: 'update' }, password);
 type ZodCreateFn<C = unknown> = (ctx: ValidatorContext<C>) => ZodType;
 ```
 
-`createValidator<C>(...)` is generic over the validup context, so factories can read typed `ctx.context` when the parent declares one (`Container<T, C>`).
+`createZodValidator<C>(...)` is generic over the validup context, so factories can read typed `ctx.context` when the parent declares one (`Container<T, C>`).
 
 ## Zod → Validup
 
 When a schema fails to parse, the adapter calls `safeParseAsync`, then converts each `ZodIssue` into a validup `IssueItem` (preserving `expected` / `received` fields), and throws a `ValidupError` carrying those issues.
 
 ```typescript
-container.mount('user', createValidator(z.object({
+container.mount('user', createZodValidator(z.object({
     name: z.string(),
     age: z.number().min(18),
 })));
@@ -125,7 +125,7 @@ Each zod issue's `code` is mapped onto validup's [`IssueCode`](/guide/issues) vo
 | Everything else (`custom`, `not_multiple_of`, `unrecognized_keys`, `invalid_union`, …) | `VALUE_INVALID` | —              |
 
 ::: tip REQUIRED detection requires the input
-Zod 4 strips `received` / `input` from the formatted `ZodError`, so the adapter recovers the missing-key signal by looking the issue path up against the original parsed value. `createValidator` threads `ctx.value` through automatically; if you call `buildIssuesForZodError(error)` directly without a second argument, missing keys stay on `VALUE_INVALID`. Pass the input explicitly (`buildIssuesForZodError(error, input)`) to opt in.
+Zod 4 strips `received` / `input` from the formatted `ZodError`, so the adapter recovers the missing-key signal by looking the issue path up against the original parsed value. `createZodValidator` threads `ctx.value` through automatically; if you call `buildIssuesForZodError(error)` directly without a second argument, missing keys stay on `VALUE_INVALID`. Pass the input explicitly (`buildIssuesForZodError(error, input)`) to opt in.
 :::
 
 ## Validup → Zod
@@ -149,7 +149,7 @@ try {
 
 | Export                       | Description                                                                  |
 |------------------------------|------------------------------------------------------------------------------|
-| `createValidator(schema, options?)` | Wrap a `ZodType` (or `(ctx) => ZodType`) as a validup `ValidatorDescriptor`. `options.sideEffect: true` bypasses the result cache. |
+| `createZodValidator(schema, options?)` | Wrap a `ZodType` (or `(ctx) => ZodType`) as a validup `ValidatorDescriptor`. `options.sideEffect: true` bypasses the result cache. |
 | `buildIssuesForZodError(e, input?)` | Convert a `ZodError` into an array of validup `Issue`s. Pass the parsed input as the second argument to enable `invalid_type` → `REQUIRED` promotion for missing keys. |
 | `buildZodIssuesForError(e)`  | Convert a `ValidupError` into an array of zod raw issues.                    |
 | `buildZodIssuesForIssue(i)`  | Convert a single validup `Issue` into zod raw issues (recurses into groups). |

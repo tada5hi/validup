@@ -50,13 +50,13 @@ npm install @validup/vue validup vue --save
 ```typescript
 import { ref, reactive } from 'vue';
 import { Container, ValidupError } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { useValidup, getSeverity } from '@validup/vue';
 import { z } from 'zod';
 
 const userValidator = new Container<{ name: string; email: string }>();
-userValidator.mount('name',  createValidator(z.string().min(2)));
-userValidator.mount('email', createValidator(z.string().email()));
+userValidator.mount('name',  createZodValidator(z.string().min(2)));
+userValidator.mount('email', createZodValidator(z.string().email()));
 
 export default {
     setup() {
@@ -91,7 +91,7 @@ The dominant pattern is a subclassed `Container<T>` you can reuse on both server
 ```typescript
 // shared validator (server + client)
 import { Container } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { z } from 'zod';
 
 type Role = { name: string; description?: string };
@@ -100,14 +100,14 @@ export class RoleValidator extends Container<Role> {
     protected override initialize() {
         super.initialize();
 
-        const nameValidator = createValidator(z.string().min(3).max(128));
+        const nameValidator = createZodValidator(z.string().min(3).max(128));
         this.mount('name', { group: 'create' }, nameValidator);
         this.mount('name', { group: 'update', optional: true }, nameValidator);
 
         this.mount(
             'description',
             { optional: true },
-            createValidator(z.string().max(4096).nullable()),
+            createZodValidator(z.string().max(4096).nullable()),
         );
     }
 }

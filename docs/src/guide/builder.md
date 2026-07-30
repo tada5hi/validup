@@ -14,12 +14,12 @@ const out = await c.run({});       // out: { foo, bar } — bar is undefined at 
 
 ```typescript
 import { defineSchema } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { z } from 'zod';
 
 const schema = defineSchema()
-    .mount('foo', createValidator(z.string()))                            // { foo: string }
-    .mount('age', { optional: true }, createValidator(z.number().int()))  // { foo: string; age?: number }
+    .mount('foo', createZodValidator(z.string()))                            // { foo: string }
+    .mount('age', { optional: true }, createZodValidator(z.number().int()))  // { foo: string; age?: number }
     .build();
 
 const out = await schema.run(input);
@@ -82,7 +82,7 @@ The `?`-widening only fires when TypeScript sees `optional` as the literal `true
 
 ## Inferring `Out`
 
-The integration packages' `createValidator(...)` functions infer the per-field `Out` from the underlying schema:
+The integration packages' `createZodValidator(...)` functions infer the per-field `Out` from the underlying schema:
 
 - `@validup/zod` — `Out = z.output<Schema>`
 - `@validup/standard-schema` — `Out = StandardSchemaV1.InferOutput<Schema>`

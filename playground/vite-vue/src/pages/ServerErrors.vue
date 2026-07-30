@@ -8,7 +8,7 @@
 import { reactive, ref } from 'vue';
 import { z } from 'zod';
 import { Container, IssueCode, defineIssueItem } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { useValidup } from '@validup/vue';
 import Field from '../components/Field.vue';
 import ResultPanel from '../components/ResultPanel.vue';
@@ -17,8 +17,8 @@ import CrossCuttingErrors from '../components/CrossCuttingErrors.vue';
 type Form = { email: string; coupon: string };
 
 const container = new Container<Form>();
-container.mount('email', createValidator(z.string().email('Must be a valid email')));
-container.mount('coupon', createValidator(z.string().min(3, 'Coupon must be at least 3 characters')));
+container.mount('email', createZodValidator(z.string().email('Must be a valid email')));
+container.mount('coupon', createZodValidator(z.string().min(3, 'Coupon must be at least 3 characters')));
 
 const state = reactive<Form>({ email: '', coupon: '' });
 

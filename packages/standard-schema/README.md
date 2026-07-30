@@ -27,13 +27,13 @@ The package depends only on the [`@standard-schema/spec`](https://www.npmjs.com/
 
 ```typescript
 import { Container } from 'validup';
-import { createValidator } from '@validup/standard-schema';
+import { createStandardSchemaValidator } from '@validup/standard-schema';
 import { z } from 'zod';
 
 const userValidator = new Container<{ email: string; age: number }>();
 
-userValidator.mount('email', createValidator(z.string().email()));
-userValidator.mount('age',   createValidator(z.number().int().positive()));
+userValidator.mount('email', createStandardSchemaValidator(z.string().email()));
+userValidator.mount('age',   createStandardSchemaValidator(z.number().int().positive()));
 
 const user = await userValidator.run({ email: 'foo@example.com', age: 28 });
 ```
@@ -44,8 +44,8 @@ The same call works for any Standard-Schema-compatible library:
 import * as v from 'valibot';
 import { type } from 'arktype';
 
-userValidator.mount('email', createValidator(v.pipe(v.string(), v.email())));
-userValidator.mount('age',   createValidator(type('number > 0')));
+userValidator.mount('email', createStandardSchemaValidator(v.pipe(v.string(), v.email())));
+userValidator.mount('age',   createStandardSchemaValidator(type('number > 0')));
 ```
 
 ## Per-Context Schemas
@@ -55,7 +55,7 @@ Pass a function instead of a schema to build the schema lazily from the validato
 ```typescript
 container.mount(
     'password',
-    createValidator((ctx) => ctx.group === 'create'
+    createStandardSchemaValidator((ctx) => ctx.group === 'create'
         ? z.string().min(12)
         : z.string().min(12).optional()),
 );
@@ -67,14 +67,14 @@ The factory receives the full `ValidatorContext`:
 type StandardSchemaCreateFn<C = unknown> = (ctx: ValidatorContext<C>) => StandardSchemaV1;
 ```
 
-`createValidator<C>(...)` is generic over the validup context type, so factories can read typed `ctx.context` when the parent container declares one (`Container<T, C>`).
+`createStandardSchemaValidator<C>(...)` is generic over the validup context type, so factories can read typed `ctx.context` when the parent container declares one (`Container<T, C>`).
 
 ## Result Caching
 
-`createValidator` returns a `ValidatorDescriptor` that participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — most Standard Schema validators are deterministic functions of the value. For schemas that read external state (typically async refines), pass `{ sideEffect: true }` to bypass the cache:
+`createStandardSchemaValidator` returns a `ValidatorDescriptor` that participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — most Standard Schema validators are deterministic functions of the value. For schemas that read external state (typically async refines), pass `{ sideEffect: true }` to bypass the cache:
 
 ```typescript
-container.mount('email', createValidator(asyncSchema, { sideEffect: true }));
+container.mount('email', createStandardSchemaValidator(asyncSchema, { sideEffect: true }));
 ```
 
 ## Error Mapping
@@ -104,7 +104,7 @@ Both packages can coexist in the same project. (`@validup/zod` requires `zod ^4.
 ## API Reference
 
 ```typescript
-function createValidator<C = unknown, S extends StandardSchemaV1 = StandardSchemaV1>(
+function createStandardSchemaValidator<C = unknown, S extends StandardSchemaV1 = StandardSchemaV1>(
     input: S | ((ctx: ValidatorContext<C>) => S),
     options?: { sideEffect?: boolean },
 ): ValidatorDescriptor<C, StandardSchemaV1.InferOutput<S>>;
@@ -114,13 +114,13 @@ function buildIssuesForStandardSchemaIssues(
 ): Issue[];
 ```
 
-`createValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Pass `{ sideEffect: true }` for schemas that read external state (typically async refines) so the framework re-runs them on every invocation instead of replaying a cached outcome.
+`createStandardSchemaValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Pass `{ sideEffect: true }` for schemas that read external state (typically async refines) so the framework re-runs them on every invocation instead of replaying a cached outcome.
 
 ## Stability
 
 What's covered by semver:
 
-- **Public exports** — `createValidator` and `buildIssuesForStandardSchemaIssues`.
+- **Public exports** — `createStandardSchemaValidator` and `buildIssuesForStandardSchemaIssues`.
 - **Spec-portable issue mapping** — `message` and `path` are carried verbatim; `code` defaults to `IssueCode.VALUE_INVALID`. Vendor-specific fields are **not** part of the spec and never surface here.
 - **Per-context schema factory** — `(ctx: ValidatorContext<C>) => StandardSchemaV1` invocation contract.
 

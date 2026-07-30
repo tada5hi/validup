@@ -46,7 +46,7 @@ Calling `installIlingoValidup` without a pre-installed `Ilingo` throws a pointed
 <script setup lang="ts">
 import { reactive } from 'vue';
 import { Container } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { useValidup } from '@validup/vue';
 import { useFieldValidation } from '@ilingo/validup-vue';
 import { VCFormGroup, VCFormInput } from '@vuecs/forms';
@@ -55,8 +55,8 @@ import { z } from 'zod';
 class SignupValidator extends Container<{ email: string; password: string }> {
     protected override initialize() {
         super.initialize();
-        this.mount('email', createValidator(z.string().email()));
-        this.mount('password', createValidator(z.string().min(8)));
+        this.mount('email', createZodValidator(z.string().email()));
+        this.mount('password', createZodValidator(z.string().min(8)));
     }
 }
 

@@ -59,9 +59,9 @@ const validateUnique = defineValidator({
 The same shape is exposed by the adapter packages:
 
 ```typescript
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 
-container.mount('email', createValidator(
+container.mount('email', createZodValidator(
     z.string().refine(async (v) => await isEmailTaken(v)),
     { sideEffect: true },
 ));

@@ -13,16 +13,16 @@ import {
     ValidupError,
     flattenIssueItems,
 } from 'validup';
-import { createValidator } from '../../src';
+import { createValidatorJsValidator } from '../../src';
 
-describe('createValidator', () => {
+describe('createValidatorJsValidator', () => {
     // The generic wrap for validator.js functions we don't pre-bake. The
     // contract: stringify ctx.value, call the predicate, throw a
     // ValidupError carrying the supplied code/data on failure.
 
     it('lifts a validator.js predicate into a validup Validator', async () => {
         const container = new Container<{ card: string }>();
-        container.mount('card', createValidator(validator.isCreditCard, {
+        container.mount('card', createValidatorJsValidator(validator.isCreditCard, {
             code: 'credit_card',
             message: 'Invalid credit card number',
         }));
@@ -42,7 +42,7 @@ describe('createValidator', () => {
 
     it('passes valid values through unchanged', async () => {
         const container = new Container<{ card: string }>();
-        container.mount('card', createValidator(validator.isCreditCard, {
+        container.mount('card', createValidatorJsValidator(validator.isCreditCard, {
             code: 'credit_card',
             message: 'Invalid credit card number',
         }));
@@ -70,7 +70,7 @@ describe('createValidator', () => {
     it('forwards data onto the resulting IssueItem', async () => {
         expect.assertions(1);
         const container = new Container<{ phone: string }>();
-        container.mount('phone', createValidator(
+        container.mount('phone', createValidatorJsValidator(
             (v: string) => validator.isMobilePhone(v, 'de-DE'),
             {
                 code: 'mobile_phone',
@@ -98,7 +98,7 @@ describe('createValidator', () => {
         // than a defensive branch.
         expect.assertions(2);
         const container = new Container<{ card: string }>();
-        container.mount('card', createValidator(validator.isCreditCard, { code: 'credit_card' }));
+        container.mount('card', createValidatorJsValidator(validator.isCreditCard, { code: 'credit_card' }));
         try {
             await container.run({ card: 'not-a-card' });
             throw new Error('expected ValidupError');
@@ -135,7 +135,7 @@ describe('createValidator', () => {
         // might pass an empty string. Defensive default.
         expect.assertions(1);
         const container = new Container<{ x: string }>();
-        container.mount('x', createValidator(validator.isAlpha, {
+        container.mount('x', createValidatorJsValidator(validator.isAlpha, {
             code: '',
             message: 'Bad value',
         }));

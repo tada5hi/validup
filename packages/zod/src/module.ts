@@ -13,7 +13,7 @@ import { buildIssuesForZodError } from './error';
 type ZodCreateFn<C, Z extends ZodType> = (ctx: ValidatorContext<C>) => Z;
 
 /**
- * Options accepted by {@link createValidator}.
+ * Options accepted by {@link createZodValidator}.
  */
 export type ZodCreateValidatorOptions = {
     /**
@@ -43,7 +43,7 @@ export type ZodCreateValidatorOptions = {
  * signatures — bare-function and descriptor inputs are interchangeable
  * at the mount site.
  */
-export function createValidator<
+export function createZodValidator<
     C = unknown,
     Z extends ZodType = ZodType,
 >(

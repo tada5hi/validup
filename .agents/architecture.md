@@ -41,7 +41,7 @@ export function isValidatorDescriptor(input: unknown): input is ValidatorDescrip
 `mount()` accepts either a bare `Validator<C>` or a `ValidatorDescriptor<C>` (variadic dispatch detects the shape via `isValidatorDescriptor` — duck-typed on `run` function + no `safeRun`, ordered AFTER `isContainer` since a container also exposes `run`). Bare functions normalize to `{ run: fn }` internally; their `sideEffect` is `undefined`, which behaves identically to `false` (cache-eligible). Mark cross-field / async / stateful validators with `defineValidator({ sideEffect: true, run: fn })` so the framework re-runs them every time.
 
 Adapter factories return descriptors with the right `sideEffect` baked in:
-- **`@validup/zod`, `@validup/standard-schema`** — `createValidator(schema, { sideEffect?: boolean })`. Default `false` (cached). Set `sideEffect: true` for async refines / `superRefine` reading external state.
+- **`@validup/zod`, `@validup/standard-schema`** — `createZodValidator(schema, { sideEffect?: boolean })` / `createStandardSchemaValidator(...)`. Default `false` (cached). Set `sideEffect: true` for async refines / `superRefine` reading external state.
 - **`@validup/validator-js`** — every shipped factory returns `sideEffect: false` (or omits the flag) **except `equals(key, options)`**, which stamps `sideEffect: true` iff `options.expectedValue` is undefined. In that branch the comparison target comes from `getPathValue(ctx.data, key)` — a sibling field the cache snapshot doesn't capture, so caching would let a `passwordConfirm` mount go stale after `password` changes. The factory making the call is the right authority: it sees its own arguments and can pick the correct contract without the form author needing to know.
 
 ### Result cache (`packages/validup/src/cache/`)
@@ -393,10 +393,10 @@ interface IssueGroup extends IssueBase {
 
 Integration packages come in two shapes:
 
-1. **Validator adapters** (`@validup/standard-schema`, `@validup/zod`, `@validup/validator-js`) — expose factories or a `createValidator()` function that returns a `ValidatorDescriptor<C, Out>`. The schema-style pattern from `@validup/zod`:
+1. **Validator adapters** (`@validup/standard-schema`, `@validup/zod`, `@validup/validator-js`) — expose factories or a `create<Library>Validator()` function that returns a `ValidatorDescriptor<C, Out>`. **Each adapter's entry point is named for its library** — `createZodValidator`, `createStandardSchemaValidator`, `createValidatorJsValidator` — so two adapters can be imported into one file without aliasing. A new adapter follows the same rule. The schema-style pattern from `@validup/zod`:
 
 ```ts
-export function createValidator<C, Z extends ZodType>(
+export function createZodValidator<C, Z extends ZodType>(
     input: Z | ZodCreateFn<C, Z>,
     options: { sideEffect?: boolean } = {},
 ): ValidatorDescriptor<C, ZodOutput<Z>> {
@@ -415,7 +415,7 @@ export function createValidator<C, Z extends ZodType>(
    Four contract points to preserve when writing or modifying validator adapters:
 
    - **Accept `T | (ctx: ValidatorContext<C>) => T`** — letting users build per-context validators (e.g. depending on `ctx.data`, `ctx.group`, or `ctx.context`).
-   - **Make `createValidator<C>` generic over the validup context type** so the parent `Container<T, C>` keeps `ctx.context` typed end-to-end.
+   - **Make `create<Library>Validator<C>` generic over the validup context type** so the parent `Container<T, C>` keeps `ctx.context` typed end-to-end.
    - **Return a `ValidatorDescriptor<C, Out>`, not a bare `Validator<C, Out>`** — wrap the closure via `defineValidator({ sideEffect, run })`. Accept a `sideEffect?: boolean` option on the public factory so callers can flip it for known-impure schemas (async refines, `superRefine` reading external state); default to undefined (cached). `@validup/validator-js` is a special case — its shipped factories know their own contract (`equals` flips `sideEffect: true` when no `expectedValue` is provided because the comparison target is read from `ctx.data`) and don't surface the option.
    - **Translate foreign errors into `Issue[]`** in a separate `error.ts` module, then throw `new ValidupError(issues)`. Use `defineIssueItem`/`defineIssueGroup` — never construct issue objects literally. (`@validup/standard-schema` is a special case: the spec only exposes `message + path`, so the resulting issues carry only the portable subset.) When the foreign library strips structural information the validup vocabulary needs (e.g. zod 4 drops `received` / `input` from the formatted `ZodError`, hiding the missing-key signal needed to emit `REQUIRED`), accept the original input as a second arg on the error-builder and probe it via `getPathValue(input, issue.path)` to recover the signal — `@validup/zod`'s `buildIssuesForZodError(error, input?)` does exactly this. Preserve the single-arg overload (gate the probe on `arguments.length > 1`) so ad-hoc callers without the input keep their existing behavior.
 

@@ -182,12 +182,12 @@ const out = await c.run({});       // out: { foo, bar } — bar is undefined at 
 
 ```typescript
 import { defineSchema } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { z } from 'zod';
 
 const schema = defineSchema()
-    .mount('foo', createValidator(z.string()))                            // { foo: string }
-    .mount('age', { optional: true }, createValidator(z.number().int()))  // { foo: string; age?: number }
+    .mount('foo', createZodValidator(z.string()))                            // { foo: string }
+    .mount('age', { optional: true }, createZodValidator(z.number().int()))  // { foo: string; age?: number }
     .mount('address', defineSchema().mount('city', isString))             // { …; address: { city: string } }
     .build();
 
@@ -195,7 +195,7 @@ const out = await schema.run(input);
 // out: { foo: string; age?: number; address: { city: string } } — inferred, not declared
 ```
 
-The integration packages' `createValidator(...)` functions (`@validup/zod`, `@validup/standard-schema`) infer the per-field `Out` type from the underlying schema, so the builder pulls real types through. Hand-written validators participate too — annotate the return type via `Validator<C, Out>` (or just write the function inline so TypeScript can infer it).
+The integration packages' `createZodValidator(...)` functions (`@validup/zod`, `@validup/standard-schema`) infer the per-field `Out` type from the underlying schema, so the builder pulls real types through. Hand-written validators participate too — annotate the return type via `Validator<C, Out>` (or just write the function inline so TypeScript can infer it).
 
 The builder mirrors `Container.mount`'s keyed forms — `.mount(key, target)` and `.mount(key, options, target)` — and dispatches on the target type:
 
@@ -330,7 +330,7 @@ For reusable, self-contained validators it's idiomatic to extend `Container<T>` 
 
 ```typescript
 import { Container } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { z } from 'zod';
 
 type Role = { name: string; description?: string };
@@ -339,7 +339,7 @@ class RoleValidator extends Container<Role> {
     protected override initialize() {
         super.initialize();
 
-        const nameValidator = createValidator(z.string().min(3).max(128));
+        const nameValidator = createZodValidator(z.string().min(3).max(128));
 
         // Required on create, optional on update — same validator, different groups.
         this.mount('name', { group: 'create' }, nameValidator);
@@ -348,7 +348,7 @@ class RoleValidator extends Container<Role> {
         this.mount(
             'description',
             { optional: true },
-            createValidator(z.string().max(4096).nullable()),
+            createZodValidator(z.string().max(4096).nullable()),
         );
     }
 }
@@ -937,7 +937,7 @@ Use one of the official integration packages to bridge an existing validator lib
 |--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
 | [`@validup/standard-schema`](https://npmjs.com/package/@validup/standard-schema)     | Any [Standard Schema](https://standardschema.dev) library — zod 3.24+, valibot, arktype, effect-schema, … |
 | [`@validup/zod`](https://npmjs.com/package/@validup/zod)                             | [zod](https://zod.dev) schemas (vendor-specific issue mapping with `expected` / `received`) |
-| [`@validup/validator-js`](https://npmjs.com/package/@validup/validator-js)           | [validator.js](https://github.com/validatorjs/validator.js) string validators — pre-baked factories per common rule, plus a generic `createValidator(fn, {...})` for the long tail |
+| [`@validup/validator-js`](https://npmjs.com/package/@validup/validator-js)           | [validator.js](https://github.com/validatorjs/validator.js) string validators — pre-baked factories per common rule, plus a generic `createZodValidator(fn, {...})` for the long tail |
 | [`@validup/vue`](https://npmjs.com/package/@validup/vue)                             | [Vue 3](https://vuejs.org) composable for reactive client-side form state      |
 
 ## Stability

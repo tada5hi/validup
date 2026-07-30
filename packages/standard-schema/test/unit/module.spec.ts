@@ -8,12 +8,12 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { Container, ResultCache, ValidupError } from 'validup';
-import { buildIssuesForStandardSchemaIssues, createValidator } from '../../src';
+import { buildIssuesForStandardSchemaIssues, createStandardSchemaValidator } from '../../src';
 
 describe('@validup/standard-schema', () => {
     it('should validate via a Standard Schema (zod 4)', async () => {
         const validator = new Container<{ email: string }>();
-        validator.mount('email', createValidator(z.string().email()));
+        validator.mount('email', createStandardSchemaValidator(z.string().email()));
 
         const outcome = await validator.run({ email: 'foo@example.com' });
 
@@ -22,7 +22,7 @@ describe('@validup/standard-schema', () => {
 
     it('should accept a factory that builds the schema from context', async () => {
         const validator = new Container<{ email: string }>();
-        validator.mount('email', createValidator((ctx) => {
+        validator.mount('email', createStandardSchemaValidator((ctx) => {
             // Schema can depend on validator context (group/data/context).
             expect(ctx.key).toEqual('email');
             return z.string().email();
@@ -34,7 +34,7 @@ describe('@validup/standard-schema', () => {
 
     it('should translate Standard Schema issues into validup IssueItems', async () => {
         const validator = new Container<{ email: string }>();
-        validator.mount('email', createValidator(z.string().email()));
+        validator.mount('email', createStandardSchemaValidator(z.string().email()));
 
         expect.assertions(3);
         try {
@@ -52,7 +52,7 @@ describe('@validup/standard-schema', () => {
         const validator = new Container<{ foo: unknown }>();
         validator.mount(
             'foo',
-            createValidator(z.object({ bar: z.string().array().min(2) })),
+            createStandardSchemaValidator(z.object({ bar: z.string().array().min(2) })),
         );
 
         expect.assertions(3);
@@ -97,7 +97,7 @@ describe('@validup/standard-schema', () => {
         };
 
         const validator = new Container<{ amount: number }>();
-        validator.mount('amount', createValidator(greaterThan10));
+        validator.mount('amount', createStandardSchemaValidator(greaterThan10));
 
         const ok = await validator.run({ amount: 42 });
         expect(ok.amount).toEqual(42);
@@ -113,10 +113,10 @@ describe('@validup/standard-schema', () => {
         }
     });
 
-    it('createValidator participates in the result cache by default', async () => {
+    it('createStandardSchemaValidator participates in the result cache by default', async () => {
         const container = new Container<{ email: string }>();
         let calls = 0;
-        container.mount('email', createValidator(() => {
+        container.mount('email', createStandardSchemaValidator(() => {
             calls += 1;
             return z.string().email();
         }));
@@ -128,10 +128,10 @@ describe('@validup/standard-schema', () => {
         expect(calls).toBe(1);
     });
 
-    it('createValidator({ sideEffect: true }) bypasses the cache', async () => {
+    it('createStandardSchemaValidator({ sideEffect: true }) bypasses the cache', async () => {
         const container = new Container<{ email: string }>();
         let calls = 0;
-        container.mount('email', createValidator(
+        container.mount('email', createStandardSchemaValidator(
             () => {
                 calls += 1;
                 return z.string().email();

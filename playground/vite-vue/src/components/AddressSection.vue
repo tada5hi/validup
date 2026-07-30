@@ -8,7 +8,7 @@
 import { toRef } from 'vue';
 import { z } from 'zod';
 import { Container } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { useValidup } from '@validup/vue';
 import Field from './Field.vue';
 import type { Address } from './section-types';
@@ -18,8 +18,8 @@ import type { Address } from './section-types';
 const props = defineProps<{ state: Address }>();
 
 const container = new Container<Address>();
-container.mount('street', createValidator(z.string().min(1, 'Required')));
-container.mount('city', createValidator(z.string().min(1, 'Required')));
+container.mount('street', createZodValidator(z.string().min(1, 'Required')));
+container.mount('city', createZodValidator(z.string().min(1, 'Required')));
 
 const form = useValidup<Address>(container, toRef(props, 'state'), { name: 'address' });
 </script>

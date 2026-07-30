@@ -20,7 +20,7 @@ import {
     buildIssuesForZodError,
     buildZodIssuesForError,
     buildZodIssuesForIssue,
-    createValidator,
+    createZodValidator,
 } from '../../src';
 
 describe('error', () => {
@@ -38,10 +38,10 @@ describe('error', () => {
 
     it('should wrap error as zod issue', async () => {
         const childContainer = new Container();
-        childContainer.mount('bar', createValidator(z.string()));
+        childContainer.mount('bar', createZodValidator(z.string()));
 
         const container = new Container<{ foo: string }>();
-        container.mount('foo', createValidator(
+        container.mount('foo', createZodValidator(
             z
                 .any()
                 .check(async (ctx) => {
@@ -73,7 +73,7 @@ describe('error', () => {
         // Helper to keep each test compact. Threads the parsed input
         // through so the `invalid_type` → REQUIRED promotion (which
         // depends on a missing-key lookup against the input) is exercised
-        // by the same code path the runtime uses via `createValidator`.
+        // by the same code path the runtime uses via `createZodValidator`.
         const parseAndMap = (schema: z.ZodTypeAny, value: unknown) => {
             const parsed = schema.safeParse(value);
             if (parsed.success) throw new Error('expected zod parse to fail');

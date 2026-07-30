@@ -15,7 +15,7 @@ type StandardSchemaCreateFn<C, S extends StandardSchemaV1> = (
 ) => S;
 
 /**
- * Options accepted by {@link createValidator}.
+ * Options accepted by {@link createStandardSchemaValidator}.
  */
 export type StandardSchemaCreateValidatorOptions = {
     /**
@@ -47,7 +47,7 @@ export type StandardSchemaCreateValidatorOptions = {
  * {@link ValidatorDescriptor} so it carries the `sideEffect` flag the
  * validup runtime consults for its result cache.
  */
-export function createValidator<
+export function createStandardSchemaValidator<
     C = unknown,
     S extends StandardSchemaV1 = StandardSchemaV1,
 >(

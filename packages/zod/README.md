@@ -43,13 +43,13 @@ npm install @validup/zod validup zod --save
 
 ```typescript
 import { Container, ValidupError } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { z } from 'zod';
 
 const user = new Container<{ email: string; age: number }>();
 
-user.mount('email', createValidator(z.string().email()));
-user.mount('age',   createValidator(z.number().int().positive()));
+user.mount('email', createZodValidator(z.string().email()));
+user.mount('age',   createZodValidator(z.number().int().positive()));
 
 try {
     const valid = await user.run({
@@ -65,11 +65,11 @@ try {
 }
 ```
 
-`createValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Mount it like any other validator:
+`createZodValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Mount it like any other validator:
 
 ```typescript
-container.mount('field', { group: 'create' }, createValidator(z.string()));
-container.mount('opt',   { optional: true },  createValidator(z.number()));
+container.mount('field', { group: 'create' }, createZodValidator(z.string()));
+container.mount('opt',   { optional: true },  createZodValidator(z.number()));
 ```
 
 ## Per-Context Schemas
@@ -77,10 +77,10 @@ container.mount('opt',   { optional: true },  createValidator(z.number()));
 Pass a function instead of a schema to build the schema lazily from the validator context (e.g. depending on the active group, sibling values, or path):
 
 ```typescript
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { z } from 'zod';
 
-const passwordValidator = createValidator((ctx) => {
+const passwordValidator = createZodValidator((ctx) => {
     if (ctx.group === 'create') {
         return z.string().min(12);   // strict for new users
     }
@@ -97,15 +97,15 @@ The factory receives the full `ValidatorContext`:
 type ZodCreateFn<C = unknown> = (ctx: ValidatorContext<C>) => ZodType;
 ```
 
-`createValidator<C>(...)` is generic over the validup context type, so factories can read typed `ctx.context` when the parent container declares one (`Container<T, C>`).
+`createZodValidator<C>(...)` is generic over the validup context type, so factories can read typed `ctx.context` when the parent container declares one (`Container<T, C>`).
 
 ## Result Caching
 
-`createValidator` returns a `ValidatorDescriptor` (interchangeable with a bare `Validator` at the mount site). It participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — most zod schemas (`z.string().email()`, length / regex / enum) are deterministic, so cached `(value, context, group)` snapshots replay without re-running the schema.
+`createZodValidator` returns a `ValidatorDescriptor` (interchangeable with a bare `Validator` at the mount site). It participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — most zod schemas (`z.string().email()`, length / regex / enum) are deterministic, so cached `(value, context, group)` snapshots replay without re-running the schema.
 
 ```typescript
-container.mount('email', createValidator(z.string().email()));                              // cached
-container.mount('email', createValidator(asyncZodSchema, { sideEffect: true }));            // never cached
+container.mount('email', createZodValidator(z.string().email()));                              // cached
+container.mount('email', createZodValidator(asyncZodSchema, { sideEffect: true }));            // never cached
 ```
 
 Pass `{ sideEffect: true }` for schemas with async refines or `superRefine` calls reading external state — the framework will then re-run them on every invocation, ignoring any cached entry.
@@ -137,10 +137,10 @@ Each zod issue's `code` is mapped onto validup's `IssueCode` vocabulary so consu
 | `invalid_value` (enum / literal mismatch)              | `ONE_OF_FAILED`                    | —                   |
 | Everything else (`custom`, `not_multiple_of`, `unrecognized_keys`, `invalid_union`, …) | `VALUE_INVALID` | —          |
 
-> ℹ️ **REQUIRED detection requires the input.** Zod 4 strips `received` / `input` from the formatted `ZodError`, so the adapter recovers the missing-key signal by looking the issue path up against the original parsed value. `createValidator` threads `ctx.value` through automatically; if you call `buildIssuesForZodError(error)` directly without a second argument, missing keys stay on `VALUE_INVALID`. Pass the input explicitly (`buildIssuesForZodError(error, input)`) to opt in.
+> ℹ️ **REQUIRED detection requires the input.** Zod 4 strips `received` / `input` from the formatted `ZodError`, so the adapter recovers the missing-key signal by looking the issue path up against the original parsed value. `createZodValidator` threads `ctx.value` through automatically; if you call `buildIssuesForZodError(error)` directly without a second argument, missing keys stay on `VALUE_INVALID`. Pass the input explicitly (`buildIssuesForZodError(error, input)`) to opt in.
 
 ```typescript
-container.mount('user', createValidator(z.object({
+container.mount('user', createZodValidator(z.object({
     name: z.string(),
     age: z.number().min(18),
 })));
@@ -185,14 +185,14 @@ try {
 
 | Export                              | Description                                                                  |
 |-------------------------------------|------------------------------------------------------------------------------|
-| `createValidator(schema, options?)` | Wrap a `ZodType` (or `(ctx) => ZodType`) as a validup `ValidatorDescriptor`. `options.sideEffect: true` bypasses the result cache (use for async refines / `superRefine` reading external state). |
+| `createZodValidator(schema, options?)` | Wrap a `ZodType` (or `(ctx) => ZodType`) as a validup `ValidatorDescriptor`. `options.sideEffect: true` bypasses the result cache (use for async refines / `superRefine` reading external state). |
 | `buildIssuesForZodError(e, input?)` | Convert a `ZodError` into an array of validup `Issue`s. Pass the parsed input as the second argument to enable `invalid_type` → `REQUIRED` promotion for missing keys. |
 | `buildZodIssuesForError(e)`         | Convert a `ValidupError` into an array of zod raw issues.                    |
 | `buildZodIssuesForIssue(i)`         | Convert a single validup `Issue` into zod raw issues (recurses into groups). |
 | `ZodIssue`                          | Re-exported alias for `$ZodRawIssue` from `zod/v4/core`.                     |
 
 ```typescript
-function createValidator<C = unknown, Z extends ZodType = ZodType>(
+function createZodValidator<C = unknown, Z extends ZodType = ZodType>(
     input: Z | ((ctx: ValidatorContext<C>) => Z),
     options?: { sideEffect?: boolean },
 ): ValidatorDescriptor<C, ZodOutput<Z>>;
@@ -202,7 +202,7 @@ function createValidator<C = unknown, Z extends ZodType = ZodType>(
 
 What's covered by semver:
 
-- **Public exports** — `createValidator`, `buildIssuesForZodError`, `buildZodIssuesForError`, `buildZodIssuesForIssue`, and the `ZodIssue` type alias.
+- **Public exports** — `createZodValidator`, `buildIssuesForZodError`, `buildZodIssuesForError`, `buildZodIssuesForIssue`, and the `ZodIssue` type alias.
 - **Error-mapping shape** — `IssueItem.path` mirrors the failing zod path; `IssueItem.code` is mapped onto the validup vocabulary (`min_length`, `max_length`, `min_value`, `max_value`, `email`, `url`, `uuid`, `pattern`, `date`, `ip_address`, `base64`, `json`, `required`, `one_of_failed`, …) so consumer-side i18n catalogs can ship one parameterized message per code; unmapped zod codes fall back to `value_invalid`. `IssueItem.expected` / `received` are passed through when zod exposes them. `buildZodIssuesForError` reconstructs a zod-shaped representation from a `ValidupError` (`code: 'custom'`, the message, the path, and the original `received` value as `input`) — it does **not** preserve the round-tripped vocabulary `code`. If you need the original zod codes / vendor fields end-to-end, keep the `ZodError` available alongside the `ValidupError`.
 - **Per-context schema factory** — `(ctx: ValidatorContext<C>) => ZodType` invocation contract.
 

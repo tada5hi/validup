@@ -10,12 +10,12 @@ npm install @validup/standard-schema validup --save
 
 ```typescript
 import { Container } from 'validup';
-import { createValidator } from '@validup/standard-schema';
+import { createStandardSchemaValidator } from '@validup/standard-schema';
 import { z } from 'zod';        // any Standard Schema library works
 
 const user = new Container<{ email: string; age: number }>();
-user.mount('email', createValidator(z.string().email()));
-user.mount('age',   createValidator(z.number().int().positive()));
+user.mount('email', createStandardSchemaValidator(z.string().email()));
+user.mount('age',   createStandardSchemaValidator(z.number().int().positive()));
 
 const data = await user.run({ email: 'peter@example.com', age: 28 });
 ```
@@ -24,18 +24,18 @@ The adapter calls `schema['~standard'].validate(ctx.value)` and returns a validu
 
 ## Result caching (`sideEffect`)
 
-`createValidator` returns a cache-eligible descriptor by default — the [validup result cache](/guide/caching) will replay results when `(ctx.value, ctx.context, ctx.group)` is unchanged. Pass `{ sideEffect: true }` to bypass the cache for schemas that read external state:
+`createStandardSchemaValidator` returns a cache-eligible descriptor by default — the [validup result cache](/guide/caching) will replay results when `(ctx.value, ctx.context, ctx.group)` is unchanged. Pass `{ sideEffect: true }` to bypass the cache for schemas that read external state:
 
 ```typescript
-container.mount('email', createValidator(asyncSchema, { sideEffect: true }));
+container.mount('email', createStandardSchemaValidator(asyncSchema, { sideEffect: true }));
 ```
 
 ## Per-context schemas
 
 ```typescript
-import { createValidator } from '@validup/standard-schema';
+import { createStandardSchemaValidator } from '@validup/standard-schema';
 
-const password = createValidator((ctx) => {
+const password = createStandardSchemaValidator((ctx) => {
     if (ctx.group === 'create') return z.string().min(12);
     return z.string().min(12).optional();
 });
@@ -59,5 +59,5 @@ Pick `@validup/standard-schema` when you want **library portability** or are hap
 
 | Export                       | Description                                                                  |
 |------------------------------|------------------------------------------------------------------------------|
-| `createValidator(schema, options?)` | Wrap a Standard Schema (or `(ctx) => schema`) as a validup `ValidatorDescriptor`. `options.sideEffect: true` bypasses the result cache. |
+| `createStandardSchemaValidator(schema, options?)` | Wrap a Standard Schema (or `(ctx) => schema`) as a validup `ValidatorDescriptor`. `options.sideEffect: true` bypasses the result cache. |
 | `buildIssuesForStandardSchemaIssues(issues)` | Convert `StandardSchemaV1.Issue[]` into validup `Issue[]`.   |

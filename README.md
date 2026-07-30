@@ -57,14 +57,14 @@ npm install @validup/vue --save                       # Vue 3 forms
 
 ```typescript
 import { Container, ValidupError } from 'validup';
-import { createValidator } from '@validup/zod';
+import { createZodValidator } from '@validup/zod';
 import { z } from 'zod';
 
 const user = new Container<{ name: string; email: string; age: number }>();
 
-user.mount('name', createValidator(z.string().min(2)));
-user.mount('email', createValidator(z.string().email()));
-user.mount('age', { optional: true }, createValidator(z.number().int().positive()));
+user.mount('name', createZodValidator(z.string().min(2)));
+user.mount('email', createZodValidator(z.string().email()));
+user.mount('age', { optional: true }, createZodValidator(z.number().int().positive()));
 
 try {
     const valid = await user.run({

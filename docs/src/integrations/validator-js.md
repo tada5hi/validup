@@ -1,6 +1,6 @@
 # @validup/validator-js
 
-Pre-baked factories for [validator.js](https://github.com/validatorjs/validator.js) string validators (`isEmail`, `isLength`, `isInt`, `isURL`, …) plus a generic `createValidator(fn, { code, message })` for the long tail. Each factory stamps the right `IssueCode` on failure with structured `data`, so consumer-side i18n catalogs (`@ilingo/validup`) can translate per code.
+Pre-baked factories for [validator.js](https://github.com/validatorjs/validator.js) string validators (`isEmail`, `isLength`, `isInt`, `isURL`, …) plus a generic `createValidatorJsValidator(fn, { code, message })` for the long tail. Each factory stamps the right `IssueCode` on failure with structured `data`, so consumer-side i18n catalogs (`@ilingo/validup`) can translate per code.
 
 ```bash
 npm install @validup/validator-js validator validup --save
@@ -83,17 +83,17 @@ container.mount('confirm', equals('password'));                                /
 container.mount('captcha', equals('captcha', { expectedValue: 'expected' })); // cache-eligible
 ```
 
-The generic `createValidator(fn, options)` accepts an optional `sideEffect?: boolean` for the rare case where the wrapped predicate captures external state.
+The generic `createValidatorJsValidator(fn, options)` accepts an optional `sideEffect?: boolean` for the rare case where the wrapped predicate captures external state.
 
-## Generic wrap — `createValidator`
+## Generic wrap — `createValidatorJsValidator`
 
 For validators not pre-baked (`isCreditCard`, `isJWT`, `isMobilePhone`, `isPostalCode`, …):
 
 ```typescript
 import validator from 'validator';
-import { createValidator } from '@validup/validator-js';
+import { createValidatorJsValidator } from '@validup/validator-js';
 
-container.mount('card', createValidator(validator.isCreditCard, {
+container.mount('card', createValidatorJsValidator(validator.isCreditCard, {
     code: 'credit_card',
     message: 'Invalid credit card number',
 }));
