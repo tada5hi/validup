@@ -195,7 +195,7 @@ const out = await schema.run(input);
 // out: { foo: string; age?: number; address: { city: string } } — inferred, not declared
 ```
 
-The integration packages' `createZodValidator(...)` functions (`@validup/zod`, `@validup/standard-schema`) infer the per-field `Out` type from the underlying schema, so the builder pulls real types through. Hand-written validators participate too — annotate the return type via `Validator<C, Out>` (or just write the function inline so TypeScript can infer it).
+The integration packages' schema-wrapping functions — `createZodValidator(...)` (`@validup/zod`) and `createStandardSchemaValidator(...)` (`@validup/standard-schema`) — infer the per-field `Out` type from the underlying schema, so the builder pulls real types through. Hand-written validators participate too — annotate the return type via `Validator<C, Out>` (or just write the function inline so TypeScript can infer it).
 
 The builder mirrors `Container.mount`'s keyed forms — `.mount(key, target)` and `.mount(key, options, target)` — and dispatches on the target type:
 
@@ -937,7 +937,7 @@ Use one of the official integration packages to bridge an existing validator lib
 |--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
 | [`@validup/standard-schema`](https://npmjs.com/package/@validup/standard-schema)     | Any [Standard Schema](https://standardschema.dev) library — zod 3.24+, valibot, arktype, effect-schema, … |
 | [`@validup/zod`](https://npmjs.com/package/@validup/zod)                             | [zod](https://zod.dev) schemas (vendor-specific issue mapping with `expected` / `received`) |
-| [`@validup/validator-js`](https://npmjs.com/package/@validup/validator-js)           | [validator.js](https://github.com/validatorjs/validator.js) string validators — pre-baked factories per common rule, plus a generic `createZodValidator(fn, {...})` for the long tail |
+| [`@validup/validator-js`](https://npmjs.com/package/@validup/validator-js)           | [validator.js](https://github.com/validatorjs/validator.js) string validators — pre-baked factories per common rule, plus a generic `createValidatorJsValidator(fn, {...})` for the long tail |
 | [`@validup/vue`](https://npmjs.com/package/@validup/vue)                             | [Vue 3](https://vuejs.org) composable for reactive client-side form state      |
 
 ## Stability

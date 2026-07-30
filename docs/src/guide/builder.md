@@ -82,7 +82,7 @@ The `?`-widening only fires when TypeScript sees `optional` as the literal `true
 
 ## Inferring `Out`
 
-The integration packages' `createZodValidator(...)` functions infer the per-field `Out` from the underlying schema:
+The integration packages' schema-wrapping functions infer the per-field `Out` from the underlying schema:
 
 - `@validup/zod` — `Out = z.output<Schema>`
 - `@validup/standard-schema` — `Out = StandardSchemaV1.InferOutput<Schema>`

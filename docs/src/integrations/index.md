@@ -4,7 +4,7 @@ validup keeps a pure-JS core. Integration packages bridge an existing validation
 
 ## Two shapes
 
-**Validator adapters** expose a `createZodValidator()` function that returns a validup `Validator`:
+**Validator adapters** expose a `create<Library>Validator()` function that returns a validup `Validator`. Each adapter names its entry point for the library it bridges — `createZodValidator`, `createStandardSchemaValidator`, `createValidatorJsValidator` — so two adapters can be imported into one file without aliasing:
 
 ```typescript
 import { createZodValidator } from '@validup/zod';

@@ -60,7 +60,7 @@ describe('createValidatorJsValidator', () => {
         // contract and the same silent-retype failure mode. Feed a number,
         // whose stringification is a DIFFERENT value, and it bites.
         const container = new Container<{ pin: number }>();
-        container.mount('pin', createValidator(validator.isNumeric, { code: 'numeric' }));
+        container.mount('pin', createValidatorJsValidator(validator.isNumeric, { code: 'numeric' }));
 
         const out = await container.run({ pin: 1234 });
         expect(out.pin).toBe(1234);
@@ -118,14 +118,14 @@ describe('createValidatorJsValidator', () => {
         // `createValidator` writes the key unconditionally, so an omitted flag
         // is present-and-undefined here (its effect is identical: the
         // container only skips the cache on `=== true`).
-        const declared = createValidator((value) => value === 'ok', {
+        const declared = createValidatorJsValidator((value) => value === 'ok', {
             code: 'custom_code',
             message: 'nope',
             sideEffect: true,
         });
         expect(declared.sideEffect).toBe(true);
 
-        const undeclared = createValidator((value) => value === 'ok', { code: 'custom_code' });
+        const undeclared = createValidatorJsValidator((value) => value === 'ok', { code: 'custom_code' });
         expect(undeclared.sideEffect).toBeUndefined();
         expect(Object.hasOwn(undeclared, 'sideEffect')).toBe(true);
     });

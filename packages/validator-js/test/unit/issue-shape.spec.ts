@@ -304,7 +304,7 @@ describe('the code → message → data contract', () => {
  * coerced probe `s`. Nineteen such `return ctx.value` sites are spread
  * across the four factory modules, each hand-written, so the drift is
  * per-factory and a table is the only thing that sees it. (A twentieth
- * lives in `createValidator`; `createValidator.spec.ts` pins that one.)
+ * lives in `createValidatorJsValidator`; `createValidator.spec.ts` pins that one.)
  *
  * The contract table above cannot: all seventeen of its `passing`
  * fixtures are strings, and for a string the two are indistinguishable.

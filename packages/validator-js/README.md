@@ -153,10 +153,10 @@ express-validator wraps validator.js in a chain API meant for Express middleware
 `@validup/validator-js` replaces `@validup/express-validator` outright. Migration is mechanical:
 
 ```diff
-- container.mount('email', createValidatorJsValidator(() => body().isEmail()));
+- container.mount('email', createValidator(() => body().isEmail()));
 + container.mount('email', isEmail());
 
-- container.mount('name', createValidatorJsValidator(() => body()
+- container.mount('name', createValidator(() => body()
 -     .isLength({ min: 3 })
 -     .withMessage({ code: IssueCode.MIN_LENGTH, message: 'Too short' })));
 + container.mount('name', isLength({ min: 3, message: 'Too short' }));

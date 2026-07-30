@@ -100,7 +100,7 @@ container.mount('name', isString);     // sees the trimmed value
 
 The integration adapters (`@validup/zod`, `@validup/standard-schema`) accept either a schema or a function `(ctx) => schema`. The function form lets you build a per-call schema from `ctx.group`, `ctx.context`, or `ctx.data`. `@validup/validator-js` factories aren't lazy by default — they bind their options at factory-build time; wrap them in a closure if you need per-context configuration.
 
-Every adapter returns a `ValidatorDescriptor` (interchangeable with a bare `Validator` at the mount site), so the cache integration is end-to-end. The schema adapters (`@validup/zod`, `@validup/standard-schema`) accept a `{ sideEffect: true }` option on their `createZodValidator(schema, options?)` factory for opting out of caching per call:
+Every adapter returns a `ValidatorDescriptor` (interchangeable with a bare `Validator` at the mount site), so the cache integration is end-to-end. The schema adapters accept a `{ sideEffect: true }` option on their factory — `createZodValidator(schema, options?)` for `@validup/zod`, `createStandardSchemaValidator(schema, options?)` for `@validup/standard-schema` — for opting out of caching per call:
 
 ```typescript
 import { createZodValidator } from '@validup/zod';
@@ -109,7 +109,7 @@ container.mount('email', createZodValidator(z.string().email()));               
 container.mount('email', createZodValidator(zSchema, { sideEffect: true }));            // never cached
 ```
 
-`@validup/validator-js` doesn't surface a uniform per-factory `sideEffect` option — every shipped factory is deterministic by construction and is cache-eligible by default. The one exception is `equals(key, options?)`, which auto-stamps `sideEffect: true` when no `expectedValue` is provided (it reads `ctx.data[key]`, which the cache snapshot doesn't capture); the generic `createZodValidator(fn, { code, message, data?, sideEffect? })` is the one place where the option is exposed, for the rare case where the wrapped predicate captures external state.
+`@validup/validator-js` doesn't surface a uniform per-factory `sideEffect` option — every shipped factory is deterministic by construction and is cache-eligible by default. The one exception is `equals(key, options?)`, which auto-stamps `sideEffect: true` when no `expectedValue` is provided (it reads `ctx.data[key]`, which the cache snapshot doesn't capture); the generic `createValidatorJsValidator(fn, { code, message, data?, sideEffect? })` is the one place where the option is exposed, for the rare case where the wrapped predicate captures external state.
 
 For your own validators, the same pattern is just a closure:
 
