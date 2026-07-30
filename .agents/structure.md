@@ -111,7 +111,7 @@ src/
 
 Tests live under each package in `test/` (not a top-level `tests/` dir):
 
-- `packages/validup/test/unit/*.spec.ts` — 26 specs covering the core (module, group, mount-key, optional, optional-value, path-filter, defaults, one-of, paths-to-include, paths-strict, error, error-to-issues, issue, format, initialize, define-validator, cache, compose, builder, parallel, run-sync, run-parity, twin, abort-signal, context, typing)
+- `packages/validup/test/unit/*.spec.ts` — 28 specs covering the core (module, group, mount-key, mount-dispatch, optional, optional-value, path-filter, defaults, one-of, paths-to-include, paths-strict, error, error-to-issues, issue, flatten, format, initialize, define-validator, cache, compose, builder, parallel, run-sync, run-parity, twin, abort-signal, context, typing)
 - `packages/validup/test/data/` — shared fixtures (`string-validator.ts`, exporting both `stringValidator` (async) and `stringValidatorSync`)
 - `packages/validup/test/helpers/` — spec helpers, not collected by vitest (`parity.ts` — `expectRunParity` / `expectRunFailureParity`, the `run` ↔ `runSync` twin contract)
 - Integration packages each have their own `test/vitest.config.ts` and `test/unit/*.spec.ts`

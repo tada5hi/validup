@@ -11,6 +11,7 @@ import {
     IssueCode,
     defineIssueGroup,
     defineIssueItem,
+    isIssue,
     isIssueGroup,
     isIssueItem,
 } from '../../src';
@@ -113,6 +114,111 @@ describe('issue', () => {
         };
 
         expect(isIssueGroup(input)).toBeFalsy();
+    });
+
+    it('should not verify issue group (missing message / path)', () => {
+        // Hits the `isBaseIssue` rejection inside `isIssueGroup` — the shape
+        // carries the discriminant and the issues array but not the base
+        // fields every issue must have.
+        expect(isIssueGroup({ type: 'group', issues: [] })).toBeFalsy();
+    });
+
+    it('should not verify issue group (nested member is not an issue)', () => {
+        const input : Partial<IssueGroup> = {
+            type: 'group',
+            path: [],
+            message: 'foo',
+            issues: [{ nope: true } as any],
+        };
+
+        expect(isIssueGroup(input)).toBeFalsy();
+    });
+
+    describe('isIssue', () => {
+        // Union guard — `isIssueGroup(input) || isIssueItem(input)`. Both arms
+        // plus the shared `isBaseIssue` rejection are covered here.
+
+        it('should verify an issue item', () => {
+            expect(isIssue(defineIssueItem({
+                path: [],
+                message: 'foo',
+                code: 'bar',
+            }))).toBeTruthy();
+        });
+
+        it('should verify an issue group', () => {
+            expect(isIssue(defineIssueGroup({
+                path: [],
+                message: 'foo',
+                issues: [
+                    defineIssueItem({
+                        path: [],
+                        message: 'bar',
+                        code: 'baz',
+                    }),
+                ],
+            }))).toBeTruthy();
+        });
+
+        it('should verify a group nested in a group', () => {
+            expect(isIssue(defineIssueGroup({
+                path: ['a'],
+                message: 'outer',
+                issues: [
+                    defineIssueGroup({
+                        path: ['a', 'b'],
+                        message: 'inner',
+                        issues: [],
+                    }),
+                ],
+            }))).toBeTruthy();
+        });
+
+        it('should not verify a shape matching neither arm', () => {
+            expect(isIssue({
+                type: 'item',
+                path: [],
+                message: 'foo',
+            })).toBeFalsy();
+            expect(isIssue({
+                type: 'group',
+                path: [],
+                message: 'foo',
+            })).toBeFalsy();
+            expect(isIssue({
+                type: 'other',
+                path: [],
+                message: 'foo',
+                code: 'bar',
+            })).toBeFalsy();
+        });
+
+        it('should not verify non-objects', () => {
+            expect(isIssue(null)).toBeFalsy();
+            expect(isIssue(undefined)).toBeFalsy();
+            expect(isIssue('issue')).toBeFalsy();
+            expect(isIssue(42)).toBeFalsy();
+            expect(isIssue([])).toBeFalsy();
+        });
+
+        it('should not verify an issue whose path holds non-PropertyKey members', () => {
+            expect(isIssue({
+                type: 'item',
+                path: [{ nope: true }],
+                message: 'foo',
+                code: 'bar',
+            })).toBeFalsy();
+        });
+
+        it('should not verify an issue whose meta is not an object', () => {
+            expect(isIssue({
+                type: 'item',
+                path: [],
+                message: 'foo',
+                code: 'bar',
+                meta: 'nope',
+            })).toBeFalsy();
+        });
     });
 
     it('should preserve user-provided code on issue item', () => {
