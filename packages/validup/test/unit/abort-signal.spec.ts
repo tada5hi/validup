@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Validator } from '../../src';
-import { Container } from '../../src';
+import { Container, ValidupError, defineIssueItem } from '../../src';
 
 describe('container abort-signal propagation', () => {
     it('should expose ctx.signal to validators', async () => {
@@ -123,5 +123,28 @@ describe('container abort-signal propagation', () => {
         } catch (e) {
             expect((e as Error).name).toEqual('AbortError');
         }
+    });
+
+    it('should rethrow a ValidupError raised by a mount that aborted mid-flight', async () => {
+        // `collectExecutionFailure`'s structural carve-out is a *run-state*
+        // read, so it covers a plain validation `ValidupError` too. Narrow it
+        // to `isStructuralThrow(error, signal) && !isValidupError(error)` and
+        // the error is folded into issues instead, the loop continues, the
+        // next mount's `throwIfAborted()` fires — and the caller gets a bare
+        // `AbortError` with the validation diagnostic gone entirely.
+        const controller = new AbortController();
+        const thrown = new ValidupError([
+            defineIssueItem({ path: ['inner'], message: 'raced the abort' }),
+        ]);
+
+        const container = new Container<{ foo: string, bar: string }>();
+        container.mount('foo', () => {
+            controller.abort();
+            throw thrown;
+        });
+        container.mount('bar', (ctx) => ctx.value);
+
+        await expect(container.safeRun({ foo: 'a', bar: 'b' }, { signal: controller.signal }))
+            .rejects.toBe(thrown);
     });
 });

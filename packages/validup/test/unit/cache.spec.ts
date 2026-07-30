@@ -255,6 +255,34 @@ describe('src/cache', () => {
             container.runSync(data, { cache });
             expect(calls).toBe(1);
         });
+
+        it('does not cache a RunSyncViolationError', async () => {
+            // A `RunSyncViolationError` says "this graph can't be driven
+            // synchronously" — a property of the caller, not of the value. If
+            // the cache-write catch stored it, the *async* run below would hit
+            // the cached failure, replay it into `collectExecutionFailure`,
+            // and re-raise the violation verbatim (it is structural, so the
+            // fold rethrows it) — turning a perfectly valid `run()` into a
+            // runSync diagnostic. Deleting the `!isRunSyncViolation(e)` guard
+            // is the mutation this case exists to kill.
+            const container = new Container<{ foo: string }>();
+            let calls = 0;
+            container.mount('foo', defineValidator({
+                run: async (ctx) => {
+                    calls += 1;
+                    return ctx.value;
+                },
+            }));
+
+            const cache = new ResultCache();
+            const data = { foo: 'bar' };
+
+            expect(() => container.runSync(data, { cache })).toThrow();
+            expect(calls).toBe(1);
+
+            await expect(container.run(data, { cache }))
+                .resolves.toEqual({ foo: 'bar' });
+        });
     });
 
     describe('Container.run() with parallel + cache', () => {

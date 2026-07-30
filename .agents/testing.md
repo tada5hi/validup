@@ -45,6 +45,7 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `one-of.spec.ts`              | `ContainerOptions.oneOf` aggregation behavior             |
 | `paths-to-include.spec.ts`    | `pathsToInclude` / `pathsToExclude` filters               |
 | `error.spec.ts`               | `ValidupError` shape and `isValidupError` guard           |
+| `safe-run-error.spec.ts`      | `wrapSafeRunError` — the `safeRun` / `safeRunSync` fold for a throw that escaped the run loop |
 | `issue.spec.ts`               | `Issue` factories and guards (`isIssueItem` / `isIssueGroup` / `isIssue`) |
 | `flatten.spec.ts`             | `flattenIssueItems` / `flattenIssueGroups` — pre-order + reference identity |
 | `mount-dispatch.spec.ts`      | `Container.mount` / `Builder.mount` argument-dispatch order, `isContainer` |
@@ -52,6 +53,7 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `run-sync.spec.ts`            | `runSync` / `safeRunSync` + `RunSyncViolationError`       |
 | `parallel.spec.ts`            | `runParallel` scheduling and issue ordering               |
 | `run-parity.spec.ts`          | `run` ↔ `runSync` twin contract, table-driven             |
+| `structural-throw.spec.ts`    | `isStructuralThrow` — the shared abort / `RunSyncViolationError` / `PathsStrictViolationError` carve-out predicate |
 | `output-shape.spec.ts`        | Nested output reconstruction — array paths under the default `flat: false` |
 | `optional-value.spec.ts`      | `isOptionalValue` atom matcher, at its own edge           |
 | `path-filter.spec.ts`         | `resolvePathFilter` include/exclude verdict               |
@@ -68,9 +70,39 @@ When adding a new container option or mount option, add or extend the matching s
 
 When adding a predicate to either chain, add its row here — a spec that only asserts "the happy shape works" will not catch a reorder.
 
-### `run-sync-violation` is imported by module path
+### Reaching `wrapSafeRunError`: throw from outside the per-mount `try`
 
-`container/run-sync-violation.ts` is deliberately absent from `container/index.ts` (internal plumbing — the public counterpart is `isPathsStrictViolation`). `run-sync.spec.ts` reaches it via `../../src/container/run-sync-violation`. Don't "fix" that import by adding a barrel line.
+`Container` folds a throw into issues at two sites, and it is easy to write a spec that thinks it is testing one while actually testing the other. A validator that throws is folded by `collectExecutionFailure`, **with the mount path attached** — it never reaches `wrapSafeRunError`.
+
+For a **keyed** mount the tell is the resulting issue's `path`: `['foo']` means `collectExecutionFailure`, `[]` means `wrapSafeRunError`. That tell does **not** generalise — `prepareMountKey` sets `keyParts = key ? pathToArray(key) : []`, so a *keyless* container mount (the one mount form `Container` allows without a path) that fails with a non-`ValidupError` also emits `path: []` from `collectExecutionFailure`. If the spec's container has any keyless mount, drive the two sites apart some other way: throw from the input's value read (below) for `wrapSafeRunError`, from inside a mounted unit for `collectExecutionFailure`.
+
+To hit `wrapSafeRunError` the throw has to escape the run loop, i.e. originate outside the per-mount `try`. The cheapest such site is the mount's value read (`getPathValue(data, key)`), which sits a few lines above the `try`, so an input object with a throwing accessor drives every branch with no `Container` subclass:
+
+```ts
+function inputWithThrowingRead(thrown: unknown): { foo: string } {
+    return { get foo(): string { throw thrown; } };
+}
+```
+
+This matters beyond convenience. Before `safe-run-error.spec.ts` landed, the entire suite stayed green with both non-`ValidupError` branches of `wrapSafeRunError` replaced by a bare re-throw — the tested implementation and the shipped one had diverged with nothing to catch it. When adding a case there, mutate the source and watch it fail before believing it.
+
+### The abort × `ValidupError` cell
+
+`isStructuralThrow`'s three legs look independently testable, but only one input class distinguishes the abort leg from the rest: a **`ValidupError` thrown while the signal is aborted**. Every other value is either structural on its own (`RunSyncViolationError`, `PathsStrictViolationError`) or foldable either way. So a spec that exercises the abort leg with an `Error`, a string, and `undefined` — as `structural-throw.spec.ts` originally did — pins nothing: the leg narrows to `signal?.aborted && !isValidupError(error)` with the whole suite green, while `safeRun` silently starts returning a `Result` where it used to reject.
+
+Three cases cover it, one per layer, and each is load-bearing on its own:
+
+| Spec | Case | Kills |
+|---|---|---|
+| `structural-throw.spec.ts` | `isStructuralThrow(validupError, abortedSignal)` is `true` | narrowing the abort leg in the predicate itself |
+| `safe-run-error.spec.ts` | getter aborts then throws a `ValidupError` → `safeRun` **rejects** with that instance | swapping `isStructuralThrow` below the `isValidupError` passthrough in `wrapSafeRunError` |
+| `abort-signal.spec.ts` | mount aborts then throws a `ValidupError`, a second mount follows → `safeRun` rejects with that instance, **not** a bare `AbortError` | narrowing the carve-out in `collectExecutionFailure` (which would fold the error, continue the loop, and lose the diagnostic to the next `throwIfAborted()`) |
+
+The general lesson: when a predicate ORs a *run-state* read with *error-type* reads, the only discriminating input is one the type reads reject and the state read accepts. Enumerate that cell explicitly — "regardless of the thrown value" in a test name is a claim, not coverage.
+
+### Two container modules are imported by module path
+
+`container/run-sync-violation.ts` and `container/structural-throw.ts` are both deliberately absent from `container/index.ts` (internal plumbing — the public counterpart is `isPathsStrictViolation`). `run-sync.spec.ts` reaches the first via `../../src/container/run-sync-violation`; `structural-throw.spec.ts` reaches both via their direct paths. Don't "fix" those imports by adding barrel lines — `structural-throw.ts` composes `isRunSyncViolation`, so exporting it would leak a deliberately-private decision onto the semver-protected surface.
 
 ### Sync/async parity
 

@@ -125,7 +125,7 @@ Only a container can be mounted **without a key** — a validator without a path
 
 ### `run()` flow
 
-**Strict pre-flight** — before the loop, when `pathsStrict` resolves truthy (`options.pathsStrict ?? this.options.pathsStrict`, run-level wins), `assertPathsStrict` verifies every resolved `pathsToInclude` / `pathsToExclude` entry is satisfied by *this* container (exact expanded-key match, or prefix descent into a container mount — same rules as `resolvePathFilter`). Unmatched entries throw an **exported, structural** `PathsStrictViolationError` (guard `isPathsStrictViolation`) listing the absolute paths. Runs once at the top of `run` (covering the delegated `runParallel`) and `runSync`; the flag threads into **keyed** child `run()` calls beside the stripped filters so nested containers self-check their remainder. Keyless container mounts are a strict blind spot — the parent defers (can't tell a keyless-owned path from a stale one without recursing) and does NOT forward the flag into keyless children (it would false-positive on the parent's own sibling paths). Group filtering is orthogonal (a group-inactive mount still "exists"). Like `RunSyncViolationError`, it's carved out of `collectExecutionFailure` (a nested violation bubbling through the parent's per-mount catch rethrows verbatim) and re-thrown by `wrapSafeRunError` (not folded into a `Result.failure`).
+**Strict pre-flight** — before the loop, when `pathsStrict` resolves truthy (`options.pathsStrict ?? this.options.pathsStrict`, run-level wins), `assertPathsStrict` verifies every resolved `pathsToInclude` / `pathsToExclude` entry is satisfied by *this* container (exact expanded-key match, or prefix descent into a container mount — same rules as `resolvePathFilter`). Unmatched entries throw an **exported, structural** `PathsStrictViolationError` (guard `isPathsStrictViolation`) listing the absolute paths. Runs once at the top of `run` (covering the delegated `runParallel`) and `runSync`; the flag threads into **keyed** child `run()` calls beside the stripped filters so nested containers self-check their remainder. Keyless container mounts are a strict blind spot — the parent defers (can't tell a keyless-owned path from a stale one without recursing) and does NOT forward the flag into keyless children (it would false-positive on the parent's own sibling paths). Group filtering is orthogonal (a group-inactive mount still "exists"). Like `RunSyncViolationError`, it's carved out of `collectExecutionFailure` (a nested violation bubbling through the parent's per-mount catch rethrows verbatim) and re-thrown by `wrapSafeRunError` (not folded into a `Result.failure`) — both via the shared `isStructuralThrow` predicate, whose legs and known gaps are documented under [The structural carve-out](#the-structural-carve-out-isstructuralthrow).
 
 For each mounted item, in registration order:
 
@@ -137,7 +137,7 @@ For each mounted item, in registration order:
 5. **Dispatch**:
    - `validator` → `await item.data(ctx)` (or `item.data(ctx)` in `runSync`, which throws if the result is thenable). Writes `output[key]`.
    - `container` → `await item.data.run(value, { group, flat: true, path, pathsToInclude, pathsToExclude, defaults: resolveDefaults(...), context, signal, parallel })`. `runSync` calls `item.data.runSync(...)` (throws `RunSyncViolationError` if the child doesn't implement it). Nested results are merged by `mergePaths(key, childKey)` so dotted paths flatten correctly.
-6. **Error capture** (`recordMountError`) — abort errors and `RunSyncViolationError`s rethrow verbatim (carved out of the issue-folding path). Otherwise: `ValidupError` issues are re-pathed (parent key prepended); other `Error`s become a single `IssueItem`. Multiple child issues at one path get wrapped in an `IssueGroup` whose `data: { name }` lets consumers re-render the message with `formatIssue`.
+6. **Error capture** (`recordMountError`) — throws that `isStructuralThrow(error, signal)` accepts rethrow verbatim, carved out of the issue-folding path (see [The structural carve-out](#the-structural-carve-out-isstructuralthrow)). Otherwise: `ValidupError` issues are re-pathed (parent key prepended); other `Error`s become a single `IssueItem`. Multiple child issues at one path get wrapped in an `IssueGroup` whose `data: { name }` lets consumers re-render the message with `formatIssue`.
 7. **Aggregate** (`finalizeOutput`):
    - `oneOf` containers throw only when **every** branch failed (`errorCount === itemCount`), wrapping all issues in a single `IssueGroup` with `code: ONE_OF_FAILED`.
    - Non-`oneOf` containers throw a `ValidupError` with all collected issues if any failed.
@@ -179,9 +179,43 @@ Both structural probes therefore live *inside the sync thunk*, where they belong
 
 All variants additionally share `resolveContainerFilters` / `resolvePathsStrict` / `assertPathsStrict` / `collectExecutionFailure` / `wrapBranchForOneOf` / `finalizeOutput` / `wrapSafeRunError`, so issue handling and cache consultation stay consistent.
 
+#### The structural carve-out (`isStructuralThrow`)
+
+Not every throw reaching a `catch` is a validation outcome. Three unrelated reasons say "re-raise this verbatim instead of folding it into `Issue[]`", and `container/structural-throw.ts` holds them as one predicate:
+
+```ts
+isStructuralThrow(error: unknown, signal?: AbortSignal): boolean
+//  = signal?.aborted || isRunSyncViolation(error) || isPathsStrictViolation(error)
+```
+
+- **abort** — a *run-state* read, not an error-type test. During an aborted run the in-flight throw is re-raised **as-is**; it is not necessarily `signal.reason` (a validator may throw its own error before the next abort check). This is the contract pinned in `Container.run`'s `@throws` block, so the leg must stay `signal?.aborted` and must never become an `isAbortError(error)` check. Distinct from the four `signal.throwIfAborted()` probes, which proactively throw `signal.reason` between mounts.
+- **`RunSyncViolationError`** / **`PathsStrictViolationError`** — structural: the validator graph is wrong, not the input. Both legs go through the duck-typed guards, so a throw from a duplicate package copy or across a realm boundary is still recognised.
+
+Deliberately a plain `boolean`, **not** a type predicate — the abort leg is `true` for arbitrary values, so narrowing to `RunSyncViolationError | PathsStrictViolationError` would be unsound. Barrel-excluded (it composes the private `isRunSyncViolation`); its spec reaches it by module path.
+
+Consulted at the two sites that fold a throw into issues — `collectExecutionFailure` and `wrapSafeRunError` — where all three legs execute the identical `throw`, so leg order is documentation, not semantics.
+
+**Two cache-write sites deliberately do NOT use it** (a fourth carve-out that is not yet unified):
+
+| Site | Filters today | Gap |
+|---|---|---|
+| `runBody`'s validator cache-write catch | `isRunSyncViolation` only (pinned by `cache.spec.ts` → "does not cache a RunSyncViolationError"); abort handled indirectly by `writeCachedOutcome`'s own `signal?.aborted` gate | a `PathsStrictViolationError` raised by a validator driving its own strict child container **is cached**, then replayed on a later hit |
+| `runParallel`'s cache-write catch | nothing inline; abort likewise via `writeCachedOutcome` | same gap, one step worse |
+
+Both use the guard to *suppress a side effect* rather than to decide a throw (the rethrow sits unconditionally outside), which is why the predicate must stay a plain boolean rather than a throw-helper. Adopting it there stops `PathsStrictViolationError` from being cached — a behaviour change, so it belongs in its own commit with a cache spec covering both the twin body and `parallel: true`.
+
+**`helpers/compose.ts` has two more under-guarded fold sites**, and the one with *no* guard at all is the less obvious of the two:
+
+| Site | Reached via | Filters today | Gap |
+|---|---|---|---|
+| `composeAnyOf`'s per-branch catch | `composeOneOf(...)` / `compose(..., { oneOf: true })` | the abort leg alone (`ctx.signal?.aborted`) | a `PathsStrictViolationError` / `RunSyncViolationError` escaping a container element is folded into branch issues |
+| `compose`'s collect-all catch | `compose(..., { bail: false })` | **nothing** — no abort read, no `isRunSyncViolation`, no `isPathsStrictViolation` | folds straight through `errorToIssues` and re-throws as a generic aggregate `ValidupError`, so the caller cannot tell "misconfigured graph" or "cancelled" from "validation failed" |
+
+The `bail: true` default re-throws the first failure verbatim, so only the explicit `{ bail: false }` opt-in reaches the second row. Adopting `isStructuralThrow` at either site is a behaviour change (issues that used to be collected would become throws), so — like the cache-write rows above — it belongs in its own commit with `compose.spec.ts` cases for both strategies.
+
 **When adding a run or mount option**, thread it through the twin body plus (if a child inherits it) `buildChildRunOptions` — two edits, not six. `runParallel` picks up anything the shared helpers resolve for free; only genuinely scheduling-specific behaviour needs a second touch there.
 
-One behaviour was unified in passing: the "don't cache a `RunSyncViolationError`" guard was previously `runSync`-only and now applies in both variants. It is unreachable on the async side except for the pathological case of a validator letting a `RunSyncViolationError` escape — which `collectExecutionFailure` already rethrows structurally, so not caching it is the consistent reading.
+One behaviour was unified in passing: the "don't cache a `RunSyncViolationError`" guard was previously `runSync`-only and now applies to **both twin drivers** (`run` and `runSync` — one body, one site). It is unreachable on the async side except for the pathological case of a validator letting a `RunSyncViolationError` escape — which `collectExecutionFailure` already rethrows structurally, so not caching it is the consistent reading. Note this did **not** reach `runParallel`, whose cache-write catch still has no inline structural filter at all — see the table under [The structural carve-out](#the-structural-carve-out-isstructuralthrow).
 
 ### Optional values (`helpers/optional-value.ts`)
 
@@ -235,10 +269,38 @@ Symmetric with `Container.options.oneOf`, just at the validator level — both s
 
 **Shared primitives.** Two small helpers carved out of the overlap between compose's catch sites and `Container.finalizeOutput`:
 
-- `errorToIssues(error, { code?, path? })` (`helpers/error-to-issues.ts`) — the defensive `ValidupError` / `Error` / non-`Error` → `Issue[]` fold both helpers needed in identical shape. `ValidupError` issues are spread verbatim (callers map / prefix afterward); `Error` and non-`Error` throws become a single synthetic `IssueItem` with the supplied `code` (defaults to `VALUE_INVALID`) and `path` (defaults to `[]`). Used by compose's collect-all catch AND `composeAnyOf`'s per-branch wrapper.
+- `errorToIssues(error, { code?, path? })` (`helpers/error-to-issues.ts`) — the defensive `ValidupError` / `Error` / non-`Error` → `Issue[]` fold both helpers needed in identical shape. `ValidupError` issues are spread verbatim (callers map / prefix afterward); `Error` and non-`Error` throws become a single synthetic `IssueItem` with the supplied `code` (defaults to `VALUE_INVALID`) and `path` (defaults to `[]`). The non-`Error` branch has one special case worth knowing: a thrown **non-empty string** becomes the message verbatim; everything else (including the empty string) gets the `Non-Error throw: ` prefix. Used by compose's collect-all catch, `composeAnyOf`'s per-branch wrapper, AND `Container.wrapSafeRunError`.
 - `buildOneOfFailedGroup(branchIssues, { path?, message? })` (`helpers/one-of-failed.ts`) — single source of truth for the `IssueCode.ONE_OF_FAILED` wrapping shape. Used by both `composeAnyOf` and `Container.finalizeOutput` so consumers / i18n catalogs only have one variant to format.
 
-`Container.collectExecutionFailure`'s own ValidupError / Error / non-Error cascade stays inline rather than going through `errorToIssues` — its per-branch transforms (`prefixIssuePath` on the spread issues only, `markOptional` / `markOptionalDeep` gated on mount kind) make the cascade non-portable.
+#### Two container fold sites, two different answers
+
+`Container` folds a throw into issues at two places, and they resolved the "share or inline?" question differently. The split is deliberate — record it before changing either.
+
+**`wrapSafeRunError` delegates.** It handles a throw that escaped the run loop *entirely* (`safeRun` / `safeRunSync`'s `catch`), so it has no mount to attribute the failure to and applies no transform. After the structural carve-out and an identity passthrough it is one line:
+
+```ts
+if (isStructuralThrow(e, options.signal)) throw e;
+if (isValidupError(e)) return { success: false, error: e };
+return { success: false, error: new ValidupError(errorToIssues(e)) };
+```
+
+The delegation reproduces every issue **value** the two hand-written branches produced — `errorToIssues`' defaults (`code: VALUE_INVALID`, `path: []`) already matched, including the verbatim-non-empty-string case. It is **not** byte-identical: `errorToIssues` passes `code` inside the `defineIssueItem` payload instead of letting the factory append it, so the key insertion order became `type, path, code, message` where this site emitted `type, path, message, code`. `toEqual` / `JSON.parse` consumers see nothing; anything string-comparing a serialized `safeRun` failure (golden file, HTTP snapshot, ETag over the body) sees a diff. The change aligns this site with compose's two fold sites and leaves `collectExecutionFailure` — which still builds its synthetic items by hand — as the only site on the old order. Two invariants are load-bearing:
+
+- **The `isValidupError` passthrough must stay a passthrough.** Routing it through `errorToIssues` would spread `issues` into a *fresh* `ValidupError`, dropping the subclass, `cause`, and any custom property. `safeRun` returns the exact object `run` would have thrown.
+- **The structural check must stay above both.** `PathsStrictViolationError` / `RunSyncViolationError` / an aborted run re-throw rather than becoming a `Result.failure`. The ordering is only observable for a **`ValidupError` raised during an aborted run** — the one value both guards claim — so that is the case the spec pins (`safe-run-error.spec.ts` → "should re-throw a ValidupError raised during an aborted run"). Swap the two blocks and nothing else in the suite notices.
+
+These branches are **not** defensive-only. The per-mount value read (`getPathValue(data, key)`) sits *outside* the per-mount `try`, so a throwing accessor or Proxy trap on the input reaches this fold with no `Container` subclass involved — an ORM entity or a computed getter is enough. Until `test/unit/safe-run-error.spec.ts` landed, the whole suite stayed green with both branches replaced by a bare re-throw. The resulting issue is **path-less**, so `@validup/vue` and friends cannot attribute it to a field: diagnosable, not attributable. That is status quo, deliberately preserved, not a claim that it is ideal.
+
+**`collectExecutionFailure` stays inline.** It handles a throw from one *mounted unit*, and each of its three branches carries a different transform: `prefixIssuePath` on the spread `ValidupError` issues only, `markOptionalDeep` on the spread branch gated on `item.type === 'validator'`, `markOptional` (shallow) on both synthetic branches with *no* mount-kind gate. Read against `errorToIssues` the *branching* is the same three-way cascade with the same predicates in the same order, and the two synthetic branches build the same message (including the verbatim-non-empty-string case) — they differ only in passing `path: keyParts` instead of `[]`, and in leaving `code` to the factory (see the key-order note above). So the duplication is real but shallow: what is genuinely non-portable is the per-branch transform, not the branching.
+
+It could therefore be routed through `errorToIssues` behind an `isValidupError` short-circuit at the call site. It deliberately is **not**, for two reasons:
+
+- `errorToIssues`' `ValidupError` branch returns a fresh array of the **same issue objects**. The shape is only safe while the call site short-circuits before reaching that branch; anyone later "simplifying" the short-circuit away would have `markOptional` mutate the validator's own `ValidupError.issues[i].meta` — the aliasing leak the comment above `markOptional` exists to prevent, and one that stays invisible until the same error object is replayed from the `ResultCache`.
+- The saving is one `else if` cascade, against a hazard that a reviewer has to re-derive each time.
+
+The earlier idea of giving `errorToIssues` a provenance-carrying return (`{ issues, origin }`) so the call site could branch on origin is **rejected**: `errorToIssues` is a public, semver-protected export, and the call site already has `isValidupError` in scope, which answers the same question for free.
+
+One undocumented asymmetry, recorded here so a refactor changes it deliberately rather than by accident: `markOptional` is applied to the two synthetic branches with **no** `item.type` gate, so a *container* mount with `optional: true` whose child throws a plain `Error` stamps `meta.optional: true` on the leaf, while the same mount throwing a `ValidupError` does not (the "no inheritance" gate lives only on the spread branch).
 
 ## Builder (`packages/validup/src/builder/`)
 
