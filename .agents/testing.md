@@ -52,6 +52,7 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `run-sync.spec.ts`            | `runSync` / `safeRunSync` + `RunSyncViolationError`       |
 | `parallel.spec.ts`            | `runParallel` scheduling and issue ordering               |
 | `run-parity.spec.ts`          | `run` ↔ `runSync` twin contract, table-driven             |
+| `output-shape.spec.ts`        | Nested output reconstruction — array paths under the default `flat: false` |
 | `optional-value.spec.ts`      | `isOptionalValue` atom matcher, at its own edge           |
 | `path-filter.spec.ts`         | `resolvePathFilter` include/exclude verdict               |
 | `defaults.spec.ts`            | `resolveDefaults` child-slice helper                      |
@@ -99,3 +100,13 @@ import { Container, type Validator } from '../../src';
 - Integration-package tests instantiate the foreign library inline (zod, validator.js); `vue` uses `@vue/test-utils` + `happy-dom`.
 - **Prefer a DOM-free spec when the unit under test is DOM-free.** `@validup/vue` has two framework-free units, `helpers/projection.ts` and `helpers/severity.ts`, but only one DOM-free spec so far. `test/unit/projection.spec.ts` covers the projection layer with plain function calls against literal fixtures and adds a `// @vitest-environment node` docblock (matched anywhere in the file, so it sits below the copyright header) to opt out of the package-wide `happy-dom` env; it asserts `typeof globalThis.document === 'undefined'` so a framework dependency leaking back into the projection layer fails loudly. `test/unit/severity.spec.ts` drives `getSeverity` by direct call for its branch table but still `mount()`s a component for one end-to-end case, so it stays on `happy-dom` — converting it is an open opportunity, not a description of today. The mounted specs stay as integration nets; move a case down to a pure suite only when it exists purely to reach a pure branch.
 - Coverage is collected only from `src/**/*.{ts,tsx,js,jsx}`.
+
+### Assert the serialized shape, not just the read-back
+
+`Container.finalizeOutput` expands its flat dotted output into a nested object with `setPathValue` whenever `flat` is false — the default. A path with numeric segments can therefore reconstruct as `{ items: { '0': [] } }`: the value lands on an array as a non-index property, which **reads back fine in memory but is dropped by `JSON.stringify` and `structuredClone`**, i.e. in any API response body.
+
+A pathtrace bug of exactly that shape ([tada5hi/pathtrace#200](https://github.com/tada5hi/pathtrace/issues/200), fixed in 2.2.3) went unnoticed here for that reason: every glob spec in `mount-key.spec.ts` passes `{ flat: true }` — the branch that skips `setPathValue` entirely — and every fixture used object keys rather than array indices.
+
+So when a spec covers output reconstruction, assert `JSON.parse(JSON.stringify(output))` (and `structuredClone` where it matters) rather than reading a property off the result. `output-shape.spec.ts` is the dedicated home for those cases.
+
+Note also that flat keys keep pathtrace's bracket notation for indices (`items[0].name`, not `items.0.name`).
