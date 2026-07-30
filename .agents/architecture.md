@@ -152,7 +152,7 @@ For each mounted item, in registration order:
 
 #### The sync/async twin body (`runBody`)
 
-`run` and `runSync` are **not two loops** — they are two drivers over one private generator, `Container.runBody`, using the internal twin protocol in `src/utils/twin.ts` (ported from [`tada5hi/locter`](https://github.com/tada5hi/locter)'s `src/utils/twin.ts`; same shape, one deviation: validup's async thunk may return a bare value as well as a promise, because a `Validator` is free to be synchronous).
+`run` and `runSync` are **not two loops** — they are two drivers over one private generator, `Container.runBody`, using the twin protocol from the [`twinop`](https://github.com/tada5hi/twinop) package. `twinop`'s `TwinOp.async` is `() => T | Promise<T>`, so a `Validator` that is free to be synchronous needs no `Promise.resolve()` wrap.
 
 A twin body yields **effect pairs** — `yield* op(asyncThunk, syncThunk)` — and `runTwinAsync` / `runTwinSync` execute the side they stand for. Effect errors are re-entered via `Generator.throw`, so a `try`/`catch` wrapping a `yield*` site behaves identically in both variants; that is what lets the cache-write and `collectExecutionFailure` blocks exist once. Bodies compose via `yield*` delegation.
 

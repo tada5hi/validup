@@ -50,7 +50,6 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `run-sync.spec.ts`            | `runSync` / `safeRunSync` + `RunSyncViolationError`       |
 | `parallel.spec.ts`            | `runParallel` scheduling and issue ordering               |
 | `run-parity.spec.ts`          | `run` ↔ `runSync` twin contract, table-driven             |
-| `twin.spec.ts`                | The `src/utils/twin.ts` protocol itself                   |
 | `optional-value.spec.ts`      | `isOptionalValue` atom matcher, at its own edge           |
 | `path-filter.spec.ts`         | `resolvePathFilter` include/exclude verdict               |
 | `defaults.spec.ts`            | `resolveDefaults` child-slice helper                      |
