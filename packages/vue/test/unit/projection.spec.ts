@@ -213,12 +213,44 @@ describe('writeNested', () => {
         expect(state).toEqual({});
     });
 
-    it('abandons the whole write when an unsafe key appears mid-path', () => {
-        // The guard rejects the path up front rather than truncating it, so
-        // no partial intermediates are materialized.
+    it('stops at an unsafe key appearing mid-path', () => {
+        // pathtrace stops *at* the unsafe segment rather than rejecting the
+        // path up front, so a prefix the caller did name may already have
+        // been created. Nothing is written through the unsafe key itself and
+        // Object.prototype is untouched, which is the property that matters.
+        // (The previous hand-rolled writeNested rejected up front and left
+        // `state` empty — a stricter guarantee, given up deliberately so the
+        // unsafe-key list lives in one repo instead of two.)
         const state: Record<string, unknown> = {};
         writeNested(state, ['safe', '__proto__', 'x'], 'PWN');
-        expect(state).toEqual({});
+
+        expect(state).toEqual({ safe: {} });
+        expect((({}) as Record<string, unknown>).x).toBeUndefined();
+    });
+
+    it('treats a leading-zero segment as an object key, not an index', () => {
+        // Regression the delegation FIXES. The old local writeNested tested
+        // /^\d+$/, so '01' looked like an index: it built an array and hung
+        // `name` off it as a non-index property, which JSON.stringify drops.
+        // pathtrace 2.2.3 applies canonical array-index rules instead.
+        const state: Record<string, unknown> = {};
+        writeNested(state, ['items', '01', 'name'], 'V');
+
+        expect(Array.isArray(state.items)).toBe(false);
+        expect(JSON.parse(JSON.stringify(state))).toEqual({ items: { '01': { name: 'V' } } });
+    });
+
+    it('replaces a null intermediate instead of dropping the write', () => {
+        // Behaviour PRESERVED by the delegation, not gained: the old local
+        // writeNested already replaced a null intermediate. It is pinned here
+        // because pathtrace only started doing so in 2.2.3 — on 2.2.2 this
+        // write vanished silently, so this is the case that would regress if
+        // the dependency floor ever slipped. `{ address: null }` is ordinary
+        // initial form state.
+        const state: Record<string, unknown> = { address: null };
+        writeNested(state, ['address', 'city'], 'Berlin');
+
+        expect(state).toEqual({ address: { city: 'Berlin' } });
     });
 
     it('still writes keys that merely resemble unsafe ones', () => {
