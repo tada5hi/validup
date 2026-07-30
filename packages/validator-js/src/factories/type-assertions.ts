@@ -83,6 +83,86 @@ export function isDecimal<C = unknown>(
 }
 
 /**
+ * The min/gt/max/lt bounds shared by {@link isInt} and {@link isFloat}.
+ * A subset of both `validator.IsIntOptions` and `validator.IsFloatOptions`
+ * plus the `message` override from `BaseFactoryOptions`.
+ */
+type NumericRangeOptions = {
+    min?: number,
+    max?: number,
+    lt?: number,
+    gt?: number,
+    message?: string,
+};
+
+/**
+ * Shared range ladder for {@link isInt} / {@link isFloat}. Throws the first
+ * violated bound and returns `void` when every bound holds.
+ *
+ * The bounds are checked first-match-wins in `min`, `gt`, `max`, `lt` order,
+ * and the emitted codes are deliberately coarser than the option names:
+ *
+ * - `min` (inclusive) and `gt` (exclusive) both emit `IssueCode.MIN_VALUE`.
+ *   For `gt`, `data.min` carries `options.gt` — i18n templates can quote the
+ *   boundary, and the precise inclusive/exclusive wording comes from
+ *   `message`. Same treatment for `lt` → `IssueCode.MAX_VALUE` with
+ *   `data.max` carrying `options.lt`. This mapping is an i18n-facing
+ *   contract; don't split it without a matching catalog change.
+ *
+ * Type-failure codes (`INTEGER` for `isInt`, `DECIMAL` for `isFloat`) sit
+ * OUTSIDE this ladder and stay with their respective factories — which is
+ * why the helper needs no code-selecting parameter.
+ *
+ * `NaN` handling also stays with the caller: `isFloat` skips the ladder for
+ * localized input that `Number()` can't parse, while `isInt` reaches it only
+ * after `validator.isInt` returned true.
+ */
+function assertNumericRange(
+    received: unknown,
+    numeric: number,
+    options: NumericRangeOptions,
+): void {
+    const {
+        min,
+        max,
+        lt,
+        gt,
+    } = options;
+    if (typeof min === 'number' && numeric < min) {
+        throw createValidupError(
+            received,
+            IssueCode.MIN_VALUE,
+            options.message ?? `The value must be greater than or equal to ${min}`,
+            { min },
+        );
+    }
+    if (typeof gt === 'number' && numeric <= gt) {
+        throw createValidupError(
+            received,
+            IssueCode.MIN_VALUE,
+            options.message ?? `The value must be greater than ${gt}`,
+            { min: gt },
+        );
+    }
+    if (typeof max === 'number' && numeric > max) {
+        throw createValidupError(
+            received,
+            IssueCode.MAX_VALUE,
+            options.message ?? `The value must be less than or equal to ${max}`,
+            { max },
+        );
+    }
+    if (typeof lt === 'number' && numeric >= lt) {
+        throw createValidupError(
+            received,
+            IssueCode.MAX_VALUE,
+            options.message ?? `The value must be less than ${lt}`,
+            { max: lt },
+        );
+    }
+}
+
+/**
  * Factory: validator.js `isInt`. Resolves the right vocabulary code
  * based on what failed:
  *
@@ -110,45 +190,7 @@ export function isInt<C = unknown>(
                     options.message ?? 'The value must be an integer',
                 );
             }
-            const numeric = Number(s);
-            const {
-                min,
-                max,
-                lt,
-                gt,
-            } = options;
-            if (typeof min === 'number' && numeric < min) {
-                throw createValidupError(
-                    ctx.value,
-                    IssueCode.MIN_VALUE,
-                    options.message ?? `The value must be greater than or equal to ${min}`,
-                    { min },
-                );
-            }
-            if (typeof gt === 'number' && numeric <= gt) {
-                throw createValidupError(
-                    ctx.value,
-                    IssueCode.MIN_VALUE,
-                    options.message ?? `The value must be greater than ${gt}`,
-                    { min: gt },
-                );
-            }
-            if (typeof max === 'number' && numeric > max) {
-                throw createValidupError(
-                    ctx.value,
-                    IssueCode.MAX_VALUE,
-                    options.message ?? `The value must be less than or equal to ${max}`,
-                    { max },
-                );
-            }
-            if (typeof lt === 'number' && numeric >= lt) {
-                throw createValidupError(
-                    ctx.value,
-                    IssueCode.MAX_VALUE,
-                    options.message ?? `The value must be less than ${lt}`,
-                    { max: lt },
-                );
-            }
+            assertNumericRange(ctx.value, Number(s), options);
             // Defensive final pass — catches any remaining option we didn't
             // model explicitly (currently none beyond min/max/lt/gt and
             // allow_leading_zeroes). If this fires the failure is a true type
@@ -198,47 +240,15 @@ export function isFloat<C = unknown>(
                 );
             }
             const numeric = Number(s);
-            const {
-                min,
-                max,
-                lt,
-                gt,
-            } = options;
             // NaN from a localized input skips the explicit range checks — see
-            // the JSDoc above for the resulting code-vs-message trade-off.
+            // the JSDoc above for the resulting code-vs-message trade-off. The
+            // guard stays at THIS call site rather than moving into
+            // `assertNumericRange`: `isInt` reaches the ladder only after
+            // `validator.isInt` returned true, so hoisting it would bake in an
+            // invariant that a future locale-aware `isInt` could silently break
+            // into a wrong-pass.
             if (!Number.isNaN(numeric)) {
-                if (typeof min === 'number' && numeric < min) {
-                    throw createValidupError(
-                        ctx.value,
-                        IssueCode.MIN_VALUE,
-                        options.message ?? `The value must be greater than or equal to ${min}`,
-                        { min },
-                    );
-                }
-                if (typeof gt === 'number' && numeric <= gt) {
-                    throw createValidupError(
-                        ctx.value,
-                        IssueCode.MIN_VALUE,
-                        options.message ?? `The value must be greater than ${gt}`,
-                        { min: gt },
-                    );
-                }
-                if (typeof max === 'number' && numeric > max) {
-                    throw createValidupError(
-                        ctx.value,
-                        IssueCode.MAX_VALUE,
-                        options.message ?? `The value must be less than or equal to ${max}`,
-                        { max },
-                    );
-                }
-                if (typeof lt === 'number' && numeric >= lt) {
-                    throw createValidupError(
-                        ctx.value,
-                        IssueCode.MAX_VALUE,
-                        options.message ?? `The value must be less than ${lt}`,
-                        { max: lt },
-                    );
-                }
+                assertNumericRange(ctx.value, numeric, options);
             }
             if (!validator.isFloat(s, options)) {
                 throw createValidupError(
