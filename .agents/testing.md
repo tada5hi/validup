@@ -50,6 +50,7 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `run-sync.spec.ts`            | `runSync` / `safeRunSync` + `RunSyncViolationError`       |
 | `parallel.spec.ts`            | `runParallel` scheduling and issue ordering               |
 | `run-parity.spec.ts`          | `run` ↔ `runSync` twin contract, table-driven             |
+| `output-shape.spec.ts`        | Nested output reconstruction — array paths under the default `flat: false` |
 | `optional-value.spec.ts`      | `isOptionalValue` atom matcher, at its own edge           |
 | `path-filter.spec.ts`         | `resolvePathFilter` include/exclude verdict               |
 | `defaults.spec.ts`            | `resolveDefaults` child-slice helper                      |
@@ -83,3 +84,13 @@ import { Container, type Validator } from '../../src';
 - Use `expect.assertions(n)` when asserting in `catch` blocks (see `module.spec.ts`) — the codebase is consistent about this.
 - Integration-package tests instantiate the foreign library inline (zod, validator.js); `vue` uses `@vue/test-utils` + `happy-dom`.
 - Coverage is collected only from `src/**/*.{ts,tsx,js,jsx}`.
+
+### Assert the serialized shape, not just the read-back
+
+`Container.finalizeOutput` expands its flat dotted output into a nested object with `setPathValue` whenever `flat` is false — the default. A path with numeric segments can therefore reconstruct as `{ items: { '0': [] } }`: the value lands on an array as a non-index property, which **reads back fine in memory but is dropped by `JSON.stringify` and `structuredClone`**, i.e. in any API response body.
+
+A pathtrace bug of exactly that shape ([tada5hi/pathtrace#200](https://github.com/tada5hi/pathtrace/issues/200), fixed in 2.2.3) went unnoticed here for that reason: every glob spec in `mount-key.spec.ts` passes `{ flat: true }` — the branch that skips `setPathValue` entirely — and every fixture used object keys rather than array indices.
+
+So when a spec covers output reconstruction, assert `JSON.parse(JSON.stringify(output))` (and `structuredClone` where it matters) rather than reading a property off the result. `output-shape.spec.ts` is the dedicated home for those cases.
+
+Note also that flat keys keep pathtrace's bracket notation for indices (`items[0].name`, not `items.0.name`).

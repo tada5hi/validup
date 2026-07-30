@@ -43,7 +43,7 @@
     ],
     "license": "Apache-2.0",
     "dependencies": {
-        "pathtrace": "^2.2.2"
+        "pathtrace": "^2.2.3"
     },
     "devDependencies": {
         "@types/validator": "^13.12.2",

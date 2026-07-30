@@ -37,7 +37,7 @@
     "keywords": [],
     "license": "Apache-2.0",
     "dependencies": {
-        "pathtrace": "^2.2.2"
+        "pathtrace": "^2.2.3"
     },
     "devDependencies": {
         "zod": "^4.4.3"
