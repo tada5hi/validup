@@ -39,7 +39,8 @@
     "dependencies": {
         "@ebec/core": "^1.2.0",
         "pathtrace": "^2.2.2",
-        "smob": "^1.6.2"
+        "smob": "^1.6.2",
+        "twinop": "^1.0.0"
     },
     "publishConfig": {
         "access": "public"
