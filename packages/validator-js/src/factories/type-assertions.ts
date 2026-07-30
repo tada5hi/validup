@@ -210,8 +210,9 @@ export function isInt<C = unknown>(
 /**
  * Factory: validator.js `isFloat`. Like {@link isInt} but for decimal
  * numbers — type failure emits `IssueCode.DECIMAL`; range bounds emit
- * `MIN_VALUE` / `MAX_VALUE`. `lt` / `gt` map to `MIN_VALUE` / `MAX_VALUE`
- * the same way `isInt` does.
+ * `MIN_VALUE` / `MAX_VALUE`. `gt` / `lt` map to `MIN_VALUE` / `MAX_VALUE`
+ * the same way `isInt` does — `gt` emits `MIN_VALUE` with `data.min` set to
+ * `options.gt`, `lt` emits `MAX_VALUE` with `data.max` set to `options.lt`.
  *
  * **Locale caveat.** validator.js's locale-aware float parsing (e.g.
  * `'123,45'` under `locale: 'de-DE'`) is opaque to the factory — we use

@@ -301,17 +301,21 @@ describe('isFloat', () => {
     });
 
     it('checks bounds first-match-wins in min / gt / max / lt order', async () => {
-        // Both a min and a max bound are violated only for the min side here;
-        // the ordering matters when two bounds could fire at once.
-        const items = await fail(isFloat({ min: 5, lt: 1 }), 0.5);
+        // 2 violates BOTH bounds — it is below min (5) and not below lt (1) —
+        // so the two branches genuinely compete and the emitted code is decided
+        // purely by ladder order. Reordering `assertNumericRange` flips this to
+        // MAX_VALUE / { max: 1 }, which is what makes this a real ordering test.
+        const items = await fail(isFloat({ min: 5, lt: 1 }), 2);
         expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
         expect(items[0]?.data).toEqual({ min: 5 });
     });
 
     it('skips the range ladder for localized input that Number() cannot parse', async () => {
-        // NaN short-circuit lives at isFloat's call site, not inside the shared
-        // helper — a de-DE float still passes its bounds check by falling
-        // through to validator.isFloat.
+        // A de-DE float passes its bounds check by falling through to
+        // validator.isFloat. Note this asserts the OUTCOME only: the
+        // `Number.isNaN` guard at isFloat's call site is defensive, not
+        // observable — every ladder comparison against NaN is already false,
+        // so no test can distinguish the guard's presence.
         expect(await pass(isFloat({ locale: 'de-DE', min: 100 }), '123,45')).toBe('123,45');
     });
 });
