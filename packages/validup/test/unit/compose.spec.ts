@@ -17,6 +17,7 @@ import {
     defineValidator,
     flattenIssueItems,
     isIssueGroup,
+    isPathsStrictViolation,
 } from '../../src';
 import type { Validator } from '../../src';
 
@@ -532,5 +533,87 @@ describe('createValidupError', () => {
     it('omits data when not provided', () => {
         const err = createValidupError(0, IssueCode.REQUIRED, 'required');
         expect(err.issues[0]?.data).toBeUndefined();
+    });
+});
+
+describe('compose — structural throws are not folded into issues', () => {
+    /**
+     * A child container whose strict pre-flight fails: `pathsToInclude` names a
+     * path no mount satisfies, so `run()` throws `PathsStrictViolationError`
+     * before any validator executes.
+     *
+     * That is a misconfigured graph, not a branch that "didn't match" — folding
+     * it into the issue list buries the one diagnostic that identifies it.
+     */
+    const strictChild = () => {
+        const child = new Container<any>({
+            pathsStrict: true,
+            pathsToInclude: ['does-not-exist'],
+        });
+        child.mount('foo', (ctx) => ctx.value);
+        return child;
+    };
+
+    const ctx = () => ({
+        key: 'root', 
+        path: [], 
+        value: { foo: 'x' }, 
+        data: {}, 
+        context: undefined,
+    }) as any;
+
+    it('should propagate a strict-paths violation out of compose({ bail: false })', async () => {
+        const validator = compose([strictChild()], { bail: false });
+
+        expect.assertions(2);
+        try {
+            await validator(ctx());
+        } catch (e) {
+            expect(isPathsStrictViolation(e)).toBe(true);
+            // Not reshaped into an aggregate ValidupError of branch issues.
+            expect(e).not.toBeInstanceOf(ValidupError);
+        }
+    });
+
+    it('should propagate a strict-paths violation out of composeOneOf', async () => {
+        const validator = composeOneOf([strictChild()]);
+
+        expect.assertions(2);
+        try {
+            await validator(ctx());
+        } catch (e) {
+            expect(isPathsStrictViolation(e)).toBe(true);
+            // Would otherwise arrive wrapped in an ONE_OF_FAILED group.
+            expect(e).not.toBeInstanceOf(ValidupError);
+        }
+    });
+
+    it('should still fold an ordinary branch failure under composeOneOf', async () => {
+        // Guards the widening above: a plain Error must NOT start propagating.
+        const validator = composeOneOf([() => {
+            throw new Error('BRANCH_FAILED');
+        }]);
+
+        expect.assertions(2);
+        try {
+            await validator(ctx());
+        } catch (e) {
+            expect(e).toBeInstanceOf(ValidupError);
+            expect((e as ValidupError).issues[0]).toMatchObject({ code: IssueCode.ONE_OF_FAILED });
+        }
+    });
+
+    it('should still fold an ordinary stage failure under compose({ bail: false })', async () => {
+        const validator = compose([() => {
+            throw new Error('STAGE_FAILED');
+        }], { bail: false });
+
+        expect.assertions(2);
+        try {
+            await validator(ctx());
+        } catch (e) {
+            expect(e).toBeInstanceOf(ValidupError);
+            expect((e as ValidupError).issues[0]).toMatchObject({ message: 'STAGE_FAILED' });
+        }
     });
 });
