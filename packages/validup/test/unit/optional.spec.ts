@@ -814,5 +814,75 @@ describe('optional', () => {
             expect(leaf.meta?.optional).toBe(true);
             expect(leaf.meta?.source).toBe('unit-test');
         });
+
+        describe('throwing predicate', () => {
+            // The `meta.optional` stamp re-invokes the mount's `optional`
+            // predicate from inside the error path — a `catch` handler with no
+            // `try` above it in the run loop. A second throw there escapes the
+            // whole run, so the framework would defeat its own containment of
+            // the predicate's *first* throw.
+            //
+            // The trigger is not exotic: `optional: (v) => v.trim().length ===
+            // 0` — "blank means absent" — throws a TypeError the first time
+            // the field is genuinely absent from the payload.
+            //
+            // Cross-mode coverage (`runSync`, `parallel: true`) lives in
+            // `pre-dispatch-throw.spec.ts`; these cases pin the
+            // optional-specific semantics.
+            const boom = () => {
+                throw new Error('PREDICATE_BOOM');
+            };
+
+            it('should not discard a sibling mount\'s issues', async () => {
+                const container = new Container<{ other: string, flaky: string }>();
+                container.mount('other', stringValidator);
+                container.mount('flaky', { optional: boom }, stringValidator);
+
+                const issues = await runAndCollectIssues(container, { other: 1 as any, flaky: 'x' });
+                const leaves = flattenIssueItems(issues);
+
+                expect(leaves.map((i) => i.path.join('.'))).toEqual(['other', 'flaky']);
+                expect(leaves[0].message).toBe('Value is not a string');
+                expect(leaves[1].message).toBe('PREDICATE_BOOM');
+            });
+
+            it('should surface the predicate failure against its own mount path', async () => {
+                const container = new Container<{ flaky: string }>();
+                container.mount('flaky', { optional: boom }, stringValidator);
+
+                const issues = await runAndCollectIssues(container, { flaky: 'x' });
+                const [leaf] = flattenIssueItems(issues);
+
+                expect(leaf.path).toEqual(['flaky']);
+                expect(leaf.message).toBe('PREDICATE_BOOM');
+            });
+
+            it('should not stamp meta.optional from a predicate that could not answer', async () => {
+                // Conservative fallback: a predicate that threw has not said
+                // "this field is optional". Stamping anyway would let
+                // `@validup/vue`'s `getSeverity` downgrade a real failure to a
+                // warning.
+                const container = new Container<{ flaky: string }>();
+                container.mount('flaky', { optional: boom }, stringValidator);
+
+                const issues = await runAndCollectIssues(container, { flaky: 'x' });
+                const [leaf] = flattenIssueItems(issues);
+
+                expect(leaf.meta?.optional).toBeUndefined();
+            });
+
+            it('should still gate normally when the predicate answers', async () => {
+                // Guard against "fixed" by neutering the predicate entirely.
+                const container = new Container<{ flaky: string }>();
+                container.mount(
+                    'flaky',
+                    { optional: (value) => value === 'skip' },
+                    stringValidator,
+                );
+
+                await expect(container.run({ flaky: 'skip' })).resolves.toEqual({});
+                await expect(container.run({ flaky: 1 as any })).rejects.toThrow();
+            });
+        });
     });
 });

@@ -101,6 +101,29 @@ describe('run/runSync parity', () => {
             expect(Object.keys(await expectRunParity(container, { name: null as any }))).toHaveLength(0);
             expect(Object.keys(await expectRunParity(container, { name: '' }))).toHaveLength(0);
         });
+
+        it('should agree on a throwing predicate failing only its own mount', async () => {
+            // The gate runs the predicate once, and the `meta.optional` stamp
+            // re-runs it inside the error path. Both variants must contain the
+            // throw and attribute it to `flaky`, leaving `other`'s issue
+            // intact — an escape from either site collapses the whole tree to
+            // one path-less item, identically in both drivers, so the failure
+            // mode is invisible without asserting the tree itself.
+            const container = new Container<{ other: string, flaky: string }>();
+            container.mount('other', stringValidatorSync);
+            container.mount(
+                'flaky',
+                { optional: () => { throw new Error('PREDICATE_BOOM'); } },
+                stringValidatorSync,
+            );
+
+            const issues = await expectRunFailureParity(container, { other: 1 as any, flaky: 'x' });
+
+            expect(flattenIssueItems(issues as any).map((i) => [i.path.join('.'), i.message])).toEqual([
+                ['other', 'Value is not a string'],
+                ['flaky', 'PREDICATE_BOOM'],
+            ]);
+        });
     });
 
     describe('optionalValue precedence', () => {

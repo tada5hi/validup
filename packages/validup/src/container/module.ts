@@ -917,6 +917,41 @@ export class Container<
     }
 
     /**
+     * Re-resolve a mount's `optional` declaration for the `meta.optional`
+     * stamp applied by {@link Container.collectExecutionFailure}.
+     *
+     * Split out from `resolveOptionalDirective` because the two calls answer
+     * different questions at different times: the directive decides whether to
+     * *run* the mount, this decides whether to *tag* the mount's issues. The
+     * split is what lets this one contain a throw the gate cannot.
+     *
+     * A predicate that throws degrades to `false` (don't tag) rather than
+     * propagating. This is load-bearing, not defensive: the caller is a
+     * `catch` handler with no `try` above it inside the run loop, and the very
+     * throw it is folding may be the predicate's own. Re-raising here escapes
+     * the error path entirely, discarding **every issue collected so far** and
+     * replacing them with one path-less item — so a mainstream idiom like
+     * `optional: (v) => v.trim().length === 0` would, on the first absent
+     * field, wipe out every other field's validation error.
+     *
+     * `false` is the conservative fallback: the mount's issues surface at full
+     * severity instead of being downgraded to a warning by consumers such as
+     * `@validup/vue`'s `getSeverity`. The predicate's failure is not swallowed
+     * — it is already being folded into an issue by the caller.
+     */
+    private resolveOptionalStamp(item: Mount<C>, value: unknown): boolean {
+        if (typeof item.options.optional === 'function') {
+            try {
+                return Boolean(item.options.optional(value));
+            } catch {
+                return false;
+            }
+        }
+
+        return item.options.optional === true;
+    }
+
+    /**
      * Build the option bag forwarded into a nested container's `run` /
      * `runSync`. Single source of truth for what a child inherits, so a new
      * run option is threaded downward in one place instead of three.
@@ -1250,12 +1285,15 @@ export class Container<
         // - `optional: true`  → tag
         // - `optional: false` → don't tag (matches runtime's truthy filter)
         // - `optional: (v) => boolean` → invoke the predicate with the
-        //    current value and tag iff it returns truthy. Today the run
-        //    loop only enters this error path when the predicate returned
-        //    false (otherwise the validator would have been skipped), so
-        //    this branch is effectively "don't tag" — but the explicit
-        //    re-evaluation keeps the code's intent self-evident and
-        //    decouples it from that invariant.
+        //    current value and tag iff it returns truthy. The run loop
+        //    normally only enters this error path when the predicate
+        //    returned false (otherwise the validator would have been
+        //    skipped), so this branch is usually "don't tag" — but the
+        //    explicit re-evaluation keeps the code's intent self-evident
+        //    and decouples it from that invariant. The one case where the
+        //    predicate did NOT return false is when it *threw*, which is
+        //    why the re-invocation is contained — see
+        //    {@link Container.resolveOptionalStamp}.
         // - `optional: undefined` → don't tag
         //
         // Per the "no inheritance" decision: issues bubbled up unchanged from
@@ -1264,10 +1302,7 @@ export class Container<
         // required-on-its-own-mount field stays unmarked even if its parent
         // mount was optional. This matches the "if you DO provide a role, the
         // role's required fields are still required" semantics.
-        const isOptionalMount = typeof item.options.optional === 'function' ?
-            Boolean(item.options.optional(value)) :
-            item.options.optional === true
-        ;
+        const isOptionalMount = this.resolveOptionalStamp(item, value);
         // Shallow stamp — only the top-level `issue.meta`. Used for the
         // wrapping `IssueGroup` we emit for container mounts (Option B: do
         // not propagate the parent's optional flag onto the bubbled-up child
