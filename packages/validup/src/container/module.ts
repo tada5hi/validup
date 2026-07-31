@@ -50,7 +50,7 @@ import type {
 } from './types';
 import type { Issue } from '../issue';
 import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
-import { RunSyncViolationError, isRunSyncViolation } from './run-sync-violation';
+import { RunSyncViolationError } from './run-sync-violation';
 import { PathsStrictViolationError } from './paths-strict-violation';
 import { isStructuralThrow } from './structural-throw';
 
@@ -503,29 +503,26 @@ export class Container<
                                     options.signal,
                                 );
                             } catch (e) {
-                                // RunSyncViolation is structural — don't pollute the
-                                // cache with a graph-level error that the next run
-                                // might reach through different mounts. Only the sync
-                                // side can raise one from the effect above; guarding
-                                // unconditionally also covers the pathological case
-                                // of an async validator letting one escape.
+                                // Structural throws are graph-level errors, not
+                                // validation outcomes — don't pollute the cache with
+                                // one the next run might reach through different
+                                // mounts.
                                 //
                                 // Pinned by `cache.spec.ts` → "does not cache a
                                 // RunSyncViolationError": drop this guard and a
                                 // failed `runSync` poisons the slot, so the next
                                 // *async* `run()` replays the violation through
                                 // `collectExecutionFailure` — which rethrows it
-                                // structurally — instead of succeeding.
+                                // structurally — instead of succeeding. The same
+                                // now holds for `PathsStrictViolationError`, which a
+                                // validator driving its own strict child container
+                                // can raise and which used to be cached here.
                                 //
-                                // NOT `isStructuralThrow` on purpose. That guard also
-                                // covers `PathsStrictViolationError`, which a validator
-                                // driving its own strict child container CAN raise —
-                                // and which is cached here today. Adopting the shared
-                                // guard would change behaviour (stop caching it), so it
-                                // belongs in its own commit with its own cache spec.
-                                // `runParallel`'s cache-write catch has no inline filter
-                                // at all and carries the same gap.
-                                if (!isRunSyncViolation(e)) {
+                                // `runParallel`'s cache-write catch applies the
+                                // identical guard — the two sites must agree, or a
+                                // shared `ResultCache` handed to both run modes
+                                // would replay entries one of them refuses to write.
+                                if (!isStructuralThrow(e, options.signal)) {
                                     this.writeCachedOutcome(
                                         item,
                                         key,
@@ -866,14 +863,24 @@ export class Container<
                 );
                 return result;
             } catch (e) {
-                this.writeCachedOutcome(
-                    item,
-                    key,
-                    snapshot,
-                    { ok: false, error: e },
-                    options.cache,
-                    options.signal,
-                );
+                // Structural violations are not validation outcomes — the
+                // validator graph is wrong, not the input — so they must not
+                // be remembered and replayed on a later hit. The twin body
+                // carves out the same class of throw at its own cache-write
+                // site; this one previously had no filter at all, so a
+                // `RunSyncViolationError` or `PathsStrictViolationError`
+                // raised by a validator driving its own child container was
+                // cached and replayed.
+                if (!isStructuralThrow(e, options.signal)) {
+                    this.writeCachedOutcome(
+                        item,
+                        key,
+                        snapshot,
+                        { ok: false, error: e },
+                        options.cache,
+                        options.signal,
+                    );
+                }
                 throw e;
             }
         })();
