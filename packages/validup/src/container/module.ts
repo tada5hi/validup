@@ -23,6 +23,7 @@ import type { PathFilterResolution } from '../helpers';
 import {
     buildErrorMessageForAttribute,
     buildOneOfFailedGroup,
+    errorToIssues,
     isOptionalValue,
     resolveDefaults,
     resolvePathFilter,
@@ -50,7 +51,8 @@ import type {
 import type { Issue } from '../issue';
 import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
 import { RunSyncViolationError, isRunSyncViolation } from './run-sync-violation';
-import { PathsStrictViolationError, isPathsStrictViolation } from './paths-strict-violation';
+import { PathsStrictViolationError } from './paths-strict-violation';
+import { isStructuralThrow } from './structural-throw';
 
 /**
  * Bundle of state the error path needs from the surrounding run loop.
@@ -477,6 +479,22 @@ export class Container<
                                 // side can raise one from the effect above; guarding
                                 // unconditionally also covers the pathological case
                                 // of an async validator letting one escape.
+                                //
+                                // Pinned by `cache.spec.ts` → "does not cache a
+                                // RunSyncViolationError": drop this guard and a
+                                // failed `runSync` poisons the slot, so the next
+                                // *async* `run()` replays the violation through
+                                // `collectExecutionFailure` — which rethrows it
+                                // structurally — instead of succeeding.
+                                //
+                                // NOT `isStructuralThrow` on purpose. That guard also
+                                // covers `PathsStrictViolationError`, which a validator
+                                // driving its own strict child container CAN raise —
+                                // and which is cached here today. Adopting the shared
+                                // guard would change behaviour (stop caching it), so it
+                                // belongs in its own commit with its own cache spec.
+                                // `runParallel`'s cache-write catch has no inline filter
+                                // at all and carries the same gap.
                                 if (!isRunSyncViolation(e)) {
                                     this.writeCachedOutcome(
                                         item,
@@ -1214,20 +1232,11 @@ export class Container<
             signal,
         } = context;
 
-        if (signal?.aborted) {
-            throw error;
-        }
-        // Structural runSync violations are not validation outcomes — they
-        // mean the caller can't use runSync against this graph. Surface the
-        // diagnostic verbatim instead of wrapping it as "Property X is invalid".
-        if (isRunSyncViolation(error)) {
-            throw error;
-        }
-        // Same treatment for a nested container's strict-paths violation: it
-        // reaches this parent's per-mount catch (the child `run()` is awaited
-        // inside the `try`), and folding it into an issue would bury the
-        // misconfiguration under a generic "Property X is invalid".
-        if (isPathsStrictViolation(error)) {
+        // Cancellation and structural graph violations are not validation
+        // outcomes — surface them verbatim rather than burying them under a
+        // generic "Property X is invalid". See {@link isStructuralThrow} for
+        // why each of the three legs is carved out.
+        if (isStructuralThrow(error, signal)) {
             throw error;
         }
 
@@ -1439,54 +1448,49 @@ export class Container<
     }
 
     private wrapSafeRunError(e: unknown, options: ContainerRunOptions<T, C>): Result<T> {
-        // Abort is not a validation outcome — propagate it. Wrapping it
-        // as a synthetic `Result.failure` would produce a misleading
-        // "AbortError" issue at path `[]`.
-        if (options.signal?.aborted) {
-            throw e;
-        }
-        // Same reasoning for `runSync` structural violations.
-        if (isRunSyncViolation(e)) {
-            throw e;
-        }
-        // A strict-paths violation is a misconfigured graph, not a validation
-        // outcome — re-throw it verbatim rather than reshaping it into a
-        // path-less `Result.failure` (consistent with how runSync violations
-        // escape `safeRunSync`).
-        if (isPathsStrictViolation(e)) {
+        // Cancellation and structural graph violations propagate instead of
+        // being reshaped into a path-less `Result.failure` — the exact same
+        // decision `collectExecutionFailure` makes. See
+        // {@link isStructuralThrow} for the per-leg rationale.
+        if (isStructuralThrow(e, options.signal)) {
             throw e;
         }
 
+        // Identity passthrough — deliberately NOT routed through
+        // `errorToIssues`. That helper spreads `issues` into a plain array,
+        // and rebuilding a `ValidupError` around it would drop the subclass,
+        // `cause`, and any custom property the thrower attached. `safeRun`
+        // hands back the exact object `run` would have thrown.
         if (isValidupError(e)) {
             return { success: false, error: e };
         }
 
-        if (isError(e)) {
-            return {
-                success: false,
-                error: new ValidupError([
-                    defineIssueItem({
-                        path: [],
-                        message: e.message,
-                    }),
-                ]),
-            };
-        }
-
-        // Non-`Error` throw (string, plain object, null, …). Surface a
-        // stringified diagnostic so `Result.error.issues` is never empty —
-        // an empty issue list with `success: false` is a confusing API
-        // signal ("validation failed" with no diagnostic) and is what
-        // landed in 0.x for non-Error throws.
-        return {
-            success: false,
-            error: new ValidupError([
-                defineIssueItem({
-                    path: [],
-                    message: typeof e === 'string' && e.length > 0 ? e : `Non-Error throw: ${String(e)}`,
-                }),
-            ]),
-        };
+        // Everything else — an `Error`, or a raw `throw` of a string / plain
+        // object / `null` — folds through the shared cascade at its defaults
+        // (`code: VALUE_INVALID`, `path: []`), which reproduces every issue
+        // *value* this site built by hand before, including the verbatim
+        // non-empty-string case. One thing did change: `errorToIssues` passes
+        // `code` inside the `defineIssueItem` payload rather than letting the
+        // factory append it, so the key insertion order is now
+        // `type, path, code, message` where this site emitted
+        // `type, path, message, code`. Deep-equality is unaffected;
+        // `JSON.stringify` bytes are not. That aligns this site with compose's
+        // fold sites and leaves `collectExecutionFailure` — which still builds
+        // its items by hand — as the odd one out.
+        //
+        // `path` is empty because the throw escaped the run loop before any
+        // mount key was resolved; a *mounted* unit's failure never arrives
+        // here (`collectExecutionFailure` folds that one, with the mount path
+        // attached — though see its own note: a keyless mount also yields
+        // `path: []`).
+        //
+        // The fold is not defensive-only: reaching it needs no `Container`
+        // subclass. The per-mount value read sits outside the per-mount
+        // `try`, so a throwing accessor or Proxy trap on the input lands
+        // here — see `test/unit/safe-run-error.spec.ts`, which pins every
+        // branch including the "non-empty string throw stays verbatim" case
+        // and the never-empty `issues` guarantee.
+        return { success: false, error: new ValidupError(errorToIssues(e)) };
     }
 
     private isItemGroupIncluded(
