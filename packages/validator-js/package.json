@@ -1,6 +1,6 @@
 {
     "name": "@validup/validator-js",
-    "version": "0.2.3",
+    "version": "1.0.0",
     "type": "module",
     "description": "validator.js integration for validup — pre-baked factories per common rule plus a generic createValidator for the long tail.",
     "author": {
@@ -51,7 +51,7 @@
         "validator": "^13.12.0"
     },
     "peerDependencies": {
-        "validup": "^0.5.1",
+        "validup": "^1.0.0",
         "validator": "^13.0.0"
     },
     "publishConfig": {
