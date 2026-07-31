@@ -266,6 +266,43 @@ describe('isInt', () => {
         expect((await fail(isInt({ min: 18, message: 'Too young' }), 5))[0]?.message)
             .toBe('Too young');
     });
+
+    it('lets options.message override the TYPE failure too', async () => {
+        // Separate throw site from the range ladder. `issue-shape.spec.ts`'s
+        // message-override loop only covers the single-triple factories, so a
+        // dropped `options.message ??` here would otherwise go unnoticed.
+        expect((await fail(isInt({ message: 'Not a whole number' }), 'abc'))[0]?.message)
+            .toBe('Not a whole number');
+    });
+
+    it('the defensive re-check catches bounds the ladder cannot express', async () => {
+        // The second `validator.isInt(s, options)` call is NOT dead code.
+        // `NaN` and `Infinity` are ordinary `number`s, so `{ min: Number.NaN }`
+        // type-checks clean under `--strict` with no cast — yet every
+        // comparison in `assertNumericRange` against NaN is false, so the
+        // ladder cannot classify it. validator.js's own `str >= options.min`
+        // is false as well, so the full-bag re-check rejects and we report
+        // INTEGER ("no usable bound") rather than passing the value through.
+        for (const bound of ['min', 'max', 'lt', 'gt'] as const) {
+            const items = await fail(isInt({ [bound]: Number.NaN }), '5');
+            expect(items[0]?.code).toBe(IssueCode.INTEGER);
+            expect(items[0]?.data).toBeUndefined();
+        }
+        // Honours the message override at this throw site as well.
+        expect((await fail(isInt({ min: Number.NaN, message: 'unusable bound' }), '5'))[0]?.message)
+            .toBe('unusable bound');
+    });
+
+    it('a finite bound is always classified by the ladder, never by the re-check', async () => {
+        // The counterfactual to the case above: for every ordinary bound the
+        // ladder and validator.js agree, so the range codes — not INTEGER —
+        // are what a consumer sees. If the ladder were removed, these would
+        // all collapse onto INTEGER via the defensive pass.
+        expect((await fail(isInt({ min: 100 }), '5'))[0]?.code).toBe(IssueCode.MIN_VALUE);
+        expect((await fail(isInt({ max: 1 }), '5'))[0]?.code).toBe(IssueCode.MAX_VALUE);
+        expect((await fail(isInt({ gt: 100 }), '5'))[0]?.code).toBe(IssueCode.MIN_VALUE);
+        expect((await fail(isInt({ lt: 1 }), '5'))[0]?.code).toBe(IssueCode.MAX_VALUE);
+    });
 });
 
 describe('isFloat', () => {
@@ -300,6 +337,15 @@ describe('isFloat', () => {
             .toBe('The value must be less than 10');
     });
 
+    it('honours options.message on the TYPE gate', async () => {
+        // The un-localized pre-check is a THIRD throw site, distinct from the
+        // range ladder and from the localized downgrade covered further down.
+        // Dropping `options.message ??` here left the suite green before this
+        // row existed.
+        expect((await fail(isFloat({ message: 'Not a decimal' }), 'abc'))[0]?.message)
+            .toBe('Not a decimal');
+    });
+
     it('checks bounds first-match-wins in min / gt / max / lt order', async () => {
         // 2 violates BOTH bounds — it is below min (5) and not below lt (1) —
         // so the two branches genuinely compete and the emitted code is decided
@@ -318,6 +364,43 @@ describe('isFloat', () => {
         // so no test can distinguish the guard's presence.
         expect(await pass(isFloat({ locale: 'de-DE', min: 100 }), '123,45')).toBe('123,45');
     });
+
+    it('downgrades a localized range failure to DECIMAL (documented trade-off)', async () => {
+        // The other half of the locale caveat, and the ONLY path that reaches
+        // isFloat's final `validator.isFloat(s, options)` re-check.
+        //
+        // '123,45' under de-DE is 123.45, which is below min: 200 — a RANGE
+        // failure. But `Number('123,45')` is NaN, so the explicit ladder is
+        // skipped and the failure is caught by validator.js's own locale-aware
+        // bounds check, which reports only a boolean. The factory cannot tell
+        // which bound was crossed at that point, so the issue surfaces as
+        // DECIMAL rather than MIN_VALUE.
+        //
+        // This is a KNOWN trade-off documented on `isFloat`'s JSDoc, not a
+        // behaviour to preserve for its own sake. It is pinned here so a fix
+        // (e.g. locale-aware parsing before the ladder) is a deliberate,
+        // visible change rather than a silent one. The sibling case above
+        // (min: 100, which passes) exercised the same skip without ever
+        // reaching this branch.
+        const items = await fail(isFloat({ locale: 'de-DE', min: 200 }), '123,45');
+        expect(items[0]?.code).toBe(IssueCode.DECIMAL);
+        expect(items[0]?.message).toBe('The value must be a decimal number');
+        // Note what is NOT here: `data: { min: 200 }`. An i18n catalog keyed on
+        // DECIMAL has no bound to render.
+        expect(items[0]?.data).toBeUndefined();
+    });
+
+    it('honours the message override on the localized downgrade', async () => {
+        const items = await fail(
+            isFloat({
+                locale: 'de-DE',
+                min: 200,
+                message: 'Out of range',
+            }),
+            '123,45',
+        );
+        expect(items[0]?.message).toBe('Out of range');
+    });
 });
 
 describe('isLength', () => {
@@ -333,6 +416,79 @@ describe('isLength', () => {
     });
     it('accepts values inside the range', async () => {
         expect(await pass(isLength({ min: 3, max: 10 }), 'hello')).toBe('hello');
+    });
+
+    it('honours options.message on the PRIMARY min / max bounds', async () => {
+        // `isLength` is a pipeline factory, so it is excluded from
+        // `issue-shape.spec.ts`'s message-override loop. Without these two
+        // rows only the degenerate fallbacks below were covered, and dropping
+        // `options.message ??` from either primary branch left the whole
+        // suite green.
+        expect((await fail(isLength({ min: 3, message: 'Too short' }), 'ab'))[0]?.message)
+            .toBe('Too short');
+        expect((await fail(isLength({ max: 3, message: 'Too long' }), 'toolong'))[0]?.message)
+            .toBe('Too long');
+    });
+
+    describe('degenerate fallbacks (isLength returned false, no bound crossed)', () => {
+        // `validator.isLength` can reject a value WITHOUT either declared bound
+        // being crossed. The factory then has no bound to put in `data`, so it
+        // falls back to a generic message — and, when `min` is present, to a
+        // MIN_LENGTH code carrying the declared (uncrossed) bound.
+        //
+        // NOTE ON THE REPRO: "call without min and max" does NOT reach these
+        // branches — `validator.isLength(s, {})` defaults `min` to 0 and
+        // therefore always returns true. The two routes that actually reach
+        // them are surrogate pairs and `discreteLengths`, both below.
+        //
+        // `discreteLengths` needs no cast: it is a documented member of
+        // `validator.IsLengthOptions`, so this is a type-legal call shape a
+        // real consumer can write.
+
+        it('emits MIN_LENGTH with a generic message for a surrogate-pair miscount', async () => {
+            // '👍'.length is 2 (UTF-16 code units) so the `s.length < min`
+            // guard does NOT fire, but `validator.isLength` counts code points
+            // and sees 1 — so it rejects. This is reachable on ordinary
+            // astral-plane input (emoji, many CJK extensions): a user typing a
+            // single emoji into a `min: 2` field gets the generic wording.
+            const items = await fail(isLength({ min: 2 }), '👍');
+            expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
+            expect(items[0]?.message).toBe('The value has an invalid length');
+            // The bound IS carried even though it was never crossed, because
+            // MIN_LENGTH's vocabulary contract requires `data.min`.
+            expect(items[0]?.data).toEqual({ min: 2 });
+        });
+
+        it('emits VALUE_INVALID when discreteLengths fails with no min declared', async () => {
+            // 7 is not in [5, 10] → rejected. No `min` / `max` to report, and
+            // MIN_LENGTH / MAX_LENGTH both REQUIRE their bound in `data`, so
+            // the only contract-honouring code left is the generic one.
+            const items = await fail(isLength({ discreteLengths: [5, 10] }), 'abcdefg');
+            expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
+            expect(items[0]?.message).toBe('The value has an invalid length');
+            expect(items[0]?.data).toBeUndefined();
+        });
+
+        it('prefers MIN_LENGTH over VALUE_INVALID when a min is declared alongside discreteLengths', async () => {
+            // 7 clears `min: 1` but is still not in [5, 10]. The declared bound
+            // wins the code even though it is not the bound that failed —
+            // arguably misleading, and pinned so that a later correction is a
+            // deliberate change.
+            const items = await fail(isLength({ min: 1, discreteLengths: [5, 10] }), 'abcdefg');
+            expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
+            expect(items[0]?.data).toEqual({ min: 1 });
+        });
+
+        it('honours the message override on both fallbacks', async () => {
+            expect((await fail(isLength({ min: 2, message: 'Bad length' }), '👍'))[0]?.message)
+                .toBe('Bad length');
+            expect((await fail(isLength({ discreteLengths: [5], message: 'Bad length' }), 'abc'))[0]?.message)
+                .toBe('Bad length');
+        });
+
+        it('still accepts a value matching one of the discrete lengths', async () => {
+            expect(await pass(isLength({ discreteLengths: [5, 10] }), 'abcde')).toBe('abcde');
+        });
     });
 });
 

@@ -38,6 +38,7 @@ Run: `npm run lint` (root, lints the whole workspace via flat config) or `npm ru
 ## Code Style
 
 - **Indent**: 4 spaces, LF line endings, UTF-8, final newline (`.editorconfig`).
+- **No raw control characters in source — write them as escapes.** A fixture string needing a NUL, a bell, or similar must use `\u0000` / `\x07`, never the literal byte. A single raw `0x00` makes `file(1)` report the file as `data` and makes **`grep` skip it**: `grep -r` prints `Binary file … matches` instead of the matching lines, and inside an `&&` chain the non-zero exit silently breaks the chain. Nothing in lint, `tsc`, or CI notices — the file just quietly drops out of every grep-based audit. This bit exactly once (a `validator-js` spec fixture, caught during the `008` pass) and nearly put a wrong fact into `testing.md`, because the verifying grep came back *empty* rather than *failing*. Check with `file src/**/*.ts test/**/*.ts` if a grep result looks implausibly empty.
 - **Single quotes**, trailing commas, semicolons (inherited from the shared config).
 - **`@stylistic/object-curly-newline`** from the shared config requires single-line braces for objects with fewer than 3 properties — `npm run lint:fix` handles this automatically.
 - **Copyright header** on every `.ts` / `.tsx` / `.js` / `.jsx` / `.mjs` / `.cjs` file in the repo — this includes `src/`, `test/`, and build/test config files (`tsdown.config.ts`, `test/vitest.config.ts`, `eslint.config.js`, `commitlint.config.mjs`):
