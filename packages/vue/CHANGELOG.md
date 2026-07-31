@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.0.0](https://github.com/tada5hi/validup/compare/vue-v0.3.3...vue-v1.0.0) (2026-07-31)
+
+
+### Features
+
+* **validup:** pathsStrict — fail loud on unmatched filter paths (+ vue widening fix) ([#424](https://github.com/tada5hi/validup/issues/424)) ([29d0cab](https://github.com/tada5hi/validup/commit/29d0cab8a13354f0e23121bad449a7577b42f224))
+
+
+### Bug Fixes
+
+* **deps:** bump the minorandpatch group across 1 directory with 10 updates ([#411](https://github.com/tada5hi/validup/issues/411)) ([490419d](https://github.com/tada5hi/validup/commit/490419da9240460cab6bc173e9d4c1fe9317ef4e))
+* **deps:** bump the minorandpatch group across 1 directory with 15 updates ([#436](https://github.com/tada5hi/validup/issues/436)) ([dd38e66](https://github.com/tada5hi/validup/commit/dd38e66d0f7bc3e67a85086a5824350e6fa56fc4))
+* **deps:** bump the minorandpatch group across 1 directory with 5 updates ([#416](https://github.com/tada5hi/validup/issues/416)) ([00c099a](https://github.com/tada5hi/validup/commit/00c099a3d59c81aad763c9618ed6be7db786ece2))
+* **deps:** bump the minorandpatch group across 1 directory with 5 updates ([#422](https://github.com/tada5hi/validup/issues/422)) ([d22b3e6](https://github.com/tada5hi/validup/commit/d22b3e6b2798140ae34fa036ef0e49601c6695ea))
+* **vue:** strip optional modifier from FieldsAccessor typed keys ([b65e2ce](https://github.com/tada5hi/validup/commit/b65e2ce893255a1c87e89c0858aabff23f28506b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^0.5.1 to ^1.0.0
+
 ## [0.3.3](https://github.com/tada5hi/validup/compare/vue-v0.3.2...vue-v0.3.3) (2026-06-04)
 
 

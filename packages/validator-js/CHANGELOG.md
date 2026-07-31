@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.0](https://github.com/tada5hi/validup/compare/validator-js-v0.2.3...validator-js-v1.0.0) (2026-07-31)
+
+
+### Bug Fixes
+
+* **deps:** bump pathtrace to ^2.2.3 to stop losing array values in output ([#442](https://github.com/tada5hi/validup/issues/442)) ([756571f](https://github.com/tada5hi/validup/commit/756571fafe32241e99393b17e2ffcd6bc9473686))
+* **deps:** declare pathtrace directly in zod and validator-js ([42b3de1](https://github.com/tada5hi/validup/commit/42b3de164e17c1d44239387f52e077d0bd03328d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^0.5.1 to ^1.0.0
+
 ## [0.2.3](https://github.com/tada5hi/validup/compare/validator-js-v0.2.2...validator-js-v0.2.3) (2026-06-04)
 
 

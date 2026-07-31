@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.0](https://github.com/tada5hi/validup/compare/standard-schema-v0.2.3...standard-schema-v1.0.0) (2026-07-31)
+
+
+### Miscellaneous Chores
+
+* **standard-schema:** typecheck specs, and release at 1.0.0 ([#454](https://github.com/tada5hi/validup/issues/454)) ([919d59c](https://github.com/tada5hi/validup/commit/919d59c2647a839b94b648bacf4b00781d12156b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^0.5.1 to ^1.0.0
+
 ## [0.2.3](https://github.com/tada5hi/validup/compare/standard-schema-v0.2.2...standard-schema-v0.2.3) (2026-06-04)
 
 

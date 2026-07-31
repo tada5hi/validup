@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.0](https://github.com/tada5hi/validup/compare/validup-v0.5.1...validup-v1.0.0) (2026-07-31)
+
+
+### Features
+
+* **validup:** pathsStrict — fail loud on unmatched filter paths (+ vue widening fix) ([#424](https://github.com/tada5hi/validup/issues/424)) ([29d0cab](https://github.com/tada5hi/validup/commit/29d0cab8a13354f0e23121bad449a7577b42f224))
+
+
+### Bug Fixes
+
+* **deps:** bump pathtrace to ^2.2.3 to stop losing array values in output ([#442](https://github.com/tada5hi/validup/issues/442)) ([756571f](https://github.com/tada5hi/validup/commit/756571fafe32241e99393b17e2ffcd6bc9473686))
+* **deps:** bump the minorandpatch group across 1 directory with 15 updates ([#436](https://github.com/tada5hi/validup/issues/436)) ([dd38e66](https://github.com/tada5hi/validup/commit/dd38e66d0f7bc3e67a85086a5824350e6fa56fc4))
+* **validup:** contain pre-dispatch throws so they stop discarding collected issues ([#450](https://github.com/tada5hi/validup/issues/450)) ([34bfb20](https://github.com/tada5hi/validup/commit/34bfb20586af52545be2383ea3a9a38113ee5740))
+* **validup:** route compose's fold sites through isStructuralThrow ([#452](https://github.com/tada5hi/validup/issues/452)) ([5a27371](https://github.com/tada5hi/validup/commit/5a273719586c1628281c8388ead23d56e77a62f4))
+
 ## [0.5.1](https://github.com/tada5hi/validup/compare/validup-v0.5.0...validup-v0.5.1) (2026-06-04)
 
 
