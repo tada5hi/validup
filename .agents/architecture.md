@@ -203,14 +203,18 @@ Consulted at the two sites that fold a throw into issues — `collectExecutionFa
 
 These two differ from the fold sites in *how* they use the predicate: they **suppress a side effect** rather than decide a throw (the rethrow sits unconditionally outside the guard). That is why the predicate must stay a plain boolean rather than becoming a throw-helper.
 
-**`helpers/compose.ts` has two more under-guarded fold sites**, and the one with *no* guard at all is the less obvious of the two:
+**`helpers/compose.ts`'s two fold sites now use it too**, closing the last gap. They had diverged the same way the cache-write pair had:
 
-| Site | Reached via | Filters today | Gap |
+| Site | Reached via | Filtered before | Now |
 |---|---|---|---|
-| `composeAnyOf`'s per-branch catch | `composeOneOf(...)` / `compose(..., { oneOf: true })` | the abort leg alone (`ctx.signal?.aborted`) | a `PathsStrictViolationError` / `RunSyncViolationError` escaping a container element is folded into branch issues |
-| `compose`'s collect-all catch | `compose(..., { bail: false })` | **nothing** — no abort read, no `isRunSyncViolation`, no `isPathsStrictViolation` | folds straight through `errorToIssues` and re-throws as a generic aggregate `ValidupError`, so the caller cannot tell "misconfigured graph" or "cancelled" from "validation failed" |
+| `composeAnyOf`'s per-branch catch | `composeOneOf(...)` / `compose(..., { oneOf: true })` | the abort leg alone (`ctx.signal?.aborted`) | full `isStructuralThrow` — a container element's `PathsStrictViolationError` / `RunSyncViolationError` is no longer buried under `ONE_OF_FAILED` |
+| `compose`'s collect-all catch | `compose(..., { bail: false })` | **nothing** — no abort read, neither error-type leg | `bail \|\| isStructuralThrow(...)`; the caller can again tell "misconfigured graph" and "cancelled" from "validation failed" |
 
-The `bail: true` default re-throws the first failure verbatim, so only the explicit `{ bail: false }` opt-in reaches the second row. Adopting `isStructuralThrow` at either site is a behaviour change (issues that used to be collected would become throws), so it belongs in its own commit with `compose.spec.ts` cases for both strategies. These are now the **only** remaining under-guarded fold sites — the cache-write pair above was unified.
+The `bail: true` default already re-threw the first failure verbatim, so only the explicit `{ bail: false }` opt-in was ever affected on the second row — which is why the gap survived so long. Both are covered by `compose.spec.ts` → "compose — structural throws are not folded into issues", which pairs each propagation case with an ordinary-failure case so the widening cannot silently swallow real validation issues.
+
+`compose.ts` reaches the predicate through the **leaf** module (`../container/structural-throw`), not the `../container` barrel — the same cycle discipline its `isContainer` import already follows.
+
+With this, every fold site in the codebase consults one predicate. There are no known under-guarded sites left.
 
 **When adding a run or mount option**, thread it through the twin body plus (if a child inherits it) `buildChildRunOptions` — two edits, not six. `runParallel` picks up anything the shared helpers resolve for free; only genuinely scheduling-specific behaviour needs a second touch there.
 
@@ -260,7 +264,7 @@ type ComposeOptions =
 ```
 
 - **`oneOf: false`** (default) — every element must pass. Sequential loop; each stage's defined return replaces the threaded `ctx.value` (a `undefined` return passes through). `bail: true` (default) re-throws the first failure verbatim; `bail: false` collects every failure into one aggregate `ValidupError` and threads through throwing stages so the next branch still runs against the last successful value.
-- **`oneOf: true`** — branches run as alternatives in registration order. First defined return wins (with the same pass-through fallback to `ctx.value`); subsequent branches never run. All branches failing throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures, each stamped with `data: { branch: index }` so consumers can attribute issues. Aborts via `ctx.signal` re-throw verbatim instead of being folded into branch failures. Empty branch list throws `ONE_OF_FAILED` with an empty inner list — "zero successes" is still zero successes.
+- **`oneOf: true`** — branches run as alternatives in registration order. First defined return wins (with the same pass-through fallback to `ctx.value`); subsequent branches never run. All branches failing throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures, each stamped with `data: { branch: index }` so consumers can attribute issues. Aborts via `ctx.signal` — and structural violations from a container element — re-throw verbatim instead of being folded into branch failures (see [the structural carve-out](#the-structural-carve-out-isstructuralthrow)). Empty branch list throws `ONE_OF_FAILED` with an empty inner list — "zero successes" is still zero successes.
 
 `composeOneOf([...])` is sugar for `compose([...], { oneOf: true })`. The any-of path lives in a private `composeAnyOf` helper inside `compose.ts` so the main `compose` body stays focused on the all-strategy chain.
 

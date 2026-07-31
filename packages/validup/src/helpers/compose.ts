@@ -6,6 +6,10 @@
  */
 
 import { isContainer } from '../container/check';
+// Leaf module, not the `../container` barrel — the barrel re-exports
+// `container/module.ts`, which imports from `../helpers`. Same discipline as
+// the `container/check` import above.
+import { isStructuralThrow } from '../container/structural-throw';
 import type { IContainer } from '../container/types';
 import { ValidupError } from '../error';
 import type { Issue } from '../issue';
@@ -164,7 +168,12 @@ export function compose<C = unknown>(
                     value = result;
                 }
             } catch (e) {
-                if (bail) {
+                // `bail` re-raises everything, so the structural check only
+                // matters for the `{ bail: false }` opt-in — which otherwise
+                // folds a cancelled run or a misconfigured graph into the
+                // aggregate `ValidupError` alongside real validation issues,
+                // leaving the caller unable to tell them apart.
+                if (bail || isStructuralThrow(e, ctx.signal)) {
                     throw e;
                 }
 
@@ -230,11 +239,16 @@ function composeAnyOf<C>(elements: ComposeElement<C>[]): Validator<C> {
                 // `ctx.value`, surface the input as the output.
                 return typeof result === 'undefined' ? ctx.value : result;
             } catch (e) {
-                // Cancellations from a branch validator surface
-                // verbatim instead of being folded into a branch
-                // failure — caller can distinguish "no branch matched"
-                // from "operation cancelled".
-                if (ctx.signal?.aborted) {
+                // Cancellations and structural graph violations surface
+                // verbatim instead of being folded into a branch failure —
+                // the caller can distinguish "no branch matched" from
+                // "operation cancelled" or "this graph is misconfigured".
+                //
+                // A container element raising `PathsStrictViolationError` or
+                // `RunSyncViolationError` is not a branch that "didn't match";
+                // it is a bug in the composition, and burying it under
+                // `ONE_OF_FAILED` hides the one diagnostic that identifies it.
+                if (isStructuralThrow(e, ctx.signal)) {
                     throw e;
                 }
 
