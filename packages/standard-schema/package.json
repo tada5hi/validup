@@ -31,6 +31,7 @@
         "build:types": "tsc --noEmit -p tsconfig.build.json",
         "build:js": "tsdown",
         "build": "npm run build:types && npm run build:js",
+        "test:types": "tsc --noEmit",
         "test": "vitest --config test/vitest.config.ts --run",
         "test:coverage": "vitest --config test/vitest.config.ts --run --coverage"
     },
