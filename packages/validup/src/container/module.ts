@@ -380,25 +380,55 @@ export class Container<
             let pathFailed = false;
             const branchStart = issues.length;
 
-            const keys: string[] = item.path ? expandPath(data, item.path) : [''];
+            // Path expansion reads the input, so a hostile accessor (an ORM
+            // entity with a lazy relation, a computed getter, a Proxy trap)
+            // throws here — before any key exists. Contained rather than left
+            // to escape: an escape aborts the whole loop and discards every
+            // issue collected by earlier mounts, turning a real multi-field
+            // failure into one path-less item. `keys` stays empty so the key
+            // loop is skipped while the shared bookkeeping below still counts
+            // the mount as one failed path.
+            let keys: string[] = [];
+            try {
+                keys = item.path ? expandPath(data, item.path) : [''];
+            } catch (e) {
+                const attribution = this.describeKey(item.path || '');
+                this.collectExecutionFailure({
+                    error: e,
+                    item,
+                    value: undefined,
+                    keyParts: attribution.keyParts,
+                    pathRelative: attribution.pathRelative,
+                    issues,
+                    signal: options.signal,
+                });
+                pathCount = 1;
+                pathFailed = true;
+            }
 
             for (const key of keys) {
-                const plan = this.prepareMountKey(item, key, options, pathsToInclude, pathsToExclude);
-
+                // Declared outside the `try` so the catch can attribute a
+                // pre-dispatch throw: `plan` is `undefined` when
+                // `prepareMountKey` itself threw, and `value` is whatever the
+                // read managed to produce.
+                let plan: MountKeyPlan | undefined;
                 let value: unknown;
-                if (key.length > 0) {
-                    value = hasOwnProperty(output, key) ?
-                        output[key] :
-                        getPathValue(data, key);
-                } else {
-                    value = data;
-                }
-
-                if (plan.filter.skip) {
-                    continue;
-                }
 
                 try {
+                    plan = this.prepareMountKey(item, key, options, pathsToInclude, pathsToExclude);
+
+                    if (key.length > 0) {
+                        value = hasOwnProperty(output, key) ?
+                            output[key] :
+                            getPathValue(data, key);
+                    } else {
+                        value = data;
+                    }
+
+                    if (plan.filter.skip) {
+                        continue;
+                    }
+
                     const optional = this.resolveOptionalDirective(item, value, options);
 
                     if (optional.skip) {
@@ -510,12 +540,13 @@ export class Container<
                         }
                     }
                 } catch (e) {
+                    const attribution = plan || this.describeKey(key);
                     this.collectExecutionFailure({
                         error: e,
                         item,
                         value,
-                        keyParts: plan.keyParts,
-                        pathRelative: plan.pathRelative,
+                        keyParts: attribution.keyParts,
+                        pathRelative: attribution.pathRelative,
                         issues,
                         signal: options.signal,
                     });
@@ -599,95 +630,75 @@ export class Container<
             const tasks: KeyTask[] = [];
             let syncPathCount = 0;
 
-            const keys: string[] = item.path ? expandPath(data, item.path) : [''];
+            // Same containment as the twin body, and strictly more urgent
+            // here: by the time this runs, earlier mounts' promises are
+            // already in flight. An escape would leave them unowned as well
+            // as dropping their issues — see {@link Container.ownRejection}.
+            let keys: string[] = [];
+            try {
+                keys = item.path ? expandPath(data, item.path) : [''];
+            } catch (e) {
+                const attribution = this.describeKey(item.path || '');
+                tasks.push({
+                    key: item.path || '',
+                    keyParts: attribution.keyParts,
+                    pathRelative: attribution.pathRelative,
+                    value: undefined,
+                    promise: this.ownRejection(Promise.reject(e)),
+                    kind: item.type,
+                });
+            }
+
             for (const key of keys) {
-                const plan = this.prepareMountKey(item, key, options, pathsToInclude, pathsToExclude);
-
+                // See the twin body's copy of this block: `plan` stays
+                // `undefined` when `prepareMountKey` itself threw, and the
+                // catch below turns any pre-dispatch throw into a rejected
+                // task instead of letting it escape the scheduling loop.
+                let plan: MountKeyPlan | undefined;
                 let value: unknown;
-                if (key.length > 0) {
-                    // Parallel mode reads `data` only — `output[key]` from a
-                    // sibling mount is intentionally NOT consulted (the
-                    // sibling may not have completed yet).
-                    value = getPathValue(data, key);
-                } else {
-                    value = data;
-                }
-
-                if (plan.filter.skip) {
-                    continue;
-                }
-
-                const optional = this.resolveOptionalDirective(item, value, options);
-                if (optional.skip) {
-                    if (optional.write) {
-                        output[key] = optional.value;
-                    }
-                    syncPathCount++;
-                    continue;
-                }
-
                 let promise: Promise<unknown>;
-                if (item.type === 'container') {
-                    promise = item.data.run(
-                        isObject(value) ? value : {},
-                        this.buildChildRunOptions(options, key, plan, pathsStrict, true),
-                    );
-                } else {
-                    const snapshot: ResultCacheSnapshot = {
-                        value,
-                        context: options.context,
-                        group: options.group,
-                    };
-                    const cached = this.resolveCachedOutcome(item, key, snapshot, options.cache);
-                    if (cached) {
-                        // Materialize cached outcomes as already-settled promises
-                        // so the existing `Promise.allSettled` merge loop handles
-                        // them identically to fresh runs — no parallel-specific
-                        // replay code path.
-                        promise = cached.ok ?
-                            Promise.resolve(cached.value) :
-                            Promise.reject(cached.error);
+
+                try {
+                    plan = this.prepareMountKey(item, key, options, pathsToInclude, pathsToExclude);
+
+                    if (key.length > 0) {
+                        // Parallel mode reads `data` only — `output[key]` from a
+                        // sibling mount is intentionally NOT consulted (the
+                        // sibling may not have completed yet).
+                        value = getPathValue(data, key);
                     } else {
-                        // Wrap sync validators in a microtask so the surrounding
-                        // `Promise.allSettled` always sees a thenable. Cache
-                        // writes happen inside the wrapper so the entry is
-                        // persisted before the promise settles.
-                        const validator = item.data;
-                        const ctx = this.buildValidatorContext(key, plan, value, data, options);
-                        const captureItem = item;
-                        const captureKey = key;
-                        const captureSnapshot = snapshot;
-                        promise = (async () => {
-                            try {
-                                const result = await validator(ctx);
-                                this.writeCachedOutcome(
-                                    captureItem,
-                                    captureKey,
-                                    captureSnapshot,
-                                    { ok: true, value: result },
-                                    options.cache,
-                                    options.signal,
-                                );
-                                return result;
-                            } catch (e) {
-                                this.writeCachedOutcome(
-                                    captureItem,
-                                    captureKey,
-                                    captureSnapshot,
-                                    { ok: false, error: e },
-                                    options.cache,
-                                    options.signal,
-                                );
-                                throw e;
-                            }
-                        })();
+                        value = data;
                     }
+
+                    if (plan.filter.skip) {
+                        continue;
+                    }
+
+                    const optional = this.resolveOptionalDirective(item, value, options);
+                    if (optional.skip) {
+                        if (optional.write) {
+                            output[key] = optional.value;
+                        }
+                        syncPathCount++;
+                        continue;
+                    }
+
+                    promise = this.ownRejection(
+                        this.dispatchParallelMount(item, key, plan, value, data, options, pathsStrict),
+                    );
+                } catch (e) {
+                    // Materialized as a rejected task so the single merge loop
+                    // below folds pre-dispatch and validator failures through
+                    // the same `collectExecutionFailure` path, preserving both
+                    // registration order and the sibling mounts' issues.
+                    promise = this.ownRejection(Promise.reject(e));
                 }
 
+                const attribution = plan || this.describeKey(key);
                 tasks.push({
                     key,
-                    keyParts: plan.keyParts,
-                    pathRelative: plan.pathRelative,
+                    keyParts: attribution.keyParts,
+                    pathRelative: attribution.pathRelative,
                     value,
                     promise,
                     kind: item.type,
@@ -775,6 +786,97 @@ export class Container<
         options.signal?.throwIfAborted();
 
         return this.finalizeOutput(output, options, issues, errorCount, itemCount);
+    }
+
+    /**
+     * Claim ownership of a scheduled mount's rejection.
+     *
+     * `runParallel` creates every mount's promise eagerly and only attaches
+     * `Promise.allSettled` after the whole scheduling loop has run. Any
+     * rejection settling in that window — or, worse, any throw that escapes
+     * the loop before `allSettled` is reached at all — is unowned, and Node's
+     * default `--unhandled-rejections=throw` (this package requires Node >=
+     * 24) terminates the process.
+     *
+     * The no-op subscriber below is a *second* consumer, discarded
+     * immediately; the original promise is returned unchanged, so
+     * `Promise.allSettled` still observes the real settlement and no outcome
+     * is swallowed.
+     */
+    private ownRejection<P extends Promise<unknown>>(promise: P): P {
+        promise.catch(() => { /* ownership only — see doc comment */ });
+
+        return promise;
+    }
+
+    /**
+     * Create the in-flight promise for one scheduled mount. Extracted from
+     * `runParallel`'s scheduling loop so the loop body reads as
+     * "resolve, gate, dispatch" and the pre-dispatch `try` stays legible.
+     */
+    private dispatchParallelMount(
+        item: Mount<C>,
+        key: string,
+        plan: MountKeyPlan,
+        value: unknown,
+        data: ContainerInput<T>,
+        options: ContainerRunOptions<T, C>,
+        pathsStrict: boolean,
+    ): Promise<unknown> {
+        if (item.type === 'container') {
+            return item.data.run(
+                isObject(value) ? value : {},
+                this.buildChildRunOptions(options, key, plan, pathsStrict, true),
+            );
+        }
+
+        const snapshot: ResultCacheSnapshot = {
+            value,
+            context: options.context,
+            group: options.group,
+        };
+
+        const cached = this.resolveCachedOutcome(item, key, snapshot, options.cache);
+        if (cached) {
+            // Materialize cached outcomes as already-settled promises
+            // so the existing `Promise.allSettled` merge loop handles
+            // them identically to fresh runs — no parallel-specific
+            // replay code path.
+            return cached.ok ?
+                Promise.resolve(cached.value) :
+                Promise.reject(cached.error);
+        }
+        // Wrap sync validators in a microtask so the surrounding
+        // `Promise.allSettled` always sees a thenable. Cache writes happen
+        // inside the wrapper so the entry is persisted before the promise
+        // settles.
+        const validator = item.data;
+        const ctx = this.buildValidatorContext(key, plan, value, data, options);
+
+        return (async () => {
+            try {
+                const result = await validator(ctx);
+                this.writeCachedOutcome(
+                    item,
+                    key,
+                    snapshot,
+                    { ok: true, value: result },
+                    options.cache,
+                    options.signal,
+                );
+                return result;
+            } catch (e) {
+                this.writeCachedOutcome(
+                    item,
+                    key,
+                    snapshot,
+                    { ok: false, error: e },
+                    options.cache,
+                    options.signal,
+                );
+                throw e;
+            }
+        })();
     }
 
     async safeRun(input: ContainerInput<T> = {}, options: ContainerRunOptions<T, C> = {}): Promise<Result<T>> {
@@ -949,6 +1051,26 @@ export class Container<
         }
 
         return item.options.optional === true;
+    }
+
+    /**
+     * Attribution fallback for a throw raised before a {@link MountKeyPlan}
+     * exists — path expansion, key preparation, or the mount's value read.
+     *
+     * Produces the same `keyParts` / `pathRelative` pair `prepareMountKey`
+     * would have, so a pre-dispatch failure is attributed to the mount that
+     * caused it rather than surfacing path-less. For an item-level failure
+     * (path expansion) the caller passes the *unexpanded* mount path, so a
+     * glob mount is identified by its literal pattern (`items.*.name`) — the
+     * keys it would have expanded to are precisely what could not be computed.
+     */
+    private describeKey(key: string): {
+        keyParts: PropertyKey[],
+        pathRelative: PropertyKey | undefined,
+    } {
+        const keyParts: PropertyKey[] = key ? pathToArray(key) : [];
+
+        return { keyParts, pathRelative: keyParts.at(-1) };
     }
 
     /**
