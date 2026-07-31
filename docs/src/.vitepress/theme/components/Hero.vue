@@ -196,8 +196,8 @@ const toggleDark = () => {
 
                     <p class="vu-hero-card-hint">
                         Each keystroke re-runs the <code>Container</code> and re-renders the structured
-                        <code>Issue[]</code> — same model that powers integrations with zod, express-validator,
-                        Routup, and Vue.
+                        <code>Issue[]</code> — same model that powers integrations with zod, Standard Schema,
+                        validator.js, and Vue.
                     </p>
                 </div>
             </div>
