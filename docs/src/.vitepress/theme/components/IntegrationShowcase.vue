@@ -37,25 +37,14 @@ const integrations: IntegrationCard[] = [
         ],
     },
     {
-        name: '@validup/express-validator',
+        name: '@validup/validator-js',
         accent: 'var(--vu-color-warning-500)',
-        href: '/integrations/express-validator',
-        summary: 'Drop existing express-validator chains into a Container — no rewrite required.',
+        href: '/integrations/validator-js',
+        summary: 'Pre-baked factories for validator.js rules — isEmail, isURL, isLength, equals, matches.',
         bullets: [
-            'Wraps any ContextRunner',
-            'Translates ValidationError nodes',
-            'Re-export createValidationChain()',
-        ],
-    },
-    {
-        name: '@validup/routup',
-        accent: '#a855f7',
-        href: '/integrations/routup',
-        summary: 'Run a Container against a routup HTTP request — body, cookies, params, or query.',
-        bullets: [
-            'RoutupContainerAdapter',
-            'Try locations until one passes',
-            'AbortSignal & context propagation',
+            'Typed flat options per rule',
+            'Vocabulary IssueCode + structured data',
+            'createValidator() for the long tail',
         ],
     },
     {
