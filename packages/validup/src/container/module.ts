@@ -50,7 +50,7 @@ import type {
 } from './types';
 import type { Issue } from '../issue';
 import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
-import { RunSyncViolationError, isRunSyncViolation } from './run-sync-violation';
+import { RunSyncViolationError } from './run-sync-violation';
 import { PathsStrictViolationError } from './paths-strict-violation';
 import { isStructuralThrow } from './structural-throw';
 
@@ -380,25 +380,55 @@ export class Container<
             let pathFailed = false;
             const branchStart = issues.length;
 
-            const keys: string[] = item.path ? expandPath(data, item.path) : [''];
+            // Path expansion reads the input, so a hostile accessor (an ORM
+            // entity with a lazy relation, a computed getter, a Proxy trap)
+            // throws here — before any key exists. Contained rather than left
+            // to escape: an escape aborts the whole loop and discards every
+            // issue collected by earlier mounts, turning a real multi-field
+            // failure into one path-less item. `keys` stays empty so the key
+            // loop is skipped while the shared bookkeeping below still counts
+            // the mount as one failed path.
+            let keys: string[] = [];
+            try {
+                keys = item.path ? expandPath(data, item.path) : [''];
+            } catch (e) {
+                const attribution = this.describeKey(item.path || '');
+                this.collectExecutionFailure({
+                    error: e,
+                    item,
+                    value: undefined,
+                    keyParts: attribution.keyParts,
+                    pathRelative: attribution.pathRelative,
+                    issues,
+                    signal: options.signal,
+                });
+                pathCount = 1;
+                pathFailed = true;
+            }
 
             for (const key of keys) {
-                const plan = this.prepareMountKey(item, key, options, pathsToInclude, pathsToExclude);
-
+                // Declared outside the `try` so the catch can attribute a
+                // pre-dispatch throw: `plan` is `undefined` when
+                // `prepareMountKey` itself threw, and `value` is whatever the
+                // read managed to produce.
+                let plan: MountKeyPlan | undefined;
                 let value: unknown;
-                if (key.length > 0) {
-                    value = hasOwnProperty(output, key) ?
-                        output[key] :
-                        getPathValue(data, key);
-                } else {
-                    value = data;
-                }
-
-                if (plan.filter.skip) {
-                    continue;
-                }
 
                 try {
+                    plan = this.prepareMountKey(item, key, options, pathsToInclude, pathsToExclude);
+
+                    if (key.length > 0) {
+                        value = hasOwnProperty(output, key) ?
+                            output[key] :
+                            getPathValue(data, key);
+                    } else {
+                        value = data;
+                    }
+
+                    if (plan.filter.skip) {
+                        continue;
+                    }
+
                     const optional = this.resolveOptionalDirective(item, value, options);
 
                     if (optional.skip) {
@@ -473,29 +503,26 @@ export class Container<
                                     options.signal,
                                 );
                             } catch (e) {
-                                // RunSyncViolation is structural — don't pollute the
-                                // cache with a graph-level error that the next run
-                                // might reach through different mounts. Only the sync
-                                // side can raise one from the effect above; guarding
-                                // unconditionally also covers the pathological case
-                                // of an async validator letting one escape.
+                                // Structural throws are graph-level errors, not
+                                // validation outcomes — don't pollute the cache with
+                                // one the next run might reach through different
+                                // mounts.
                                 //
                                 // Pinned by `cache.spec.ts` → "does not cache a
                                 // RunSyncViolationError": drop this guard and a
                                 // failed `runSync` poisons the slot, so the next
                                 // *async* `run()` replays the violation through
                                 // `collectExecutionFailure` — which rethrows it
-                                // structurally — instead of succeeding.
+                                // structurally — instead of succeeding. The same
+                                // now holds for `PathsStrictViolationError`, which a
+                                // validator driving its own strict child container
+                                // can raise and which used to be cached here.
                                 //
-                                // NOT `isStructuralThrow` on purpose. That guard also
-                                // covers `PathsStrictViolationError`, which a validator
-                                // driving its own strict child container CAN raise —
-                                // and which is cached here today. Adopting the shared
-                                // guard would change behaviour (stop caching it), so it
-                                // belongs in its own commit with its own cache spec.
-                                // `runParallel`'s cache-write catch has no inline filter
-                                // at all and carries the same gap.
-                                if (!isRunSyncViolation(e)) {
+                                // `runParallel`'s cache-write catch applies the
+                                // identical guard — the two sites must agree, or a
+                                // shared `ResultCache` handed to both run modes
+                                // would replay entries one of them refuses to write.
+                                if (!isStructuralThrow(e, options.signal)) {
                                     this.writeCachedOutcome(
                                         item,
                                         key,
@@ -510,12 +537,13 @@ export class Container<
                         }
                     }
                 } catch (e) {
+                    const attribution = plan || this.describeKey(key);
                     this.collectExecutionFailure({
                         error: e,
                         item,
                         value,
-                        keyParts: plan.keyParts,
-                        pathRelative: plan.pathRelative,
+                        keyParts: attribution.keyParts,
+                        pathRelative: attribution.pathRelative,
                         issues,
                         signal: options.signal,
                     });
@@ -599,95 +627,75 @@ export class Container<
             const tasks: KeyTask[] = [];
             let syncPathCount = 0;
 
-            const keys: string[] = item.path ? expandPath(data, item.path) : [''];
+            // Same containment as the twin body, and strictly more urgent
+            // here: by the time this runs, earlier mounts' promises are
+            // already in flight. An escape would leave them unowned as well
+            // as dropping their issues — see {@link Container.ownRejection}.
+            let keys: string[] = [];
+            try {
+                keys = item.path ? expandPath(data, item.path) : [''];
+            } catch (e) {
+                const attribution = this.describeKey(item.path || '');
+                tasks.push({
+                    key: item.path || '',
+                    keyParts: attribution.keyParts,
+                    pathRelative: attribution.pathRelative,
+                    value: undefined,
+                    promise: this.ownRejection(Promise.reject(e)),
+                    kind: item.type,
+                });
+            }
+
             for (const key of keys) {
-                const plan = this.prepareMountKey(item, key, options, pathsToInclude, pathsToExclude);
-
+                // See the twin body's copy of this block: `plan` stays
+                // `undefined` when `prepareMountKey` itself threw, and the
+                // catch below turns any pre-dispatch throw into a rejected
+                // task instead of letting it escape the scheduling loop.
+                let plan: MountKeyPlan | undefined;
                 let value: unknown;
-                if (key.length > 0) {
-                    // Parallel mode reads `data` only — `output[key]` from a
-                    // sibling mount is intentionally NOT consulted (the
-                    // sibling may not have completed yet).
-                    value = getPathValue(data, key);
-                } else {
-                    value = data;
-                }
-
-                if (plan.filter.skip) {
-                    continue;
-                }
-
-                const optional = this.resolveOptionalDirective(item, value, options);
-                if (optional.skip) {
-                    if (optional.write) {
-                        output[key] = optional.value;
-                    }
-                    syncPathCount++;
-                    continue;
-                }
-
                 let promise: Promise<unknown>;
-                if (item.type === 'container') {
-                    promise = item.data.run(
-                        isObject(value) ? value : {},
-                        this.buildChildRunOptions(options, key, plan, pathsStrict, true),
-                    );
-                } else {
-                    const snapshot: ResultCacheSnapshot = {
-                        value,
-                        context: options.context,
-                        group: options.group,
-                    };
-                    const cached = this.resolveCachedOutcome(item, key, snapshot, options.cache);
-                    if (cached) {
-                        // Materialize cached outcomes as already-settled promises
-                        // so the existing `Promise.allSettled` merge loop handles
-                        // them identically to fresh runs — no parallel-specific
-                        // replay code path.
-                        promise = cached.ok ?
-                            Promise.resolve(cached.value) :
-                            Promise.reject(cached.error);
+
+                try {
+                    plan = this.prepareMountKey(item, key, options, pathsToInclude, pathsToExclude);
+
+                    if (key.length > 0) {
+                        // Parallel mode reads `data` only — `output[key]` from a
+                        // sibling mount is intentionally NOT consulted (the
+                        // sibling may not have completed yet).
+                        value = getPathValue(data, key);
                     } else {
-                        // Wrap sync validators in a microtask so the surrounding
-                        // `Promise.allSettled` always sees a thenable. Cache
-                        // writes happen inside the wrapper so the entry is
-                        // persisted before the promise settles.
-                        const validator = item.data;
-                        const ctx = this.buildValidatorContext(key, plan, value, data, options);
-                        const captureItem = item;
-                        const captureKey = key;
-                        const captureSnapshot = snapshot;
-                        promise = (async () => {
-                            try {
-                                const result = await validator(ctx);
-                                this.writeCachedOutcome(
-                                    captureItem,
-                                    captureKey,
-                                    captureSnapshot,
-                                    { ok: true, value: result },
-                                    options.cache,
-                                    options.signal,
-                                );
-                                return result;
-                            } catch (e) {
-                                this.writeCachedOutcome(
-                                    captureItem,
-                                    captureKey,
-                                    captureSnapshot,
-                                    { ok: false, error: e },
-                                    options.cache,
-                                    options.signal,
-                                );
-                                throw e;
-                            }
-                        })();
+                        value = data;
                     }
+
+                    if (plan.filter.skip) {
+                        continue;
+                    }
+
+                    const optional = this.resolveOptionalDirective(item, value, options);
+                    if (optional.skip) {
+                        if (optional.write) {
+                            output[key] = optional.value;
+                        }
+                        syncPathCount++;
+                        continue;
+                    }
+
+                    promise = this.ownRejection(
+                        this.dispatchParallelMount(item, key, plan, value, data, options, pathsStrict),
+                    );
+                } catch (e) {
+                    // Materialized as a rejected task so the single merge loop
+                    // below folds pre-dispatch and validator failures through
+                    // the same `collectExecutionFailure` path, preserving both
+                    // registration order and the sibling mounts' issues.
+                    promise = this.ownRejection(Promise.reject(e));
                 }
 
+                const attribution = plan || this.describeKey(key);
                 tasks.push({
                     key,
-                    keyParts: plan.keyParts,
-                    pathRelative: plan.pathRelative,
+                    keyParts: attribution.keyParts,
+                    pathRelative: attribution.pathRelative,
                     value,
                     promise,
                     kind: item.type,
@@ -775,6 +783,107 @@ export class Container<
         options.signal?.throwIfAborted();
 
         return this.finalizeOutput(output, options, issues, errorCount, itemCount);
+    }
+
+    /**
+     * Claim ownership of a scheduled mount's rejection.
+     *
+     * `runParallel` creates every mount's promise eagerly and only attaches
+     * `Promise.allSettled` after the whole scheduling loop has run. Any
+     * rejection settling in that window — or, worse, any throw that escapes
+     * the loop before `allSettled` is reached at all — is unowned, and Node's
+     * default `--unhandled-rejections=throw` (this package requires Node >=
+     * 24) terminates the process.
+     *
+     * The no-op subscriber below is a *second* consumer, discarded
+     * immediately; the original promise is returned unchanged, so
+     * `Promise.allSettled` still observes the real settlement and no outcome
+     * is swallowed.
+     */
+    private ownRejection<P extends Promise<unknown>>(promise: P): P {
+        promise.catch(() => { /* ownership only — see doc comment */ });
+
+        return promise;
+    }
+
+    /**
+     * Create the in-flight promise for one scheduled mount. Extracted from
+     * `runParallel`'s scheduling loop so the loop body reads as
+     * "resolve, gate, dispatch" and the pre-dispatch `try` stays legible.
+     */
+    private dispatchParallelMount(
+        item: Mount<C>,
+        key: string,
+        plan: MountKeyPlan,
+        value: unknown,
+        data: ContainerInput<T>,
+        options: ContainerRunOptions<T, C>,
+        pathsStrict: boolean,
+    ): Promise<unknown> {
+        if (item.type === 'container') {
+            return item.data.run(
+                isObject(value) ? value : {},
+                this.buildChildRunOptions(options, key, plan, pathsStrict, true),
+            );
+        }
+
+        const snapshot: ResultCacheSnapshot = {
+            value,
+            context: options.context,
+            group: options.group,
+        };
+
+        const cached = this.resolveCachedOutcome(item, key, snapshot, options.cache);
+        if (cached) {
+            // Materialize cached outcomes as already-settled promises
+            // so the existing `Promise.allSettled` merge loop handles
+            // them identically to fresh runs — no parallel-specific
+            // replay code path.
+            return cached.ok ?
+                Promise.resolve(cached.value) :
+                Promise.reject(cached.error);
+        }
+        // Wrap sync validators in a microtask so the surrounding
+        // `Promise.allSettled` always sees a thenable. Cache writes happen
+        // inside the wrapper so the entry is persisted before the promise
+        // settles.
+        const validator = item.data;
+        const ctx = this.buildValidatorContext(key, plan, value, data, options);
+
+        return (async () => {
+            try {
+                const result = await validator(ctx);
+                this.writeCachedOutcome(
+                    item,
+                    key,
+                    snapshot,
+                    { ok: true, value: result },
+                    options.cache,
+                    options.signal,
+                );
+                return result;
+            } catch (e) {
+                // Structural violations are not validation outcomes — the
+                // validator graph is wrong, not the input — so they must not
+                // be remembered and replayed on a later hit. The twin body
+                // carves out the same class of throw at its own cache-write
+                // site; this one previously had no filter at all, so a
+                // `RunSyncViolationError` or `PathsStrictViolationError`
+                // raised by a validator driving its own child container was
+                // cached and replayed.
+                if (!isStructuralThrow(e, options.signal)) {
+                    this.writeCachedOutcome(
+                        item,
+                        key,
+                        snapshot,
+                        { ok: false, error: e },
+                        options.cache,
+                        options.signal,
+                    );
+                }
+                throw e;
+            }
+        })();
     }
 
     async safeRun(input: ContainerInput<T> = {}, options: ContainerRunOptions<T, C> = {}): Promise<Result<T>> {
@@ -914,6 +1023,61 @@ export class Container<
             write,
             value: writeValue,
         };
+    }
+
+    /**
+     * Re-resolve a mount's `optional` declaration for the `meta.optional`
+     * stamp applied by {@link Container.collectExecutionFailure}.
+     *
+     * Split out from `resolveOptionalDirective` because the two calls answer
+     * different questions at different times: the directive decides whether to
+     * *run* the mount, this decides whether to *tag* the mount's issues. The
+     * split is what lets this one contain a throw the gate cannot.
+     *
+     * A predicate that throws degrades to `false` (don't tag) rather than
+     * propagating. This is load-bearing, not defensive: the caller is a
+     * `catch` handler with no `try` above it inside the run loop, and the very
+     * throw it is folding may be the predicate's own. Re-raising here escapes
+     * the error path entirely, discarding **every issue collected so far** and
+     * replacing them with one path-less item — so a mainstream idiom like
+     * `optional: (v) => v.trim().length === 0` would, on the first absent
+     * field, wipe out every other field's validation error.
+     *
+     * `false` is the conservative fallback: the mount's issues surface at full
+     * severity instead of being downgraded to a warning by consumers such as
+     * `@validup/vue`'s `getSeverity`. The predicate's failure is not swallowed
+     * — it is already being folded into an issue by the caller.
+     */
+    private resolveOptionalStamp(item: Mount<C>, value: unknown): boolean {
+        if (typeof item.options.optional === 'function') {
+            try {
+                return Boolean(item.options.optional(value));
+            } catch {
+                return false;
+            }
+        }
+
+        return item.options.optional === true;
+    }
+
+    /**
+     * Attribution fallback for a throw raised before a {@link MountKeyPlan}
+     * exists — path expansion, key preparation, or the mount's value read.
+     *
+     * Produces the same `keyParts` / `pathRelative` pair `prepareMountKey`
+     * would have, so a pre-dispatch failure is attributed to the mount that
+     * caused it rather than surfacing path-less. For an item-level failure
+     * (path expansion) the caller passes the *unexpanded* mount path, so a
+     * glob mount is identified by its literal pattern (`items.*.name`) — the
+     * keys it would have expanded to are precisely what could not be computed.
+     */
+    private describeKey(key: string): {
+        keyParts: PropertyKey[],
+        pathRelative: PropertyKey | undefined,
+    } {
+        const keyParts: PropertyKey[] = key ? pathToArray(key) : [];
+
+        return { keyParts, pathRelative: keyParts.at(-1) };
     }
 
     /**
@@ -1250,12 +1414,15 @@ export class Container<
         // - `optional: true`  → tag
         // - `optional: false` → don't tag (matches runtime's truthy filter)
         // - `optional: (v) => boolean` → invoke the predicate with the
-        //    current value and tag iff it returns truthy. Today the run
-        //    loop only enters this error path when the predicate returned
-        //    false (otherwise the validator would have been skipped), so
-        //    this branch is effectively "don't tag" — but the explicit
-        //    re-evaluation keeps the code's intent self-evident and
-        //    decouples it from that invariant.
+        //    current value and tag iff it returns truthy. The run loop
+        //    normally only enters this error path when the predicate
+        //    returned false (otherwise the validator would have been
+        //    skipped), so this branch is usually "don't tag" — but the
+        //    explicit re-evaluation keeps the code's intent self-evident
+        //    and decouples it from that invariant. The one case where the
+        //    predicate did NOT return false is when it *threw*, which is
+        //    why the re-invocation is contained — see
+        //    {@link Container.resolveOptionalStamp}.
         // - `optional: undefined` → don't tag
         //
         // Per the "no inheritance" decision: issues bubbled up unchanged from
@@ -1264,10 +1431,7 @@ export class Container<
         // required-on-its-own-mount field stays unmarked even if its parent
         // mount was optional. This matches the "if you DO provide a role, the
         // role's required fields are still required" semantics.
-        const isOptionalMount = typeof item.options.optional === 'function' ?
-            Boolean(item.options.optional(value)) :
-            item.options.optional === true
-        ;
+        const isOptionalMount = this.resolveOptionalStamp(item, value);
         // Shallow stamp — only the top-level `issue.meta`. Used for the
         // wrapping `IssueGroup` we emit for container mounts (Option B: do
         // not propagate the parent's optional flag onto the bubbled-up child

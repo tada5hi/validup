@@ -196,6 +196,53 @@ describe('Container.run parallel mode', () => {
         }
     });
 
+    it('should not leak an unhandled rejection when a pre-dispatch read throws', async () => {
+        // `runParallel` kicks every mount's promise off eagerly and only
+        // attaches `Promise.allSettled` after the whole scheduling loop. A
+        // throw raised later in that loop used to escape before any handler
+        // existed, leaving the already-scheduled rejections unowned — which,
+        // under Node's default `--unhandled-rejections=throw` (this package
+        // requires Node >= 24), takes the process down. `README.md` recommends
+        // `parallel: true` for exactly the server workload that would then die
+        // on an invalid request.
+        //
+        // The issue-tree half of this is covered in
+        // `pre-dispatch-throw.spec.ts`; what is asserted here is that nothing
+        // reaches the process-level handler.
+        const captured: unknown[] = [];
+        const onUnhandled = (reason: unknown) => {
+            captured.push(reason);
+        };
+        process.on('unhandledRejection', onUnhandled);
+
+        try {
+            const container = new Container<any>();
+            container.mount('scheduled', async () => {
+                throw new Error('REAL_ISSUE');
+            });
+            container.mount('lazy', (ctx) => ctx.value);
+
+            const result = await container.safeRun({
+                scheduled: 'x',
+                get lazy(): unknown {
+                    throw new Error('GETTER_BOOM');
+                },
+            }, { parallel: true });
+
+            expect(result.success).toBe(false);
+
+            // Node reports an unhandled rejection on a later turn of the event
+            // loop, so drain a macrotask before concluding there was none.
+            await new Promise((resolve) => {
+                setTimeout(resolve, 10);
+            });
+        } finally {
+            process.off('unhandledRejection', onUnhandled);
+        }
+
+        expect(captured).toEqual([]);
+    });
+
     it('should still honor group filtering in parallel mode', async () => {
         const seen: string[] = [];
         const tag = (name: string): Validator => async (ctx) => {

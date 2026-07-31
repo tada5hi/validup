@@ -263,8 +263,8 @@ describe('src/cache', () => {
             // the cached failure, replay it into `collectExecutionFailure`,
             // and re-raise the violation verbatim (it is structural, so the
             // fold rethrows it) — turning a perfectly valid `run()` into a
-            // runSync diagnostic. Deleting the `!isRunSyncViolation(e)` guard
-            // is the mutation this case exists to kill.
+            // runSync diagnostic. Deleting the `!isStructuralThrow(e, …)`
+            // guard is the mutation this case exists to kill.
             const container = new Container<{ foo: string }>();
             let calls = 0;
             container.mount('foo', defineValidator({
@@ -282,6 +282,44 @@ describe('src/cache', () => {
 
             await expect(container.run(data, { cache }))
                 .resolves.toEqual({ foo: 'bar' });
+        });
+
+        it('does not cache a PathsStrictViolationError raised by a validator', async () => {
+            // Same reasoning as the RunSyncViolationError case, for the other
+            // structural error — a validator driving its own strict child
+            // container can raise one. Both cache-write sites consult the
+            // shared `isStructuralThrow`, so neither may remember it: a stored
+            // entry would replay the violation on the next matching snapshot
+            // even after the caller fixed the offending filter list.
+            const child = new Container<{ inner: string }>();
+            child.mount('inner', (ctx) => ctx.value);
+
+            let strict = true;
+            let calls = 0;
+            const container = new Container<{ foo: string }>();
+            container.mount('foo', defineValidator({
+                run: async (ctx) => {
+                    calls += 1;
+                    return child.run(ctx.value as any, {
+                        pathsStrict: strict,
+                        pathsToInclude: strict ? ['nope'] : undefined,
+                    });
+                },
+            }));
+
+            const cache = new ResultCache();
+            const data = { foo: { inner: 'bar' } as any };
+
+            await expect(container.run(data, { cache })).rejects.toThrow();
+            expect(calls).toBe(1);
+
+            // Same snapshot, but the graph is no longer misconfigured. A
+            // cached failure would make this replay the violation instead of
+            // re-invoking the validator.
+            strict = false;
+            await expect(container.run(data, { cache }))
+                .resolves.toEqual({ foo: { inner: 'bar' } });
+            expect(calls).toBe(2);
         });
     });
 
@@ -303,6 +341,39 @@ describe('src/cache', () => {
             await container.run(data, { cache, parallel: true });
             await container.run(data, { cache, parallel: true });
             // Two mounts × first run = 2 calls; second run is all cached.
+            expect(calls).toBe(2);
+        });
+
+        it('does not cache a structural violation raised by a validator', async () => {
+            // `runParallel` schedules through its own loop, so the twin body's
+            // carve-out does not cover it. Before both sites shared
+            // `isStructuralThrow`, this catch had no filter at all and a
+            // misconfiguration was cached and replayed forever.
+            const child = new Container<{ inner: string }>();
+            child.mount('inner', (ctx) => ctx.value);
+
+            let strict = true;
+            let calls = 0;
+            const container = new Container<{ foo: string }>();
+            container.mount('foo', defineValidator({
+                run: async (ctx) => {
+                    calls += 1;
+                    return child.run(ctx.value as any, {
+                        pathsStrict: strict,
+                        pathsToInclude: strict ? ['nope'] : undefined,
+                    });
+                },
+            }));
+
+            const cache = new ResultCache();
+            const data = { foo: { inner: 'bar' } as any };
+
+            await expect(container.run(data, { cache, parallel: true })).rejects.toThrow();
+            expect(calls).toBe(1);
+
+            strict = false;
+            await expect(container.run(data, { cache, parallel: true }))
+                .resolves.toEqual({ foo: { inner: 'bar' } });
             expect(calls).toBe(2);
         });
     });

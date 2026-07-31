@@ -22,18 +22,28 @@ import { stringValidatorSync } from '../data';
  * which folds a throw raised by one *mounted unit* while the loop is still
  * running.
  *
- * Reaching it needs a throw from **outside** the per-mount `try`. The cheapest
- * such site is the mount's value read (`getPathValue(data, key)`), which sits
- * a few lines above the `try` — so an input object with a throwing accessor
- * (a class instance with a computed getter, an ORM entity, a Proxy) drives
- * every branch without a `Container` subclass.
+ * Reaching it needs a throw from **outside** every per-mount `try`, and the
+ * set of such sites is deliberately small. The per-mount pre-dispatch region
+ * (path expansion, key preparation, the value read, the optional gate) is NOT
+ * one of them: a throw there is attributable to a mount, so it is folded by
+ * `collectExecutionFailure` **with the mount path attached** — letting it
+ * escape would discard every issue the earlier mounts had already collected.
  *
- * These branches were previously covered by nothing: the whole suite stayed
- * green with them replaced by a bare re-throw. That is why each case below
- * carries a mutation that kills it.
+ * What remains outside is the strict **pre-flight**: `assertPathsStrict` walks
+ * `expandPath(data, item.path)` over every mount before the run loop starts,
+ * with no issue accumulator to protect and nothing to attribute a failure to.
+ * So `pathsStrict` + a filter list + an input object with a throwing accessor
+ * (a class instance with a computed getter, an ORM entity, a Proxy) drives
+ * every branch here without a `Container` subclass.
+ *
+ * If a future change contains the pre-flight read too, these cases go red
+ * rather than silently stopping to test anything — which is the point. These
+ * branches were previously covered by nothing: the whole suite stayed green
+ * with them replaced by a bare re-throw. That is why each case below carries a
+ * mutation that kills it.
  */
 
-/** Input whose `foo` read throws `thrown`, escaping the per-mount try. */
+/** Input whose `foo` read throws `thrown`, escaping the run loop. */
 function inputWithThrowingRead(thrown: unknown): { foo: string } {
     return {
         get foo(): string {
@@ -42,8 +52,15 @@ function inputWithThrowingRead(thrown: unknown): { foo: string } {
     };
 }
 
+/**
+ * Strict + a filter list, so `assertPathsStrict` expands `foo` during the
+ * pre-flight and the getter above throws before the run loop is entered.
+ */
 function buildContainer() {
-    const container = new Container<{ foo: string }>();
+    const container = new Container<{ foo: string }>({
+        pathsStrict: true,
+        pathsToInclude: ['foo'],
+    });
     container.mount('foo', stringValidatorSync);
     return container;
 }

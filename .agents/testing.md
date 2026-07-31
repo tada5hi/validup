@@ -54,6 +54,7 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `parallel.spec.ts`            | `runParallel` scheduling and issue ordering               |
 | `run-parity.spec.ts`          | `run` ↔ `runSync` twin contract, table-driven             |
 | `structural-throw.spec.ts`    | `isStructuralThrow` — the shared abort / `RunSyncViolationError` / `PathsStrictViolationError` carve-out predicate |
+| `pre-dispatch-throw.spec.ts`  | Path expansion / value read / optional gate throws folded into the failing mount, across all three run modes |
 | `output-shape.spec.ts`        | Nested output reconstruction — array paths under the default `flat: false` |
 | `optional-value.spec.ts`      | `isOptionalValue` atom matcher, at its own edge           |
 | `path-filter.spec.ts`         | `resolvePathFilter` include/exclude verdict               |
@@ -70,21 +71,41 @@ When adding a new container option or mount option, add or extend the matching s
 
 When adding a predicate to either chain, add its row here — a spec that only asserts "the happy shape works" will not catch a reorder.
 
-### Reaching `wrapSafeRunError`: throw from outside the per-mount `try`
+### Reaching `wrapSafeRunError`: throw from outside every per-mount `try`
 
 `Container` folds a throw into issues at two sites, and it is easy to write a spec that thinks it is testing one while actually testing the other. A validator that throws is folded by `collectExecutionFailure`, **with the mount path attached** — it never reaches `wrapSafeRunError`.
 
-For a **keyed** mount the tell is the resulting issue's `path`: `['foo']` means `collectExecutionFailure`, `[]` means `wrapSafeRunError`. That tell does **not** generalise — `prepareMountKey` sets `keyParts = key ? pathToArray(key) : []`, so a *keyless* container mount (the one mount form `Container` allows without a path) that fails with a non-`ValidupError` also emits `path: []` from `collectExecutionFailure`. If the spec's container has any keyless mount, drive the two sites apart some other way: throw from the input's value read (below) for `wrapSafeRunError`, from inside a mounted unit for `collectExecutionFailure`.
+For a **keyed** mount the tell is the resulting issue's `path`: `['foo']` means `collectExecutionFailure`, `[]` means `wrapSafeRunError`. That tell does **not** generalise — `prepareMountKey` sets `keyParts = key ? pathToArray(key) : []`, so a *keyless* container mount (the one mount form `Container` allows without a path) that fails with a non-`ValidupError` also emits `path: []` from `collectExecutionFailure`. If the spec's container has any keyless mount, drive the two sites apart some other way: throw from the strict pre-flight (below) for `wrapSafeRunError`, from inside a mounted unit for `collectExecutionFailure`.
 
-To hit `wrapSafeRunError` the throw has to escape the run loop, i.e. originate outside the per-mount `try`. The cheapest such site is the mount's value read (`getPathValue(data, key)`), which sits a few lines above the `try`, so an input object with a throwing accessor drives every branch with no `Container` subclass:
+To hit `wrapSafeRunError` the throw has to escape the run loop entirely. The **pre-dispatch region is no longer such a site**: path expansion, key preparation, the value read and the optional gate all sit inside per-mount error capture, because a throw there is attributable to a mount and letting it escape discarded every issue the earlier mounts had collected (issues #448 / #449). A getter on the input therefore lands in `collectExecutionFailure` now.
+
+What remains outside is the **strict pre-flight** — `assertPathsStrict` walks `expandPath(data, item.path)` over every mount before the loop starts, with no issue accumulator to protect and no mount to attribute a failure to. So `pathsStrict` plus a filter list plus a throwing accessor drives every branch with no `Container` subclass:
 
 ```ts
 function inputWithThrowingRead(thrown: unknown): { foo: string } {
     return { get foo(): string { throw thrown; } };
 }
+
+const container = new Container<{ foo: string }>({ pathsStrict: true, pathsToInclude: ['foo'] });
+container.mount('foo', stringValidatorSync);
 ```
 
+`finalizeOutput`'s defaults fill (`options.defaults` with a throwing getter) is the other reachable site, if a case ever needs one that does not involve strict mode.
+
+**Watch for the trigger silently moving.** `safe-run-error.spec.ts` was written believing it reached the fold via `getPathValue`; it actually reached it one line earlier, via `expandPath` — which is why containing the pre-dispatch region turned 5 of its 15 cases red at once. The lesson: when a spec's premise is "this throws from site X", confirm X with a stack trace rather than by reading the source, because a nearby earlier site will satisfy the test while invalidating its comment.
+
 This matters beyond convenience. Before `safe-run-error.spec.ts` landed, the entire suite stayed green with both non-`ValidupError` branches of `wrapSafeRunError` replaced by a bare re-throw — the tested implementation and the shipped one had diverged with nothing to catch it. When adding a case there, mutate the source and watch it fail before believing it.
+
+### Pre-dispatch throws: assert all three run modes
+
+`pre-dispatch-throw.spec.ts` pins that a throw from path expansion, the value read, or the optional gate is folded into the failing mount's issues instead of escaping. It is `describe.each`'d over `run` / `runSync` / `parallel: true` on purpose — the defect it covers reached all three through *different* code (one twin body, one separate scheduling loop), so a regression in one mode is invisible to the others.
+
+Two traps that make cases in this area pass vacuously, both hit while writing that spec:
+
+- **"All modes agree" is satisfied by all modes being equally broken.** A cross-mode `toEqual` assertion has to be preceded by an assertion on the tree's actual content, or it stays green against the very defect it exists for.
+- **An escaped throw also carries no `meta`.** A case asserting only `leaf.meta?.optional === undefined` passes whether the stamp was skipped or the whole error path was bypassed. Pin `leaf.path` alongside it.
+
+The parallel mode carries a second, non-issue-shaped failure: an escaping throw leaves already-scheduled promises unowned, which under Node's default `--unhandled-rejections=throw` kills the process. Assert it explicitly rather than trusting the runner to notice — register a `process.on('unhandledRejection', …)` listener, drain a macrotask with `setTimeout` (Node reports on a later turn), and assert nothing was captured. See `parallel.spec.ts` → "should not leak an unhandled rejection when a pre-dispatch read throws".
 
 ### The abort × `ValidupError` cell
 
