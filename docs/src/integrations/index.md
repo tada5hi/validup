@@ -21,6 +21,37 @@ These come in three flavors today:
 | [`@validup/zod`](/integrations/zod)               | [zod](https://zod.dev) v4         | You need vendor-specific issue fields (`expected`, `received`) |
 | [`@validup/validator-js`](/integrations/validator-js) | [validator.js](https://github.com/validatorjs/validator.js) string validators (`isEmail`, `isLength`, `isInt`, …) | You want pre-baked factories for the common rules with vocabulary codes baked in |
 
+All three adapters name that entry point `createValidator` on purpose — same role, same contract, one thing to learn. The symmetry costs you an alias when two of them (or an adapter and the library it wraps) meet in one file.
+
+### Combining adapters in one file
+
+`@validup/validator-js` names its factories after the validator.js rules they wrap — `isEmail`, `isURL`, `isUUID`, `isInt`, `equals`, `matches`, `isDate` — so the collision to plan for is usually with **validator.js itself** (reached for directly for the long tail: `isCreditCard`, `isJWT`, …), not just with a sibling adapter.
+
+A namespace import resolves every name at once and reads better than aliasing them one by one:
+
+```typescript
+import * as vjs from '@validup/validator-js';
+import validator from 'validator';
+import { createValidator as createZod } from '@validup/zod';
+import { z } from 'zod';
+
+// zod for schema-shaped fields …
+container.mount('email', createZod(z.string().email()));
+
+// … validator-js factories for vocabulary rules, with issue codes baked in
+container.mount('passwordConfirm', vjs.equals('password'));
+
+// … and validator.js directly for anything not pre-baked
+container.mount('card', vjs.createValidator(validator.isCreditCard, { code: 'credit_card' }));
+```
+
+Aliasing individual imports works too, and is the lighter touch when you only need one or two symbols:
+
+```typescript
+import { createValidator as createZod } from '@validup/zod';
+import { createValidator as createStandard } from '@validup/standard-schema';
+```
+
 **Framework / runtime integrations** consume a whole `Container<T, C>` and wire it into a host environment:
 
 | Package                             | Host                                       |
