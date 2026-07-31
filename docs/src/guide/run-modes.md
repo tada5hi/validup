@@ -48,6 +48,24 @@ Use parallel mode when:
 - Most or all validators are independent async I/O (DB lookups, HTTP fan-out).
 - You don't have any sanitize-then-validate chains on shared paths.
 
+## Lazy and computed inputs
+
+Reading the input is part of running a mount: the path is expanded against `data`, then the value is read, then the optional gate sees it. If any of that throws — an ORM entity with a deferred relation, a class instance with a computed getter, a reactive proxy — the throw is folded into an issue **on that mount's path**, exactly like a validator failure:
+
+```typescript
+const container = new Container<any>();
+container.mount('email', isEmail);
+container.mount('profile', loadProfile);
+
+await container.safeRun({
+    email: 'not-an-email',
+    get profile() { throw new Error('relation not loaded'); },
+});
+// → issues: [{ path: ['email'], … }, { path: ['profile'], message: 'relation not loaded', … }]
+```
+
+Both mounts report. The failing read does not cancel the run or discard what the other mounts already found, and this holds identically in `run`, `runSync` and `parallel: true`.
+
 ## Safe variants
 
 `safeRun()` and `safeRunSync()` wrap their non-safe siblings:

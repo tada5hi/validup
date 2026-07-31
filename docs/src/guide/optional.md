@@ -100,6 +100,22 @@ container.mount('bio', { optional: (v) => typeof v === 'string' && v.trim() === 
 
 The predicate wins over `optionalValue` when both are present.
 
+::: warning A predicate that throws fails only its own mount
+The idiomatic "blank means absent" form throws the first time the field is genuinely missing:
+
+```typescript
+container.mount('bio', { optional: (v) => v.trim().length === 0 }, isBio); // TypeError when `bio` is absent
+```
+
+The throw is caught and folded into an issue on that mount's path, so the rest of the form still validates and reports normally. The mount is treated as **not** optional in that run — a predicate that could not answer is never read as "this field is allowed to be blank", so the resulting issue keeps full severity rather than being downgraded to a warning by consumers like [`@validup/vue`](/integrations/vue).
+
+Guard the value if you want the skip to actually happen:
+
+```typescript
+container.mount('bio', { optional: (v) => typeof v !== 'string' || v.trim().length === 0 }, isBio);
+```
+:::
+
 ## `optionalInclude`
 
 By default, an optional skip means the key is **omitted from the output**. If you want to preserve the value (without running the validator), set `optionalInclude: true`:
