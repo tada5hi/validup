@@ -39,7 +39,7 @@
         "eslint-plugin-vue": "^10.10.0",
         "happy-dom": "^20.11.1",
         "husky": "^9.1.7",
-        "nx": "^23.1.0",
+        "nx": "^23.1.1",
         "tsdown": "^0.22.14",
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.65.0",
