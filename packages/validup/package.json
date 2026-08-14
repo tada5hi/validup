@@ -38,6 +38,7 @@
     "license": "Apache-2.0",
     "dependencies": {
         "@ebec/core": "^1.2.0",
+        "blemish": "^1.0.0",
         "pathtrace": "^2.2.3",
         "smob": "^1.6.2",
         "twinop": "^1.0.0"

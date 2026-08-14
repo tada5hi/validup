@@ -6,8 +6,8 @@
  */
 
 import { isError, isValidupError } from '../error';
-import { IssueCode, defineIssueItem } from '../issue';
-import type { Issue } from '../issue';
+import { IssueCode, defineIssueItem } from 'blemish';
+import type { Issue } from 'blemish';
 
 /**
  * Options for {@link errorToIssues}. Defaults match what the

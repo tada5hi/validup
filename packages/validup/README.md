@@ -166,7 +166,11 @@ When validation fails, the container throws a `ValidupError` containing a list o
 type Issue = IssueItem | IssueGroup;
 ```
 
-This recursive structure preserves the path of failure, so consumers can render rich field-level error messages.
+This recursive structure preserves the path of failure, so consumers can render rich field-level error messages. Every node carries an **absolute** path — a leaf three groups deep still reads `['user', 'contact', 'email']` — so `flattenIssueItems` produces a directly indexable list with no tree walk needed.
+
+> **Where the model lives.** `Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` come from [**`blemish`**](https://github.com/tada5hi/blemish) — a standalone package with **zero dependencies and no `engines` floor** — and are re-exported by `validup` unchanged. Import them from either; they are the same objects.
+>
+> They live outside validup so other libraries can share the shape without taking on validup's runtime. Issue trees then compose across libraries, because both sides reference the same types rather than agreeing by structural coincidence. If you are building a library that only needs the model, depend on `blemish` directly.
 
 ## Builder API (compile-time typing)
 
@@ -670,11 +674,13 @@ for (const issue of error.issues) {
 
 `formatIssue(issue, templates?, fallback?)`:
 
-1. If `templates[issue.code]` exists, returns `interpolate(template, issue.data)` (placeholders use the `{name}` syntax from `@ebec/core`).
+1. If `templates[issue.code]` exists, returns `interpolate(template, issue.data)` (placeholders use the `{name}` syntax — single braces).
 2. Otherwise returns `issue.message`.
 3. Otherwise returns `fallback`.
 
-Custom validators that want to participate in this flow should pass `data` through `defineIssueItem`/`defineIssueGroup` so consumer-side templates can reference field-specific values. The default `interpolate` is also re-exported for ad-hoc rendering.
+A catalog may be partial: a code it does not cover falls back to that issue's own `message`, per issue rather than all-or-nothing.
+
+Custom validators that want to participate in this flow should pass `data` through `defineIssueItem`/`defineIssueGroup` so consumer-side templates can reference field-specific values. `interpolate` is also re-exported for ad-hoc rendering.
 
 ## Error Handling
 
@@ -862,6 +868,7 @@ See [Builder API](#builder-api-compile-time-typing). Each `.mount(...)` call ret
 |-----------------------|------------------------------------------------------|
 | `defineIssueItem`     | Construct an `IssueItem` (sets `type`, default code) |
 | `defineIssueGroup`    | Construct an `IssueGroup` (sets `type`)              |
+| `prefixIssuePath`     | Rebase an issue onto a parent path, recursing into groups. Call it when merging issues from a sub-structure into a larger tree — it is what keeps every node's `path` absolute |
 | `createValidupError`  | Build a `ValidupError` carrying one `IssueItem` (sugar for the most common single-issue failure shape). Caller throws. |
 | `IssueCode`           | Vocabulary of well-known issue codes (`VALUE_INVALID`, `REQUIRED`, `MIN_LENGTH`, …; full table above) |
 | `GroupKey`            | `WILDCARD = '*'`                                     |
@@ -944,7 +951,7 @@ Use one of the official integration packages to bridge an existing validator lib
 
 What's covered by semver:
 
-- **Public exports** — everything re-exported from `validup`'s entry barrel (`Container`, `defineSchema`, `ValidupError`, `Issue` / factories / guards, `IssueCode`, `GroupKey`, `OptionalValue`, helpers in `formatIssue` / `flattenIssue*`).
+- **Public exports** — everything re-exported from `validup`'s entry barrel (`Container`, `defineSchema`, `ValidupError`, `Issue` / factories / guards, `IssueCode`, `GroupKey`, `OptionalValue`, helpers in `formatIssue` / `flattenIssue*` / `prefixIssuePath`). This includes the symbols re-exported from [`blemish`](https://github.com/tada5hi/blemish): importing them from `validup` remains supported, and they stay reference-identical to `blemish`'s.
 - **`Container` runtime contract** — `run` / `runSync` / `runParallel` (via `parallel: true`) / `safeRun` / `safeRunSync`, including their throw-contracts as documented on `IContainer` (`safeRun` throws only on abort).
 - **`Issue` and `ValidupError` shape** — the discriminated union (`type: 'item' | 'group'`), `data`, `meta`, `code` widening to `IssueCode | (string & {})`.
 - **Mount API** — variadic `mount(...)` argument forms listed in [Mounting](#mounting).

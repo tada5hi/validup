@@ -24,7 +24,7 @@ validup/
 
 | Package                        | Path                          | Public name                  | Depends on (runtime)                | Peer deps                                       |
 |--------------------------------|-------------------------------|------------------------------|-------------------------------------|-------------------------------------------------|
-| Core                           | `packages/validup`            | `validup`                    | `@ebec/core`, `pathtrace`, `smob`   | —                                               |
+| Core                           | `packages/validup`            | `validup`                    | `@ebec/core`, `blemish`, `pathtrace`, `smob`, `twinop` | —                                    |
 | Standard Schema integration    | `packages/standard-schema`    | `@validup/standard-schema`   | `@standard-schema/spec`             | `validup ^0.5.1`                                |
 | Zod integration                | `packages/zod`                | `@validup/zod`               | `pathtrace`                         | `validup ^0.5.1`, `zod ^4.0.0`                  |
 | validator.js integration       | `packages/validator-js`       | `@validup/validator-js`      | `pathtrace`                         | `validup ^0.5.1`, `validator ^13.0.0`           |
@@ -43,9 +43,22 @@ The `playground/*` tree holds private demo apps that exercise the published pack
 ```
 standard-schema ──┐
 zod ──────────────┤
-validator-js ─────┼──► validup ──► @ebec/core, pathtrace, smob
-vue ──────────────┘
+validator-js ─────┼──► validup ──► blemish, @ebec/core, pathtrace, smob, twinop
+vue ──────────────┘                   │
+                                      └─ the issue model (zero deps, no engines floor)
 ```
+
+### The issue model lives in [`blemish`](https://github.com/tada5hi/blemish)
+
+`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, `defineIssueItem`, `defineIssueGroup`, the `isIssue*` guards, `flattenIssueItems` / `flattenIssueGroups`, `prefixIssuePath`, `formatIssue` and `interpolate` are **not defined in this repo**. They live in `blemish`, a standalone zero-dependency package, and `packages/validup/src/index.ts` re-exports them wholesale with `export * from 'blemish';`. There is no `src/issue/` directory any more — intra-package code imports these symbols directly from `'blemish'`.
+
+**Why it was extracted** (tada5hi/validup#464): [rapiq](https://github.com/tada5hi/rapiq) had reimplemented the identical model by hand rather than depend on `validup`, because `validup` brings four transitive dependencies and `engines: node >=24`. `blemish` declares neither, so the model can be shared instead of copied — and issue trees compose across libraries because both sides reference the same types rather than agreeing by structural coincidence.
+
+**Consumer compatibility is unchanged and is a maintained invariant.** Every pre-extraction import path still works, type identity is preserved, and the documented `declare module 'validup' { interface IssueDataByCode { … } }` augmentation still merges. That last one depends on `tsdown` emitting a real `export * from "blemish"` in `dist/index.d.mts` rather than inlining the declarations — verified against built artifacts, and worth re-verifying if the build toolchain changes, since inlining would break both identity and augmentation silently. `test/unit/issue-reexport.spec.ts` pins the runtime half of this contract.
+
+**Where to make a change.** A change to the *shape* of an issue, the `IssueCode` vocabulary, the per-code `data` contract, or any of the pure tree walks belongs in the `blemish` repo, not here. What stays validup's: `ValidupError`, the `isValidupError` guard, `createValidupError`, `errorToIssues`, `buildOneOfFailedGroup`, `buildErrorMessageForAttribute(s)` — all of which carry validup semantics or depend on `@ebec/core`'s `BaseError`.
+
+Note this makes `prefixIssuePath` **public API** for the first time; it was previously a private `Container` method. That is deliberate — it is the rule that maintains the absolute-path invariant, so every producer of a nested tree needs it, which is precisely why rapiq had to write its own.
 
 - `validup` is the only **leaf** package — integration packages never depend on each other.
 - `nx run-many -t build` resolves order via `dependsOn: ["^build"]` in `nx.json`, so editing the core forces integration-package rebuilds.
@@ -80,7 +93,7 @@ Build scripts per package:
 |--------------|---------------------------------------------------------------------------------------------|
 | `container/` | `Container` class (`module.ts`), `IContainer`/`Mount`/`MountOptions` types, `isContainer`. `run` / `runSync` are thin drivers over one private generator, `runBody` — see [Architecture → the twin body](architecture.md#the-syncasync-twin-body-runbody); `runParallel` keeps its own scheduling loop but shares every per-key helper. `ValidatorMount` gains a `sideEffect?: boolean` resolved from descriptor at mount time. `ContainerRunOptions` gains `cache?: IResultCache`. `ContainerOptions`/`ContainerRunOptions` gain `pathsStrict?: boolean`; `paths-strict-violation.ts` holds the exported `PathsStrictViolationError` + `isPathsStrictViolation` guard (run-sync's internal violation lives in `run-sync-violation.ts`). `structural-throw.ts` holds the internal `isStructuralThrow(error, signal?)` predicate — the shared "must not be folded into issues" decision consulted by `collectExecutionFailure` and `wrapSafeRunError`; barrel-excluded because it composes the deliberately-private `isRunSyncViolation` |
 | `error/`     | `ValidupError` class (`base.ts`) and `isError`/`isValidupError` guards (`check.ts`)         |
-| `issue/`     | `Issue` types (item/group), `IssueCode` enum, `defineIssueItem`/`defineIssueGroup` factories, `isIssue`/`isIssueItem`/`isIssueGroup` guards, `flattenIssueItems`/`flattenIssueGroups` |
+| ~~`issue/`~~  | **Removed** — the issue model now lives in the [`blemish`](https://github.com/tada5hi/blemish) package and is re-exported by `src/index.ts`. See [the issue model section](#the-issue-model-lives-in-blemish) above. Don't recreate this directory; import from `'blemish'` |
 | `builder/` | `defineSchema()` entry point + `Builder` class (`module.ts`), `IBuilder`/`MountTarget`/`Mounted`/`IsOptional`/`Spread` types (`types.ts`). The opt-in, **compile-time type-accumulating** alternative to `new Container()` — see [Architecture → Builder](architecture.md#builder-packagesvalidupsrcbuilder). Immutable: every method returns a new `Builder`; `build()` replays the accumulated steps onto a real `Container` |
 | `validator/` | `ValidatorDescriptor<C, Out>` type, `defineValidator(descriptor)` factory, `isValidatorDescriptor` duck-typed guard. The wrap layer that lets a validator declare per-mount contract metadata (currently `sideEffect`) without mutating the function object |
 | `cache/`     | `IResultCache` interface, `ResultCache` class (Map-backed default impl), `ResultCacheSnapshot` / `ResultCacheOutcome` / `ResultCacheEntry` types, `isResultCache` duck-typed guard. Storage-only — equality + skip logic lives in `container/module.ts:resolveCachedOutcome` |
@@ -126,7 +139,7 @@ Two consequences worth knowing. A form field literally named `constructor` (or `
 
 Tests live under each package in `test/` (not a top-level `tests/` dir):
 
-- `packages/validup/test/unit/*.spec.ts` — 31 specs covering the core (module, group, mount-key, mount-dispatch, output-shape, optional, optional-value, path-filter, defaults, one-of, paths-to-include, paths-strict, error, error-to-issues, safe-run-error, pre-dispatch-throw, issue, flatten, format, initialize, define-validator, cache, compose, builder, parallel, run-sync, run-parity, structural-throw, abort-signal, context, typing)
+- `packages/validup/test/unit/*.spec.ts` — 30 specs covering the core (module, group, mount-key, mount-dispatch, output-shape, optional, optional-value, path-filter, defaults, one-of, paths-to-include, paths-strict, error, error-to-issues, safe-run-error, pre-dispatch-throw, issue-reexport, format, initialize, define-validator, cache, compose, builder, parallel, run-sync, run-parity, structural-throw, abort-signal, context, typing). The issue model's own behaviour is tested in the [`blemish`](https://github.com/tada5hi/blemish) repo — `issue.spec.ts` and `flatten.spec.ts` moved there and are **not** duplicated here
 - `packages/validup/test/data/` — shared fixtures (`string-validator.ts`, exporting both `stringValidator` (async) and `stringValidatorSync`)
 - `packages/validup/test/helpers/` — spec helpers, not collected by vitest (`parity.ts` — `expectRunParity` / `expectRunFailureParity`, the `run` ↔ `runSync` twin contract)
 - Integration packages each have their own `test/vitest.config.ts` and `test/unit/*.spec.ts`

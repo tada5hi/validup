@@ -6,14 +6,14 @@
  */
 
 import { ValidupError } from '../error';
-import { defineIssueItem } from '../issue';
+import { defineIssueItem } from 'blemish';
 import type { 
     BareIssueCode, 
     IssueCode, 
     IssueDataByCode, 
     ParameterizedIssueCode, 
     ResolveIssueCode, 
-} from '../issue';
+} from 'blemish';
 
 /**
  * Trailing-args shape selected by the resolved `code`:

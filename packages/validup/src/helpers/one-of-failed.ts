@@ -5,8 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { IssueCode, defineIssueGroup } from '../issue';
-import type { Issue, IssueGroup } from '../issue';
+import { IssueCode, defineIssueGroup } from 'blemish';
+import type { Issue, IssueGroup } from 'blemish';
 
 /**
  * Options for {@link buildOneOfFailedGroup}.

@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { isIssue } from '../issue';
+import { isIssue } from 'blemish';
 import { hasOwnProperty, isObject } from '../utils';
 import { ValidupError } from './base';
 

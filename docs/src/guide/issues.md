@@ -2,6 +2,14 @@
 
 `Issue = IssueItem | IssueGroup` is the structured failure record validup produces. They're discriminated by `type`, recursive (groups can wrap groups), and carry a structured payload (`data`) so the message can be re-rendered later in another locale.
 
+Every node carries an **absolute** path — a leaf three groups deep still reads `['user', 'contact', 'email']`, never a path relative to its parent. That's what lets [`flattenIssueItems`](#flattening) produce a directly indexable list without walking the tree to reassemble prefixes.
+
+::: tip The issue model is its own package
+`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` are defined in [**`blemish`**](https://github.com/tada5hi/blemish) — a standalone package with zero dependencies and no `engines` floor — and re-exported by `validup` unchanged. Import them from `validup` as you always have; they're the same objects.
+
+They live outside validup so other libraries can share the shape without taking on validup's runtime, which means issue trees compose across libraries instead of needing a translation layer. If you're writing a library that only needs the model, depend on `blemish` directly.
+:::
+
 ## `IssueItem`
 
 `IssueItem` is a discriminated union over three branches keyed on the vocabulary `code`. The `defineIssueItem` factory uses TypeScript overloads to enforce the right `data` shape per code at compile time:
@@ -175,6 +183,7 @@ The guard returns `true` if `e instanceof ValidupError` **or** if `e.issues` is 
 import {
     isIssue, isIssueItem, isIssueGroup,
     flattenIssueItems, flattenIssueGroups,
+    prefixIssuePath,
     formatIssue,
     buildErrorMessageForAttribute, buildErrorMessageForAttributes,
     stringifyPath,
@@ -188,9 +197,20 @@ import {
 | `isIssueGroup(x)`          | Narrow to `IssueGroup`                                              |
 | `flattenIssueItems(issues)`| Recurse into groups, return only the leaf items                     |
 | `flattenIssueGroups(issues)`| Recurse, return only the groups                                    |
+| `prefixIssuePath(issue, prefix)` | Rebase an issue onto a parent path, recursing into groups     |
 | `formatIssue(issue, templates?)` | Re-render `message` using `data` against your templates       |
 | `buildErrorMessageForAttribute('email')` | `'Property "email" is invalid.'`                          |
 | `stringifyPath([...])`     | Render a `PropertyKey[]` as `'a.b[0].c'`                            |
+
+`prefixIssuePath` is the one you need when writing a validator that runs its own nested validation and merges the result. The children come back with paths relative to the sub-structure, and every node has to be rebased so the tree keeps its absolute-path invariant — including inside groups, which is why the function recurses:
+
+```typescript
+// issues from validating `address` alone carry paths like ['street']
+const rebased = childIssues.map((issue) => prefixIssuePath(issue, ['user', 'address']));
+// → ['user', 'address', 'street'], at every depth
+```
+
+`Container` does this for you on nested container mounts; you only call it directly inside a hand-written validator.
 
 ## Issue code vocabulary
 
@@ -286,3 +306,5 @@ defineIssueItem({
 ```
 
 Augment only with codes you own — adding entries you don't control collides with future vocabulary expansions and other consumers' merges.
+
+Targeting `'validup'` keeps working even though `IssueDataByCode` is declared in [`blemish`](https://github.com/tada5hi/blemish): TypeScript resolves an augmentation through a star re-export to the original declaration, so the merge lands on the real interface and `ParameterizedIssueCode` picks your code up. `declare module 'blemish'` works identically — use whichever package you actually depend on.

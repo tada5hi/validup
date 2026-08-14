@@ -48,8 +48,13 @@ import type {
     MountOptions,
     Result,
 } from './types';
-import type { Issue } from '../issue';
-import { IssueCode, defineIssueGroup, defineIssueItem } from '../issue';
+import type { Issue } from 'blemish';
+import {
+    IssueCode,
+    defineIssueGroup,
+    defineIssueItem,
+    prefixIssuePath,
+} from 'blemish';
 import { RunSyncViolationError } from './run-sync-violation';
 import { PathsStrictViolationError } from './paths-strict-violation';
 import { isStructuralThrow } from './structural-throw';
@@ -1342,28 +1347,6 @@ export class Container<
     }
 
     /**
-     * Prepend `keyParts` to a child issue's `path` and — when the child is
-     * an `IssueGroup` — recurse into its nested issues so every leaf carries
-     * the parent prefix. Without recursion, a child container that already
-     * wrapped its own multi-issue mount in a group (or a `oneOf` child) would
-     * surface inner items with paths missing the parent segment, breaking
-     * downstream consumers that rely on `flattenIssueItems` for per-field
-     * lookup (e.g. `@validup/vue`).
-     */
-    private prefixIssuePath(issue: Issue, keyParts: PropertyKey[]): Issue {
-        const prefixed: Issue = {
-            ...issue,
-            path: [...keyParts, ...(issue.path || [])],
-        };
-        if (prefixed.type === 'group') {
-            prefixed.issues = prefixed.issues.map(
-                (nested) => this.prefixIssuePath(nested, keyParts),
-            );
-        }
-        return prefixed;
-    }
-
-    /**
      * Translate a throw raised by one execution step (one validator or
      * nested-container invocation, from the surrounding `run` loop) into
      * accumulated issues and push them onto `context.issues`. Re-throws when
@@ -1475,7 +1458,7 @@ export class Container<
 
         if (isValidupError(error)) {
             for (let i = 0; i < error.issues.length; i++) {
-                const prefixed = this.prefixIssuePath(error.issues[i], keyParts);
+                const prefixed = prefixIssuePath(error.issues[i], keyParts);
                 // Stamp only when a *validator* threw `ValidupError` directly
                 // (e.g. an integration adapter like `@validup/zod` reshaping
                 // a foreign error into validup issues). Deep so that a

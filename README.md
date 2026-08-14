@@ -110,7 +110,9 @@ validup/
 └── release-please-config.json
 ```
 
-The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Integration packages depend on `validup`; the core has a single runtime dep on `@ebec/core`. `docs/` and every `playground/*` workspace are private — excluded from release-please and `monoship`.
+The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Integration packages depend on `validup`; the core depends on [`blemish`](https://github.com/tada5hi/blemish) (the issue model), [`@ebec/core`](https://github.com/tada5hi/ebec), [`pathtrace`](https://github.com/tada5hi/pathtrace), [`smob`](https://github.com/tada5hi/smob) and [`twinop`](https://github.com/tada5hi/twinop). `docs/` and every `playground/*` workspace are private — excluded from release-please and `monoship`.
+
+The `Issue` model — `Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, the factories, guards, tree walks and `formatIssue` — is defined in **`blemish`**, a standalone package with zero dependencies and no `engines` floor, and re-exported by `validup` unchanged. It lives outside this repo so other libraries can share the shape without taking on validup's runtime; issue trees then compose across libraries because both sides reference the same types.
 
 The Vite + Vue playground lives at [`playground/vite-vue`](./playground/vite-vue) and exercises `@validup/vue` end-to-end (basic form, groups, nested forms, async + debounce, server errors, severity). Run it with `npm run dev --workspace=@validup-playground/vite-vue`.
 

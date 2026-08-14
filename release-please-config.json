@@ -2,11 +2,11 @@
     "release-type": "node",
     "initial-version": "0.1.0",
     "packages": {
-        "packages/validup": {"component": "validup", "release-as": "1.0.0"},
-        "packages/validator-js": {"component": "validator-js", "release-as": "1.0.0"},
-        "packages/vue": {"component": "vue", "release-as": "1.0.0"},
-        "packages/zod": {"component": "zod", "release-as": "1.0.0"},
-        "packages/standard-schema": {"component": "standard-schema", "release-as": "1.0.0"}
+        "packages/validup": {"component": "validup"},
+        "packages/validator-js": {"component": "validator-js"},
+        "packages/vue": {"component": "vue"},
+        "packages/zod": {"component": "zod"},
+        "packages/standard-schema": {"component": "standard-schema"}
     },
     "plugins": [
         {
