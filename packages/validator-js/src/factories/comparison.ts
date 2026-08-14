@@ -7,7 +7,8 @@
 
 import { getPathValue } from 'pathtrace';
 import validator from 'validator';
-import { IssueCode, createValidupError, defineValidator } from 'validup';
+import { IssueCode } from 'blemish';
+import { createValidupError, defineValidator } from 'validup';
 import type { ValidatorDescriptor } from 'validup';
 import type { BaseFactoryOptions } from '../module';
 import { toValidatorString } from '../module';

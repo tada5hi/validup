@@ -2,6 +2,20 @@
 
 `Issue = IssueItem | IssueGroup` is the structured failure record validup produces. They're discriminated by `type`, recursive (groups can wrap groups), and carry a structured payload (`data`) so the message can be re-rendered later in another locale.
 
+Every node carries an **absolute** path — a leaf three groups deep still reads `['user', 'contact', 'email']`, never a path relative to its parent. That's what lets [`flattenIssueItems`](#helpers) produce a directly indexable list without walking the tree to reassemble prefixes.
+
+::: tip The issue model is its own package — import it from `blemish`
+`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` are defined in [**`blemish`**](https://github.com/tada5hi/blemish) — a standalone package with zero dependencies and no `engines` floor.
+
+They live outside validup so other libraries can share the shape without taking on validup's runtime, which means issue trees compose across libraries instead of needing a translation layer.
+
+```bash
+npm install blemish --save
+```
+
+`validup` also re-exports the whole model, so existing `import { IssueCode } from 'validup'` keeps working — but **that re-export is scheduled for removal in validup v2.0.0**, so new code should import from `blemish`. The examples on this page do. Every `@validup/*` integration package already depends on `blemish` directly.
+:::
+
 ## `IssueItem`
 
 `IssueItem` is a discriminated union over three branches keyed on the vocabulary `code`. The `defineIssueItem` factory uses TypeScript overloads to enforce the right `data` shape per code at compile time:
@@ -43,7 +57,7 @@ type IssueItem = IssueItemTyped | IssueItemBare | IssueItemRaw;
 Consumers usually don't write these out — narrow on `code` and TypeScript picks the right branch:
 
 ```typescript
-import { IssueCode, isIssueItem, flattenIssueItems } from 'validup';
+import { IssueCode, isIssueItem, flattenIssueItems } from 'blemish';
 
 for (const issue of flattenIssueItems(err.issues)) {
     if (issue.code === IssueCode.MIN_LENGTH) {
@@ -72,7 +86,7 @@ interface IssueGroup {
 Always use the factories — they set `type`, default the `code` to `VALUE_INVALID` when omitted, and gatekeep the `data` shape per code:
 
 ```typescript
-import { defineIssueItem, defineIssueGroup, IssueCode } from 'validup';
+import { defineIssueItem, defineIssueGroup, IssueCode } from 'blemish';
 
 // Bare code — no data accepted (default fallback)
 const fallback = defineIssueItem({
@@ -175,7 +189,10 @@ The guard returns `true` if `e instanceof ValidupError` **or** if `e.issues` is 
 import {
     isIssue, isIssueItem, isIssueGroup,
     flattenIssueItems, flattenIssueGroups,
+    prefixIssuePath,
     formatIssue,
+} from 'blemish';
+import {
     buildErrorMessageForAttribute, buildErrorMessageForAttributes,
     stringifyPath,
 } from 'validup';
@@ -188,9 +205,20 @@ import {
 | `isIssueGroup(x)`          | Narrow to `IssueGroup`                                              |
 | `flattenIssueItems(issues)`| Recurse into groups, return only the leaf items                     |
 | `flattenIssueGroups(issues)`| Recurse, return only the groups                                    |
+| `prefixIssuePath(issue, prefix)` | Rebase an issue onto a parent path, recursing into groups     |
 | `formatIssue(issue, templates?)` | Re-render `message` using `data` against your templates       |
 | `buildErrorMessageForAttribute('email')` | `'Property "email" is invalid.'`                          |
 | `stringifyPath([...])`     | Render a `PropertyKey[]` as `'a.b[0].c'`                            |
+
+`prefixIssuePath` is the one you need when writing a validator that runs its own nested validation and merges the result. The children come back with paths relative to the sub-structure, and every node has to be rebased so the tree keeps its absolute-path invariant — including inside groups, which is why the function recurses:
+
+```typescript
+// issues from validating `address` alone carry paths like ['street']
+const rebased = childIssues.map((issue) => prefixIssuePath(issue, ['user', 'address']));
+// → ['user', 'address', 'street'], at every depth
+```
+
+`Container` does this for you on nested container mounts; you only call it directly inside a hand-written validator.
 
 ## Issue code vocabulary
 
@@ -237,7 +265,7 @@ defineIssueItem({ code: 'email_taken', path: ['email'], message: 'Already taken.
 For typed autocomplete on project-specific codes, define your own const that spreads the shipped vocabulary:
 
 ```typescript
-import { IssueCode } from 'validup';
+import { IssueCode } from 'blemish';
 
 export const AppCode = {
     ...IssueCode,
@@ -262,7 +290,7 @@ throw new ValidupError([
 
 ```typescript
 // Anywhere in your codebase (e.g. an ambient `app-types.d.ts`):
-declare module 'validup' {
+declare module 'blemish' {
     interface IssueDataByCode {
         email_taken: { existingUserId: string };
         rate_limited: { retryAfterMs: number };
@@ -286,3 +314,5 @@ defineIssueItem({
 ```
 
 Augment only with codes you own — adding entries you don't control collides with future vocabulary expansions and other consumers' merges.
+
+Target `'blemish'`, since that is where `IssueDataByCode` is declared. Targeting `'validup'` also works today — TypeScript resolves an augmentation through a star re-export to the original declaration, so the merge still lands on the real interface and `ParameterizedIssueCode` picks your code up — but it stops working when validup's re-export is removed in v2.0.0.

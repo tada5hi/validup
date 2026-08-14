@@ -2,7 +2,7 @@
     "name": "@validup/validator-js",
     "version": "1.0.0",
     "type": "module",
-    "description": "validator.js integration for validup — pre-baked factories per common rule plus a generic createValidator for the long tail.",
+    "description": "validator.js integration for validup \u2014 pre-baked factories per common rule plus a generic createValidator for the long tail.",
     "author": {
         "name": "Peter Placzek",
         "email": "contact@tada5hi.net",
@@ -44,6 +44,7 @@
     ],
     "license": "Apache-2.0",
     "dependencies": {
+        "blemish": "^1.0.0",
         "pathtrace": "^2.2.3"
     },
     "devDependencies": {

@@ -513,8 +513,9 @@ describe('compose with IContainer elements', () => {
 describe('createValidupError', () => {
     it('builds a single-issue ValidupError with the supplied fields', () => {
         // Ad-hoc string code carries open data; vocabulary codes are
-        // gatekept per their documented contract (see the typed-overloads
-        // in issue.spec.ts).
+        // gatekept per their documented contract (the typed-signature cases
+        // live in blemish's define.spec.ts, and `@validup/validator-js`'s
+        // issue-shape.spec.ts covers `createValidupError` across the seam).
         const err = createValidupError(
             42,
             'custom_failure',

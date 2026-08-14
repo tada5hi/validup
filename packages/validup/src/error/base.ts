@@ -7,7 +7,7 @@
 
 import { BaseError } from '@ebec/core';
 import { buildErrorMessageForAttributes, stringifyPath } from '../helpers';
-import type { Issue } from '../issue';
+import type { Issue } from 'blemish';
 
 export class ValidupError extends BaseError {
     readonly issues: Issue[];

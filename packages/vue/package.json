@@ -43,6 +43,7 @@
     ],
     "license": "Apache-2.0",
     "dependencies": {
+        "blemish": "^1.0.0",
         "pathtrace": "^2.2.3"
     },
     "devDependencies": {

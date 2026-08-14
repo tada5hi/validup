@@ -130,7 +130,7 @@ container.mount('phone', createValidator(
 - `fn` — any function with the signature `(value: string, ...args: any[]) => boolean`. validator.js's predicates all fit.
 - `code` — the validup `IssueCode` (or any project-specific string) attached to the resulting `IssueItem`. `IssueItem.code` widens to `IssueCode | (string & {})`, so ad-hoc strings are accepted.
 - `message` — fallback English message on `IssueItem.message`. Always set this — i18n catalogs key off `code`, but consumers without an i18n setup see the message directly.
-- `data` — structured payload surfaced on `IssueItem.data`. Optional; templates that reference placeholders (`{{locale}}`, `{{min}}`, …) resolve against this.
+- `data` — structured payload surfaced on `IssueItem.data`. Optional; templates that reference placeholders (`{locale}`, `{min}`, …) resolve against this.
 - `sideEffect` — optional flag for the rare case where the wrapped predicate captures external state. Default is cache-eligible.
 
 The wrap stringifies `ctx.value` via `toValidatorString` before calling `fn` — same as the factories — so consumers can mount on `number`-shaped fields without manual coercion.

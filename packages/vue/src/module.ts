@@ -18,17 +18,12 @@ import {
     watch,
 } from 'vue';
 import type { Ref } from 'vue';
-import type {
-    Issue,
-    IssueItem,
-    ObjectLiteral,
-    Result,
-} from 'validup';
+import type { Issue, IssueItem } from 'blemish';
+import { IssueCode, flattenIssueItems } from 'blemish';
+import type { ObjectLiteral, Result } from 'validup';
 import {
-    IssueCode,
     ResultCache,
     ValidupError,
-    flattenIssueItems,
     isValidupError,
 } from 'validup';
 import { useCollector } from './helpers/collector';

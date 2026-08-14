@@ -46,8 +46,8 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `paths-to-include.spec.ts`    | `pathsToInclude` / `pathsToExclude` filters               |
 | `error.spec.ts`               | `ValidupError` shape and `isValidupError` guard           |
 | `safe-run-error.spec.ts`      | `wrapSafeRunError` — the `safeRun` / `safeRunSync` fold for a throw that escaped the run loop |
-| `issue.spec.ts`               | `Issue` factories and guards (`isIssueItem` / `isIssueGroup` / `isIssue`) |
-| `flatten.spec.ts`             | `flattenIssueItems` / `flattenIssueGroups` — pre-order + reference identity |
+| `issue-reexport.spec.ts`      | The `blemish` re-export surface — every model symbol still exported, reference-identical, plus `interpolate` parity |
+| `format.spec.ts`              | The `data` the **runtime** attaches to issues (`formatIssue` itself is `blemish`'s) |
 | `mount-dispatch.spec.ts`      | `Container.mount` / `Builder.mount` argument-dispatch order, `isContainer` |
 | `initialize.spec.ts`          | Subclass `initialize()` hook                              |
 | `run-sync.spec.ts`            | `runSync` / `safeRunSync` + `RunSyncViolationError`       |
@@ -61,6 +61,32 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `defaults.spec.ts`            | `resolveDefaults` child-slice helper                      |
 
 When adding a new container option or mount option, add or extend the matching spec — don't pile new cases into `module.spec.ts`.
+
+### The issue model is tested in `blemish`, not here
+
+`defineIssueItem` / `defineIssueGroup`, the `isIssue*` guards, `flattenIssueItems` / `flattenIssueGroups`, `prefixIssuePath`, `formatIssue` / `interpolate` and the `IssueCode` vocabulary all live in [`blemish`](https://github.com/tada5hi/blemish). Their behavioural specs went with them; **do not re-add them here.** Duplicating them would mean two places to update and would test another repo's code from this one.
+
+What remains this repo's to test, and why each is genuinely different:
+
+- `issue-reexport.spec.ts` — the **surface**, not the behaviour. That every symbol validup exported before the extraction is still exported, and that each is `toBe`-identical to `blemish`'s (`toEqual` would pass for a second bundled copy, which is the actual failure mode). Plus `interpolate` parity, since validup used to re-export `@ebec/core`'s and now re-exports `blemish`'s reproduction.
+- `format.spec.ts` — the `data` the **runtime** attaches (`{ name }` on a failing mount's wrapping group). `formatIssue` itself is `blemish`'s.
+- Everything that builds an issue tree through a `Container` — `module`, `one-of`, `optional`, `compose`, `error-to-issues`, … — is unchanged and still belongs here. Those test validup's *use* of the model.
+
+The other half of the re-export contract is a **build** property that no unit spec can see: `tsdown` must emit `export * from "blemish"` in `dist/index.d.mts` rather than inlining the declarations. Inlining would break cross-package type identity and the `declare module 'validup' { interface IssueDataByCode { … } }` augmentation, both silently. Check it after a build-toolchain change:
+
+```bash
+npm run build --workspace=packages/validup
+grep -n 'blemish' packages/validup/dist/index.d.mts   # expect: export * from "blemish"
+grep -cE '^declare (const IssueCode|function defineIssueItem)' packages/validup/dist/index.d.mts  # expect: 0
+```
+
+### A `never` return type is invisible to every runtime test
+
+Worth internalising, because this repo carried the defect for as long as the code existed and nothing here could see it.
+
+`defineIssueItem`'s return type is a conditional whose branches are `Extract`s. Written so that the resolved code is re-spelled inside each branch rather than bound once to a type parameter, the whole alias collapses to `never`. The failure is silent in both directions that normally catch things: branch *selection* keeps working, so the `data` gatekeep still rejects bad payloads (the half anyone thinks to test), and `never` is assignable to everything, so no call site complains and consumer-side narrowing quietly stops meaning anything.
+
+It surfaced only when `blemish` typechecked its specs and asserted `[T] extends [never] ? true : false` is `false`. **This repo still typechecks only `src`** — see [Specs are not typechecked, in any package](#specs-are-not-typechecked-in-any-package) — so it could not have been found here. When a type-level helper is load-bearing, assert what it resolves *to*, not only what it rejects.
 
 ### Guard-ordering specs
 
@@ -138,7 +164,9 @@ Each package has **two** TypeScript configs: `tsconfig.build.json` (`src/**/*` o
 `@validup/validator-js` now closes that: its `tsconfig.json` includes `test/**/*.ts` and `npm run test:types` (`tsc --noEmit`) covers the specs. `tsconfig.build.json` is deliberately untouched, so specs still never influence the emitted `.d.mts`.
 
 - **`issue-shape.spec.ts`'s four `@ts-expect-error` gatekeep cases are enforced by that command.** Verified non-vacuous: collapsing the core's `CreateValidupErrorTail` (`packages/validup/src/helpers/create-error.ts`) to a single permissive `[data?: any]` tuple makes `npx tsc --noEmit` in `packages/validator-js` report all four as `TS2578: Unused '@ts-expect-error' directive` (baseline is clean). Before this, the directives were inert in every automated context, and the re-check command printed in the spec's own docblock was itself broken — it omitted `--ignoreConfig` and died with `TS5112` having typechecked nothing.
-- **The other four packages are still unchecked.** `validup`, `vue` and `standard-schema` would likely pass as-is; `packages/zod/test/unit/` has pre-existing type errors that must be fixed first — `error.spec.ts:60` (`TS2322`, `number` vs `string`) and `module.spec.ts:170` (`TS2353`) on this branch, and a third on `master` (`error.spec.ts:154`, `TS2353`) that this branch's `error.spec.ts` rewrite happened to remove. None are regressions; they simply have never been checked.
+- **The other four packages are still unchecked**, and rolling the `include` out is **not** the small change this file previously claimed. The earlier note said `validup`, `vue` and `standard-schema` "would likely pass as-is" — that was a guess, and it is wrong for `validup`. Measured by temporarily setting `include: ['src/**/*', 'test/**/*']` in `packages/validup/tsconfig.json` and running `npx tsc --noEmit`: **48 pre-existing errors across 10 specs** (`builder` 9, `parallel` 13, `paths-strict` 12, `one-of` 4, `cache` 2, `mount-dispatch` 2, `paths-to-include` 2, `run-sync` 2, `format` 1, `run-parity` 1). `packages/zod/test/unit/` likewise has pre-existing errors. None are regressions — these files have simply never been checked. **Measure before promising; don't restate a guess as a finding.**
+
+  This matters more than it looks. The `never`-collapse defect described above lived in `defineIssueItem`'s return type for as long as the function existed, and no runtime test in this repo could see it — only a typechecked spec could. Every package left unchecked can be carrying the same class of defect right now.
 
 Rolling the same `include` out to the remaining four packages is the open follow-up. Until then, if a spec's type-level assertion is load-bearing in one of those, **say so in the spec and give a command that actually runs** — the standalone form needs `--ignoreConfig`:
 

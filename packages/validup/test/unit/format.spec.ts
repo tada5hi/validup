@@ -6,62 +6,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-    Container,
-    ValidupError,
-    defineIssueGroup,
-    defineIssueItem,
-    formatIssue,
-    interpolate,
-} from '../../src';
+import { Container, ValidupError } from '../../src';
 import { stringValidator } from '../data';
 
-describe('formatIssue', () => {
-    it('should fall back to issue.message when no templates are provided', () => {
-        const issue = defineIssueItem({ path: ['x'], message: 'invalid' });
-        expect(formatIssue(issue)).toEqual('invalid');
-    });
-
-    it('should interpolate a matching template using data', () => {
-        // Ad-hoc code with open data — VALUE_INVALID is bare per the
-        // vocabulary contract, so use a project-specific code for
-        // template-driven messages that need structured data.
-        const issue = defineIssueItem({
-            code: 'value_invalid_named',
-            path: ['email'],
-            message: 'Value invalid',
-            data: { name: 'email' },
-        });
-
-        const out = formatIssue(issue, { value_invalid_named: 'Field {name} is invalid' });
-
-        expect(out).toEqual('Field email is invalid');
-    });
-
-    it('should fall back to message when no template matches the code', () => {
-        const issue = defineIssueItem({
-            code: 'unknown_code',
-            path: [],
-            message: 'literal',
-        });
-
-        expect(formatIssue(issue, { value_invalid: 'X' })).toEqual('literal');
-    });
-
-    it('should return the fallback when neither template nor message is set', () => {
-        const issue = defineIssueGroup({
-            path: [],
-            message: '',
-            issues: [],
-        });
-
-        expect(formatIssue(issue, undefined, '—')).toEqual('—');
-    });
-
-    it('should re-export ebec interpolate', () => {
-        expect(interpolate('hello {who}', { who: 'world' })).toEqual('hello world');
-    });
-});
+// `formatIssue` / `interpolate` themselves live in `blemish` and are covered
+// by its own `format.spec.ts`. What remains validup's to test is the `data`
+// the RUNTIME attaches — the payload a consumer-side template renders against.
+// See `issue-reexport.spec.ts` for the surface contract.
 
 describe('Issue.data populated by the runtime', () => {
     it('should set data: { name } on the wrapping IssueGroup of a failing mount', async () => {
