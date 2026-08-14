@@ -2,12 +2,18 @@
 
 `Issue = IssueItem | IssueGroup` is the structured failure record validup produces. They're discriminated by `type`, recursive (groups can wrap groups), and carry a structured payload (`data`) so the message can be re-rendered later in another locale.
 
-Every node carries an **absolute** path — a leaf three groups deep still reads `['user', 'contact', 'email']`, never a path relative to its parent. That's what lets [`flattenIssueItems`](#flattening) produce a directly indexable list without walking the tree to reassemble prefixes.
+Every node carries an **absolute** path — a leaf three groups deep still reads `['user', 'contact', 'email']`, never a path relative to its parent. That's what lets [`flattenIssueItems`](#helpers) produce a directly indexable list without walking the tree to reassemble prefixes.
 
-::: tip The issue model is its own package
-`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` are defined in [**`blemish`**](https://github.com/tada5hi/blemish) — a standalone package with zero dependencies and no `engines` floor — and re-exported by `validup` unchanged. Import them from `validup` as you always have; they're the same objects.
+::: tip The issue model is its own package — import it from `blemish`
+`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` are defined in [**`blemish`**](https://github.com/tada5hi/blemish) — a standalone package with zero dependencies and no `engines` floor.
 
-They live outside validup so other libraries can share the shape without taking on validup's runtime, which means issue trees compose across libraries instead of needing a translation layer. If you're writing a library that only needs the model, depend on `blemish` directly.
+They live outside validup so other libraries can share the shape without taking on validup's runtime, which means issue trees compose across libraries instead of needing a translation layer.
+
+```bash
+npm install blemish --save
+```
+
+`validup` also re-exports the whole model, so existing `import { IssueCode } from 'validup'` keeps working — but **that re-export is scheduled for removal in validup v2.0.0**, so new code should import from `blemish`. The examples on this page do. Every `@validup/*` integration package already depends on `blemish` directly.
 :::
 
 ## `IssueItem`
@@ -51,7 +57,7 @@ type IssueItem = IssueItemTyped | IssueItemBare | IssueItemRaw;
 Consumers usually don't write these out — narrow on `code` and TypeScript picks the right branch:
 
 ```typescript
-import { IssueCode, isIssueItem, flattenIssueItems } from 'validup';
+import { IssueCode, isIssueItem, flattenIssueItems } from 'blemish';
 
 for (const issue of flattenIssueItems(err.issues)) {
     if (issue.code === IssueCode.MIN_LENGTH) {
@@ -80,7 +86,7 @@ interface IssueGroup {
 Always use the factories — they set `type`, default the `code` to `VALUE_INVALID` when omitted, and gatekeep the `data` shape per code:
 
 ```typescript
-import { defineIssueItem, defineIssueGroup, IssueCode } from 'validup';
+import { defineIssueItem, defineIssueGroup, IssueCode } from 'blemish';
 
 // Bare code — no data accepted (default fallback)
 const fallback = defineIssueItem({
@@ -185,6 +191,8 @@ import {
     flattenIssueItems, flattenIssueGroups,
     prefixIssuePath,
     formatIssue,
+} from 'blemish';
+import {
     buildErrorMessageForAttribute, buildErrorMessageForAttributes,
     stringifyPath,
 } from 'validup';
@@ -257,7 +265,7 @@ defineIssueItem({ code: 'email_taken', path: ['email'], message: 'Already taken.
 For typed autocomplete on project-specific codes, define your own const that spreads the shipped vocabulary:
 
 ```typescript
-import { IssueCode } from 'validup';
+import { IssueCode } from 'blemish';
 
 export const AppCode = {
     ...IssueCode,
@@ -282,7 +290,7 @@ throw new ValidupError([
 
 ```typescript
 // Anywhere in your codebase (e.g. an ambient `app-types.d.ts`):
-declare module 'validup' {
+declare module 'blemish' {
     interface IssueDataByCode {
         email_taken: { existingUserId: string };
         rate_limited: { retryAfterMs: number };
@@ -307,4 +315,4 @@ defineIssueItem({
 
 Augment only with codes you own — adding entries you don't control collides with future vocabulary expansions and other consumers' merges.
 
-Targeting `'validup'` keeps working even though `IssueDataByCode` is declared in [`blemish`](https://github.com/tada5hi/blemish): TypeScript resolves an augmentation through a star re-export to the original declaration, so the merge lands on the real interface and `ParameterizedIssueCode` picks your code up. `declare module 'blemish'` works identically — use whichever package you actually depend on.
+Target `'blemish'`, since that is where `IssueDataByCode` is declared. Targeting `'validup'` also works today — TypeScript resolves an augmentation through a star re-export to the original declaration, so the merge still lands on the real interface and `ParameterizedIssueCode` picks your code up — but it stops working when validup's re-export is removed in v2.0.0.

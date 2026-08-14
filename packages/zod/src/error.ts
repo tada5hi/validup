@@ -8,13 +8,14 @@
 import {
     IssueCode,
     defineIssueItem,
-    hasOwnProperty,
     isIssueItem,
-} from 'validup';
+} from 'blemish';
+import { hasOwnProperty } from 'validup';
 import { getPathValue } from 'pathtrace';
 import type { $ZodIssue, $ZodRawIssue } from 'zod/v4/core';
 import type { ZodError } from 'zod';
-import type { Issue, ValidupError } from 'validup';
+import type { Issue } from 'blemish';
+import type { ValidupError } from 'validup';
 
 export type ZodIssue = $ZodRawIssue;
 

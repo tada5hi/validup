@@ -10,8 +10,8 @@ import type {
     Issue,
     IssueGroup,
     IssueItem,
-} from 'validup';
-import { flattenIssueItems, isIssueGroup } from 'validup';
+} from 'blemish';
+import { flattenIssueItems, isIssueGroup } from 'blemish';
 
 /**
  * The framework-free projection layer behind `useValidup`.

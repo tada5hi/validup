@@ -12,11 +12,13 @@ import type {
     WritableComputedRef,
 } from 'vue';
 import type {
-    ContainerRunOptions,
-    IContainer,
     Issue,
     IssueGroup,
     IssueItem,
+} from 'blemish';
+import type {
+    ContainerRunOptions,
+    IContainer,
     ObjectLiteral,
     Result,
 } from 'validup';

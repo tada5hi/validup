@@ -6,8 +6,9 @@
  */
 
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import { defineIssueItem, isObject } from 'validup';
-import type { Issue } from 'validup';
+import { defineIssueItem } from 'blemish';
+import { isObject } from 'validup';
+import type { Issue } from 'blemish';
 
 /**
  * Convert a Standard Schema path (`(PropertyKey | { key })[]`) into a validup
