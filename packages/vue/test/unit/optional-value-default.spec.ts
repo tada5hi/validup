@@ -14,7 +14,7 @@ import {
     reactive, 
 } from 'vue';
 import { Container } from 'validup';
-import type { Validator } from 'validup';
+import type { ObjectLiteral, Validator } from 'validup';
 import { createValidup, useValidup } from '../../src';
 import type { Composable } from '../../src';
 
@@ -35,7 +35,7 @@ async function flush() {
  * `inject(VALIDUP_INSTALL_KEY)` resolves. Returns the `$v` composable
  * the component exposed, plus a `cleanup()` to tear the app down.
  */
-function mountWithPlugin<T>(
+function mountWithPlugin<T extends ObjectLiteral>(
     setup: () => { $v: Composable<T> },
     plugin?: ReturnType<typeof createValidup>,
 ): { v: Composable<T>; cleanup: () => void } {

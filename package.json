@@ -24,6 +24,7 @@
     "scripts": {
         "build": "npx nx run-many -t build",
         "test": "npx nx run-many -t test",
+        "test:types": "npx nx run-many -t test:types",
         "lint": "eslint",
         "lint:fix": "npm run lint -- --fix",
         "prepare": "husky"

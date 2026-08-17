@@ -77,6 +77,10 @@ jobs:
             -   name: Build
                 uses: ./.github/actions/build
 
+            -   name: Run type tests
+                run: |
+                    npm run test:types
+
             -   name: Run tests
                 run: |
                     npm run test

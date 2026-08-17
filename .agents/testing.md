@@ -86,7 +86,7 @@ Worth internalising, because this repo carried the defect for as long as the cod
 
 `defineIssueItem`'s return type is a conditional whose branches are `Extract`s. Written so that the resolved code is re-spelled inside each branch rather than bound once to a type parameter, the whole alias collapses to `never`. The failure is silent in both directions that normally catch things: branch *selection* keeps working, so the `data` gatekeep still rejects bad payloads (the half anyone thinks to test), and `never` is assignable to everything, so no call site complains and consumer-side narrowing quietly stops meaning anything.
 
-It surfaced only when `blemish` typechecked its specs and asserted `[T] extends [never] ? true : false` is `false`. **This repo still typechecks only `src`** — see [Specs are not typechecked, in any package](#specs-are-not-typechecked-in-any-package) — so it could not have been found here. When a type-level helper is load-bearing, assert what it resolves *to*, not only what it rejects.
+It surfaced only when `blemish` typechecked its specs and asserted `[T] extends [never] ? true : false` is `false`. **This repo typechecks specs in `validator-js` and `vue` only** — see [Specs are typechecked in `validator-js` and `vue` only](#specs-are-typechecked-in-validator-js-and-vue-only) — and `validup` is not among them, so it could not have been found here. When a type-level helper is load-bearing, assert what it resolves *to*, not only what it rejects.
 
 ### Guard-ordering specs
 
@@ -157,23 +157,37 @@ The general lesson: when a predicate ORs a *run-state* read with *error-type* re
 
 The same file carries four `@ts-expect-error` cases pinning the core's per-code `data` gatekeep (`createValidupError`) **as the adapter sees it**. The positive direction is build-enforced from `src/` — `matches`, `equals` and `isStrongPassword` all pass typed `data` — but nothing in `src/` ever passes a WRONG payload, so the negative direction needs the spec. See below.
 
-### Specs are not typechecked, in any package
+### Specs are typechecked in `validator-js` and `vue` only
 
 Each package has **two** TypeScript configs: `tsconfig.build.json` (`src/**/*` only — what `npm run build:types` and therefore the published declarations read) and `tsconfig.json` (what `npx tsc --noEmit` and your editor read). Both used to include only `src`, so **nothing typechecked `test/` in any package**.
 
-`@validup/validator-js` now closes that: its `tsconfig.json` includes `test/**/*.ts` and `npm run test:types` (`tsc --noEmit`) covers the specs. `tsconfig.build.json` is deliberately untouched, so specs still never influence the emitted `.d.mts`.
+`@validup/validator-js` and `@validup/vue` now close that: their `tsconfig.json` includes `test/**/*.ts` and `npm run test:types` (`tsc --noEmit`) covers the specs. Each `tsconfig.build.json` is deliberately untouched, so specs still never influence the emitted `.d.mts`.
+
+**`test:types` runs in CI.** Root `npm run test:types` → `nx run-many -t test:types`, wired as its own step in the `tests` job of `.github/workflows/main.yml`. It was previously a manual-only command, which meant `validator-js`'s `@ts-expect-error` gatekeep cases passed review and then never ran again. A type-level assertion that no automated job executes is decoration — if you add one, confirm the package has a `test:types` script.
 
 - **`issue-shape.spec.ts`'s four `@ts-expect-error` gatekeep cases are enforced by that command.** Verified non-vacuous: collapsing the core's `CreateValidupErrorTail` (`packages/validup/src/helpers/create-error.ts`) to a single permissive `[data?: any]` tuple makes `npx tsc --noEmit` in `packages/validator-js` report all four as `TS2578: Unused '@ts-expect-error' directive` (baseline is clean). Before this, the directives were inert in every automated context, and the re-check command printed in the spec's own docblock was itself broken — it omitted `--ignoreConfig` and died with `TS5112` having typechecked nothing.
-- **The other four packages are still unchecked**, and rolling the `include` out is **not** the small change this file previously claimed. The earlier note said `validup`, `vue` and `standard-schema` "would likely pass as-is" — that was a guess, and it is wrong for `validup`. Measured by temporarily setting `include: ['src/**/*', 'test/**/*']` in `packages/validup/tsconfig.json` and running `npx tsc --noEmit`: **48 pre-existing errors across 10 specs** (`builder` 9, `parallel` 13, `paths-strict` 12, `one-of` 4, `cache` 2, `mount-dispatch` 2, `paths-to-include` 2, `run-sync` 2, `format` 1, `run-parity` 1). `packages/zod/test/unit/` likewise has pre-existing errors. None are regressions — these files have simply never been checked. **Measure before promising; don't restate a guess as a finding.**
+- **`vue` cost one line to enable.** Measured, not guessed: setting `include: ['src/**/*.ts', 'test/**/*.ts']` produced **4 errors, all in `optional-value-default.spec.ts`, all the same defect** — the `mountWithPlugin<T>` helper declared `T` unconstrained while `Composable<T>` requires `T extends ObjectLiteral`. Adding the constraint cleared all four.
+- **The other three packages are still unchecked**, and rolling the `include` out is **not** the small change this file once claimed. An earlier note guessed `validup`, `vue` and `standard-schema` "would likely pass as-is"; that guess held for `vue` (4 errors, one cause) and was badly wrong for `validup`. Measured by temporarily setting `include: ['src/**/*', 'test/**/*']` in `packages/validup/tsconfig.json` and running `npx tsc --noEmit`: **48 pre-existing errors across 10 specs** (`builder` 9, `parallel` 13, `paths-strict` 12, `one-of` 4, `cache` 2, `mount-dispatch` 2, `paths-to-include` 2, `run-sync` 2, `format` 1, `run-parity` 1). `packages/zod/test/unit/` likewise has pre-existing errors. None are regressions — these files have simply never been checked. **Measure before promising; don't restate a guess as a finding.**
 
   This matters more than it looks. The `never`-collapse defect described above lived in `defineIssueItem`'s return type for as long as the function existed, and no runtime test in this repo could see it — only a typechecked spec could. Every package left unchecked can be carrying the same class of defect right now.
 
-Rolling the same `include` out to the remaining four packages is the open follow-up. Until then, if a spec's type-level assertion is load-bearing in one of those, **say so in the spec and give a command that actually runs** — the standalone form needs `--ignoreConfig`:
+Rolling the same `include` out to `validup`, `zod` and `standard-schema` is the open follow-up. Until then, if a spec's type-level assertion is load-bearing in one of those, **say so in the spec and give a command that actually runs** — the standalone form needs `--ignoreConfig`:
 
 ```
 npx tsc --noEmit --ignoreConfig --strict --target ES2022 --module ESNext \
     --moduleResolution bundler --skipLibCheck --esModuleInterop test/unit/<spec>.ts
 ```
+
+### `typing.spec.ts` pins a three-way type constraint, and assignability cannot see it
+
+`@validup/vue`'s `FieldsAccessor<T>` serves three constraints that pull against each other; the full table of which spelling breaks which lives in [structure.md → the `FieldsAccessor` knot](structure.md#the-fieldsaccessor-knot). Three historical spellings each satisfied exactly two, and each shipped before being reverted — so the spec keeps a case per constraint and they are **not** redundant. Mutation-verified: reverting `packages/vue/src/types.ts` to any of the three makes `npm run test:types` fail, and each one fails a *different* subset.
+
+Two traps this spec exists to survive:
+
+- **Assignability assertions are vacuous here.** The #455 regression degrades `fields.name` from `FieldState<string>` to `FieldState<any>`, and `any` is assignable in both directions — so `const x: FieldState<string> = v.fields.name` passes against the very defect it would exist to catch. The cases use an exact-type `Equals<X, Y>` helper instead. Generalises: **whenever a regression's symptom is a widening to `any`, an assignability check proves nothing.**
+- **`declare const` is erased, so a value-level assertion at module scope crashes vitest.** The widening cases are real assignments (`const w: Composable<ObjectLiteral> = specific`) and have to be, because the conditional-type form does not exercise the same relation — so they live inside a function that is declared and never invoked, taking their subjects as parameters.
+
+The suite also carries one runtime `it()` against an index-signature entity. It is not decorative: the missing `| undefined` on typed keys is only honest because the Proxy really does materialise a `FieldState` for every key, declared or not.
 
 ### The six validator-js specs, and what each one owns
 

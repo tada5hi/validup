@@ -131,6 +131,24 @@ The `state` argument is typed as `Partial<T>`, so a form that only carries a sub
 
 `v.fields.<key>` returns a `FieldState`. Top-level keys narrow to `FieldState<T[K]>` (strict-mode clean — never `| undefined`). For dotted / bracketed / runtime-computed paths use `v.fields.at('user.email')` — see [Nested Paths](#nested-paths) below.
 
+This holds for entity types that carry an index signature too. Many entity types declare `[key: string]: any` alongside their known fields so extra attributes can ride along:
+
+```typescript
+interface User {
+    name: string;
+    email: string;
+    [key: string]: any;
+}
+
+const v = useValidup(new UserValidator(), form);
+
+v.fields.name;   // FieldState<string> — declared keys keep their type
+v.fields.email;  // FieldState<string>
+v.fields.extra;  // any — keys the index signature admits stay untyped
+```
+
+Keys that only the index signature admits resolve to `any` rather than `FieldState<any>`; for an entity **without** an index signature an unknown key stays a compile error, so typos are still caught wherever the entity type can catch them.
+
 | Member         | Type                                  | Description                                                          |
 |----------------|---------------------------------------|----------------------------------------------------------------------|
 | `$model`       | `WritableComputedRef<V>`              | Two-way bound to `state[<key>]`. Writing flips `$dirty` automatically (no-op writes don't). |

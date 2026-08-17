@@ -130,6 +130,9 @@ npm run build
 # Run all test suites
 npm run test
 
+# Typecheck the specs (packages that opt in)
+npm run test:types
+
 # Lint
 npm run lint
 npm run lint:fix
