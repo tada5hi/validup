@@ -13,7 +13,8 @@
         "cacheableOperations": [
           "build",
           "lint",
-          "test"
+          "test",
+          "test:types"
         ]
       }
     }

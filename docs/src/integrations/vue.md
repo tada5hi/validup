@@ -68,7 +68,16 @@ type Composable<T> = {
     setExternalIssues: (issues: Issue[]) => void;
     $getResultsForChild: <C>(name: string) => Composable<C> | undefined;
 
-    fields: Record<string, FieldState<unknown>>;
+    fields: FieldsAccessor<T>;
+};
+
+// Declared keys of `T` map to `FieldState<T[K]>` and are never
+// `| undefined`. If `T` carries an index signature, the keys only it
+// admits are typed `any` — see "Per-field state" below.
+type FieldsAccessor<T> = {
+    [K in keyof T]-?: FieldState<T[K]>;
+} & {
+    at: <V = unknown>(path: string) => FieldState<V>;
 };
 
 type FieldState<V> = {
@@ -91,6 +100,22 @@ v.fields.at('tags[0]').$model.value = 'urgent';
 ```
 
 A field literally named `at` is shadowed by the dynamic accessor — reach it via `v.fields.at('at')` if needed.
+
+Declared keys keep their type even when the entity carries an index signature — a common shape for entities that let extra attributes ride along:
+
+```typescript
+interface User {
+    name: string;
+    email: string;
+    [key: string]: any;
+}
+
+v.fields.name;   // FieldState<string>
+v.fields.email;  // FieldState<string>
+v.fields.extra;  // any — reachable, but untyped
+```
+
+Keys that only the index signature admits resolve to `any` rather than `FieldState<any>`. An entity **without** an index signature still rejects unknown keys outright, so typos stay a compile error wherever the entity type can catch them.
 
 The `state` argument is typed as `Partial<T>`, so a form that only carries a subset of the validator's entity (e.g. a `Container<User>` driving a create form of `{ name, email }` where `id` / `createdAt` are server-set) type-checks without an `as any` cast. `T` stays bound to the container's entity type, so typed-field access still narrows against the full entity.
 

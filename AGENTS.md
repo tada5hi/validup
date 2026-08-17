@@ -20,6 +20,9 @@ npm run build
 # Run all tests
 npm run test
 
+# Typecheck the specs (validator-js + vue only — see .agents/testing.md)
+npm run test:types
+
 # Lint
 npm run lint
 npm run lint:fix

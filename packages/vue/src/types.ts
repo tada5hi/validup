@@ -109,28 +109,71 @@ export type Composable<T extends ObjectLiteral = ObjectLiteral> = {
 };
 
 /**
+ * Value type for one `FieldsAccessor` key.
+ *
+ * In the homomorphic mapping below, `K` is the *literal* key for every
+ * declared property of `T`, and the index-signature key (`string` /
+ * `number`) for the single catch-all entry that a `[key: string]: any`
+ * on `T` contributes. Declared keys map to a real `FieldState`; the
+ * catch-all entry deliberately widens to `any` — see the third
+ * constraint in `FieldsAccessor`.
+ */
+type FieldEntry<T, K extends keyof T> = string extends K ?
+    any :
+    number extends K ?
+        any :
+        FieldState<T[K]>;
+
+/**
  * Typed accessor returned by `Composable.fields`.
  *
  * - `fields.<key>` — typed access for known keys of `T`. Returns
  *   `FieldState<T[K]>` (NOT `| undefined`) so strict-mode TypeScript
  *   (`noUncheckedIndexedAccess`) doesn't require non-null assertions on
- *   every template reference. The mapping is deliberately
- *   **non-homomorphic** (`K in Exclude<keyof T, 'at'>` rather than
- *   `K in keyof T as …`): it does not preserve the optional marker of
- *   optional keys of `T`, so `nickname?: string` still yields a bare
- *   `FieldState<string | undefined>`, not
- *   `FieldState<string | undefined> | undefined` — the Proxy
- *   materialises a `FieldState` for every key on first access, so the
- *   property itself is never undefined at runtime. (A homomorphic
- *   `-?` variant strips the marker too, but forces the mapped type to
- *   collapse to a concrete index signature when `T` widens to
- *   `ObjectLiteral`, which then captures the `at` method and breaks
- *   `Composable<Specific>` → `Composable<ObjectLiteral>` assignability.)
+ *   every template reference.
  * - `fields.at(path)` — dynamic accessor for dotted (`'user.email'`),
  *   bracketed (`'tags[0]'`), or mixed (`'matrix[0].name'`) paths and any
  *   runtime-computed key. Returns `FieldState<V>`; the underlying Proxy
  *   materialises a `FieldState` on first access so the return is never
  *   actually undefined at runtime.
+ *
+ * ## Why the mapping looks like this
+ *
+ * Three constraints pull in different directions, and the shape below is
+ * the only one found to satisfy all three. Each has a regression case in
+ * `test/unit/typing.spec.ts`; changing one line here reliably breaks one
+ * of the others, so re-run that spec (`npm run test:types`) rather than
+ * "simplifying".
+ *
+ * 1. **No optional marker on the property** (#391). A field declared
+ *    `nickname?: string` must still yield a bare
+ *    `FieldState<string | undefined>`, not
+ *    `FieldState<string | undefined> | undefined` — the Proxy
+ *    materialises a `FieldState` for every key on first access, so the
+ *    property itself is never undefined at runtime. Hence `-?`. (It
+ *    strips the marker only, not the value type's own `undefined`.)
+ * 2. **`Composable<Specific>` stays assignable to
+ *    `Composable<ObjectLiteral>`** (#423). Generic components declare
+ *    props as `Composable<ObjectLiteral>` and receive typed composables.
+ *    When `T` widens to `ObjectLiteral` the mapped type collapses to a
+ *    bare index signature, and every property of the *source* — including
+ *    the sibling `at` method — then has to satisfy that index signature's
+ *    value type. A function is not a `FieldState`, so a `FieldState<…>`
+ *    value type rejects it. Widening the catch-all entry to `any` (see
+ *    `FieldEntry`) is what lets `at` through.
+ * 3. **Declared keys survive an index signature on `T`** (#455). Entity
+ *    types commonly carry `[key: string]: any` for extra attributes.
+ *    `keyof T` then widens to `string | number`, so any mapping keyed off
+ *    `keyof T` as a *set* (e.g. `K in Exclude<keyof T, 'at'>`) collapses
+ *    to a bare index signature and every declared key loses its type.
+ *    Only a **homomorphic** mapping (`K in keyof T as …`) walks the
+ *    declared properties and the index signature separately, keeping
+ *    `fields.name` at `FieldState<string>`.
+ *
+ * Consequence of (2): for a `T` that carries an index signature, keys not
+ * declared on `T` read as `any` rather than `FieldState<any>`. Declared
+ * keys are unaffected, and a `T` without an index signature still rejects
+ * unknown keys outright, so typo detection is preserved where it exists.
  *
  * Caveat: a field literally named `at` is shadowed by the dynamic
  * accessor. Access it via `fields.at('at')` (or pick a different field
@@ -138,7 +181,7 @@ export type Composable<T extends ObjectLiteral = ObjectLiteral> = {
  * the same object as the typed keys.
  */
 export type FieldsAccessor<T extends ObjectLiteral> = {
-    readonly [K in Exclude<keyof T, 'at'>]: FieldState<T[K]>;
+    readonly [K in keyof T as K extends 'at' ? never : K]-?: FieldEntry<T, K>;
 } & {
     /**
      * Look up field state by dotted / bracketed path or any
