@@ -6,17 +6,15 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { IssueCode, flattenIssueItems, isIssueGroup } from '@ebec/core';
 import {
     Container,
-    IssueCode,
     ResultCache,
     ValidupError,
     compose,
     composeOneOf,
     createValidupError,
     defineValidator,
-    flattenIssueItems,
-    isIssueGroup,
     isPathsStrictViolation,
 } from '../../src';
 import type { Validator } from '../../src';
@@ -514,7 +512,7 @@ describe('createValidupError', () => {
     it('builds a single-issue ValidupError with the supplied fields', () => {
         // Ad-hoc string code carries open data; vocabulary codes are
         // gatekept per their documented contract (the typed-signature cases
-        // live in blemish's define.spec.ts, and `@validup/validator-js`'s
+        // live in @ebec/core's define.spec.ts, and `@validup/validator-js`'s
         // issue-shape.spec.ts covers `createValidupError` across the seam).
         const err = createValidupError(
             42,

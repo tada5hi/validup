@@ -6,12 +6,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { IssueCode, flattenIssueItems, isIssueGroup } from '@ebec/core';
 import {
     Container,
-    IssueCode,
     ValidupError,
-    flattenIssueItems,
-    isIssueGroup,
 } from '../../src';
 import { stringValidator } from '../data';
 

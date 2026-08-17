@@ -7,7 +7,8 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { z } from 'zod';
-import { Container, IssueCode, defineIssueItem } from 'validup';
+import { IssueCode, defineIssueItem } from '@ebec/core';
+import { Container } from 'validup';
 import { createValidator } from '@validup/zod';
 import { useValidup } from '@validup/vue';
 import Field from '../components/Field.vue';

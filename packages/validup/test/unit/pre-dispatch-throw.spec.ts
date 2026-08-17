@@ -6,8 +6,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Container, flattenIssueItems } from '../../src';
-import type { Issue, Result } from '../../src';
+import { flattenIssueItems } from '@ebec/core';
+import type { Issue } from '@ebec/core';
+import { Container } from '../../src';
+import type { Result } from '../../src';
 
 /**
  * Every mount runs a **pre-dispatch** region before its validator or child

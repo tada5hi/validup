@@ -7,11 +7,10 @@
 
 import validator from 'validator';
 import { describe, expect, it } from 'vitest';
+import { IssueCode, flattenIssueItems } from '@ebec/core';
 import {
     Container,
-    IssueCode,
     ValidupError,
-    flattenIssueItems,
 } from 'validup';
 import { createValidator } from '../../src';
 

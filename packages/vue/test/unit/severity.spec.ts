@@ -13,8 +13,9 @@ import {
     reactive,
     ref,
 } from 'vue';
+import type { IssueItem } from '@ebec/core';
 import { Container } from 'validup';
-import type { IssueItem, Validator } from 'validup';
+import type { Validator } from 'validup';
 import { getSeverity, useValidup } from '../../src';
 import type { Composable, FieldState } from '../../src';
 

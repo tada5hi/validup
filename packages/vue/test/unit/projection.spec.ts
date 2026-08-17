@@ -13,8 +13,8 @@
 // below imports `vue`.
 
 import { describe, expect, it } from 'vitest';
-import { IssueCode, defineIssueGroup, defineIssueItem } from 'validup';
-import type { Issue, IssueItem } from 'validup';
+import { IssueCode, defineIssueGroup, defineIssueItem } from '@ebec/core';
+import type { Issue, IssueItem } from '@ebec/core';
 import {
     crossCuttingItems,
     flatItemsAtPath,

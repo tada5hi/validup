@@ -72,14 +72,6 @@ What remains this repo's to test, and why each is genuinely different:
 - `format.spec.ts` — the `data` the **runtime** attaches (`{ name }` on a failing mount's wrapping group). `formatIssue` itself is `blemish`'s.
 - Everything that builds an issue tree through a `Container` — `module`, `one-of`, `optional`, `compose`, `error-to-issues`, … — is unchanged and still belongs here. Those test validup's *use* of the model.
 
-The other half of the re-export contract is a **build** property that no unit spec can see: `tsdown` must emit `export * from "blemish"` in `dist/index.d.mts` rather than inlining the declarations. Inlining would break cross-package type identity and the `declare module 'validup' { interface IssueDataByCode { … } }` augmentation, both silently. Check it after a build-toolchain change:
-
-```bash
-npm run build --workspace=packages/validup
-grep -n 'blemish' packages/validup/dist/index.d.mts   # expect: export * from "blemish"
-grep -cE '^declare (const IssueCode|function defineIssueItem)' packages/validup/dist/index.d.mts  # expect: 0
-```
-
 ### A `never` return type is invisible to every runtime test
 
 Worth internalising, because this repo carried the defect for as long as the code existed and nothing here could see it.

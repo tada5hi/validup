@@ -14,7 +14,7 @@ npm install @validup/validator-js validator validup --save
 
 | Peer dependency | Supported versions |
 |-----------------|--------------------|
-| `validup`       | `^1.0.0`           |
+| `validup`       | `^2.0.0`           |
 | `validator`     | `^13.0.0`          |
 
 ## Quick Start

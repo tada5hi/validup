@@ -6,13 +6,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { IssueCode, defineIssueItem, isIssueGroup } from '@ebec/core';
 import {
-    IssueCode,
     ValidupError,
     buildOneOfFailedGroup,
-    defineIssueItem,
     errorToIssues,
-    isIssueGroup,
 } from '../../src';
 
 describe('errorToIssues', () => {

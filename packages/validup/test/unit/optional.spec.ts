@@ -6,15 +6,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { flattenIssueItems, isIssueGroup } from '@ebec/core';
+import type { Issue, IssueItem } from '@ebec/core';
 import {
     Container,
     OptionalValue,
     ValidupError,
-    flattenIssueItems,
-    isIssueGroup,
     isValidupError,
 } from '../../src';
-import type { Issue, IssueItem } from '../../src';
 import { stringValidator } from '../data';
 
 describe('optional', () => {

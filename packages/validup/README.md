@@ -168,11 +168,11 @@ type Issue = IssueItem | IssueGroup;
 
 This recursive structure preserves the path of failure, so consumers can render rich field-level error messages. Every node carries an **absolute** path — a leaf three groups deep still reads `['user', 'contact', 'email']` — so `flattenIssueItems` produces a directly indexable list with no tree walk needed.
 
-> **Where the model lives.** `Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` come from [**`blemish`**](https://github.com/tada5hi/blemish) — a standalone package with **zero dependencies and no `engines` floor**.
+> **Where the model lives.** `Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` come from [**`@ebec/core`**](https://github.com/tada5hi/ebec) — an extensible error-class library that also owns the issue model.
 >
 > They live outside validup so other libraries can share the shape without taking on validup's runtime. Issue trees then compose across libraries, because both sides reference the same types rather than agreeing by structural coincidence.
 >
-> **Import them from `blemish`** — `npm install blemish --save`. `validup` re-exports the whole model so existing imports keep resolving, but that re-export is **scheduled for removal in v2.0.0**, and the examples below use `blemish` accordingly. Every `@validup/*` integration package already depends on it directly.
+> **Import them from `@ebec/core`** — `npm install @ebec/core --save`. As of v2.0.0, `validup` no longer re-exports the model; the examples below import from `@ebec/core` directly. Every `@validup/*` integration package already depends on it directly.
 
 ## Builder API (compile-time typing)
 
@@ -662,7 +662,7 @@ const out = container.runSync(input);  // returns T directly, not Promise<T>
 `Issue.message` is rendered eagerly in English at construction time. For i18n / custom locales, every issue also carries a structured `data?: Record<string, unknown>` field (populated by the runtime where the message references a non-trivial value — e.g. `{ name: 'email' }` on the wrapping group at a failing mount). Pair it with `formatIssue` and a `code → template` map to render at the consumer side:
 
 ```typescript
-import { formatIssue, type IssueMessageTemplates } from 'blemish';
+import { formatIssue, type IssueMessageTemplates } from '@ebec/core';
 
 const de: IssueMessageTemplates = {
     value_invalid: 'Feld {name} ist ungültig',
@@ -739,7 +739,7 @@ interface IssueGroup {
 Use the factories — they set `type` correctly and apply default codes:
 
 ```typescript
-import { defineIssueItem, defineIssueGroup, IssueCode } from 'blemish';
+import { defineIssueItem, defineIssueGroup, IssueCode } from '@ebec/core';
 
 const item = defineIssueItem({
     path: ['email'],
@@ -798,7 +798,7 @@ defineIssueItem({ code: 'email_taken', path: ['email'], message: '…' });
 If you want a typed const for your own codes (so `AppCode.EMAIL_TAKEN` autocompletes alongside `AppCode.REQUIRED`), define one alongside the shipped vocabulary:
 
 ```typescript
-import { IssueCode } from 'blemish';
+import { IssueCode } from '@ebec/core';
 
 export const AppCode = {
     ...IssueCode,
@@ -953,7 +953,7 @@ Use one of the official integration packages to bridge an existing validator lib
 
 What's covered by semver:
 
-- **Public exports** — everything re-exported from `validup`'s entry barrel (`Container`, `defineSchema`, `ValidupError`, `Issue` / factories / guards, `IssueCode`, `GroupKey`, `OptionalValue`, helpers in `formatIssue` / `flattenIssue*` / `prefixIssuePath`). This includes the symbols re-exported from [`blemish`](https://github.com/tada5hi/blemish): importing them from `validup` remains supported, and they stay reference-identical to `blemish`'s.
+- **Public exports** — everything re-exported from `validup`'s entry barrel (`Container`, `defineSchema`, `ValidupError`, `isValidupError`, `createValidupError`, `GroupKey`, `OptionalValue`, and the rest of `src/index.ts`). As of v2.0.0, the issue model itself (`Issue` / factories / guards, `IssueCode`, `formatIssue`, `flattenIssue*`, `prefixIssuePath`) is **not** part of this list — it is owned and versioned by [`@ebec/core`](https://github.com/tada5hi/ebec), not re-exported from `validup`.
 - **`Container` runtime contract** — `run` / `runSync` / `runParallel` (via `parallel: true`) / `safeRun` / `safeRunSync`, including their throw-contracts as documented on `IContainer` (`safeRun` throws only on abort).
 - **`Issue` and `ValidupError` shape** — the discriminated union (`type: 'item' | 'group'`), `data`, `meta`, `code` widening to `IssueCode | (string & {})`.
 - **Mount API** — variadic `mount(...)` argument forms listed in [Mounting](#mounting).

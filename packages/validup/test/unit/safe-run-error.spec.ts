@@ -6,12 +6,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { IssueCode, defineIssueItem, isIssueItem } from '@ebec/core';
 import {
     Container,
-    IssueCode,
     ValidupError,
-    defineIssueItem,
-    isIssueItem,
 } from '../../src';
 import { PathsStrictViolationError } from '../../src/container/paths-strict-violation';
 import { stringValidatorSync } from '../data';

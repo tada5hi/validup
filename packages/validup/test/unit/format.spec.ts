@@ -9,10 +9,9 @@ import { describe, expect, it } from 'vitest';
 import { Container, ValidupError } from '../../src';
 import { stringValidator } from '../data';
 
-// `formatIssue` / `interpolate` themselves live in `blemish` and are covered
-// by its own `format.spec.ts`. What remains validup's to test is the `data`
+// `formatIssue` / `interpolate` themselves live in `@ebec/core` and are
+// covered by its own tests. What remains validup's to test is the `data`
 // the RUNTIME attaches — the payload a consumer-side template renders against.
-// See `issue-reexport.spec.ts` for the surface contract.
 
 describe('Issue.data populated by the runtime', () => {
     it('should set data: { name } on the wrapping IssueGroup of a failing mount', async () => {

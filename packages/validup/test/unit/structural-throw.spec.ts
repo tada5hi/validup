@@ -6,7 +6,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { PathsStrictViolationError, ValidupError, defineIssueItem } from '../../src';
+import { defineIssueItem } from '@ebec/core';
+import { PathsStrictViolationError, ValidupError } from '../../src';
 // Imported by direct module path on purpose: `structural-throw.ts` is
 // deliberately left out of `container/index.ts` (internal plumbing, not public
 // API — it composes the private `isRunSyncViolation`). Do not "fix" this by

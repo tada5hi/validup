@@ -33,7 +33,8 @@ await credentials.run({ email: 'not-an-email' });
 ## Output shape on failure
 
 ```typescript
-import { isValidupError, IssueCode, isIssueGroup } from 'validup';
+import { isValidupError } from 'validup';
+import { IssueCode, isIssueGroup } from '@ebec/core';
 
 try {
     await credentials.run({ email: 'x', phone: 'y' });
