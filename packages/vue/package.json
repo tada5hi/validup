@@ -49,8 +49,8 @@
     },
     "devDependencies": {
         "@vue/test-utils": "^2.4.11",
-        "happy-dom": "^20.11.1",
-        "vue": "^3.5.40"
+        "happy-dom": "^20.11.2",
+        "vue": "^3.5.41"
     },
     "peerDependencies": {
         "validup": "^1.0.0",
