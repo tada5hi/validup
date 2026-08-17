@@ -68,7 +68,16 @@ type Composable<T> = {
     setExternalIssues: (issues: Issue[]) => void;
     $getResultsForChild: <C>(name: string) => Composable<C> | undefined;
 
-    fields: Record<string, FieldState<unknown>>;
+    fields: FieldsAccessor<T>;
+};
+
+// Declared keys of `T` map to `FieldState<T[K]>` and are never
+// `| undefined`. If `T` carries an index signature, the keys only it
+// admits are typed `any` — see "Per-field state" below.
+type FieldsAccessor<T> = {
+    [K in keyof T]-?: FieldState<T[K]>;
+} & {
+    at: <V = unknown>(path: string) => FieldState<V>;
 };
 
 type FieldState<V> = {

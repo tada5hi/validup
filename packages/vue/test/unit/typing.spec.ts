@@ -188,6 +188,7 @@ type Profile = {
 declare const cUser: Composable<User>;
 declare const cProfile: Composable<Profile>;
 declare const cIndexed: Composable<Indexed>;
+declare const cOpen: Composable<ObjectLiteral>;
 
 /* #391 — the property carries no optional marker, but the value type keeps
  * its own `undefined`. Both halves matter: `-?` also strips `undefined`
@@ -210,6 +211,16 @@ export type _t455c = Assert<Equals<
 /* Baseline: an index-signature-free entity is unaffected. */
 export type _t455d = Assert<Equals<typeof cUser.fields.name, FieldState<string>>>;
 export type _t455e = Assert<Equals<typeof cUser.fields.createdAt, FieldState<Date>>>;
+
+/* The catch-all entry an index signature contributes is `any`, exactly.
+ * This is the documented cost of the #423 leg (a `FieldState<…>` value
+ * type there rejects the sibling `at` method), so it is pinned rather
+ * than left to whatever falls out. `.$model.value` alone would not pin
+ * it: that expression compiles for `any` AND for `FieldState<any>`.
+ * A union such as `FieldState<any> | AtFn` satisfies #423 too, and only
+ * these two cases tell it apart from `any`. */
+export type _t455f = Assert<Equals<typeof cIndexed.fields.whatever, any>>;
+export type _t455g = Assert<Equals<typeof cOpen.fields.whatever, any>>;
 
 /*
  * Assignment-based assertions. These are values, so they live in a
@@ -263,16 +274,30 @@ describe('typing: FieldsAccessor mapped-type constraints', () => {
     it('resolves typed keys at runtime for an entity with an index signature', async () => {
         // Runtime companion to the compile-time block above: the Proxy
         // materialises a FieldState for declared and undeclared keys alike,
-        // which is what makes the missing `| undefined` honest.
+        // which is what makes the missing `| undefined` honest. `extra` is
+        // the undeclared half — it exists only via the index signature, so
+        // it is the key the type-level `any` case describes.
         const container = new Container<Indexed>();
         container.mount('name', isString);
 
-        const state = reactive<Indexed>({ name: 'peter', email: 'peter@example.com' });
+        const state = reactive<Indexed>({
+            name: 'peter',
+            email: 'peter@example.com',
+            extra: 'rides along',
+        });
         const $v = useValidup(container, state);
         await flush();
 
         expect($v.fields.name.$model.value).toBe('peter');
         expect($v.fields.email.$model.value).toBe('peter@example.com');
+        expect($v.fields.extra.$model.value).toBe('rides along');
         expect($v.fields.at('name')).toBe($v.fields.name);
+        expect($v.fields.at('extra')).toBe($v.fields.extra);
+
+        // A key absent from state entirely still materialises rather than
+        // returning undefined — the contract the missing `| undefined`
+        // on typed keys rests on.
+        expect($v.fields.absent).toBeDefined();
+        expect($v.fields.absent.$model.value).toBeUndefined();
     });
 });
