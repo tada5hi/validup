@@ -48,13 +48,13 @@ import type {
     MountOptions,
     Result,
 } from './types';
-import type { Issue } from 'blemish';
+import type { Issue } from '@ebec/core';
 import {
     IssueCode,
     defineIssueGroup,
     defineIssueItem,
     prefixIssuePath,
-} from 'blemish';
+} from '@ebec/core';
 import { RunSyncViolationError } from './run-sync-violation';
 import { PathsStrictViolationError } from './paths-strict-violation';
 import { isStructuralThrow } from './structural-throw';

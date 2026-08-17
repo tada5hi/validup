@@ -15,7 +15,7 @@ import type {
     Issue,
     IssueGroup,
     IssueItem,
-} from 'blemish';
+} from '@ebec/core';
 import type {
     ContainerRunOptions,
     IContainer,

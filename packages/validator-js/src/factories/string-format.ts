@@ -6,7 +6,7 @@
  */
 
 import validator from 'validator';
-import { IssueCode } from 'blemish';
+import { IssueCode } from '@ebec/core';
 import { createValidupError, defineValidator } from 'validup';
 import type { ValidatorDescriptor } from 'validup';
 import type { BaseFactoryOptions } from '../module';

@@ -2,7 +2,7 @@
     "name": "@validup/standard-schema",
     "version": "1.0.0",
     "type": "module",
-    "description": "A validup integration for any Standard Schema validator (zod, valibot, arktype, effect-schema, \u2026).",
+    "description": "A validup integration for any Standard Schema validator (zod, valibot, arktype, effect-schema, …).",
     "author": {
         "name": "Peter Placzek",
         "email": "contact@tada5hi.net",
@@ -45,6 +45,7 @@
     ],
     "license": "Apache-2.0",
     "dependencies": {
+        "@ebec/core": "^1.3.1",
         "@standard-schema/spec": "^1.1.0",
         "blemish": "^1.0.0"
     },

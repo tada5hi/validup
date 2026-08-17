@@ -10,8 +10,8 @@ import type {
     Issue,
     IssueGroup,
     IssueItem,
-} from 'blemish';
-import { flattenIssueItems, isIssueGroup } from 'blemish';
+} from '@ebec/core';
+import { flattenIssueItems, isIssueGroup } from '@ebec/core';
 
 /**
  * The framework-free projection layer behind `useValidup`.
