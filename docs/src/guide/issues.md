@@ -181,7 +181,7 @@ try {
 }
 ```
 
-The guard returns `true` if `e instanceof ValidupError` **or** if `e.issues` is a valid array.
+The guard returns `true` for `e instanceof ValidupError`, for an error carrying the `ValidupError` `@instanceof` marker (a duplicate `validup` copy, or an error rehydrated from `toJSON()`), and — as a last-resort fallback — for an error with a non-empty `issues` array of valid issues, or an empty `issues` array on an error whose `code` is `'VALIDUP_ERROR'` (covers a zero-issue `ValidupError` from before the marker existed). A bare empty `issues` array with no `VALIDUP_ERROR` code is not enough on its own, since every `@ebec/core` `BaseError` carries one by default.
 
 ## Helpers
 

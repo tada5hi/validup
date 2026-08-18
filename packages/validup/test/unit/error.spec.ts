@@ -6,10 +6,18 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { IssueCode, defineIssueGroup, flattenIssueItems } from '@ebec/core';
+import {
+    BaseError,
+    INSTANCEOF_PROPERTY,
+    IssueCode,
+    defineIssueGroup,
+    flattenIssueItems,
+} from '@ebec/core';
+import { NotFoundError } from '@ebec/http';
 import type { Validator } from '../../src';
 import {
     Container,
+    VALIDUP_ERROR_INSTANCE,
     ValidupError,
     isValidupError,
 } from '../../src';
@@ -38,6 +46,110 @@ describe('error', () => {
         const error = new Error();
 
         expect(isValidupError(error)).toBeFalsy();
+    });
+
+    // Regression: @ebec/core@1.3.x gives every BaseError an own `issues`
+    // property that defaults to `[]`. `[].every(...)` is vacuously true, so
+    // the old duck-type fallback (any own `issues` array whose members all
+    // pass `isIssue`) matched every BaseError/HTTPError, not just validup's
+    // own errors.
+    it('should not misclassify an @ebec/http error as a validup error', () => {
+        const error = new NotFoundError();
+
+        expect(isValidupError(error)).toBeFalsy();
+    });
+
+    it('should not misclassify a bare @ebec/core BaseError as a validup error', () => {
+        const error = new BaseError();
+
+        expect(isValidupError(error)).toBeFalsy();
+    });
+
+    it('should verify a real ValidupError carrying issues', () => {
+        const error = new ValidupError([
+            defineIssueGroup({
+                message: 'foo',
+                issues: [],
+                path: [],
+            }),
+        ]);
+
+        expect(isValidupError(error)).toBeTruthy();
+    });
+
+    // Isolates the marker path from BOTH other branches: a real
+    // `new ValidupError()` would already return true via the pre-existing
+    // `instanceof ValidupError` fast path, so it can't prove the marker
+    // check does anything — the fast path masks a broken/missing marker.
+    // This synthetic object is not a `ValidupError` instance (so
+    // `instanceof` is false) and carries zero issues (so the duck-typed
+    // fallback's `length > 0` requirement rejects it too). Only carrying
+    // the marker's serialized `@instanceof` chain — the same string form
+    // `ValidupError#toJSON()` emits, simulating a duplicate package copy
+    // or a JSON boundary — can make `isValidupError` return true here.
+    it('should verify a marker-only error via matchesInstanceof, not instanceof or the duck-typed fallback', () => {
+        const markerOnly = {
+            name: 'ValidupError',
+            message: 'Property foo is invalid',
+            issues: [] as unknown[],
+            [INSTANCEOF_PROPERTY]: [VALIDUP_ERROR_INSTANCE.description],
+        };
+
+        expect(markerOnly instanceof ValidupError).toBe(false);
+        expect(markerOnly.issues).toHaveLength(0);
+        expect(isValidupError(markerOnly)).toBeTruthy();
+    });
+
+    // A JSON round trip loses the `instanceof ValidupError` fast path and
+    // drops the symbol form of the `@instanceof` marker (symbols don't
+    // survive `JSON.stringify`). Recognizing the rehydrated error therefore
+    // requires `matchesInstanceof` (which also matches the marker's
+    // serialized description string) rather than `hasInstanceof` (which
+    // only matches the native symbol). Using zero issues here rules out the
+    // duck-typed fallback silently carrying the assertion instead.
+    it('should verify a JSON round-tripped ValidupError via the serialized instanceof chain', () => {
+        const error = new ValidupError();
+        const rehydrated = JSON.parse(JSON.stringify(error));
+
+        expect(rehydrated instanceof ValidupError).toBe(false);
+        expect(isValidupError(rehydrated)).toBeTruthy();
+    });
+
+    // Regression: `ValidupError`'s constructor defaults `issues` to `[]`, so
+    // a zero-issue ValidupError is a real, reachable case — not just an
+    // internal invariant every call site happens to avoid. Before the
+    // `@instanceof` marker existed (validup <= 2.0.0), the old duck-typed
+    // guard accepted this shape (`instanceof` OR any own `issues` array).
+    // Tightening the fallback to `issues.length > 0` dropped it: neither
+    // `instanceof` (plain object) nor the marker (absent — this shape
+    // predates it, or crossed a boundary that only carries JSON) can catch
+    // it, so `code === 'VALIDUP_ERROR'` — the identity signal that DOES
+    // survive serialization — must carry the fallback here instead.
+    it('should verify a marker-less, zero-issue error that self-identifies via code VALIDUP_ERROR', () => {
+        const legacyShaped = {
+            name: 'ValidupError',
+            message: 'Properties are invalid',
+            code: 'VALIDUP_ERROR',
+            issues: [] as unknown[],
+        };
+
+        expect(legacyShaped instanceof ValidupError).toBe(false);
+        expect(isValidupError(legacyShaped)).toBeTruthy();
+    });
+
+    // The code check must discriminate, not just widen the fallback back to
+    // "any empty issues array qualifies" (which would resurrect the
+    // original bug). A foreign `code` on a zero-issue, marker-less object
+    // must still be rejected.
+    it('should not verify a marker-less, zero-issue error carrying a foreign code', () => {
+        const foreignShaped = {
+            name: 'NotFoundError',
+            message: 'Not Found',
+            code: 'NOT_FOUND',
+            issues: [] as unknown[],
+        };
+
+        expect(isValidupError(foreignShaped)).toBeFalsy();
     });
 
     it('should expose an ebec-style code on ValidupError', () => {
