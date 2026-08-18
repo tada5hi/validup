@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.0.0](https://github.com/tada5hi/validup/compare/vue-v1.0.0...vue-v2.0.0) (2026-08-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* validup no longer re-exports the issue model. Import Issue, IssueCode, defineIssueItem and the rest from '@ebec/core'; augment '@ebec/core' rather than 'validup' for IssueDataByCode.
+
+### Features
+
+* consume the issue model from blemish ([#465](https://github.com/tada5hi/validup/issues/465)) ([94d462f](https://github.com/tada5hi/validup/commit/94d462f1596c4aeb44b83324746a9436babd449d))
+
+
+### Bug Fixes
+
+* **deps:** bump the minorandpatch group across 1 directory with 7 updates ([#462](https://github.com/tada5hi/validup/issues/462)) ([daffcdc](https://github.com/tada5hi/validup/commit/daffcdcac566d2f630174c7d95d3bf02a7ae75f5))
+* **vue:** preserve typed keys when the entity carries an index signature ([#468](https://github.com/tada5hi/validup/issues/468)) ([d6747c7](https://github.com/tada5hi/validup/commit/d6747c755bfbb4a052ce9c4345dd076f51768289))
+
+
+### Code Refactoring
+
+* source the issue model from @ebec/core ([#469](https://github.com/tada5hi/validup/issues/469)) ([977d4a1](https://github.com/tada5hi/validup/commit/977d4a17e75b2711c85bfc6b32fb42badbd8a423))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^1.0.0 to ^2.0.0
+
 ## [1.0.0](https://github.com/tada5hi/validup/compare/vue-v0.3.3...vue-v1.0.0) (2026-07-31)
 
 
