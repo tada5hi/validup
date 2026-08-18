@@ -1,0 +1,14 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="zod-title">
+    <title id="zod-title">@validup/zod logo: a shield bearing the letter Z</title>
+
+    <defs>
+        <linearGradient id="zod-shield" x1="32" y1="16" x2="224" y2="240" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#38BDF8" />
+            <stop offset="1" stop-color="#1D4ED8" />
+        </linearGradient>
+    </defs>
+
+    <path fill="url(#zod-shield)" d="M128 16 L32 56 V128 C32 181.6 69.6 229.6 128 240 C186.4 229.6 224 181.6 224 128 V56 Z" />
+
+    <path fill="#FFFFFF" d="M88 84 H168 V104 L118 144 H168 V164 H88 V144 L138 104 H88 Z" />
+</svg>

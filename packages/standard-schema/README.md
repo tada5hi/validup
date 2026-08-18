@@ -1,6 +1,12 @@
-# @validup/standard-schema 🛡️
+<p align="center">
+    <img src="https://raw.githubusercontent.com/tada5hi/validup/HEAD/packages/standard-schema/assets/logo.svg" alt="@validup/standard-schema" width="128" height="128" />
+</p>
 
-A [validup](https://www.npmjs.com/package/validup) integration for any [Standard Schema](https://standardschema.dev) validator — zod (3.24+), valibot, arktype, effect-schema, and any other library that implements the spec.
+<h1 align="center">@validup/standard-schema</h1>
+
+<p align="center">
+    <b>A <a href="https://www.npmjs.com/package/validup">validup</a> integration for any <a href="https://standardschema.dev">Standard Schema</a> validator — zod, valibot, arktype, effect-schema, and anything else that implements the spec.</b>
+</p>
 
 Mount any Standard Schema as a validup `Validator` on a `Container` path; validup handles path expansion, group filtering, optional/default semantics, and error aggregation while the underlying library does the actual parsing.
 

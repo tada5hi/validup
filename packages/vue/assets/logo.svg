@@ -1,0 +1,15 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="vue-title">
+    <title id="vue-title">@validup/vue logo: a shield bearing the Vue chevron</title>
+
+    <defs>
+        <linearGradient id="vue-shield" x1="32" y1="16" x2="224" y2="240" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#42B883" />
+            <stop offset="1" stop-color="#35495E" />
+        </linearGradient>
+    </defs>
+
+    <path fill="url(#vue-shield)" d="M128 16 L32 56 V128 C32 181.6 69.6 229.6 128 240 C186.4 229.6 224 181.6 224 128 V56 Z" />
+
+    <path fill="#FFFFFF" d="M64 80 L128 190 L192 80 Z" />
+    <path fill="#213547" d="M100 80 L128 128 L156 80 Z" />
+</svg>

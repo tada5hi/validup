@@ -1,11 +1,17 @@
-# Validup 🛡️
+<p align="center">
+    <img src="./assets/logo.svg" alt="Validup" width="128" height="128" />
+</p>
+
+<h1 align="center">Validup</h1>
+
+<p align="center">
+    <b>A composable, path-based validation library for TypeScript.</b>
+</p>
 
 [![Master Workflow][workflow-src]][workflow-href]
 [![CodeQL][codeql-src]][codeql-href]
 [![Known Vulnerabilities][snyk-src]][snyk-href]
 [![Conventional Commits][conventional-src]][conventional-href]
-
-A composable, path-based validation library for TypeScript.
 
 Mount validators and nested containers onto object paths, run them in groups, collect structured issues, and bridge to your favorite validator (zod, validator.js) or framework (Vue) — all without decorators or schema DSLs.
 

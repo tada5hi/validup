@@ -1,12 +1,18 @@
-# @validup/zod 🛡️
+<p align="center">
+    <img src="https://raw.githubusercontent.com/tada5hi/validup/HEAD/packages/zod/assets/logo.svg" alt="@validup/zod" width="128" height="128" />
+</p>
+
+<h1 align="center">@validup/zod</h1>
+
+<p align="center">
+    <b>A <a href="https://www.npmjs.com/package/validup">validup</a> integration for <a href="https://zod.dev">zod</a> — turn any zod schema into a validup <code>Validator</code>.</b>
+</p>
 
 [![npm version][npm-version-src]][npm-version-href]
 [![Master Workflow][workflow-src]][workflow-href]
 [![CodeQL][codeql-src]][codeql-href]
 [![Known Vulnerabilities][snyk-src]][snyk-href]
 [![Conventional Commits][conventional-src]][conventional-href]
-
-A [validup](https://www.npmjs.com/package/validup) integration for [zod](https://zod.dev) — turn any zod schema into a validup `Validator`.
 
 Wrap any zod schema as a validup `Validator`, mount it on a `Container` path, and let validup orchestrate path expansion, group filtering, and error aggregation while zod does the actual schema parsing.
 

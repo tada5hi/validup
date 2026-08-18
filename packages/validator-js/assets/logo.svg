@@ -1,0 +1,22 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="vjs-title">
+    <title id="vjs-title">@validup/validator-js logo: a shield holding a rule checklist, the last rule highlighted</title>
+
+    <defs>
+        <linearGradient id="vjs-shield" x1="32" y1="16" x2="224" y2="240" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FBBF24" />
+            <stop offset="1" stop-color="#EA580C" />
+        </linearGradient>
+    </defs>
+
+    <path fill="url(#vjs-shield)" d="M128 16 L32 56 V128 C32 181.6 69.6 229.6 128 240 C186.4 229.6 224 181.6 224 128 V56 Z" />
+
+    <!-- one pre-baked rule per line -->
+    <path stroke="#FFFFFF" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M70 90 L80 100 L100 78" />
+    <rect x="116" y="82" width="72" height="16" rx="8" fill="#FFFFFF" />
+
+    <path stroke="#FFFFFF" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" d="M70 126 L80 136 L100 114" />
+    <rect x="116" y="118" width="56" height="16" rx="8" fill="#FFFFFF" fill-opacity="0.8" />
+
+    <path stroke="#3B0764" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M70 162 L80 172 L100 150" />
+    <rect x="116" y="154" width="64" height="16" rx="8" fill="#3B0764" />
+</svg>

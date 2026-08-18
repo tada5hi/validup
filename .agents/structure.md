@@ -4,6 +4,8 @@
 
 ```
 validup/
+├── assets/
+│   └── logo.svg          # Root README logo — see the note under Per-Package Files
 ├── packages/
 │   ├── validup/              # Core library (npm: validup)
 │   ├── standard-schema/      # Standard Schema bridge (npm: @validup/standard-schema)
@@ -89,6 +91,8 @@ packages/<pkg>/
 ├── package.json
 ├── tsconfig.json         # extends ../../tsconfig.json, includes src/**/*
 ├── tsdown.config.ts      # entry: src/index.ts, format: esm, dts: true
+├── assets/
+│   └── logo.svg          # README logo — shipped in the tarball (`files: ["assets", "dist"]`)
 ├── src/
 │   ├── index.ts          # barrel re-export
 │   └── ...
@@ -97,6 +101,8 @@ packages/<pkg>/
     └── unit/
         └── *.spec.ts
 ```
+
+Every README — the root one, all five packages, and the `playground/vite-vue` one — opens with a centred `<p align="center">` logo block, an `<h1 align="center">`, and a one-line bold tagline, following [tada5hi/javascript@a544477](https://github.com/tada5hi/javascript/commit/a54447762fbcf45f2978be32b196421967d75fc4). The logos are one family: a shared shield silhouette (the existing docs mark, `docs/src/public/logo.svg`) filled with a per-package gradient and a per-package glyph. **Package READMEs reference the logo by absolute `https://raw.githubusercontent.com/tada5hi/validup/HEAD/packages/<pkg>/assets/logo.svg` URL**, not a relative path — a relative `src` resolves against `npmjs.com` and 404s there. The root and playground READMEs are GitHub-only, so they use `./assets/logo.svg`.
 
 Build scripts per package:
 - `build:types` → `tsc --noEmit` (typecheck only — emission is handled by tsdown)

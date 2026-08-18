@@ -1,6 +1,12 @@
-# @validup/validator-js 🛡️
+<p align="center">
+    <img src="https://raw.githubusercontent.com/tada5hi/validup/HEAD/packages/validator-js/assets/logo.svg" alt="@validup/validator-js" width="128" height="128" />
+</p>
 
-A [validup](https://www.npmjs.com/package/validup) integration for [validator.js](https://github.com/validatorjs/validator.js) — pre-baked factories for the common string validators (`isEmail`, `isLength`, `isInt`, …) plus a generic `createValidator(fn, …)` for the long tail.
+<h1 align="center">@validup/validator-js</h1>
+
+<p align="center">
+    <b>A <a href="https://www.npmjs.com/package/validup">validup</a> integration for <a href="https://github.com/validatorjs/validator.js">validator.js</a> — pre-baked factories for the common string rules, plus a generic wrap for the long tail.</b>
+</p>
 
 Each factory stamps the right validup [`IssueCode`](https://www.npmjs.com/package/validup#issue-codes) on failure, with structured `data` matching the i18n catalog's placeholders. Drop into `@ilingo/validup` for free per-rule translations.
 

@@ -1,0 +1,14 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="pg-title">
+    <title id="pg-title">vite-vue playground logo: a shield bearing a lightning bolt</title>
+
+    <defs>
+        <linearGradient id="pg-shield" x1="32" y1="16" x2="224" y2="240" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#A855F7" />
+            <stop offset="1" stop-color="#F59E0B" />
+        </linearGradient>
+    </defs>
+
+    <path fill="url(#pg-shield)" d="M128 16 L32 56 V128 C32 181.6 69.6 229.6 128 240 C186.4 229.6 224 181.6 224 128 V56 Z" />
+
+    <path fill="#FFFFFF" d="M142 74 L96 138 H126 L118 190 L170 118 H138 Z" />
+</svg>

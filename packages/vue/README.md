@@ -1,12 +1,18 @@
-# @validup/vue 🛡️
+<p align="center">
+    <img src="https://raw.githubusercontent.com/tada5hi/validup/HEAD/packages/vue/assets/logo.svg" alt="@validup/vue" width="128" height="128" />
+</p>
+
+<h1 align="center">@validup/vue</h1>
+
+<p align="center">
+    <b>A <a href="https://www.npmjs.com/package/validup">validup</a> integration for <a href="https://vuejs.org">Vue 3</a> — drive reactive form state from a <code>Container&lt;T&gt;</code>.</b>
+</p>
 
 [![npm version][npm-version-src]][npm-version-href]
 [![Master Workflow][workflow-src]][workflow-href]
 [![CodeQL][codeql-src]][codeql-href]
 [![Known Vulnerabilities][snyk-src]][snyk-href]
 [![Conventional Commits][conventional-src]][conventional-href]
-
-A [validup](https://www.npmjs.com/package/validup) integration for [Vue 3](https://vuejs.org) — drive reactive form state from a `Container<T>`.
 
 Drive form validation from a validup `Container<T>` with a vuelidate-shaped composable. The same validator runs on the **server** and the **client** — no rule duplication, no schema drift.
 

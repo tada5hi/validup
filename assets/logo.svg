@@ -1,0 +1,15 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="validup-title">
+    <title id="validup-title">Validup logo: a shield with a check mark</title>
+
+    <defs>
+        <linearGradient id="validup-shield" x1="32" y1="16" x2="224" y2="240" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#22C55E" />
+            <stop offset="1" stop-color="#3B82F6" />
+        </linearGradient>
+    </defs>
+
+    <path fill="url(#validup-shield)" d="M128 16 L32 56 V128 C32 181.6 69.6 229.6 128 240 C186.4 229.6 224 181.6 224 128 V56 Z" />
+
+    <!-- the validation verdict -->
+    <path fill="#FFFFFF" d="M174.4 94 L114.4 154 L85.6 125.2 L99.2 111.6 L114.4 126.8 L160.8 80.4 Z" />
+</svg>

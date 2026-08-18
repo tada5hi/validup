@@ -1,0 +1,17 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="core-title">
+    <title id="core-title">validup logo: a shield holding three mounted validation paths, the last one highlighted</title>
+
+    <defs>
+        <linearGradient id="core-shield" x1="32" y1="16" x2="224" y2="240" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#22C55E" />
+            <stop offset="1" stop-color="#3B82F6" />
+        </linearGradient>
+    </defs>
+
+    <path fill="url(#core-shield)" d="M128 16 L32 56 V128 C32 181.6 69.6 229.6 128 240 C186.4 229.6 224 181.6 224 128 V56 Z" />
+
+    <!-- validators mounted onto paths of one container -->
+    <rect x="68" y="80" width="120" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.5" />
+    <rect x="76" y="115" width="104" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.78" />
+    <rect x="84" y="150" width="88" height="22" rx="11" fill="#FBBF24" />
+</svg>

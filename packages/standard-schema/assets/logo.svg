@@ -1,0 +1,17 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ss-title">
+    <title id="ss-title">@validup/standard-schema logo: a shield holding a schema in brackets with a check mark</title>
+
+    <defs>
+        <linearGradient id="ss-shield" x1="32" y1="16" x2="224" y2="240" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#8B5CF6" />
+            <stop offset="1" stop-color="#4338CA" />
+        </linearGradient>
+    </defs>
+
+    <path fill="url(#ss-shield)" d="M128 16 L32 56 V128 C32 181.6 69.6 229.6 128 240 C186.4 229.6 224 181.6 224 128 V56 Z" />
+
+    <!-- any schema, whichever library wrote it -->
+    <path stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M108 82 H78 V158 H108" />
+    <path stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M148 82 H178 V158 H148" />
+    <path stroke="#FBBF24" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" d="M114 122 L123 132 L142 110" />
+</svg>

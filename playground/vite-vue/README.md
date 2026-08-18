@@ -1,6 +1,14 @@
-# @validup-playground/vite-vue
+<p align="center">
+    <img src="./assets/logo.svg" alt="@validup-playground/vite-vue" width="128" height="128" />
+</p>
 
-A private Vite + Vue 3 playground that exercises [`@validup/vue`](../../packages/vue) against the local workspace packages. Each route demonstrates a specific facet of the composable so you can poke at the runtime without checking out a separate repo.
+<h1 align="center">@validup-playground/vite-vue</h1>
+
+<p align="center">
+    <b>A private Vite + Vue 3 playground that exercises <a href="../../packages/vue"><code>@validup/vue</code></a> against the local workspace packages.</b>
+</p>
+
+Each route demonstrates a specific facet of the composable so you can poke at the runtime without checking out a separate repo.
 
 The playground is **not published** to npm and is excluded from release-please.
 

@@ -1,12 +1,18 @@
-# validup 🛡️
+<p align="center">
+    <img src="https://raw.githubusercontent.com/tada5hi/validup/HEAD/packages/validup/assets/logo.svg" alt="validup" width="128" height="128" />
+</p>
+
+<h1 align="center">validup</h1>
+
+<p align="center">
+    <b>A composable, path-based validation library for TypeScript.</b>
+</p>
 
 [![npm version][npm-version-src]][npm-version-href]
 [![Master Workflow][workflow-src]][workflow-href]
 [![CodeQL][codeql-src]][codeql-href]
 [![Known Vulnerabilities][snyk-src]][snyk-href]
 [![Conventional Commits][conventional-src]][conventional-href]
-
-A composable, path-based validation library for TypeScript.
 
 Mount any validator function (or nested container) onto any path of your input, run them in groups, collect structured issues, and bridge to existing libraries via integration packages. No decorators, no schema DSL, no metadata reflection.
 
