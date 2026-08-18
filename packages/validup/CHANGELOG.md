@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/tada5hi/validup/compare/validup-v2.0.0...validup-v2.0.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **validup:** stop isValidupError matching every @ebec/http error ([#471](https://github.com/tada5hi/validup/issues/471)) ([f8921ef](https://github.com/tada5hi/validup/commit/f8921ef711bac2076f46899e8505ee740079d2b9))
+
 ## [2.0.0](https://github.com/tada5hi/validup/compare/validup-v1.0.0...validup-v2.0.0) (2026-08-18)
 
 

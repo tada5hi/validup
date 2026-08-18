@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.0.1](https://github.com/tada5hi/validup/compare/vue-v2.0.0...vue-v2.0.1) (2026-08-18)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * validup bumped from ^2.0.0 to ^2.0.1
+
 ## [2.0.0](https://github.com/tada5hi/validup/compare/vue-v1.0.0...vue-v2.0.0) (2026-08-18)
 
 
