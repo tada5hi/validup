@@ -5,9 +5,11 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { BaseError } from '@ebec/core';
+import { BaseError, markInstanceof } from '@ebec/core';
 import { buildErrorMessageForAttributes, stringifyPath } from '../helpers';
 import type { Issue } from '@ebec/core';
+
+export const VALIDUP_ERROR_INSTANCE = Symbol.for('validup/ValidupError');
 
 export class ValidupError extends BaseError {
     readonly issues: Issue[];
@@ -17,6 +19,8 @@ export class ValidupError extends BaseError {
         super({ message: buildErrorMessageForAttributes(paths) });
 
         this.issues = issues;
+
+        markInstanceof(this, VALIDUP_ERROR_INSTANCE);
     }
 
     override toJSON(): ReturnType<BaseError['toJSON']> & { issues: Issue[] } {
