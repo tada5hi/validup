@@ -126,7 +126,7 @@ What's covered by semver:
 
 If you need vendor-specific fields like zod's `expected` / `received`, use [`@validup/zod`](https://npmjs.com/package/@validup/zod) instead — both packages can coexist.
 
-Peer dependency policy: `validup ^1.0.0`. No peer dep on a specific schema library — the adapter operates against the `@standard-schema/spec` types and works against any spec-compatible schema instance (zod 3.24+, valibot, arktype, effect-schema, …).
+Peer dependency policy: `validup ^2.0.0`. No peer dep on a specific schema library — the adapter operates against the `@standard-schema/spec` types and works against any spec-compatible schema instance (zod 3.24+, valibot, arktype, effect-schema, …).
 
 Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.
 

@@ -5,7 +5,7 @@
   view the LICENSE file that was distributed with this source code.
 -->
 <script setup lang="ts">
-import type { IssueItem } from 'validup';
+import type { IssueItem } from '@ebec/core';
 
 defineProps<{ issues: IssueItem[] }>();
 </script>

@@ -6,12 +6,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { flattenIssueItems } from '@ebec/core';
 import {
     Container,
     OptionalValue,
     ResultCache,
     defineValidator,
-    flattenIssueItems,
 } from '../../src';
 import type { Validator } from '../../src';
 import { expectRunFailureParity, expectRunParity } from '../helpers/parity';

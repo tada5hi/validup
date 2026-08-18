@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { IssueCode, flattenIssueItems } from 'validup';
+import { IssueCode, flattenIssueItems } from '@ebec/core';
 import { z } from 'zod';
 import { buildIssuesForStandardSchemaIssues } from '../../src';
 

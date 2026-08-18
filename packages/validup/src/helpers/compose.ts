@@ -12,7 +12,7 @@ import { isContainer } from '../container/check';
 import { isStructuralThrow } from '../container/structural-throw';
 import type { IContainer } from '../container/types';
 import { ValidupError } from '../error';
-import type { Issue } from 'blemish';
+import type { Issue } from '@ebec/core';
 import { isObject } from '../utils';
 import { errorToIssues } from './error-to-issues';
 import { buildOneOfFailedGroup } from './one-of-failed';

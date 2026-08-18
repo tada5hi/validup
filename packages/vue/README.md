@@ -42,7 +42,7 @@ npm install @validup/vue validup vue --save
 
 | Peer dependency | Supported versions |
 |-----------------|--------------------|
-| `validup`       | `^1.0.0`           |
+| `validup`       | `^2.0.0`           |
 | `vue`           | `^3.3`             |
 
 ## Quick Start
@@ -558,7 +558,7 @@ Internal (no semver guarantee):
 
 Peer dependency policy:
 
-- `validup ^1.0.0`, `vue ^3.3`. Both must be installed by the consumer; `@validup/vue` does not bundle either.
+- `validup ^2.0.0`, `vue ^3.3`. Both must be installed by the consumer; `@validup/vue` does not bundle either.
 - `@vueuse/core` — transitive runtime dependency.
 
 Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.

@@ -7,7 +7,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { nextTick, reactive } from 'vue';
-import { Container, IssueCode } from 'validup';
+import { IssueCode } from '@ebec/core';
+import { Container } from 'validup';
 import type { Validator } from 'validup';
 import { useValidup } from '../../src';
 

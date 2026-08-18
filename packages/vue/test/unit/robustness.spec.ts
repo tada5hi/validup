@@ -21,7 +21,8 @@ import {
     reactive,
     ref,
 } from 'vue';
-import { Container, ValidupError, defineIssueItem } from 'validup';
+import { defineIssueItem } from '@ebec/core';
+import { Container, ValidupError } from 'validup';
 import type { Validator } from 'validup';
 import { useValidup } from '../../src';
 import type { Composable } from '../../src';

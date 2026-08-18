@@ -6,7 +6,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { IssueCode, createValidupError, isValidupError } from 'validup';
+import { IssueCode } from '@ebec/core';
+import { createValidupError, isValidupError } from 'validup';
 import type { ValidatorContext, ValidatorDescriptor } from 'validup';
 import {
     equals,

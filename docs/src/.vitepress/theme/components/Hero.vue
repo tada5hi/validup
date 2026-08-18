@@ -8,12 +8,14 @@
 import { computed, reactive } from 'vue';
 import { useData } from 'vitepress';
 import {
-    Container,
     type Issue,
     type IssueItem,
-    type Validator,
     flattenIssueItems,
     isIssueItem,
+} from '@ebec/core';
+import {
+    Container,
+    type Validator,
 } from 'validup';
 
 const { isDark } = useData();

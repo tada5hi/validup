@@ -6,9 +6,9 @@
  */
 
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import { defineIssueItem } from 'blemish';
+import { defineIssueItem } from '@ebec/core';
 import { isObject } from 'validup';
-import type { Issue } from 'blemish';
+import type { Issue } from '@ebec/core';
 
 /**
  * Convert a Standard Schema path (`(PropertyKey | { key })[]`) into a validup

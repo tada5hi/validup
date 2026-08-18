@@ -6,8 +6,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { defineIssueItem } from '@ebec/core';
 import type { Validator } from '../../src';
-import { Container, ValidupError, defineIssueItem } from '../../src';
+import { Container, ValidupError } from '../../src';
 
 describe('container abort-signal propagation', () => {
     it('should expose ctx.signal to validators', async () => {

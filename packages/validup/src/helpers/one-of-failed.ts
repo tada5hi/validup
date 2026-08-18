@@ -5,8 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { IssueCode, defineIssueGroup } from 'blemish';
-import type { Issue, IssueGroup } from 'blemish';
+import { IssueCode, defineIssueGroup } from '@ebec/core';
+import type { Issue, IssueGroup } from '@ebec/core';
 
 /**
  * Options for {@link buildOneOfFailedGroup}.

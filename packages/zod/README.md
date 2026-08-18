@@ -34,7 +34,7 @@ npm install @validup/zod validup zod --save
 
 | Peer dependency | Supported versions  |
 |-----------------|---------------------|
-| `validup`       | `^1.0.0`            |
+| `validup`       | `^2.0.0`            |
 | `zod`           | `^4.0.0`            |
 
 > ℹ️ **zod 3 support was dropped in `@validup/zod@1.0`.** The adapter's `ZodIssue` type alias resolves to `zod/v4/core`'s `$ZodRawIssue`, which is not available in zod 3. Stay on `@validup/zod@<1` if you cannot upgrade zod; otherwise upgrade zod to `^4.0.0` alongside this package.
@@ -212,7 +212,7 @@ Known lossy behavior:
 
 Peer dependency policy:
 
-- `validup ^1.0.0`, `zod ^4.0.0`. zod 3.x was dropped in `@validup/zod@1.0` because the adapter's `ZodIssue` type alias resolves to `zod/v4/core`, which is not available in zod 3.
+- `validup ^2.0.0`, `zod ^4.0.0`. zod 3.x was dropped in `@validup/zod@1.0` because the adapter's `ZodIssue` type alias resolves to `zod/v4/core`, which is not available in zod 3.
 
 Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.
 

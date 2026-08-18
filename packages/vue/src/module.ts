@@ -18,8 +18,8 @@ import {
     watch,
 } from 'vue';
 import type { Ref } from 'vue';
-import type { Issue, IssueItem } from 'blemish';
-import { IssueCode, flattenIssueItems } from 'blemish';
+import type { Issue, IssueItem } from '@ebec/core';
+import { IssueCode, flattenIssueItems } from '@ebec/core';
 import type { ObjectLiteral, Result } from 'validup';
 import {
     ResultCache,

@@ -7,12 +7,14 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-    Container,
     IssueCode,
-    ValidupError,
     defineIssueGroup,
     defineIssueItem,
     flattenIssueItems,
+} from '@ebec/core';
+import {
+    Container,
+    ValidupError,
     isValidupError,
 } from 'validup';
 import { z } from 'zod';

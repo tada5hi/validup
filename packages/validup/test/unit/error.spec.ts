@@ -6,13 +6,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { IssueCode, defineIssueGroup, flattenIssueItems } from '@ebec/core';
 import type { Validator } from '../../src';
 import {
     Container,
-    IssueCode,
     ValidupError,
-    defineIssueGroup,
-    flattenIssueItems,
     isValidupError,
 } from '../../src';
 

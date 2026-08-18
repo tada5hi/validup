@@ -4,16 +4,16 @@
 
 Every node carries an **absolute** path — a leaf three groups deep still reads `['user', 'contact', 'email']`, never a path relative to its parent. That's what lets [`flattenIssueItems`](#helpers) produce a directly indexable list without walking the tree to reassemble prefixes.
 
-::: tip The issue model is its own package — import it from `blemish`
-`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` are defined in [**`blemish`**](https://github.com/tada5hi/blemish) — a standalone package with zero dependencies and no `engines` floor.
+::: tip The issue model is its own package — import it from `@ebec/core`
+`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` are defined in [**`@ebec/core`**](https://github.com/tada5hi/ebec) — a standalone package with zero dependencies and no `engines` floor.
 
 They live outside validup so other libraries can share the shape without taking on validup's runtime, which means issue trees compose across libraries instead of needing a translation layer.
 
 ```bash
-npm install blemish --save
+npm install @ebec/core --save
 ```
 
-`validup` also re-exports the whole model, so existing `import { IssueCode } from 'validup'` keeps working — but **that re-export is scheduled for removal in validup v2.0.0**, so new code should import from `blemish`. The examples on this page do. Every `@validup/*` integration package already depends on `blemish` directly.
+`validup` used to re-export the whole model, so `import { IssueCode } from 'validup'` kept working — **that re-export was removed in validup v2.0.0**. Import from `@ebec/core` instead. The examples on this page do. Every `@validup/*` integration package already depends on `@ebec/core` directly.
 :::
 
 ## `IssueItem`
@@ -57,7 +57,7 @@ type IssueItem = IssueItemTyped | IssueItemBare | IssueItemRaw;
 Consumers usually don't write these out — narrow on `code` and TypeScript picks the right branch:
 
 ```typescript
-import { IssueCode, isIssueItem, flattenIssueItems } from 'blemish';
+import { IssueCode, isIssueItem, flattenIssueItems } from '@ebec/core';
 
 for (const issue of flattenIssueItems(err.issues)) {
     if (issue.code === IssueCode.MIN_LENGTH) {
@@ -86,7 +86,7 @@ interface IssueGroup {
 Always use the factories — they set `type`, default the `code` to `VALUE_INVALID` when omitted, and gatekeep the `data` shape per code:
 
 ```typescript
-import { defineIssueItem, defineIssueGroup, IssueCode } from 'blemish';
+import { defineIssueItem, defineIssueGroup, IssueCode } from '@ebec/core';
 
 // Bare code — no data accepted (default fallback)
 const fallback = defineIssueItem({
@@ -191,7 +191,7 @@ import {
     flattenIssueItems, flattenIssueGroups,
     prefixIssuePath,
     formatIssue,
-} from 'blemish';
+} from '@ebec/core';
 import {
     buildErrorMessageForAttribute, buildErrorMessageForAttributes,
     stringifyPath,
@@ -265,7 +265,7 @@ defineIssueItem({ code: 'email_taken', path: ['email'], message: 'Already taken.
 For typed autocomplete on project-specific codes, define your own const that spreads the shipped vocabulary:
 
 ```typescript
-import { IssueCode } from 'blemish';
+import { IssueCode } from '@ebec/core';
 
 export const AppCode = {
     ...IssueCode,
@@ -290,7 +290,7 @@ throw new ValidupError([
 
 ```typescript
 // Anywhere in your codebase (e.g. an ambient `app-types.d.ts`):
-declare module 'blemish' {
+declare module '@ebec/core' {
     interface IssueDataByCode {
         email_taken: { existingUserId: string };
         rate_limited: { retryAfterMs: number };
@@ -315,4 +315,4 @@ defineIssueItem({
 
 Augment only with codes you own — adding entries you don't control collides with future vocabulary expansions and other consumers' merges.
 
-Target `'blemish'`, since that is where `IssueDataByCode` is declared. Targeting `'validup'` also works today — TypeScript resolves an augmentation through a star re-export to the original declaration, so the merge still lands on the real interface and `ParameterizedIssueCode` picks your code up — but it stops working when validup's re-export is removed in v2.0.0.
+Target `'@ebec/core'`, since that is where `IssueDataByCode` is declared. Do **not** target `'validup'` — validup no longer re-exports the issue model, so an augmentation against `'validup'` compiles but silently creates a fresh, unrelated interface inside validup's own module scope. `ParameterizedIssueCode` in `@ebec/core` never sees your custom code, so `defineIssueItem` / `createValidupError` quietly fall back to the ad-hoc-string branch, where `data` is optional and untyped instead of gatekept. There is no compiler error to notice — the type-level gate just stops applying.
