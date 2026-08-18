@@ -24,15 +24,15 @@ validup/
 
 | Package                        | Path                          | Public name                  | Depends on (runtime)                | Peer deps                                       |
 |--------------------------------|-------------------------------|------------------------------|-------------------------------------|-------------------------------------------------|
-| Core                           | `packages/validup`            | `validup`                    | `@ebec/core`, `blemish`, `pathtrace`, `smob`, `twinop` | —                                    |
-| Standard Schema integration    | `packages/standard-schema`    | `@validup/standard-schema`   | `@standard-schema/spec`, `blemish`  | `validup ^1.0.0`                                |
-| Zod integration                | `packages/zod`                | `@validup/zod`               | `blemish`, `pathtrace`              | `validup ^1.0.0`, `zod ^4.0.0`                  |
-| validator.js integration       | `packages/validator-js`       | `@validup/validator-js`      | `blemish`, `pathtrace`              | `validup ^1.0.0`, `validator ^13.0.0`           |
-| Vue integration                | `packages/vue`                | `@validup/vue`               | `blemish`, `pathtrace`              | `validup ^1.0.0`, `vue ^3.3`                    |
+| Core                           | `packages/validup`            | `validup`                    | `@ebec/core`, `pathtrace`, `smob`, `twinop` | —                                            |
+| Standard Schema integration    | `packages/standard-schema`    | `@validup/standard-schema`   | `@ebec/core`, `@standard-schema/spec` | `validup ^1.0.0`                              |
+| Zod integration                | `packages/zod`                | `@validup/zod`               | `@ebec/core`, `pathtrace`           | `validup ^1.0.0`, `zod ^4.0.0`                  |
+| validator.js integration       | `packages/validator-js`       | `@validup/validator-js`      | `@ebec/core`, `pathtrace`           | `validup ^1.0.0`, `validator ^13.0.0`           |
+| Vue integration                | `packages/vue`                | `@validup/vue`               | `@ebec/core`, `pathtrace`           | `validup ^1.0.0`, `vue ^3.3`                    |
 
 `@validup/zod`, `@validup/validator-js` and `@validup/vue` each declare `pathtrace` as a **direct runtime dependency** — `zod/src/error.ts` uses `getPathValue` for the `invalid_type` → `REQUIRED` probe, `validator-js/src/factories/comparison.ts` for `equals`' sibling-field read, and `vue/src/helpers/projection.ts` uses `getPathValue` / `setPathValue` for form-state traversal. It must stay declared even though the core also depends on it: reaching it transitively through the `validup` peer happens to resolve under npm's hoisting in this workspace, but breaks for consumers on pnpm's strict node-linker or Yarn PnP. **Any integration package that imports something the core happens to depend on must declare it directly.**
 
-`blemish` is declared by **all four** integration packages under the same rule — they import the issue model from it directly rather than through validup's re-export. See [Import from `blemish`, not from validup's re-export](#import-from-blemish-not-from-validups-re-export).
+`@ebec/core` is declared by **all four** integration packages under the same rule — they import the issue model from it directly, and there is no longer a validup re-export to reach it through. See [Import the model from `@ebec/core`](#import-the-model-from-ebeccore).
 
 All packages are `"type": "module"` and publish **ESM-only** (`dist/index.mjs` + `dist/index.d.mts`). No CJS output. License: Apache-2.0 across the board (root + every package).
 
@@ -43,34 +43,36 @@ The `playground/*` tree holds private demo apps that exercise the published pack
 ## Dependency Layers
 
 ```
-standard-schema ──┬──► validup ──► @ebec/core, pathtrace, smob, twinop
+standard-schema ──┬──► validup ──► pathtrace, smob, twinop
 zod ──────────────┤
 validator-js ─────┤
 vue ──────────────┘
         │
-        └──────────► blemish   ◄── validup
-                     (the issue model — zero deps, no engines floor)
+        └──────────► @ebec/core   ◄── validup
+                     (BaseError + the issue model — zero deps, no engines floor)
 ```
 
-**Every package depends on `blemish` directly** — the integration packages do not reach it through `validup`. This is the same rule that already applies to `pathtrace` (see the note under [Packages](#packages)): an undeclared transitive import happens to resolve under npm's hoisting and breaks on pnpm's strict node-linker or Yarn PnP. It is also forward-looking, since validup's re-export is scheduled for removal — see below.
+**Every package depends on `@ebec/core` directly** — the integration packages do not reach it through `validup`. This is the same rule that already applies to `pathtrace` (see the note under [Packages](#packages)): an undeclared transitive import happens to resolve under npm's hoisting and breaks on pnpm's strict node-linker or Yarn PnP. Here it is not merely hygiene: `validup` no longer re-exports the model at all, so an undeclared import has nothing to resolve through.
 
-### The issue model lives in [`blemish`](https://github.com/tada5hi/blemish)
+### The issue model lives in [`@ebec/core`](https://github.com/tada5hi/ebec)
 
-`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, `defineIssueItem`, `defineIssueGroup`, the `isIssue*` guards, `flattenIssueItems` / `flattenIssueGroups`, `prefixIssuePath`, `formatIssue` and `interpolate` are **not defined in this repo**. They live in `blemish`, a standalone zero-dependency package, and `packages/validup/src/index.ts` re-exports them wholesale with `export * from 'blemish';`. There is no `src/issue/` directory any more — intra-package code imports these symbols directly from `'blemish'`.
+`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, `ParameterizedIssueCode` / `BareIssueCode` / `ResolveIssueCode`, `defineIssueItem`, `defineIssueGroup`, the `isIssue*` guards, `flattenIssueItems` / `flattenIssueGroups`, `prefixIssuePath`, `formatIssue` and `interpolate` are **not defined in this repo**. They live in `@ebec/core`, a zero-dependency package with no `engines` floor — the same one `ValidupError` takes `BaseError` from. There is no `src/issue/` directory and no re-export: every module in every package imports these symbols directly from `'@ebec/core'`.
 
-**Why it was extracted** (tada5hi/validup#464): [rapiq](https://github.com/tada5hi/rapiq) had reimplemented the identical model by hand rather than depend on `validup`, because `validup` brings four transitive dependencies and `engines: node >=24`. `blemish` declares neither, so the model can be shared instead of copied — and issue trees compose across libraries because both sides reference the same types rather than agreeing by structural coincidence.
+**Why it was extracted** (tada5hi/validup#464): [rapiq](https://github.com/tada5hi/rapiq) had reimplemented the identical model by hand rather than depend on `validup`, because `validup` brings four transitive dependencies and `engines: node >=24`. `@ebec/core` declares neither, so the model can be shared instead of copied — and issue trees compose across libraries because both sides reference the same types rather than agreeing by structural coincidence.
 
-**Consumer compatibility is unchanged and is a maintained invariant.** Every pre-extraction import path still works, type identity is preserved, and the documented `declare module 'validup' { interface IssueDataByCode { … } }` augmentation still merges. That last one depends on `tsdown` emitting a real `export * from "blemish"` in `dist/index.d.mts` rather than inlining the declarations — inlining would break both identity and augmentation silently, so it is **checked on every build** by `packages/validup/scripts/verify-reexport.mjs` (wired in as `build:verify`), not left as a manual step. `test/unit/issue-reexport.spec.ts` pins the runtime half of the same contract.
+**Why it lives in `@ebec/core` specifically.** The extraction first landed in a standalone `blemish` package; #469 moved it into `@ebec/core` instead. That is the cheaper home for the same guarantee: `validup` already depended on `@ebec/core` for `BaseError`, so the model costs the core **no** additional dependency, and a consumer that catches a `ValidupError` and reads its `issues` now installs one package rather than two. `blemish` is gone — nothing in this repo references it.
 
-### Import from `blemish`, not from validup's re-export
+**This is a breaking change for consumers, and deliberately so** (#466, shipped in #469). `import { IssueCode } from 'validup'` no longer resolves; the import moves to `'@ebec/core'`. The compatibility scaffolding that guarded the re-export is gone with it — `packages/validup/scripts/verify-reexport.mjs` (and its `build:verify` script) and `test/unit/issue-reexport.spec.ts` were both deleted, because there is no re-export left to verify. Don't reinstate either.
 
-**New code — including every package in this repo — imports the model from `'blemish'` directly.** The four integration packages already do, and each declares `blemish` in its own `dependencies`.
+**The augmentation target moved too, and its failure mode is silent.** Write `declare module '@ebec/core' { interface IssueDataByCode { … } }`. Targeting `'validup'` still *compiles* — it just declares a fresh, unrelated interface inside validup's own module scope. `ParameterizedIssueCode` is computed in `@ebec/core` and never sees the added code, so `defineIssueItem` / `createValidupError` quietly fall through to the ad-hoc-string branch where `data` is optional and untyped. No compiler error marks the moment the gatekeep stopped applying, so a stale `'validup'` augmentation in a consumer's codebase is worth flagging on sight.
 
-The `export * from 'blemish'` line in `packages/validup/src/index.ts` exists **only** for backward compatibility with consumers who imported these symbols from `validup` before the extraction. It is scheduled for removal in **validup v2.0.0** (tracked in #466). Do not add new internal usages that depend on it, and prefer `blemish` in documentation examples aimed at library authors.
+### Import the model from `@ebec/core`
 
-Splitting an import is often the right move rather than picking one source: `packages/zod/src/error.ts` takes `IssueCode` / `defineIssueItem` / `isIssueItem` / `Issue` from `blemish` and `hasOwnProperty` / `ValidupError` from `validup`, because those genuinely come from different packages. `packages/vue/src/helpers/projection.ts` went the whole way — it now imports from `blemish` only and no longer references `validup` at all, which is the honest description of a framework-free projection layer that only ever touched the model.
+**Every package in this repo imports the model from `'@ebec/core'` directly**, and each of the five declares `@ebec/core` in its own `dependencies`. There is no second path to it — see the previous section.
 
-**Where to make a change.** A change to the *shape* of an issue, the `IssueCode` vocabulary, the per-code `data` contract, or any of the pure tree walks belongs in the `blemish` repo, not here. What remains validup-owned: `ValidupError`, the `isValidupError` guard, `createValidupError`, `errorToIssues`, `buildOneOfFailedGroup`, `buildErrorMessageForAttribute(s)` — all of which carry validup semantics or depend on `@ebec/core`'s `BaseError`.
+Splitting an import is often the right move rather than picking one source: `packages/zod/src/error.ts` takes `IssueCode` / `defineIssueItem` / `isIssueItem` / `Issue` from `@ebec/core` and `hasOwnProperty` / `ValidupError` from `validup`, because those genuinely come from different packages. `packages/vue/src/helpers/projection.ts` went the whole way — it imports from `@ebec/core` and `pathtrace` only and no longer references `validup` at all, which is the honest description of a framework-free projection layer that only ever touched the model.
+
+**Where to make a change.** A change to the *shape* of an issue, the `IssueCode` vocabulary, the per-code `data` contract, or any of the pure tree walks belongs in the [`ebec`](https://github.com/tada5hi/ebec) repo, not here. What remains validup-owned: `ValidupError`, the `isValidupError` guard, `createValidupError`, `errorToIssues`, `buildOneOfFailedGroup`, `buildErrorMessageForAttribute(s)` — all of which carry validup semantics or depend on `@ebec/core`'s `BaseError`.
 
 Note this makes `prefixIssuePath` **public API** for the first time; it was previously a private `Container` method. That is deliberate — it is the rule that maintains the absolute-path invariant, so every producer of a nested tree needs it, which is precisely why rapiq had to write its own.
 
@@ -107,7 +109,7 @@ Build scripts per package:
 |--------------|---------------------------------------------------------------------------------------------|
 | `container/` | `Container` class (`module.ts`), `IContainer`/`Mount`/`MountOptions` types, `isContainer`. `run` / `runSync` are thin drivers over one private generator, `runBody` — see [Architecture → the twin body](architecture.md#the-syncasync-twin-body-runbody); `runParallel` keeps its own scheduling loop but shares every per-key helper. `ValidatorMount` gains a `sideEffect?: boolean` resolved from descriptor at mount time. `ContainerRunOptions` gains `cache?: IResultCache`. `ContainerOptions`/`ContainerRunOptions` gain `pathsStrict?: boolean`; `paths-strict-violation.ts` holds the exported `PathsStrictViolationError` + `isPathsStrictViolation` guard (run-sync's internal violation lives in `run-sync-violation.ts`). `structural-throw.ts` holds the internal `isStructuralThrow(error, signal?)` predicate — the shared "must not be folded into issues" decision consulted by `collectExecutionFailure` and `wrapSafeRunError`; barrel-excluded because it composes the deliberately-private `isRunSyncViolation` |
 | `error/`     | `ValidupError` class (`base.ts`) and `isError`/`isValidupError` guards (`check.ts`)         |
-| ~~`issue/`~~  | **Removed** — the issue model now lives in the [`blemish`](https://github.com/tada5hi/blemish) package and is re-exported by `src/index.ts`. See [the issue model section](#the-issue-model-lives-in-blemish) above. Don't recreate this directory; import from `'blemish'` |
+| ~~`issue/`~~  | **Removed** — the issue model now lives in the [`@ebec/core`](https://github.com/tada5hi/ebec) package and is **not** re-exported by `src/index.ts`. See [the issue model section](#the-issue-model-lives-in-ebeccore) above. Don't recreate this directory; import from `'@ebec/core'` |
 | `builder/` | `defineSchema()` entry point + `Builder` class (`module.ts`), `IBuilder`/`MountTarget`/`Mounted`/`IsOptional`/`Spread` types (`types.ts`). The opt-in, **compile-time type-accumulating** alternative to `new Container()` — see [Architecture → Builder](architecture.md#builder-packagesvalidupsrcbuilder). Immutable: every method returns a new `Builder`; `build()` replays the accumulated steps onto a real `Container` |
 | `validator/` | `ValidatorDescriptor<C, Out>` type, `defineValidator(descriptor)` factory, `isValidatorDescriptor` duck-typed guard. The wrap layer that lets a validator declare per-mount contract metadata (currently `sideEffect`) without mutating the function object |
 | `cache/`     | `IResultCache` interface, `ResultCache` class (Map-backed default impl), `ResultCacheSnapshot` / `ResultCacheOutcome` / `ResultCacheEntry` types, `isResultCache` duck-typed guard. Storage-only — equality + skip logic lives in `container/module.ts:resolveCachedOutcome` |
@@ -177,7 +179,7 @@ Two traps for anyone touching this:
 
 Tests live under each package in `test/` (not a top-level `tests/` dir):
 
-- `packages/validup/test/unit/*.spec.ts` — 30 specs covering the core (module, group, mount-key, mount-dispatch, output-shape, optional, optional-value, path-filter, defaults, one-of, paths-to-include, paths-strict, error, error-to-issues, safe-run-error, pre-dispatch-throw, issue-reexport, format, initialize, define-validator, cache, compose, builder, parallel, run-sync, run-parity, structural-throw, abort-signal, context, typing). The issue model's own behaviour is tested in the [`blemish`](https://github.com/tada5hi/blemish) repo — `issue.spec.ts` and `flatten.spec.ts` moved there and are **not** duplicated here
+- `packages/validup/test/unit/*.spec.ts` — 29 specs covering the core (module, group, mount-key, mount-dispatch, output-shape, optional, optional-value, path-filter, defaults, one-of, paths-to-include, paths-strict, error, error-to-issues, safe-run-error, pre-dispatch-throw, format, initialize, define-validator, cache, compose, builder, parallel, run-sync, run-parity, structural-throw, abort-signal, context, typing). The issue model's own behaviour is tested in the [`ebec`](https://github.com/tada5hi/ebec) repo — `issue.spec.ts` and `flatten.spec.ts` live there and are **not** duplicated here
 - `packages/validup/test/data/` — shared fixtures (`string-validator.ts`, exporting both `stringValidator` (async) and `stringValidatorSync`)
 - `packages/validup/test/helpers/` — spec helpers, not collected by vitest (`parity.ts` — `expectRunParity` / `expectRunFailureParity`, the `run` ↔ `runSync` twin contract)
 - Integration packages each have their own `test/vitest.config.ts` and `test/unit/*.spec.ts`

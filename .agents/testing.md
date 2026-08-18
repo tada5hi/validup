@@ -46,8 +46,7 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 | `paths-to-include.spec.ts`    | `pathsToInclude` / `pathsToExclude` filters               |
 | `error.spec.ts`               | `ValidupError` shape and `isValidupError` guard           |
 | `safe-run-error.spec.ts`      | `wrapSafeRunError` — the `safeRun` / `safeRunSync` fold for a throw that escaped the run loop |
-| `issue-reexport.spec.ts`      | The `blemish` re-export surface — every model symbol still exported, reference-identical, plus `interpolate` parity |
-| `format.spec.ts`              | The `data` the **runtime** attaches to issues (`formatIssue` itself is `blemish`'s) |
+| `format.spec.ts`              | The `data` the **runtime** attaches to issues (`formatIssue` itself is `@ebec/core`'s) |
 | `mount-dispatch.spec.ts`      | `Container.mount` / `Builder.mount` argument-dispatch order, `isContainer` |
 | `initialize.spec.ts`          | Subclass `initialize()` hook                              |
 | `run-sync.spec.ts`            | `runSync` / `safeRunSync` + `RunSyncViolationError`       |
@@ -62,14 +61,13 @@ Run with `npm run test:coverage` inside the package. CI does **not** fail on cov
 
 When adding a new container option or mount option, add or extend the matching spec — don't pile new cases into `module.spec.ts`.
 
-### The issue model is tested in `blemish`, not here
+### The issue model is tested in `ebec`, not here
 
-`defineIssueItem` / `defineIssueGroup`, the `isIssue*` guards, `flattenIssueItems` / `flattenIssueGroups`, `prefixIssuePath`, `formatIssue` / `interpolate` and the `IssueCode` vocabulary all live in [`blemish`](https://github.com/tada5hi/blemish). Their behavioural specs went with them; **do not re-add them here.** Duplicating them would mean two places to update and would test another repo's code from this one.
+`defineIssueItem` / `defineIssueGroup`, the `isIssue*` guards, `flattenIssueItems` / `flattenIssueGroups`, `prefixIssuePath`, `formatIssue` / `interpolate` and the `IssueCode` vocabulary all live in [`@ebec/core`](https://github.com/tada5hi/ebec). Their behavioural specs went with them; **do not re-add them here.** Duplicating them would mean two places to update and would test another repo's code from this one.
 
 What remains this repo's to test, and why each is genuinely different:
 
-- `issue-reexport.spec.ts` — the **surface**, not the behaviour. That every symbol validup exported before the extraction is still exported, and that each is `toBe`-identical to `blemish`'s (`toEqual` would pass for a second bundled copy, which is the actual failure mode). Plus `interpolate` parity, since validup used to re-export `@ebec/core`'s and now re-exports `blemish`'s reproduction.
-- `format.spec.ts` — the `data` the **runtime** attaches (`{ name }` on a failing mount's wrapping group). `formatIssue` itself is `blemish`'s.
+- `format.spec.ts` — the `data` the **runtime** attaches (`{ name }` on a failing mount's wrapping group). `formatIssue` itself is `@ebec/core`'s.
 - Everything that builds an issue tree through a `Container` — `module`, `one-of`, `optional`, `compose`, `error-to-issues`, … — is unchanged and still belongs here. Those test validup's *use* of the model.
 
 ### A `never` return type is invisible to every runtime test
@@ -78,7 +76,7 @@ Worth internalising, because this repo carried the defect for as long as the cod
 
 `defineIssueItem`'s return type is a conditional whose branches are `Extract`s. Written so that the resolved code is re-spelled inside each branch rather than bound once to a type parameter, the whole alias collapses to `never`. The failure is silent in both directions that normally catch things: branch *selection* keeps working, so the `data` gatekeep still rejects bad payloads (the half anyone thinks to test), and `never` is assignable to everything, so no call site complains and consumer-side narrowing quietly stops meaning anything.
 
-It surfaced only when `blemish` typechecked its specs and asserted `[T] extends [never] ? true : false` is `false`. **This repo typechecks specs in `validator-js` and `vue` only** — see [Specs are typechecked in `validator-js` and `vue` only](#specs-are-typechecked-in-validator-js-and-vue-only) — and `validup` is not among them, so it could not have been found here. When a type-level helper is load-bearing, assert what it resolves *to*, not only what it rejects.
+It surfaced only when the upstream repo typechecked its specs and asserted `[T] extends [never] ? true : false` is `false`. **This repo typechecks specs in `validator-js` and `vue` only** — see [Specs are typechecked in `validator-js` and `vue` only](#specs-are-typechecked-in-validator-js-and-vue-only) — and `validup` is not among them, so it could not have been found here. When a type-level helper is load-bearing, assert what it resolves *to*, not only what it rejects.
 
 ### Guard-ordering specs
 
