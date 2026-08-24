@@ -20,22 +20,22 @@ const features: Feature[] = [
     {
         icon: '🛤️',
         title: 'Path-based',
-        detail: 'Mount via dotted paths (a.b.c), brackets (foo[0]), or globs (**.foo) — expansion is handled by pathtrace.',
+        detail: 'Mount via dotted paths (a.b.c), brackets (foo[0]), or globs (**.foo); expansion is handled by pathtrace.',
     },
     {
         icon: '🚦',
         title: 'Group-aware',
-        detail: 'Run different validations for create / update / custom groups from the same container — no schema duplication.',
+        detail: 'Run different validations for create / update / custom groups from the same container, with no schema duplication.',
     },
     {
         icon: '📋',
         title: 'Structured issues',
-        detail: 'Discriminated Issue items and groups with code, path, message, expected, received — ready for any UI.',
+        detail: 'Discriminated Issue items and groups with code, path, message, expected, received. Ready for any UI.',
     },
     {
         icon: '🌐',
         title: 'Universal',
-        detail: 'Pure JS, ESM-only. Runs in Node, browsers, Deno, Bun, and edge runtimes — no Node-specific deps.',
+        detail: 'Pure JS, ESM-only. Runs in Node, browsers, Deno, Bun, and edge runtimes. No Node-specific deps.',
     },
     {
         icon: '🛡️',
@@ -52,7 +52,7 @@ const features: Feature[] = [
                 One model. Six superpowers.
             </h2>
             <p class="vu-features-sub">
-                A small core (Container · Validator · Issue) — and everything else falls out from how you compose it.
+                A small core (Container · Validator · Issue), and everything else falls out from how you compose it.
             </p>
             <div class="vu-features-grid">
                 <article

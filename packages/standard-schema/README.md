@@ -5,7 +5,7 @@
 <h1 align="center">@validup/standard-schema</h1>
 
 <p align="center">
-    <b>A <a href="https://www.npmjs.com/package/validup">validup</a> integration for any <a href="https://standardschema.dev">Standard Schema</a> validator — zod, valibot, arktype, effect-schema, and anything else that implements the spec.</b>
+    <b>A <a href="https://www.npmjs.com/package/validup">validup</a> integration for any <a href="https://standardschema.dev">Standard Schema</a> validator: zod, valibot, arktype, effect-schema, and anything else that implements the spec.</b>
 </p>
 
 Mount any Standard Schema as a validup `Validator` on a `Container` path; validup handles path expansion, group filtering, optional/default semantics, and error aggregation while the underlying library does the actual parsing.
@@ -27,7 +27,7 @@ Mount any Standard Schema as a validup `Validator` on a `Container` path; validu
 npm install @validup/standard-schema validup --save
 ```
 
-The package depends only on the [`@standard-schema/spec`](https://www.npmjs.com/package/@standard-schema/spec) types and `validup` itself — bring your own schema library.
+The package depends only on the [`@standard-schema/spec`](https://www.npmjs.com/package/@standard-schema/spec) types and `validup` itself; bring your own schema library.
 
 ## Quick Start
 
@@ -77,7 +77,7 @@ type StandardSchemaCreateFn<C = unknown> = (ctx: ValidatorContext<C>) => Standar
 
 ## Result Caching
 
-`createValidator` returns a `ValidatorDescriptor` that participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — most Standard Schema validators are deterministic functions of the value. For schemas that read external state (typically async refines), pass `{ sideEffect: true }` to bypass the cache:
+`createValidator` returns a `ValidatorDescriptor` that participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default: most Standard Schema validators are deterministic functions of the value. For schemas that read external state (typically async refines), pass `{ sideEffect: true }` to bypass the cache:
 
 ```typescript
 container.mount('email', createValidator(asyncSchema, { sideEffect: true }));
@@ -91,7 +91,7 @@ When a schema's `~standard.validate` returns issues, the adapter converts each o
 |------------------|---------------------|
 | `message`        | `message`           |
 | `path` (PropertyKey or `{ key }` PathSegment) | `path` (flattened to `PropertyKey[]`) |
-| —                | `code` defaults to `IssueCode.VALUE_INVALID` |
+| -                | `code` defaults to `IssueCode.VALUE_INVALID` |
 
 Vendor-specific fields (zod's `expected`/`received`, valibot's `requirement`, …) aren't part of the spec, so they're not surfaced. If you need them, use the vendor-specific adapter (e.g. `@validup/zod`'s `buildIssuesForZodError`).
 
@@ -101,7 +101,7 @@ The adapter then throws a `ValidupError` with those issues; validup's container 
 
 | Want                                                  | Pick                       |
 |-------------------------------------------------------|----------------------------|
-| Vendor-portable adapter — swap libraries without touching mounts | `@validup/standard-schema` |
+| Vendor-portable adapter: swap libraries without touching mounts | `@validup/standard-schema` |
 | Surface zod's `expected` / `received` on issues       | `@validup/zod`             |
 | Bidirectional `validup ↔ zod` issue conversion        | `@validup/zod`             |
 
@@ -120,21 +120,21 @@ function buildIssuesForStandardSchemaIssues(
 ): Issue[];
 ```
 
-`createValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Pass `{ sideEffect: true }` for schemas that read external state (typically async refines) so the framework re-runs them on every invocation instead of replaying a cached outcome.
+`createValidator` returns a validup `ValidatorDescriptor`, interchangeable with a bare `Validator` at the mount site. Pass `{ sideEffect: true }` for schemas that read external state (typically async refines) so the framework re-runs them on every invocation instead of replaying a cached outcome.
 
 ## Stability
 
 What's covered by semver:
 
-- **Public exports** — `createValidator` and `buildIssuesForStandardSchemaIssues`.
-- **Spec-portable issue mapping** — `message` and `path` are carried verbatim; `code` defaults to `IssueCode.VALUE_INVALID`. Vendor-specific fields are **not** part of the spec and never surface here.
-- **Per-context schema factory** — `(ctx: ValidatorContext<C>) => StandardSchemaV1` invocation contract.
+- **Public exports**: `createValidator` and `buildIssuesForStandardSchemaIssues`.
+- **Spec-portable issue mapping**: `message` and `path` are carried verbatim; `code` defaults to `IssueCode.VALUE_INVALID`. Vendor-specific fields are **not** part of the spec and never surface here.
+- **Per-context schema factory**: `(ctx: ValidatorContext<C>) => StandardSchemaV1` invocation contract.
 
-If you need vendor-specific fields like zod's `expected` / `received`, use [`@validup/zod`](https://npmjs.com/package/@validup/zod) instead — both packages can coexist.
+If you need vendor-specific fields like zod's `expected` / `received`, use [`@validup/zod`](https://npmjs.com/package/@validup/zod) instead; both packages can coexist.
 
-Peer dependency policy: `validup ^2.0.0`. No peer dep on a specific schema library — the adapter operates against the `@standard-schema/spec` types and works against any spec-compatible schema instance (zod 3.24+, valibot, arktype, effect-schema, …).
+Peer dependency policy: `validup ^2.0.0`. No peer dep on a specific schema library: the adapter operates against the `@standard-schema/spec` types and works against any spec-compatible schema instance (zod 3.24+, valibot, arktype, effect-schema, …).
 
-Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.
+Deprecation policy: matches [`validup`](https://npmjs.com/package/validup); at least one minor release of `@deprecated` notice before removal in a major.
 
 ## License
 

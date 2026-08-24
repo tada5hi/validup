@@ -10,7 +10,7 @@ npm install @validup/zod validup zod --save
 |-----------------|---------------------|
 | `zod`           | `^3.25.0 \|\| ^4.0.0` |
 
-> **Already on zod 3.24+ and don't need vendor-specific fields?** Use [`@validup/standard-schema`](/integrations/standard-schema) — it works against zod, valibot, and arktype interchangeably.
+> **Already on zod 3.24+ and don't need vendor-specific fields?** Use [`@validup/standard-schema`](/integrations/standard-schema); it works against zod, valibot, and arktype interchangeably.
 
 ## Quick start
 
@@ -30,7 +30,7 @@ try {
 }
 ```
 
-`createValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Mount it with any other mount option:
+`createValidator` returns a validup `ValidatorDescriptor`, interchangeable with a bare `Validator` at the mount site. Mount it with any other mount option:
 
 ```typescript
 container.mount('field', { group: 'create' }, createValidator(z.string()));
@@ -107,22 +107,22 @@ Each zod issue's `code` is mapped onto validup's [`IssueCode`](/guide/issues) vo
 
 | Zod issue                                                          | Validup `IssueCode`                | `data`                |
 |--------------------------------------------------------------------|------------------------------------|-----------------------|
-| `invalid_type` (input at path is `undefined`)                      | `REQUIRED`                         | —                     |
-| `invalid_type` (wrong type)                                        | `VALUE_INVALID`                    | —                     |
+| `invalid_type` (input at path is `undefined`)                      | `REQUIRED`                         | -                     |
+| `invalid_type` (wrong type)                                        | `VALUE_INVALID`                    | -                     |
 | `too_small`, origin `string` / `array` / `set` / `file`            | `MIN_LENGTH`                       | `{ min: number }`     |
 | `too_big`, origin `string` / `array` / `set` / `file`              | `MAX_LENGTH`                       | `{ max: number }`     |
 | `too_small`, origin `number` / `bigint` / `date` / `int`           | `MIN_VALUE`                        | `{ min: number }`     |
 | `too_big`, origin `number` / `bigint` / `date` / `int`             | `MAX_VALUE`                        | `{ max: number }`     |
-| `invalid_format`, format `email`                                   | `EMAIL`                            | —                     |
-| `invalid_format`, format `url`                                     | `URL`                              | —                     |
-| `invalid_format`, format `uuid` / `guid`                           | `UUID`                             | —                     |
+| `invalid_format`, format `email`                                   | `EMAIL`                            | -                     |
+| `invalid_format`, format `url`                                     | `URL`                              | -                     |
+| `invalid_format`, format `uuid` / `guid`                           | `UUID`                             | -                     |
 | `invalid_format`, format `regex`                                   | `PATTERN`                          | `{ pattern: string }` |
-| `invalid_format`, format `date` / `time` / `datetime` / `duration` | `DATE`                             | —                     |
-| `invalid_format`, format `ipv4` / `ipv6` / `cidrv4` / `cidrv6`     | `IP_ADDRESS`                       | —                     |
-| `invalid_format`, format `base64` / `base64url`                    | `BASE64`                           | —                     |
-| `invalid_format`, format `json_string`                             | `JSON`                             | —                     |
-| `invalid_value` (enum / literal mismatch)                          | `ONE_OF_FAILED`                    | —                     |
-| Everything else (`custom`, `not_multiple_of`, `unrecognized_keys`, `invalid_union`, …) | `VALUE_INVALID` | —              |
+| `invalid_format`, format `date` / `time` / `datetime` / `duration` | `DATE`                             | -                     |
+| `invalid_format`, format `ipv4` / `ipv6` / `cidrv4` / `cidrv6`     | `IP_ADDRESS`                       | -                     |
+| `invalid_format`, format `base64` / `base64url`                    | `BASE64`                           | -                     |
+| `invalid_format`, format `json_string`                             | `JSON`                             | -                     |
+| `invalid_value` (enum / literal mismatch)                          | `ONE_OF_FAILED`                    | -                     |
+| Everything else (`custom`, `not_multiple_of`, `unrecognized_keys`, `invalid_union`, …) | `VALUE_INVALID` | -              |
 
 ::: tip REQUIRED detection requires the input
 Zod 4 strips `received` / `input` from the formatted `ZodError`, so the adapter recovers the missing-key signal by looking the issue path up against the original parsed value. `createValidator` threads `ctx.value` through automatically; if you call `buildIssuesForZodError(error)` directly without a second argument, missing keys stay on `VALUE_INVALID`. Pass the input explicitly (`buildIssuesForZodError(error, input)`) to opt in.
@@ -130,7 +130,7 @@ Zod 4 strips `received` / `input` from the formatted `ZodError`, so the adapter 
 
 ## Validup → Zod
 
-Convert a `ValidupError` (or single `Issue`) into zod's raw issue format — useful when feeding validup output back into a zod-driven UI library:
+Convert a `ValidupError` (or single `Issue`) into zod's raw issue format, useful when feeding validup output back into a zod-driven UI library:
 
 ```typescript
 import { buildZodIssuesForError, buildZodIssuesForIssue } from '@validup/zod';

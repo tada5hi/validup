@@ -9,7 +9,7 @@ import { defineConfig } from 'vitepress';
 
 export default defineConfig({
     title: 'validup',
-    description: 'Composable, path-based validation for TypeScript — mount validators on any path, run them in groups, collect structured issues.',
+    description: 'Composable, path-based validation for TypeScript: mount validators on any path, run them in groups, collect structured issues.',
     base: '/',
     cleanUrls: true,
     lastUpdated: true,

@@ -39,10 +39,10 @@ async function submit() {
                     user keeps typing.
                 </p>
                 <ul class="vu-spot-list">
-                    <li><strong>$invalid · $dirty · $errors</strong> — vuelidate-style API, no schema lock-in</li>
-                    <li><strong>$model</strong> — two-way bound, dirty-tracked, deep-path safe</li>
-                    <li><strong>Debounce + abort</strong> — stale runs cancel automatically on new input</li>
-                    <li><strong>Nested forms</strong> — scope composables, aggregate child results from a parent</li>
+                    <li><strong>$invalid · $dirty · $errors</strong>: vuelidate-style API, no schema lock-in</li>
+                    <li><strong>$model</strong>: two-way bound, dirty-tracked, deep-path safe</li>
+                    <li><strong>Debounce + abort</strong>: stale runs cancel automatically on new input</li>
+                    <li><strong>Nested forms</strong>: scope composables, aggregate child results from a parent</li>
                 </ul>
                 <a
                     class="vu-btn vu-btn-primary"

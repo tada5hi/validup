@@ -13,17 +13,18 @@
 [![Known Vulnerabilities][snyk-src]][snyk-href]
 [![Conventional Commits][conventional-src]][conventional-href]
 
-Mount validators and nested containers onto object paths, run them in groups, collect structured issues, and bridge to your favorite validator (zod, validator.js) or framework (Vue) — all without decorators or schema DSLs.
+Mount validators and nested containers onto object paths, run them in groups, collect structured issues, and bridge to your favorite validator (zod, validator.js) or framework (Vue), all without decorators or schema DSLs.
 
 ## Core Philosophy
 
-Most validation libraries make you choose between two extremes: a schema DSL that bakes in every rule, or a hand-rolled function that tangles parsing, validation, and transformation. Validup picks a different point — **mount any validator function onto any path of any input, compose containers, and let the runtime handle path expansion, error aggregation, and group filtering.** You bring the validators (or wrap an existing library via an integration package); validup orchestrates them.
+Most validation libraries make you choose between two extremes: a schema DSL that bakes in every rule, or a hand-rolled function that tangles parsing, validation, and transformation. Validup picks a different point: **mount any validator function onto any path of any input, compose containers, and let the runtime handle path expansion, error aggregation, and group filtering.** You bring the validators (or wrap an existing library via an integration package); validup orchestrates them.
 
 **Table of Contents**
 
 - [Packages](#packages)
 - [Installation](#installation)
 - [At a Glance](#at-a-glance)
+- [Vue Forms](#vue-forms)
 - [Why Validup](#why-validup)
 - [Repository Layout](#repository-layout)
 - [Development](#development)
@@ -40,7 +41,7 @@ This monorepo publishes one core library and four integration packages:
 | [`@validup/standard-schema`](./packages/standard-schema)     | [![npm][ss-npm-src]][ss-npm-href]             | Bridge to any [Standard Schema](https://standardschema.dev) library (zod, valibot, arktype, …) |
 | [`@validup/zod`](./packages/zod)                             | [![npm][zod-npm-src]][zod-npm-href]           | Bridge to [zod](https://zod.dev) schemas (vendor-specific issue mapping) |
 | [`@validup/validator-js`](./packages/validator-js)           | [![npm][vjs-npm-src]][vjs-npm-href]           | Pre-baked factories for [validator.js](https://github.com/validatorjs/validator.js) (`isEmail()`, `isLength()`, …) + a generic wrap |
-| [`@validup/vue`](./packages/vue)                             | [![npm][vue-npm-src]][vue-npm-href]           | [Vue 3](https://vuejs.org) composable for client-side forms              |
+| [`@validup/vue`](./packages/vue)                             | [![npm][vue-npm-src]][vue-npm-href]           | [Vue 3](https://vuejs.org) form composable: vuelidate-shaped state, nested forms, async + caching |
 
 ## Installation
 
@@ -77,7 +78,7 @@ try {
         name: 'Peter',
         email: 'peter@example.com',
     });
-    // valid is { name, email } — `age` was optional and omitted
+    // valid is { name, email }; `age` was optional and omitted
 } catch (error) {
     if (error instanceof ValidupError) {
         console.error(error.issues);
@@ -85,19 +86,69 @@ try {
 }
 ```
 
+## Vue Forms
+
+The same containers drive client-side forms. [`@validup/vue`](./packages/vue) wraps any `Container` in a single composable, `useValidup`, and returns a [vuelidate](https://vuelidate-next.netlify.app/)-shaped state object: per-field `$model` / `$dirty` / `$errors`, form-level `$invalid` / `$pending`, and `$validate()` for submit. Pair it with [`@validup/zod`](./packages/zod) and the schemas you already run on the server validate every keystroke in the browser:
+
+```vue
+<script setup lang="ts">
+import { reactive } from 'vue';
+import { Container } from 'validup';
+import { useValidup } from '@validup/vue';
+import { createValidator } from '@validup/zod';
+import { z } from 'zod';
+
+const signup = new Container<{ email: string; password: string }>();
+signup.mount('email',    createValidator(z.string().email()));
+signup.mount('password', createValidator(z.string().min(12)));
+
+const state = reactive({ email: '', password: '' });
+const v = useValidup(signup, state, { debounce: 200 });
+
+async function submit() {
+    const result = await v.$validate();
+    if (result.success) {
+        await save(result.data);
+    }
+}
+</script>
+
+<template>
+    <form @submit.prevent="submit">
+        <input v-model="v.fields.email.$model" />
+        <p v-if="v.fields.email.$errors[0]">{{ v.fields.email.$errors[0].message }}</p>
+
+        <input v-model="v.fields.password.$model" type="password" />
+        <p v-if="v.fields.password.$errors[0]">{{ v.fields.password.$errors[0].message }}</p>
+
+        <button :disabled="v.$invalid || v.$pending">Sign up</button>
+    </form>
+</template>
+```
+
+What you get beyond the basics:
+
+- **Async-aware**: every scheduled run owns an `AbortController`, so keystrokes cancel stale runs and `debounce` collapses bursts; `$validate()` deliberately runs without a signal so submit can't be aborted mid-flight.
+- **Result caching**: a per-form `ResultCache` replays unchanged fields, so editing `name` never re-fires the async uniqueness check on `email`.
+- **Nested forms**: child components register with their ancestor form via `provide` / `inject`; the parent reads them reactively through `$getResultsForChild` for live aggregation.
+- **Server errors**: feed a `ValidupError` from your API back with `setExternalIssues()`; the issues land on the matching fields and clear as the user retypes.
+- **Severity**: `getSeverity(field)` renders optional-mount failures as warnings instead of errors, so pristine forms stay friendly.
+
+See the [`@validup/vue` README](./packages/vue), the [Vue docs page](https://validup.tada5hi.net/integrations/vue), and the runnable [`playground/vite-vue`](./playground/vite-vue) demo (basic, groups, nested, async, server errors, and severity routes).
+
 ## Why Validup
 
 | Feature                  | What it gives you                                                                            |
 |--------------------------|----------------------------------------------------------------------------------------------|
 | 🧩 **Composable**        | Mount validators and nested `Container`s on any path. Stay flat or nest as deep as you like. |
-| 🌐 **Universal**         | Pure JS — runs in Node.js, browsers, Deno, Bun, and edge runtimes.                            |
+| 🌐 **Universal**         | Pure JS: runs in Node.js, browsers, Deno, Bun, and edge runtimes.                            |
 | 🎭 **Integration-ready** | First-class bridges to Standard Schema, zod, validator.js, and Vue. Trivial to add more. |
 | 🛤️ **Path-based**        | Mount via dotted paths (`a.b.c`), brackets (`foo[0]`), or globs (`**.foo`).                    |
 | 🚦 **Group-aware**       | Run different validations for `create` / `update` / custom groups from the same container.   |
 | ❓ **Optional handling** | Per-mount control over `undefined` / `null` / falsy semantics.                                 |
 | 📋 **Structured errors** | Discriminated `Issue` items and groups with code, path, message, expected, received.          |
 | 🛡️ **Type-safe**         | `Container<T>` propagates the output shape; mount paths are checked against `T`. The opt-in `defineSchema()` builder accumulates `T` from the registered mounts so `run()`'s static return type matches what was registered. |
-| ⚡ **Cache-aware**        | Opt-in per-mount result cache (`{ cache: new ResultCache() }`) — `defineValidator({ sideEffect: true })` opts the rare cross-field / async validator out so per-keystroke runs reuse fresh results without re-firing slow checks. |
+| ⚡ **Cache-aware**        | Opt-in per-mount result cache (`{ cache: new ResultCache() }`); `defineValidator({ sideEffect: true })` opts the rare cross-field / async validator out so per-keystroke runs reuse fresh results without re-firing slow checks. |
 
 ## Repository Layout
 
@@ -116,11 +167,11 @@ validup/
 └── release-please-config.json
 ```
 
-The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Integration packages depend on `validup`; the core depends on [`@ebec/core`](https://github.com/tada5hi/ebec) (which owns the issue model), [`pathtrace`](https://github.com/tada5hi/pathtrace), [`smob`](https://github.com/tada5hi/smob) and [`twinop`](https://github.com/tada5hi/twinop). `docs/` and every `playground/*` workspace are private — excluded from release-please and `monoship`.
+The five packages are managed as an [Nx](https://nx.dev) workspace under npm workspaces. Integration packages depend on `validup`; the core depends on [`@ebec/core`](https://github.com/tada5hi/ebec) (which owns the issue model), [`pathtrace`](https://github.com/tada5hi/pathtrace), [`smob`](https://github.com/tada5hi/smob) and [`twinop`](https://github.com/tada5hi/twinop). `docs/` and every `playground/*` workspace are private, excluded from release-please and `monoship`.
 
-The `Issue` model — `Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, the factories, guards, tree walks, `prefixIssuePath`, `formatIssue` and `interpolate` — is defined in **[`@ebec/core`](https://github.com/tada5hi/ebec)**. It lives outside this repo so other libraries can share the shape without taking on validup's runtime; issue trees then compose across libraries because both sides reference the same types.
+The `Issue` model (`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, the factories, guards, tree walks, `prefixIssuePath`, `formatIssue` and `interpolate`) is defined in **[`@ebec/core`](https://github.com/tada5hi/ebec)**. It lives outside this repo so other libraries can share the shape without taking on validup's runtime; issue trees then compose across libraries because both sides reference the same types.
 
-The integration packages import those symbols **directly from `@ebec/core`** and declare it as a dependency. As of validup v2.0.0, `validup` no longer re-exports the model — `import { IssueCode } from 'validup'` no longer resolves; import from `@ebec/core` instead.
+The integration packages import those symbols **directly from `@ebec/core`** and declare it as a dependency. As of validup v2.0.0, `validup` no longer re-exports the model: `import { IssueCode } from 'validup'` no longer resolves; import from `@ebec/core` instead.
 
 The Vite + Vue playground lives at [`playground/vite-vue`](./playground/vite-vue) and exercises `@validup/vue` end-to-end (basic form, groups, nested forms, async + debounce, server errors, severity). Run it with `npm run dev --workspace=@validup-playground/vite-vue`.
 
@@ -146,13 +197,13 @@ npm run lint:fix
 
 - **Node.js**: `>=24.0.0` (CI runs on 24)
 - **Test runner**: [Vitest 4](https://vitest.dev)
-- **Bundler**: [tsdown](https://tsdown.dev) — ESM-only output (`dist/index.mjs` + `dist/index.d.mts`)
+- **Bundler**: [tsdown](https://tsdown.dev); ESM-only output (`dist/index.mjs` + `dist/index.d.mts`)
 - **Lint**: ESLint v10 flat config
-- **Releases**: managed by [release-please](https://github.com/googleapis/release-please) — one component per package; published via [`tada5hi/monoship`](https://github.com/tada5hi/monoship)
+- **Releases**: managed by [release-please](https://github.com/googleapis/release-please) (one component per package); published via [`tada5hi/monoship`](https://github.com/tada5hi/monoship)
 
 ## Contributing
 
-Issues and pull requests are welcome. Please follow [Conventional Commits](https://conventionalcommits.org) — commit messages are linted via `commitlint`. CI runs install → build → lint → test on every PR.
+Issues and pull requests are welcome. Please follow [Conventional Commits](https://conventionalcommits.org); commit messages are linted via `commitlint`. CI runs install → build → lint → test on every PR.
 
 For security vulnerabilities, please email contact@tada5hi.net rather than opening a public issue (see [SECURITY.md](./SECURITY.md)).
 

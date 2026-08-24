@@ -3,7 +3,7 @@
 `Container<T, C>` is the central type. It holds a list of mounts and exposes the `run` / `runSync` / `runParallel` / `safeRun` / `safeRunSync` methods.
 
 ::: tip Looking for compile-time-typed schemas?
-[`defineSchema()`](/guide/builder) is an opt-in, type-accumulating wrapper around `Container` that derives `T` from the registered mounts — useful when the schema is fully static. The imperative `Container` API on this page remains the right tool when mounts depend on runtime conditions.
+[`defineSchema()`](/guide/builder) is an opt-in, type-accumulating wrapper around `Container` that derives `T` from the registered mounts, useful when the schema is fully static. The imperative `Container` API on this page remains the right tool when mounts depend on runtime conditions.
 :::
 
 ## Construction
@@ -25,7 +25,7 @@ const c = new Container<{ name: string; email: string }>(/* options? */);
 | `optionalValue`   | `OptionalValue \| OptionalValue[]` | Container-wide default for `MountOptions.optionalValue`. See [Optional Values](/guide/optional). |
 | `optionalAs`      | `unknown`                     | Container-wide default for `MountOptions.optionalAs`. Activation is presence-not-value.  |
 
-The second generic, `C`, is the type of `ctx.context` — the caller-supplied context that flows unchanged into every nested container's mounts.
+The second generic, `C`, is the type of `ctx.context`, the caller-supplied context that flows unchanged into every nested container's mounts.
 
 ## `mount(...)`
 
@@ -46,7 +46,7 @@ container.mount({ group: ['x'] }, other);                // (options, container)
 container.mount('user.address', address);                // nested container at sub-path
 ```
 
-Only a container can be mounted **without a key** — a validator without a path is a `SyntaxError`.
+Only a container can be mounted **without a key**; a validator without a path is a `SyntaxError`.
 
 ## Mount paths
 
@@ -130,7 +130,7 @@ When the parent runs, it calls `address.run(data.address, { flat: true, path: ['
 
 ## Subclassing
 
-Override `initialize()` to wire mounts from a constructor — useful for re-usable containers:
+Override `initialize()` to wire mounts from a constructor, useful for re-usable containers:
 
 ```typescript
 class UserContainer extends Container<{ name: string; email: string }> {

@@ -18,7 +18,7 @@ const integrations: IntegrationCard[] = [
         name: '@validup/standard-schema',
         accent: 'var(--vu-color-info-500)',
         href: '/integrations/standard-schema',
-        summary: 'Bridge to any Standard Schema library — zod 3.24+, valibot, arktype, effect-schema, …',
+        summary: 'Bridge to any Standard Schema library: zod 3.24+, valibot, arktype, effect-schema, …',
         bullets: [
             'Vendor-neutral validator',
             'Path normalization',
@@ -29,7 +29,7 @@ const integrations: IntegrationCard[] = [
         name: '@validup/zod',
         accent: 'var(--vu-color-primary-500)',
         href: '/integrations/zod',
-        summary: 'Vendor-specific bridge for zod 3 / 4 — surfaces expected & received fields on each issue.',
+        summary: 'Vendor-specific bridge for zod 3 / 4: surfaces expected & received fields on each issue.',
         bullets: [
             'safeParseAsync under the hood',
             'expected / received preserved',
@@ -40,7 +40,7 @@ const integrations: IntegrationCard[] = [
         name: '@validup/validator-js',
         accent: 'var(--vu-color-warning-500)',
         href: '/integrations/validator-js',
-        summary: 'Pre-baked factories for validator.js rules — isEmail, isURL, isLength, equals, matches.',
+        summary: 'Pre-baked factories for validator.js rules: isEmail, isURL, isLength, equals, matches.',
         bullets: [
             'Typed flat options per rule',
             'Vocabulary IssueCode + structured data',

@@ -12,6 +12,15 @@ Three audiences read documentation in this repo. After any code, tooling, or API
 
 When adding a new VitePress page, slot it into the sidebar in `docs/src/.vitepress/config.mts` and cross-link it from neighboring pages (the guide overview's "where to next" list, related-page `::: tip` blocks). When adding a new package or moving a module between packages, update `.agents/structure.md` and `.agents/architecture.md` so the dependency-layer diagram and per-package tables stay accurate. Stale docs are treated as a defect, not a separate task — verify all three surfaces before reporting the change as done.
 
+## Prose Style
+
+- **No em dashes (`—`) in prose.** Rewrite the sentence instead: put a colon before an explanation, set an aside off with commas or parentheses, or split the sentence in two. Never substitute a bare or spaced hyphen as punctuation.
+- In tables, use `-` as the empty/none cell marker.
+- In headings, replace an em dash with a colon and keep every word unchanged, so the generated anchor slug stays stable (slugs ignore punctuation but not words).
+- The rule covers every reader-facing surface: the root and per-package READMEs, the VitePress site under `docs/src/**` (markdown, theme-component copy, and the site config's description strings), GitHub release notes, and issue/PR text. The agent docs (`AGENTS.md`, `.agents/*.md`) follow it for new and edited text; legacy occurrences there are rewritten when a section is touched anyway, not in bulk.
+- Inside code fences, the rule applies to comments and display copy. Never change a string that mirrors real runtime output.
+- Check before reporting a docs change as done: `grep -rn '—' README.md packages/*/README.md playground/*/README.md docs/src --include='*.md' --include='*.vue' --include='*.mts'` must come back empty.
+
 ## TypeScript
 
 - Each package has a single `tsconfig.json` extending the root. The root extends `@tada5hi/tsconfig` and overrides:

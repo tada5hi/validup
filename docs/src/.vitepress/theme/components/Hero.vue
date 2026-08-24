@@ -95,7 +95,7 @@ const toggleDark = () => {
                 </h1>
                 <p class="vu-hero-tagline">
                     Composable, path-based validation for TypeScript. Mount validators on any path,
-                    run them in groups, and collect structured issues — without decorators or schema DSLs.
+                    run them in groups, and collect structured issues, without decorators or schema DSLs.
                 </p>
                 <div class="vu-hero-actions">
                     <a
@@ -198,7 +198,7 @@ const toggleDark = () => {
 
                     <p class="vu-hero-card-hint">
                         Each keystroke re-runs the <code>Container</code> and re-renders the structured
-                        <code>Issue[]</code> — same model that powers integrations with zod, Standard Schema,
+                        <code>Issue[]</code>, the same model that powers integrations with zod, Standard Schema,
                         validator.js, and Vue.
                     </p>
                 </div>

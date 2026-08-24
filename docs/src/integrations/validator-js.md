@@ -44,24 +44,24 @@ container.mount('confirm', equals('password')); // compares ctx.value against ct
 
 ## Factories
 
-Every factory takes a single flat options object — the validup-side `message` override sits alongside the validator.js options for that rule (`BaseFactoryOptions & validator.Is*Options`).
+Every factory takes a single flat options object: the validup-side `message` override sits alongside the validator.js options for that rule (`BaseFactoryOptions & validator.Is*Options`).
 
 | Factory | Emits | `data` payload |
 |---------|-------|------------------|
-| `isEmail(opts?)` | `EMAIL` | — |
-| `isURL(opts?)` | `URL` | — |
-| `isUUID(opts?)` | `UUID` | — |
-| `isIP(opts?)` | `IP_ADDRESS` | — |
-| `isMACAddress(opts?)` | `MAC_ADDRESS` | — |
-| `isDate(opts?)` | `DATE` | — |
-| `isISO8601(opts?)` | `DATE` | — |
-| `isJSON(opts?)` | `JSON` | — |
-| `isBase64(opts?)` | `BASE64` | — |
+| `isEmail(opts?)` | `EMAIL` | - |
+| `isURL(opts?)` | `URL` | - |
+| `isUUID(opts?)` | `UUID` | - |
+| `isIP(opts?)` | `IP_ADDRESS` | - |
+| `isMACAddress(opts?)` | `MAC_ADDRESS` | - |
+| `isDate(opts?)` | `DATE` | - |
+| `isISO8601(opts?)` | `DATE` | - |
+| `isJSON(opts?)` | `JSON` | - |
+| `isBase64(opts?)` | `BASE64` | - |
 | `isStrongPassword(opts?)` | `STRONG_PASSWORD` | `{ minLength?, minLowercase?, … }` |
-| `isAlpha(opts?)` | `ALPHA` | — |
-| `isAlphanumeric(opts?)` | `ALPHA_NUM` | — |
-| `isNumeric(opts?)` | `NUMERIC` | — |
-| `isDecimal(opts?)` | `DECIMAL` | — |
+| `isAlpha(opts?)` | `ALPHA` | - |
+| `isAlphanumeric(opts?)` | `ALPHA_NUM` | - |
+| `isNumeric(opts?)` | `NUMERIC` | - |
+| `isDecimal(opts?)` | `DECIMAL` | - |
 | `isInt(opts?)` | `INTEGER` *or* `MIN_VALUE` / `MAX_VALUE` | `{ min }` / `{ max }` on range failure |
 | `isFloat(opts?)` | `DECIMAL` *or* `MIN_VALUE` / `MAX_VALUE` | `{ min }` / `{ max }` on range failure |
 | `isLength(opts?)` | `MIN_LENGTH` *or* `MAX_LENGTH` (detects which bound failed) | `{ min }` / `{ max }` |
@@ -70,13 +70,13 @@ Every factory takes a single flat options object — the validup-side `message` 
 
 `isInt` / `isFloat` / `isLength` distinguish type-failure vs. range-failure on output, so i18n catalogs can ship distinct messages ("must be between 18 and 120" ≠ "must be an integer").
 
-`equals(key)` reads the comparison target from `ctx.data` at the `key` path (pathtrace) — so `equals('password')` mounted on `confirm` compares against `ctx.data.password`. Pass `{ expectedValue: 'literal' }` to compare against a fixed string instead; `key` still supplies the `{ other }` label for i18n templates.
+`equals(key)` reads the comparison target from `ctx.data` at the `key` path (pathtrace), so `equals('password')` mounted on `confirm` compares against `ctx.data.password`. Pass `{ expectedValue: 'literal' }` to compare against a fixed string instead; `key` still supplies the `{ other }` label for i18n templates.
 
 ## Result caching
 
-Every factory returns a validup `ValidatorDescriptor`, so factories participate in the [result cache](/guide/caching) automatically — no opt-in flag required. All shipped factories are deterministic functions of `ctx.value`, so cached `(value, context, group)` snapshots replay without re-running validator.js.
+Every factory returns a validup `ValidatorDescriptor`, so factories participate in the [result cache](/guide/caching) automatically; no opt-in flag required. All shipped factories are deterministic functions of `ctx.value`, so cached `(value, context, group)` snapshots replay without re-running validator.js.
 
-**Exception — `equals(key)` without `expectedValue`.** When `expectedValue` is omitted the comparison target is read from `ctx.data[key]`, a sibling field the cache snapshot does NOT capture. The factory therefore stamps `sideEffect: true` automatically in that branch so the framework re-runs it on every invocation — otherwise a `passwordConfirm` mount would stay stale after `password` changes. When `expectedValue` IS supplied, `equals` is pure and participates in the cache like the rest.
+**Exception: `equals(key)` without `expectedValue`.** When `expectedValue` is omitted the comparison target is read from `ctx.data[key]`, a sibling field the cache snapshot does NOT capture. The factory therefore stamps `sideEffect: true` automatically in that branch so the framework re-runs it on every invocation; otherwise a `passwordConfirm` mount would stay stale after `password` changes. When `expectedValue` IS supplied, `equals` is pure and participates in the cache like the rest.
 
 ```typescript
 container.mount('confirm', equals('password'));                                // sideEffect: true (reads ctx.data)
@@ -85,7 +85,7 @@ container.mount('captcha', equals('captcha', { expectedValue: 'expected' })); //
 
 The generic `createValidator(fn, options)` accepts an optional `sideEffect?: boolean` for the rare case where the wrapped predicate captures external state.
 
-## Generic wrap — `createValidator`
+## Generic wrap: `createValidator`
 
 For validators not pre-baked (`isCreditCard`, `isJWT`, `isMobilePhone`, `isPostalCode`, …):
 
@@ -109,10 +109,10 @@ For fields that need multiple checks, use validup's `compose` helper:
 import { compose } from 'validup';
 import { isEmail, isLength } from '@validup/validator-js';
 
-// Fail-fast (default) — first failure stops the chain, output threads through.
+// Fail-fast (default): first failure stops the chain, output threads through.
 container.mount('email', compose([isEmail(), isLength({ max: 254 })]));
 
-// Collect-all — every rule runs against ctx.value; failures aggregate.
+// Collect-all: every rule runs against ctx.value; failures aggregate.
 container.mount('password', compose([
     isLength({ min: 8 }),
     isAlphanumeric(),

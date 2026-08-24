@@ -21,11 +21,11 @@ These come in three flavors today:
 | [`@validup/zod`](/integrations/zod)               | [zod](https://zod.dev) v4         | You need vendor-specific issue fields (`expected`, `received`) |
 | [`@validup/validator-js`](/integrations/validator-js) | [validator.js](https://github.com/validatorjs/validator.js) string validators (`isEmail`, `isLength`, `isInt`, …) | You want pre-baked factories for the common rules with vocabulary codes baked in |
 
-All three adapters name that entry point `createValidator` on purpose — same role, same contract, one thing to learn. The symmetry costs you an alias when two of them (or an adapter and the library it wraps) meet in one file.
+All three adapters name that entry point `createValidator` on purpose: same role, same contract, one thing to learn. The symmetry costs you an alias when two of them (or an adapter and the library it wraps) meet in one file.
 
 ### Combining adapters in one file
 
-`@validup/validator-js` names its factories after the validator.js rules they wrap — `isEmail`, `isURL`, `isUUID`, `isInt`, `equals`, `matches`, `isDate` — so the collision to plan for is usually with **validator.js itself** (reached for directly for the long tail: `isCreditCard`, `isJWT`, …), not just with a sibling adapter.
+`@validup/validator-js` names its factories after the validator.js rules they wrap (`isEmail`, `isURL`, `isUUID`, `isInt`, `equals`, `matches`, `isDate`), so the collision to plan for is usually with **validator.js itself** (reached for directly for the long tail: `isCreditCard`, `isJWT`, …), not just with a sibling adapter.
 
 A namespace import resolves every name at once and reads better than aliasing them one by one:
 
@@ -81,6 +81,6 @@ Three contract points to preserve:
 
 1. Accept either a schema or a `(ctx) => schema` factory.
 2. Make `createValidator<C>` generic over the validup context.
-3. Translate foreign errors into `Issue[]` using `defineIssueItem` / `defineIssueGroup` — never construct issue objects literally.
+3. Translate foreign errors into `Issue[]` using `defineIssueItem` / `defineIssueGroup`; never construct issue objects literally.
 
-For framework integrations, study `@validup/vue` — a reactive composable that drives form state from `safeRun()`.
+For framework integrations, study `@validup/vue`, a reactive composable that drives form state from `safeRun()`.

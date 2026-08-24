@@ -1,6 +1,6 @@
 # Caching
 
-`Container.run` (and every other run variant) accepts an opt-in `cache` option that memoizes per-mount results. Pass a `ResultCache` instance and the framework will skip any mount whose `(value, context, group)` snapshot matches a prior invocation — replaying the cached outcome instead of calling the validator again.
+`Container.run` (and every other run variant) accepts an opt-in `cache` option that memoizes per-mount results. Pass a `ResultCache` instance and the framework will skip any mount whose `(value, context, group)` snapshot matches a prior invocation, replaying the cached outcome instead of calling the validator again.
 
 The optimization is most visible for forms with slow async validators (network round-trips, regex-heavy schemas): submit (`$validate()`) no longer pays the cost of re-running validators whose inputs the per-keystroke runs already proved fresh.
 
@@ -25,7 +25,7 @@ const data = { email: 'peter@example.com' };
 
 await container.run(data, { cache });
 await container.run(data, { cache });
-// calls === 1 — the second invocation hits the cache
+// calls === 1: the second invocation hits the cache
 ```
 
 ## What counts as a cache hit
@@ -35,18 +35,18 @@ Three fields make up the snapshot:
 | Field          | Equality      | Notes                                                                                       |
 |----------------|---------------|---------------------------------------------------------------------------------------------|
 | `ctx.value`    | `Object.is`   | Primitives by value; objects/arrays/functions by reference. A fresh literal misses.         |
-| `ctx.context`  | `Object.is`   | Same — a new `context` object invalidates every mount under it.                             |
+| `ctx.context`  | `Object.is`   | Same: a new `context` object invalidates every mount under it.                              |
 | `ctx.group`    | `Object.is`   | `string \| undefined`; switching groups always misses.                                      |
 
-`ctx.data` is **not** part of the snapshot. A `sideEffect: false` mount declares it doesn't read sibling fields — only `value`, `context`, `group`. If your validator reads `ctx.data.password` from a `passwordConfirm` mount, mark it `sideEffect: true` (see below).
+`ctx.data` is **not** part of the snapshot. A `sideEffect: false` mount declares it doesn't read sibling fields, only `value`, `context`, `group`. If your validator reads `ctx.data.password` from a `passwordConfirm` mount, mark it `sideEffect: true` (see below).
 
 ## Opting out: `sideEffect`
 
-A validator that depends on inputs the snapshot doesn't cover — sibling fields, network state, global mutable data — must declare itself with `sideEffect: true` so the framework re-runs it every time:
+A validator that depends on inputs the snapshot doesn't cover (sibling fields, network state, global mutable data) must declare itself with `sideEffect: true` so the framework re-runs it every time:
 
 ```typescript
 const validateUnique = defineValidator({
-    sideEffect: true, // hits the network — never cache
+    sideEffect: true, // hits the network; never cache
     run: async (ctx) => {
         if (await api.isEmailTaken(ctx.value as string)) {
             throw new Error('Email is already taken');
@@ -67,15 +67,15 @@ container.mount('email', createValidator(
 ));
 ```
 
-`@validup/validator-js`'s shipped factories know their own contract — `equals(key)` (no `expectedValue`) automatically stamps `sideEffect: true` because it reads from `ctx.data[key]`; every other factory is cache-eligible by default.
+`@validup/validator-js`'s shipped factories know their own contract: `equals(key)` (no `expectedValue`) automatically stamps `sideEffect: true` because it reads from `ctx.data[key]`; every other factory is cache-eligible by default.
 
 ## Lifecycle
 
 The cache is **caller-owned**. `Container` never holds onto it; each `run()` consults whatever instance you pass. Typical patterns:
 
-- **Per request** — instantiate one cache, run validation, drop it. The cache is effectively a memoization across the run tree (nested containers participate automatically).
-- **Per session / per form** — instantiate one cache and reuse across multiple `run()` calls. `@validup/vue` does this — one cache per composable scope, cleared on `$reset()` and on container-ref swaps.
-- **Custom storage** — implement `IResultCache` directly for LRU eviction, TTL, persistence, etc.
+- **Per request**: instantiate one cache, run validation, drop it. The cache is effectively a memoization across the run tree (nested containers participate automatically).
+- **Per session / per form**: instantiate one cache and reuse across multiple `run()` calls. `@validup/vue` does this with one cache per composable scope, cleared on `$reset()` and on container-ref swaps.
+- **Custom storage**: implement `IResultCache` directly for LRU eviction, TTL, persistence, etc.
 
 ```typescript
 import type { IResultCache } from 'validup';
@@ -89,10 +89,10 @@ class LruResultCache implements IResultCache {
 
 ## When NOT to use it
 
-The cache is opt-in for a reason: the soundness depends on `sideEffect` declarations being honest. If a validator silently reads `ctx.data.other` and isn't marked `sideEffect: true`, the cache will hand back stale results when `other` changes. For one-shot runs (CLI scripts, request handlers without UI feedback loops) the optimization rarely pays for itself — leave `cache` unset and every mount runs every time, which is the same behavior the library had before the option existed.
+The cache is opt-in for a reason: the soundness depends on `sideEffect` declarations being honest. If a validator silently reads `ctx.data.other` and isn't marked `sideEffect: true`, the cache will hand back stale results when `other` changes. For one-shot runs (CLI scripts, request handlers without UI feedback loops) the optimization rarely pays for itself: leave `cache` unset and every mount runs every time, which is the same behavior the library had before the option existed.
 
 ## Cross-references
 
-- [Validator](/guide/validator) — `defineValidator` and the descriptor shape.
-- [Run Modes](/guide/run-modes) — every variant (`run`, `runSync`, `runParallel`, `safeRun`, `safeRunSync`) accepts `cache`.
-- [Vue Integration](/integrations/vue) — the composable's automatic per-scope cache.
+- [Validator](/guide/validator): `defineValidator` and the descriptor shape.
+- [Run Modes](/guide/run-modes): every variant (`run`, `runSync`, `runParallel`, `safeRun`, `safeRunSync`) accepts `cache`.
+- [Vue Integration](/integrations/vue): the composable's automatic per-scope cache.

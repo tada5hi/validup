@@ -1,12 +1,12 @@
 # Concepts Overview
 
-validup's model has three nouns — **Container**, **Validator**, **Issue** — and one verb: `Container.run(data)`. Everything else (groups, optional values, path filtering, oneOf aggregation, run modes) is a knob on top of those three.
+validup's model has three nouns (**Container**, **Validator**, **Issue**) and one verb: `Container.run(data)`. Everything else (groups, optional values, path filtering, oneOf aggregation, run modes) is a knob on top of those three.
 
 ## Container
 
 The `Container<T, C>` class is a registry of **mounts**. A mount pairs:
 
-- An optional `path` (string — supports dotted, bracketed, and glob syntax).
+- An optional `path` (a string; supports dotted, bracketed, and glob syntax).
 - An optional `MountOptions` (`group`, `optional`, `optionalValue`, `optionalInclude`).
 - Either a `Validator` function or a nested `IContainer`.
 
@@ -65,7 +65,7 @@ interface IssueGroup {
 }
 ```
 
-Always construct issues via the factories `defineIssueItem` / `defineIssueGroup` — they set `type` correctly and provide sensible defaults.
+Always construct issues via the factories `defineIssueItem` / `defineIssueGroup`; they set `type` correctly and provide sensible defaults.
 
 ## The verb
 
@@ -81,13 +81,13 @@ See [Run Modes](/guide/run-modes) for the trade-offs.
 
 ## Where to next
 
-- [Container](/guide/container) — mount semantics, registration order, nested containers.
-- [Builder API](/guide/builder) — `defineSchema()`, the opt-in compile-time-typed wrapper around `Container`.
-- [Validator](/guide/validator) — context fields, transforms, lazy schemas.
-- [Issues & Errors](/guide/issues) — structured failures, `formatIssue`, `flattenIssueItems`.
-- [Groups](/guide/groups) — `create` / `update` / custom groups from one container.
-- [Optional Values](/guide/optional) — `undefined`, `null`, falsy, and predicate-based skip rules.
-- [Path Filtering](/guide/path-filtering) — `pathsToInclude` / `pathsToExclude`.
-- [One-Of](/guide/one-of) — branch validation: succeed if any mount passes.
-- [Run Modes](/guide/run-modes) — sequential, parallel, sync.
-- [Cancellation](/guide/cancellation) — `AbortSignal` propagation.
+- [Container](/guide/container): mount semantics, registration order, nested containers.
+- [Builder API](/guide/builder): `defineSchema()`, the opt-in compile-time-typed wrapper around `Container`.
+- [Validator](/guide/validator): context fields, transforms, lazy schemas.
+- [Issues & Errors](/guide/issues): structured failures, `formatIssue`, `flattenIssueItems`.
+- [Groups](/guide/groups): `create` / `update` / custom groups from one container.
+- [Optional Values](/guide/optional): `undefined`, `null`, falsy, and predicate-based skip rules.
+- [Path Filtering](/guide/path-filtering): `pathsToInclude` / `pathsToExclude`.
+- [One-Of](/guide/one-of): branch validation, i.e. succeed if any mount passes.
+- [Run Modes](/guide/run-modes): sequential, parallel, sync.
+- [Cancellation](/guide/cancellation): `AbortSignal` propagation.

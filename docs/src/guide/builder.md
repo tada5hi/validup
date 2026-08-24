@@ -5,10 +5,10 @@
 ```typescript
 const c = new Container<{ foo: string; bar: number }>();
 c.mount('foo', isString);          // ⚠️  bar is never validated
-const out = await c.run({});       // out: { foo, bar } — bar is undefined at runtime
+const out = await c.run({});       // out: { foo, bar }, but bar is undefined at runtime
 ```
 
-`defineSchema()` is an opt-in, type-accumulating wrapper around `Container` that derives `T` *from the registered mounts* — so `run()`'s static return type reflects exactly what was registered.
+`defineSchema()` is an opt-in, type-accumulating wrapper around `Container` that derives `T` *from the registered mounts*, so `run()`'s static return type reflects exactly what was registered.
 
 ## Quick Start
 
@@ -23,14 +23,14 @@ const schema = defineSchema()
     .build();
 
 const out = await schema.run(input);
-// out: { foo: string; age?: number } — inferred, not declared
+// out: { foo: string; age?: number } (inferred, not declared)
 ```
 
 `schema` is a regular `Container<{ foo: string; age?: number }, unknown>`. `.build()` materializes the container; everything `Container` exposes (`run`, `safeRun`, `runSync`, `runParallel`, `safeRunSync`) is available.
 
 ## `mount(...)`
 
-The builder mirrors `Container.mount`'s keyed forms — `(key, target)` and `(key, options, target)` — and dispatches on the target type:
+The builder mirrors `Container.mount`'s keyed forms, `(key, target)` and `(key, options, target)`, and dispatches on the target type:
 
 | Target type                                 | Effect on `T`                                                                       |
 |---------------------------------------------|-------------------------------------------------------------------------------------|
@@ -74,7 +74,7 @@ interface IBuilder<T extends Record<string, any>, C = unknown> {
 }
 ```
 
-Builders are **immutable** — every method returns a new builder, so chains may fork without leaking state.
+Builders are **immutable**: every method returns a new builder, so chains may fork without leaking state.
 
 ::: tip Optional widening
 The `?`-widening only fires when TypeScript sees `optional` as the literal `true` (or a predicate function). The `const` modifier on the second overload preserves literal types from inline option objects, so `.mount('email', { optional: true }, isString)` just works. A pre-typed `MountOptions` variable whose `optional` is `boolean` keeps the field required.
@@ -84,8 +84,8 @@ The `?`-widening only fires when TypeScript sees `optional` as the literal `true
 
 The integration packages' `createValidator(...)` functions infer the per-field `Out` from the underlying schema:
 
-- `@validup/zod` — `Out = z.output<Schema>`
-- `@validup/standard-schema` — `Out = StandardSchemaV1.InferOutput<Schema>`
+- `@validup/zod`: `Out = z.output<Schema>`
+- `@validup/standard-schema`: `Out = StandardSchemaV1.InferOutput<Schema>`
 
 Hand-written validators participate too. Either annotate the return type:
 
@@ -114,7 +114,7 @@ const schema = defineSchema()
     .build();
 ```
 
-A bare `Validator<C>` (without the second generic) contributes `unknown` — which matches today's `Container<T>` behavior, so existing code keeps compiling.
+A bare `Validator<C>` (without the second generic) contributes `unknown`, which matches today's `Container<T>` behavior, so existing code keeps compiling.
 
 ## Context
 
@@ -153,7 +153,7 @@ const user = defineSchema()
 // user is Container<{ name: string; address: { city: string; country: string } }>
 ```
 
-For framework integrations pass the underlying `Container` instance directly — same overload.
+For framework integrations pass the underlying `Container` instance directly: same overload.
 
 ## When to use which API
 
@@ -163,12 +163,12 @@ For framework integrations pass the underlying `Container` instance directly —
 | Dynamic mounts (loops, conditional registration, `initialize()` hook) | `new Container<T>()`             |
 | Ship a domain-scoped, reusable validator class                        | `class extends Container<T>`     |
 
-The imperative `Container` API is **not** deprecated — it remains the runtime substrate (`.build()` calls `Container.mount(...)`) and the right tool whenever the schema isn't fully known up front.
+The imperative `Container` API is **not** deprecated: it remains the runtime substrate (`.build()` calls `Container.mount(...)`) and the right tool whenever the schema isn't fully known up front.
 
 ## Caveats
 
 - **`oneOf()` and `T`.** A `oneOf` container's `T` stays as the **intersection** of branches, but only one branch's keys actually appear at runtime. The intersection is honest about *possible* keys; wrap with your own discriminated union when that fits better.
-- **Cross-field refinements** don't fit the per-field model. Mount them as a top-level validator on a synthetic key — `ctx.data` exposes every sibling value:
+- **Cross-field refinements** don't fit the per-field model. Mount them as a top-level validator on a synthetic key; `ctx.data` exposes every sibling value:
 
     ```typescript
     const schema = defineSchema()
@@ -182,6 +182,6 @@ The imperative `Container` API is **not** deprecated — it remains the runtime 
         .build();
     ```
 
-  Avoid using `.oneOf()` for this — that toggles the entire container to "succeed if any branch passes," which is the wrong semantic for "all invariants must hold."
-- **Group exhaustiveness.** The builder guarantees every key in `T` was registered at *build time*. It does not guarantee that, e.g., `group: 'create'` covers every required field for that group — the runtime still skips group-mismatched mounts.
+  Avoid using `.oneOf()` for this: that toggles the entire container to "succeed if any branch passes," which is the wrong semantic for "all invariants must hold."
+- **Group exhaustiveness.** The builder guarantees every key in `T` was registered at *build time*. It does not guarantee that, e.g., `group: 'create'` covers every required field for that group; the runtime still skips group-mismatched mounts.
 - **Same-key remount.** Calling `.mount('foo', ...)` twice with different validators (e.g. sanitize-then-validate) is supported: the type accumulator follows the runtime's "last write wins" behavior, so the second call's `Out` overrides the first's. The imperative `Container` is still preferable when the *same key* needs different mounts per group (the `RoleValidator` pattern from the validup README), since the builder can't express two same-key mounts with disjoint `MountOptions.group` filters.

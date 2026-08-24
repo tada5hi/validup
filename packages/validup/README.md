@@ -118,11 +118,11 @@ type ValidatorContext<C = unknown> = {
 };
 ```
 
-A validator's **return value** becomes the output for that path — so validators double as transformers/sanitizers. The optional second generic `Out` lets callers (and the [Builder API](#builder-api-compile-time-typing)) infer per-field types from the validator's return type — `Out` defaults to `unknown`, so existing call sites compile unchanged.
+A validator's **return value** becomes the output for that path, so validators double as transformers/sanitizers. The optional second generic `Out` lets callers (and the [Builder API](#builder-api-compile-time-typing)) infer per-field types from the validator's return type; `Out` defaults to `unknown`, so existing call sites compile unchanged.
 
 #### Descriptor form
 
-`mount()` also accepts a `ValidatorDescriptor<C, Out>` — a small wrapper that attaches per-mount metadata the framework consults. Today the metadata is just `sideEffect`, the switch that opts a validator out of the [result cache](#result-caching).
+`mount()` also accepts a `ValidatorDescriptor<C, Out>`: a small wrapper that attaches per-mount metadata the framework consults. Today the metadata is just `sideEffect`, the switch that opts a validator out of the [result cache](#result-caching).
 
 ```typescript
 import { defineValidator } from 'validup';
@@ -137,7 +137,7 @@ const isPositive = defineValidator({
     },
 });
 
-// Cross-field / network / stateful — re-run every time:
+// Cross-field / network / stateful: re-run every time.
 const isEmailUnique = defineValidator({
     sideEffect: true,
     run: async (ctx) => {
@@ -151,7 +151,7 @@ const isEmailUnique = defineValidator({
 container.mount('email', isEmailUnique);
 ```
 
-Bare functions stay fully supported — `mount('foo', fn)` normalizes them to `{ run: fn }` internally with no behavior change. Use `defineValidator` when you need the metadata.
+Bare functions stay fully supported: `mount('foo', fn)` normalizes them to `{ run: fn }` internally with no behavior change. Use `defineValidator` when you need the metadata.
 
 ### Containers
 
@@ -161,24 +161,24 @@ A `Container<T, C>` holds an ordered list of mounts and runs them against an inp
 const container = new Container<{ name: string; age: number }>();
 
 container.mount('name', isString);  // ✅ 'name' is a key of T
-container.mount('email', isString); // ⚠️ 'email' is not — allowed via fallback type
+container.mount('email', isString); // ⚠️ 'email' is not; allowed via fallback type
 ```
 
 ### Issues & Errors
 
-When validation fails, the container throws a `ValidupError` containing a list of `Issue`s. Issues are a discriminated union — each one is either a leaf `IssueItem` or an `IssueGroup` containing children.
+When validation fails, the container throws a `ValidupError` containing a list of `Issue`s. Issues are a discriminated union: each one is either a leaf `IssueItem` or an `IssueGroup` containing children.
 
 ```typescript
 type Issue = IssueItem | IssueGroup;
 ```
 
-This recursive structure preserves the path of failure, so consumers can render rich field-level error messages. Every node carries an **absolute** path — a leaf three groups deep still reads `['user', 'contact', 'email']` — so `flattenIssueItems` produces a directly indexable list with no tree walk needed.
+This recursive structure preserves the path of failure, so consumers can render rich field-level error messages. Every node carries an **absolute** path (a leaf three groups deep still reads `['user', 'contact', 'email']`), so `flattenIssueItems` produces a directly indexable list with no tree walk needed.
 
-> **Where the model lives.** `Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` come from [**`@ebec/core`**](https://github.com/tada5hi/ebec) — an extensible error-class library that also owns the issue model.
+> **Where the model lives.** `Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` come from [**`@ebec/core`**](https://github.com/tada5hi/ebec), an extensible error-class library that also owns the issue model.
 >
 > They live outside validup so other libraries can share the shape without taking on validup's runtime. Issue trees then compose across libraries, because both sides reference the same types rather than agreeing by structural coincidence.
 >
-> **Import them from `@ebec/core`** — `npm install @ebec/core --save`. As of v2.0.0, `validup` no longer re-exports the model; the examples below import from `@ebec/core` directly. Every `@validup/*` integration package already depends on it directly.
+> **Import them from `@ebec/core`** (`npm install @ebec/core --save`). As of v2.0.0, `validup` no longer re-exports the model; the examples below import from `@ebec/core` directly. Every `@validup/*` integration package already depends on it directly.
 
 ## Builder API (compile-time typing)
 
@@ -187,10 +187,10 @@ This recursive structure preserves the path of failure, so consumers can render 
 ```typescript
 const c = new Container<{ foo: string; bar: number }>();
 c.mount('foo', isString);          // ⚠️  bar is never validated
-const out = await c.run({});       // out: { foo, bar } — bar is undefined at runtime
+const out = await c.run({});       // out: { foo, bar } (bar is undefined at runtime)
 ```
 
-`defineSchema()` is an opt-in, type-accumulating wrapper around `Container` that derives `T` *from the registered mounts* — so `run()`'s static return type reflects exactly what was registered:
+`defineSchema()` is an opt-in, type-accumulating wrapper around `Container` that derives `T` *from the registered mounts*, so `run()`'s static return type reflects exactly what was registered:
 
 ```typescript
 import { defineSchema } from 'validup';
@@ -204,12 +204,12 @@ const schema = defineSchema()
     .build();
 
 const out = await schema.run(input);
-// out: { foo: string; age?: number; address: { city: string } } — inferred, not declared
+// out: { foo: string; age?: number; address: { city: string } } (inferred, not declared)
 ```
 
-The integration packages' `createValidator(...)` functions (`@validup/zod`, `@validup/standard-schema`) infer the per-field `Out` type from the underlying schema, so the builder pulls real types through. Hand-written validators participate too — annotate the return type via `Validator<C, Out>` (or just write the function inline so TypeScript can infer it).
+The integration packages' `createValidator(...)` functions (`@validup/zod`, `@validup/standard-schema`) infer the per-field `Out` type from the underlying schema, so the builder pulls real types through. Hand-written validators participate too: annotate the return type via `Validator<C, Out>` (or just write the function inline so TypeScript can infer it).
 
-The builder mirrors `Container.mount`'s keyed forms — `.mount(key, target)` and `.mount(key, options, target)` — and dispatches on the target type:
+The builder mirrors `Container.mount`'s keyed forms (`.mount(key, target)` and `.mount(key, options, target)`) and dispatches on the target type:
 
 | Target type                        | Effect on `T`                                                           |
 |------------------------------------|-------------------------------------------------------------------------|
@@ -217,7 +217,7 @@ The builder mirrors `Container.mount`'s keyed forms — `.mount(key, target)` an
 | `IBuilder<U, C>`                   | adds `{ [K]: U }` and auto-`.build()`s the child                        |
 | `IContainer<U, C>` (e.g. `Container<U, C>`) | adds `{ [K]: U }`                                              |
 
-Builders are immutable — every method returns a new instance, so chains can fork without leaking state — and `.build()` materializes a `Container<T, C>`:
+Builders are immutable (every method returns a new instance, so chains can fork without leaking state), and `.build()` materializes a `Container<T, C>`:
 
 ```typescript
 interface IBuilder<T extends Record<string, any>, C = unknown> {
@@ -240,7 +240,7 @@ interface IBuilder<T extends Record<string, any>, C = unknown> {
 }
 ```
 
-> **Note** — the `?`-widening on `optional: true` only fires when TypeScript sees the value as the literal `true` (or a predicate function). The `const` modifier on the second overload preserves literals from inline option objects, so the common case (`mount('email', { optional: true }, ...)`) just works. A pre-typed `MountOptions` variable whose `optional` is `boolean` will keep the field required.
+> **Note**: the `?`-widening on `optional: true` only fires when TypeScript sees the value as the literal `true` (or a predicate function). The `const` modifier on the second overload preserves literals from inline option objects, so the common case (`mount('email', { optional: true }, ...)`) just works. A pre-typed `MountOptions` variable whose `optional` is `boolean` will keep the field required.
 
 Pass the context type as a generic to flow it through the chain:
 
@@ -266,9 +266,9 @@ When to reach for which API:
 | Dynamic mounts (loops, conditional registration, `initialize()` hook) | `new Container<T>()`            |
 | Ship a domain-scoped, reusable validator class                     | `class extends Container<T>`       |
 
-The imperative `Container` API is **not** deprecated — it remains the runtime substrate (`.build()` calls `Container.mount(...)`) and the right tool whenever the schema isn't fully known up front.
+The imperative `Container` API is **not** deprecated: it remains the runtime substrate (`.build()` calls `Container.mount(...)`) and the right tool whenever the schema isn't fully known up front.
 
-> **Note on `oneOf()`** — only one branch's keys actually appear in the runtime output, but the accumulated type stays as the intersection of every branch (honest about *possible* keys). Wrap the result with your own discriminated union when that fits better.
+> **Note on `oneOf()`**: only one branch's keys actually appear in the runtime output, but the accumulated type stays as the intersection of every branch (honest about *possible* keys). Wrap the result with your own discriminated union when that fits better.
 
 ## Mounting
 
@@ -321,7 +321,7 @@ const valid = await user.run({
 
 ### Mounting Without a Path
 
-A container (but **not** a validator) can be mounted without a path. Its mounts then operate on the parent's input directly — useful for splitting validation rules across multiple files while keeping a flat output shape.
+A container (but **not** a validator) can be mounted without a path. Its mounts then operate on the parent's input directly, which is useful for splitting validation rules across multiple files while keeping a flat output shape.
 
 ```typescript
 const credentials = new Container();
@@ -332,7 +332,7 @@ const profile = new Container();
 profile.mount('name', isString);
 
 const signup = new Container();
-signup.mount(credentials);  // no path — flatten into root
+signup.mount(credentials);  // no path: flatten into root
 signup.mount(profile);
 ```
 
@@ -353,7 +353,7 @@ class RoleValidator extends Container<Role> {
 
         const nameValidator = createValidator(z.string().min(3).max(128));
 
-        // Required on create, optional on update — same validator, different groups.
+        // Required on create, optional on update: same validator, different groups.
         this.mount('name', { group: 'create' }, nameValidator);
         this.mount('name', { group: 'update', optional: true }, nameValidator);
 
@@ -384,17 +384,17 @@ container.mount('id',   { group: ['update', 'delete'] }, isString);
 container.mount('name', { group: ['create', 'update'] }, isString);
 
 await container.run({ id: 'x', name: 'foo' }, { group: 'create' });
-// → { name: 'foo' } — `id` is not in the 'create' group
+// → { name: 'foo' } (`id` is not in the 'create' group)
 
 await container.run({ id: 'x', name: 'foo' }, { group: '*' });
-// → { id: 'x', name: 'foo' } — wildcard runs everything
+// → { id: 'x', name: 'foo' } (wildcard runs everything)
 ```
 
-The wildcard token `'*'` (also exported as `GroupKey.WILDCARD`) bypasses the filter — either as the active group, or to mark a mount as always-run.
+The wildcard token `'*'` (also exported as `GroupKey.WILDCARD`) bypasses the filter, either as the active group or to mark a mount as always-run.
 
 ## Optional Values
 
-Mark a mount as `optional` to skip it when the input value is "missing". You decide what counts as missing via `optionalValue`. The vocabulary is atomic — each entry matches exactly one runtime value, with `'falsy'` as the composite shortcut:
+Mark a mount as `optional` to skip it when the input value is "missing". You decide what counts as missing via `optionalValue`. The vocabulary is atomic: each entry matches exactly one runtime value, with `'falsy'` as the composite shortcut:
 
 | `optionalValue`           | Treats as optional                            |
 |---------------------------|-----------------------------------------------|
@@ -433,7 +433,7 @@ container.mount('nickname',
 await container.run({});  // → { nickname: undefined }
 ```
 
-Set `optionalAs: <value>` to collapse every optional sentinel to one canonical value — useful when the consumer expects a single shape (e.g. `null` for "no value provided" while the form input holds `''`):
+Set `optionalAs: <value>` to collapse every optional sentinel to one canonical value, which is useful when the consumer expects a single shape (e.g. `null` for "no value provided" while the form input holds `''`):
 
 ```typescript
 container.mount('description',
@@ -475,7 +475,7 @@ credential.mount('email',    createEmailValidator());
 credential.mount('username', createUsernameValidator());
 
 await credential.run({ email: 'peter@example.com' });
-// → { email: 'peter@example.com' } — username branch failure is ignored
+// → { email: 'peter@example.com' } (username branch failure is ignored)
 
 await credential.run({ email: 'not-an-email', username: 'invalid' });
 // → throws ValidupError. error.issues is shaped:
@@ -503,7 +503,7 @@ await container.run(input, { pathsToExclude: ['password'] });        // skip the
 
 The same options can be set at the container level via `new Container({ pathsToInclude: [...] })`. Run-time options take precedence.
 
-By default a filter path that matches no mount is silently ignored. Add `pathsStrict: true` to **fail loud** instead — the run throws a structural `PathsStrictViolationError` (caught with `isPathsStrictViolation`, re-thrown by `safeRun`/`safeRunSync`) listing the unmatched paths, so a renamed mount key can't make a scoped validation silently disappear:
+By default a filter path that matches no mount is silently ignored. Add `pathsStrict: true` to **fail loud** instead. The run throws a structural `PathsStrictViolationError` (caught with `isPathsStrictViolation`, re-thrown by `safeRun`/`safeRunSync`) listing the unmatched paths, so a renamed mount key can't make a scoped validation silently disappear:
 
 ```typescript
 import { isPathsStrictViolation } from 'validup';
@@ -571,7 +571,7 @@ setTimeout(() => controller.abort(), 100);
 try {
     await container.run(input, { signal: controller.signal });
 } catch (e) {
-    // AbortError — not a ValidupError
+    // AbortError, not a ValidupError
 }
 ```
 
@@ -579,7 +579,7 @@ try {
 
 ## Result Caching
 
-`Container.run` (and every other run variant) accepts an optional `cache: ResultCache`. When supplied, validator mounts whose `(ctx.value, ctx.context, ctx.group)` snapshot matches a prior invocation are skipped — their cached outcome is replayed instead of re-running the validator. Particularly valuable for forms with slow async validators (network round-trips, regex-heavy schemas): submit-time validation doesn't pay the cost of re-running mounts whose inputs the per-keystroke runs already proved fresh.
+`Container.run` (and every other run variant) accepts an optional `cache: ResultCache`. When supplied, validator mounts whose `(ctx.value, ctx.context, ctx.group)` snapshot matches a prior invocation are skipped: their cached outcome is replayed instead of re-running the validator. Particularly valuable for forms with slow async validators (network round-trips, regex-heavy schemas): submit-time validation doesn't pay the cost of re-running mounts whose inputs the per-keystroke runs already proved fresh.
 
 ```typescript
 import { Container, ResultCache, defineValidator } from 'validup';
@@ -599,16 +599,16 @@ const data = { email: 'peter@example.com' };
 
 await container.run(data, { cache });
 await container.run(data, { cache });
-// calls === 1 — the second invocation hits the cache
+// calls === 1: the second invocation hits the cache
 ```
 
-**Opt out per validator** with `sideEffect: true` (via `defineValidator` or an adapter's `{ sideEffect: true }` option) for cross-field validators, network calls, or anything else whose result depends on inputs the snapshot doesn't capture. The cache is caller-owned — `Container` never holds a reference, so the lifecycle (per-request / per-form / persistent) is entirely up to you. Implement `IResultCache` directly for LRU eviction, TTL, etc.
+**Opt out per validator** with `sideEffect: true` (via `defineValidator` or an adapter's `{ sideEffect: true }` option) for cross-field validators, network calls, or anything else whose result depends on inputs the snapshot doesn't capture. The cache is caller-owned: `Container` never holds a reference, so the lifecycle (per-request / per-form / persistent) is entirely up to you. Implement `IResultCache` directly for LRU eviction, TTL, etc.
 
 See [the Caching guide](https://validup.tada5hi.net/guide/caching) for the full snapshot semantics and lifecycle patterns.
 
 ## Run Modes
 
-Four methods — `container.run` / `container.runSync` / `container.safeRun` / `container.safeRunSync` — plus a `parallel` flag on the async ones cover three orthogonal axes: **sync vs async**, **throw vs no-throw `Result`**, and **sequential vs parallel** (async only):
+Four methods (`container.run` / `container.runSync` / `container.safeRun` / `container.safeRunSync`) plus a `parallel` flag on the async ones cover three orthogonal axes: **sync vs async**, **throw vs no-throw `Result`**, and **sequential vs parallel** (async only):
 
 | Need                                              | Call                                          | Returns               |
 |---------------------------------------------------|-----------------------------------------------|-----------------------|
@@ -619,7 +619,7 @@ Four methods — `container.run` / `container.runSync` / `container.safeRun` / `
 | Sync, throws on validation failure                | `container.runSync(input, opts)`              | `T`                   |
 | Sync, no-throw `Result`                           | `container.safeRunSync(input, opts)`          | `Result<T>`           |
 
-`sync + parallel` is intentionally not a combination — `Promise.allSettled` is async by definition, and sync graphs don't benefit from concurrency.
+`sync + parallel` is intentionally not a combination: `Promise.allSettled` is async by definition, and sync graphs don't benefit from concurrency.
 
 **When `safe*` still throws:** the abort reason from `options.signal`, and the structural `RunSyncViolationError` from `safeRunSync` when a validator returns a Promise or a nested container doesn't implement `runSync`. Both bypass the issue-folding path so callers can distinguish them from validation outcomes.
 
@@ -633,13 +633,13 @@ By default mounts run sequentially in registration order. For containers whose m
 await container.run(input, { parallel: true });
 ```
 
-All mounts kick off concurrently and the results merge in registration order — `issues[]` ordering is unchanged. The flag is forwarded into nested containers so the whole tree runs concurrently.
+All mounts kick off concurrently and the results merge in registration order: `issues[]` ordering is unchanged. The flag is forwarded into nested containers so the whole tree runs concurrently.
 
 **Trade-off**: in parallel mode each mount captures its `value` from the input `data` *before* any sibling mount runs, so a later mount can no longer read an earlier mount's transformed `output[key]`. Stick with sequential mode (the default) for chained-key sanitize-then-validate patterns.
 
 ### Safe Run
 
-`safeRun()` returns a discriminated `Result<T>` instead of throwing — handy when you want to deal with errors without `try/catch`:
+`safeRun()` returns a discriminated `Result<T>` instead of throwing, handy when you want to deal with errors without `try/catch`:
 
 ```typescript
 const result = await container.safeRun(input);
@@ -659,13 +659,13 @@ When every mounted validator (and every nested container's `runSync`) is synchro
 const out = container.runSync(input);  // returns T directly, not Promise<T>
 ```
 
-`runSync()` throws synchronously if a validator returns a Promise or if a nested container does not implement `runSync` — those are *structural* failures (not validation outcomes), so they're surfaced verbatim and never wrapped into `Result.failure` by `safeRunSync`. Use the async `run()` for any graph that mixes sync and async validators.
+`runSync()` throws synchronously if a validator returns a Promise or if a nested container does not implement `runSync`: those are *structural* failures (not validation outcomes), so they're surfaced verbatim and never wrapped into `Result.failure` by `safeRunSync`. Use the async `run()` for any graph that mixes sync and async validators.
 
-`run()` and `runSync()` are **not two implementations**. Both drive one shared mount-resolution body, so every mount option (groups, `optional` / `optionalValue` / `optionalAs`, path filters, `defaults`, `pathsStrict`, `cache`) resolves identically in both — a sync run can't silently drift from its async twin. The only differences are the two structural probes above.
+`run()` and `runSync()` are **not two implementations**. Both drive one shared mount-resolution body, so every mount option (groups, `optional` / `optionalValue` / `optionalAs`, path filters, `defaults`, `pathsStrict`, `cache`) resolves identically in both: a sync run can't silently drift from its async twin. The only differences are the two structural probes above.
 
 ## Localized Messages
 
-`Issue.message` is rendered eagerly in English at construction time. For i18n / custom locales, every issue also carries a structured `data?: Record<string, unknown>` field (populated by the runtime where the message references a non-trivial value — e.g. `{ name: 'email' }` on the wrapping group at a failing mount). Pair it with `formatIssue` and a `code → template` map to render at the consumer side:
+`Issue.message` is rendered eagerly in English at construction time. For i18n / custom locales, every issue also carries a structured `data?: Record<string, unknown>` field (populated by the runtime where the message references a non-trivial value, e.g. `{ name: 'email' }` on the wrapping group at a failing mount). Pair it with `formatIssue` and a `code → template` map to render at the consumer side:
 
 ```typescript
 import { formatIssue, type IssueMessageTemplates } from '@ebec/core';
@@ -682,7 +682,7 @@ for (const issue of error.issues) {
 
 `formatIssue(issue, templates?, fallback?)`:
 
-1. If `templates[issue.code]` exists, returns `interpolate(template, issue.data)` (placeholders use the `{name}` syntax — single braces).
+1. If `templates[issue.code]` exists, returns `interpolate(template, issue.data)` (placeholders use the `{name}` syntax, i.e. single braces).
 2. Otherwise returns `issue.message`.
 3. Otherwise returns `fallback`.
 
@@ -707,9 +707,9 @@ class ValidupError extends BaseError {
 
 `ValidupError` extends [`@ebec/core`](https://github.com/tada5hi/ebec)'s `BaseError`, so it ships with a `code`, an optional `cause`, and a `toJSON()` for clean transport across HTTP/JSON boundaries. The `message` is auto-built from the failing paths (`Property foo is invalid`, `Properties foo, bar are invalid`).
 
-Subclass `ValidupError` (or `BaseError` directly) when you need a domain-specific code — ebec derives it from the class name automatically.
+Subclass `ValidupError` (or `BaseError` directly) when you need a domain-specific code; ebec derives it from the class name automatically.
 
-Use `isValidupError(err)` to check across package boundaries. It matches `instanceof ValidupError`, then the error's `@instanceof` marker chain — which also covers a duplicate copy of `validup` in the dependency tree and a `ValidupError` rehydrated from `toJSON()` output — and only falls back to duck-typing when neither matches: a non-empty `issues` array whose members all look like `Issue`s, or an empty one on an error whose `code` is `'VALIDUP_ERROR'` (covers a zero-issue `ValidupError` from before the marker existed, e.g. validup <= 2.0.0). A bare empty `issues` array with no `VALIDUP_ERROR` code is not sufficient: every `@ebec/core` `BaseError` (and therefore every `@ebec/http` error) carries an `issues` array by default.
+Use `isValidupError(err)` to check across package boundaries. It matches `instanceof ValidupError`, then the error's `@instanceof` marker chain (which also covers a duplicate copy of `validup` in the dependency tree and a `ValidupError` rehydrated from `toJSON()` output), and only falls back to duck-typing when neither matches: a non-empty `issues` array whose members all look like `Issue`s, or an empty one on an error whose `code` is `'VALIDUP_ERROR'` (covers a zero-issue `ValidupError` from before the marker existed, e.g. validup <= 2.0.0). A bare empty `issues` array with no `VALIDUP_ERROR` code is not sufficient: every `@ebec/core` `BaseError` (and therefore every `@ebec/http` error) carries an `issues` array by default.
 
 ```typescript
 import { isValidupError } from 'validup';
@@ -742,7 +742,7 @@ interface IssueGroup {
 }
 ```
 
-Use the factories — they set `type` correctly and apply default codes:
+Use the factories; they set `type` correctly and apply default codes:
 
 ```typescript
 import { defineIssueItem, defineIssueGroup, IssueCode } from '@ebec/core';
@@ -763,38 +763,38 @@ const group = defineIssueGroup({
 
 ### Issue Codes
 
-validup ships a vocabulary of well-known issue codes that adapter packages (`@validup/zod`, `@validup/validator-js`, …) map onto and that i18n catalogs (`@ilingo/validup`) translate from. The vocabulary tracks the common ground across vuelidate, zod, joi, and yup — enough that a translation catalog can ship one localized string per code instead of a generic "invalid value" fallback.
+validup ships a vocabulary of well-known issue codes that adapter packages (`@validup/zod`, `@validup/validator-js`, …) map onto and that i18n catalogs (`@ilingo/validup`) translate from. The vocabulary tracks the common ground across vuelidate, zod, joi, and yup: enough that a translation catalog can ship one localized string per code instead of a generic "invalid value" fallback.
 
 | Theme | Code | When | `data` |
 |-------|------|------|----------|
-| **Generic / structural** | `VALUE_INVALID` | Default for any `defineIssueItem(...)` without a code | — |
-|                          | `ONE_OF_FAILED` | All branches of a `oneOf` container failed (the wrapping group; per-branch sub-groups carry `{ branch, name }`) | — |
-| **Presence**             | `REQUIRED` | Value is missing, `undefined`, `null`, or empty | — |
-| **Type assertions**      | `ALPHA` | Value contains characters outside the alphabetical set | — |
-|                          | `ALPHA_NUM` | Value contains characters outside the alphanumeric set | — |
-|                          | `NUMERIC` | Value is not a number | — |
-|                          | `INTEGER` | Value is not an integer | — |
-|                          | `DECIMAL` | Value is not a decimal number | — |
+| **Generic / structural** | `VALUE_INVALID` | Default for any `defineIssueItem(...)` without a code | - |
+|                          | `ONE_OF_FAILED` | All branches of a `oneOf` container failed (the wrapping group; per-branch sub-groups carry `{ branch, name }`) | - |
+| **Presence**             | `REQUIRED` | Value is missing, `undefined`, `null`, or empty | - |
+| **Type assertions**      | `ALPHA` | Value contains characters outside the alphabetical set | - |
+|                          | `ALPHA_NUM` | Value contains characters outside the alphanumeric set | - |
+|                          | `NUMERIC` | Value is not a number | - |
+|                          | `INTEGER` | Value is not an integer | - |
+|                          | `DECIMAL` | Value is not a decimal number | - |
 | **Length** (strings, arrays) | `MIN_LENGTH` | Value is shorter than the configured minimum | `{ min: number }` |
 |                              | `MAX_LENGTH` | Value is longer than the configured maximum | `{ max: number }` |
 | **Numeric range**        | `MIN_VALUE` | Numeric value is below the configured minimum | `{ min: number }` |
 |                          | `MAX_VALUE` | Numeric value is above the configured maximum | `{ max: number }` |
 |                          | `BETWEEN` | Numeric value falls outside `[min, max]` | `{ min: number, max: number }` |
-| **String format**        | `EMAIL` | Value is not a valid email address | — |
-|                          | `URL` | Value is not a valid URL | — |
-|                          | `IP_ADDRESS` | Value is not a valid IP address | — |
-|                          | `MAC_ADDRESS` | Value is not a valid MAC address | — |
-|                          | `UUID` | Value is not a valid UUID | — |
-|                          | `DATE` | Value is not a valid / parseable date | — |
+| **String format**        | `EMAIL` | Value is not a valid email address | - |
+|                          | `URL` | Value is not a valid URL | - |
+|                          | `IP_ADDRESS` | Value is not a valid IP address | - |
+|                          | `MAC_ADDRESS` | Value is not a valid MAC address | - |
+|                          | `UUID` | Value is not a valid UUID | - |
+|                          | `DATE` | Value is not a valid / parseable date | - |
 |                          | `PATTERN` | Value does not match the expected regex | `{ pattern: string }` |
-|                          | `JSON` | Value is not valid JSON | — |
-|                          | `BASE64` | Value is not valid base64 | — |
+|                          | `JSON` | Value is not valid JSON | - |
+|                          | `BASE64` | Value is not valid base64 | - |
 |                          | `STRONG_PASSWORD` | Value doesn't meet the configured strength rules | `{ minLength?, minLowercase?, minUppercase?, minNumbers?, minSymbols? }` |
 | **Comparison**           | `SAME_AS` | Value must equal another named field's value (e.g. password-confirm) | `{ other: string }` |
 
-Adapters are responsible for mapping foreign codes onto the vocabulary — e.g. `@validup/zod`'s adapter translates zod's `too_small` (string variant) onto `IssueCode.MIN_LENGTH`. When a foreign code has no direct match, the adapter falls back to `IssueCode.VALUE_INVALID` and the consumer-side template uses the eagerly-rendered English `issue.message`.
+Adapters are responsible for mapping foreign codes onto the vocabulary, e.g. `@validup/zod`'s adapter translates zod's `too_small` (string variant) onto `IssueCode.MIN_LENGTH`. When a foreign code has no direct match, the adapter falls back to `IssueCode.VALUE_INVALID` and the consumer-side template uses the eagerly-rendered English `issue.message`.
 
-The `IssueCode` const exposes the runtime values; the matching `IssueCode` *type* (a derived `typeof IssueCode[keyof typeof IssueCode]`) gives autocomplete on `IssueItem.code`. For project-specific codes — `'email_taken'`, `'rate_limited'` — `IssueItem.code` is widened to `IssueCode | (string & {})` so the literal string is accepted without ceremony:
+The `IssueCode` const exposes the runtime values; the matching `IssueCode` *type* (a derived `typeof IssueCode[keyof typeof IssueCode]`) gives autocomplete on `IssueItem.code`. For project-specific codes (`'email_taken'`, `'rate_limited'`), `IssueItem.code` is widened to `IssueCode | (string & {})` so the literal string is accepted without ceremony:
 
 ```typescript
 defineIssueItem({ code: 'email_taken', path: ['email'], message: '…' });
@@ -837,7 +837,7 @@ class Container<
     run(input?: Partial<T>, options?: ContainerRunOptions<T, C>): Promise<T>;
     safeRun(input?: Partial<T>, options?: ContainerRunOptions<T, C>): Promise<Result<T>>;
 
-    // Sync variants — throw if any validator returns a Promise.
+    // Sync variants: throw if any validator returns a Promise.
     runSync(input?: Partial<T>, options?: ContainerRunOptions<T, C>): T;
     safeRunSync(input?: Partial<T>, options?: ContainerRunOptions<T, C>): Result<T>;
 }
@@ -851,7 +851,7 @@ class Container<
 | `pathsStrict`             | `ContainerOptions`, `ContainerRunOptions` | Throw `PathsStrictViolationError` when an include/exclude path matches no mount |
 | `defaults`                | `ContainerRunOptions`  | Fallback values for missing/`undefined` keys                      |
 | `context`                 | `ContainerRunOptions`  | Caller-supplied value surfaced on `ValidatorContext.context`      |
-| `signal`                  | `ContainerRunOptions`  | `AbortSignal` — checked between mounts and forwarded to `ctx.signal` |
+| `signal`                  | `ContainerRunOptions`  | `AbortSignal`, checked between mounts and forwarded to `ctx.signal` |
 | `parallel`                | `ContainerRunOptions`  | Run mounts concurrently (forwarded into nested containers)        |
 | `group`                   | `ContainerRunOptions`  | Active group (only matching mounts run; `'*'` runs everything)    |
 | `flat`                    | `ContainerRunOptions`  | When `true`, the output is a dotted-key map instead of nested     |
@@ -876,7 +876,7 @@ See [Builder API](#builder-api-compile-time-typing). Each `.mount(...)` call ret
 |-----------------------|------------------------------------------------------|
 | `defineIssueItem`     | Construct an `IssueItem` (sets `type`, default code) |
 | `defineIssueGroup`    | Construct an `IssueGroup` (sets `type`)              |
-| `prefixIssuePath`     | Rebase an issue onto a parent path, recursing into groups. Call it when merging issues from a sub-structure into a larger tree — it is what keeps every node's `path` absolute |
+| `prefixIssuePath`     | Rebase an issue onto a parent path, recursing into groups. Call it when merging issues from a sub-structure into a larger tree; it is what keeps every node's `path` absolute |
 | `createValidupError`  | Build a `ValidupError` carrying one `IssueItem` (sugar for the most common single-issue failure shape). Caller throws. |
 | `IssueCode`           | Vocabulary of well-known issue codes (`VALUE_INVALID`, `REQUIRED`, `MIN_LENGTH`, …; full table above) |
 | `GroupKey`            | `WILDCARD = '*'`                                     |
@@ -899,10 +899,10 @@ function composeOneOf<C = unknown>(
 ): Validator<C>;
 ```
 
-Build a single `Validator` from many. Each element can be a bare `Validator<C>` function OR a fully-built `IContainer<T, C>` instance — the dispatcher picks the right call shape (containers receive the threaded value as their input, validators receive `ctx`). The strategy is picked via `options.oneOf`:
+Build a single `Validator` from many. Each element can be a bare `Validator<C>` function OR a fully-built `IContainer<T, C>` instance; the dispatcher picks the right call shape (containers receive the threaded value as their input, validators receive `ctx`). The strategy is picked via `options.oneOf`:
 
-- **`oneOf: false`** (default) — every element must pass. Stages thread their return value into the next so sanitize-then-validate patterns work; `options.bail` controls fail-fast (`true`, default) vs. collect-all (`false`).
-- **`oneOf: true`** — branches run as alternatives in registration order; the first one to succeed wins, subsequent branches are not invoked, and the composed validator returns the winning branch's value. When every branch fails, the composed validator throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures (each tagged with `data: { branch }`). `bail` is rejected at the type level under this mode — there's no chain to fail-fast over.
+- **`oneOf: false`** (default): every element must pass. Stages thread their return value into the next so sanitize-then-validate patterns work; `options.bail` controls fail-fast (`true`, default) vs. collect-all (`false`).
+- **`oneOf: true`**: branches run as alternatives in registration order; the first one to succeed wins, subsequent branches are not invoked, and the composed validator returns the winning branch's value. When every branch fails, the composed validator throws a `ValidupError` whose first issue is an `IssueGroup` with `code: IssueCode.ONE_OF_FAILED` carrying every branch's failures (each tagged with `data: { branch }`). `bail` is rejected at the type level under this mode: there's no chain to fail-fast over.
 
 `composeOneOf([...])` is sugar for `compose([...], { oneOf: true })`.
 
@@ -920,7 +920,7 @@ container.mount('password', compose([
 // accept either an email or a phone number on the same field
 container.mount('contact', composeOneOf([isEmail(), isMobilePhone()]));
 
-// any-of with a container branch — accept a string-formatted contact
+// any-of with a container branch: accept a string-formatted contact
 // OR a nested address object validated by its own container.
 container.mount('contact', composeOneOf([
     isEmail(),
@@ -930,7 +930,7 @@ container.mount('contact', composeOneOf([
 ```
 
 Threading notes:
-- A stage that returns `undefined` is treated as a pass-through — the upstream value continues down the chain. Validators that DO want to explicitly clear the field must throw or return a sentinel.
+- A stage that returns `undefined` is treated as a pass-through: the upstream value continues down the chain. Validators that DO want to explicitly clear the field must throw or return a sentinel.
 - Container elements receive `ctx.value` as their `input` (normalised to `{}` for non-object values, matching how a nested container mounted directly handles a non-object mount value). Their `path` / `group` / `context` / `signal` flow from the threaded `ctx`, so issues from a container branch carry absolute paths from the outer mount (`composeOneOf` mounted at `foo` with a child schema's `street` field surfaces issues at `['foo', 'street']`).
 
 ### Type Guards
@@ -950,32 +950,32 @@ Use one of the official integration packages to bridge an existing validator lib
 
 | Package                                                                              | Connects                                                                       |
 |--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
-| [`@validup/standard-schema`](https://npmjs.com/package/@validup/standard-schema)     | Any [Standard Schema](https://standardschema.dev) library — zod 3.24+, valibot, arktype, effect-schema, … |
+| [`@validup/standard-schema`](https://npmjs.com/package/@validup/standard-schema)     | Any [Standard Schema](https://standardschema.dev) library: zod 3.24+, valibot, arktype, effect-schema, … |
 | [`@validup/zod`](https://npmjs.com/package/@validup/zod)                             | [zod](https://zod.dev) schemas (vendor-specific issue mapping with `expected` / `received`) |
-| [`@validup/validator-js`](https://npmjs.com/package/@validup/validator-js)           | [validator.js](https://github.com/validatorjs/validator.js) string validators — pre-baked factories per common rule, plus a generic `createValidator(fn, {...})` for the long tail |
+| [`@validup/validator-js`](https://npmjs.com/package/@validup/validator-js)           | [validator.js](https://github.com/validatorjs/validator.js) string validators: pre-baked factories per common rule, plus a generic `createValidator(fn, {...})` for the long tail |
 | [`@validup/vue`](https://npmjs.com/package/@validup/vue)                             | [Vue 3](https://vuejs.org) composable for reactive client-side form state      |
 
 ## Stability
 
 What's covered by semver:
 
-- **Public exports** — everything re-exported from `validup`'s entry barrel (`Container`, `defineSchema`, `ValidupError`, `isValidupError`, `createValidupError`, `GroupKey`, `OptionalValue`, and the rest of `src/index.ts`). As of v2.0.0, the issue model itself (`Issue` / factories / guards, `IssueCode`, `formatIssue`, `flattenIssue*`, `prefixIssuePath`) is **not** part of this list — it is owned and versioned by [`@ebec/core`](https://github.com/tada5hi/ebec), not re-exported from `validup`.
-- **`Container` runtime contract** — `run` / `runSync` / `runParallel` (via `parallel: true`) / `safeRun` / `safeRunSync`, including their throw-contracts as documented on `IContainer` (`safeRun` throws only on abort).
-- **`Issue` and `ValidupError` shape** — the discriminated union (`type: 'item' | 'group'`), `data`, `meta`, `code` widening to `IssueCode | (string & {})`.
-- **Mount API** — variadic `mount(...)` argument forms listed in [Mounting](#mounting).
-- **`oneOf` aggregation shape** — `IssueCode.ONE_OF_FAILED` group wrapping per-branch sub-groups (see [oneOf Branches](#oneof-branches)).
+- **Public exports**: everything re-exported from `validup`'s entry barrel (`Container`, `defineSchema`, `ValidupError`, `isValidupError`, `createValidupError`, `GroupKey`, `OptionalValue`, and the rest of `src/index.ts`). As of v2.0.0, the issue model itself (`Issue` / factories / guards, `IssueCode`, `formatIssue`, `flattenIssue*`, `prefixIssuePath`) is **not** part of this list; it is owned and versioned by [`@ebec/core`](https://github.com/tada5hi/ebec), not re-exported from `validup`.
+- **`Container` runtime contract**: `run` / `runSync` / `runParallel` (via `parallel: true`) / `safeRun` / `safeRunSync`, including their throw-contracts as documented on `IContainer` (`safeRun` throws only on abort).
+- **`Issue` and `ValidupError` shape**: the discriminated union (`type: 'item' | 'group'`), `data`, `meta`, `code` widening to `IssueCode | (string & {})`.
+- **Mount API**: variadic `mount(...)` argument forms listed in [Mounting](#mounting).
+- **`oneOf` aggregation shape**: `IssueCode.ONE_OF_FAILED` group wrapping per-branch sub-groups (see [oneOf Branches](#oneof-branches)).
 
 Extension points:
 
-- **`IssueCode` widening** — `IssueItem.code` accepts any `string & {}` so consumers can use project-specific codes without ceremony. Define your own const that spreads `IssueCode` for typed autocomplete on your codes (see [Issue Codes](#issue-codes)).
-- **`Validator<C, Out>`** — `C` (context) and `Out` (return type) generics participate in builder inference; defaults stay `unknown`.
-- **`IContainer`** — opt-in interface; integration packages can implement it to be mountable as a nested container.
-- **`isContainer` / `isValidupError`** — duck-typed guards that tolerate package duplicates and cross-realm throws. Prefer these over `instanceof` at boundaries.
+- **`IssueCode` widening**: `IssueItem.code` accepts any `string & {}` so consumers can use project-specific codes without ceremony. Define your own const that spreads `IssueCode` for typed autocomplete on your codes (see [Issue Codes](#issue-codes)).
+- **`Validator<C, Out>`**: `C` (context) and `Out` (return type) generics participate in builder inference; defaults stay `unknown`.
+- **`IContainer`**: opt-in interface; integration packages can implement it to be mountable as a nested container.
+- **`isContainer` / `isValidupError`**: duck-typed guards that tolerate package duplicates and cross-realm throws. Prefer these over `instanceof` at boundaries.
 
 Internal (no semver guarantee):
 
 - Anything not re-exported from `src/index.ts`, including private helpers (`recordMountError`, `finalizeOutput`, etc.) and the `RunSyncViolationError` class.
-- Default English `Issue.message` strings — re-render via `formatIssue` and a `code → template` map if you depend on specific wording.
+- Default English `Issue.message` strings: re-render via `formatIssue` and a `code → template` map if you depend on specific wording.
 
 Deprecation policy: a removal lands in at least one minor release as a deprecation (JSDoc `@deprecated` + console warning where feasible) before the next major drops it.
 

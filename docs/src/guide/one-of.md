@@ -4,7 +4,7 @@ Set `oneOf: true` on a container to flip its semantics: succeed if **any** mount
 
 ## When to use it
 
-- "Sign in with email **or** phone" — accept either credential shape.
+- "Sign in with email **or** phone": accept either credential shape.
 - "Address can be a string **or** a structured object."
 - Any branch validation where multiple shapes are allowed.
 
@@ -23,10 +23,10 @@ const credentials = new Container<{ email?: string; phone?: string }>({
 credentials.mount('email', isEmail);
 credentials.mount('phone', isPhone);
 
-// Succeeds — phone passes
+// Succeeds: phone passes
 await credentials.run({ phone: '+49-30-1234567' });
 
-// Throws — both fail, wrapped in a single ONE_OF_FAILED group
+// Throws: both fail, wrapped in a single ONE_OF_FAILED group
 await credentials.run({ email: 'not-an-email' });
 ```
 

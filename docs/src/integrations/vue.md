@@ -1,6 +1,6 @@
 # @validup/vue
 
-A Vue 3 composable — `useValidup(container, state, options?)` — that turns any validup `Container` into a [vuelidate](https://vuelidate-next.netlify.app/)-shaped reactive form state object.
+A Vue 3 composable, `useValidup(container, state, options?)`, that turns any validup `Container` into a [vuelidate](https://vuelidate-next.netlify.app/)-shaped reactive form state object.
 
 ```bash
 npm install @validup/vue validup vue --save
@@ -46,8 +46,8 @@ async function submit() {
 </template>
 ```
 
-::: warning Vue 3.5+ SSR gotcha — don't name the setup return `$v`
-Vue 3.5's [`PublicInstanceProxyHandlers.get`](https://github.com/vuejs/core/blob/main/packages/runtime-core/src/componentPublicInstance.ts) treats every template identifier starting with `$` as a Vue built-in lookup, skipping the `setupState` resolution chain. `$v` is not in Vue's allowlist (`$attrs`, `$emit`, `$props`, `$refs`, …), so a template that reads `$v.fields.X` resolves `$v` to `undefined` and crashes at first SSR render with `Cannot read properties of undefined`. `vue-tsc` does not flag this. Use `v`, `validation`, or any non-`$`-prefixed name — inner `$`-prefixed properties (`v.$invalid`, `v.fields.name.$model`) are fine. See [#396](https://github.com/tada5hi/validup/issues/396).
+::: warning Vue 3.5+ SSR gotcha: don't name the setup return `$v`
+Vue 3.5's [`PublicInstanceProxyHandlers.get`](https://github.com/vuejs/core/blob/main/packages/runtime-core/src/componentPublicInstance.ts) treats every template identifier starting with `$` as a Vue built-in lookup, skipping the `setupState` resolution chain. `$v` is not in Vue's allowlist (`$attrs`, `$emit`, `$props`, `$refs`, …), so a template that reads `$v.fields.X` resolves `$v` to `undefined` and crashes at first SSR render with `Cannot read properties of undefined`. `vue-tsc` does not flag this. Use `v`, `validation`, or any non-`$`-prefixed name; inner `$`-prefixed properties (`v.$invalid`, `v.fields.name.$model`) are fine. See [#396](https://github.com/tada5hi/validup/issues/396).
 :::
 
 ## Public shape
@@ -73,7 +73,7 @@ type Composable<T> = {
 
 // Declared keys of `T` map to `FieldState<T[K]>` and are never
 // `| undefined`. If `T` carries an index signature, the keys only it
-// admits are typed `any` — see "Per-field state" below.
+// admits are typed `any`; see "Per-field state" below.
 type FieldsAccessor<T> = {
     [K in keyof T]-?: FieldState<T[K]>;
 } & {
@@ -92,16 +92,16 @@ type FieldState<V> = {
 };
 ```
 
-`v.fields.<key>` returns a `FieldState<T[K]>` for top-level entity keys — strict-mode TypeScript clean (no `| undefined` from an index-signature fallback), so templates don't need a non-null assertion on every reference. For dotted (`'user.email'`), bracketed (`'tags[0]'`), or runtime-computed paths, use `v.fields.at(path)`:
+`v.fields.<key>` returns a `FieldState<T[K]>` for top-level entity keys; it is strict-mode TypeScript clean (no `| undefined` from an index-signature fallback), so templates don't need a non-null assertion on every reference. For dotted (`'user.email'`), bracketed (`'tags[0]'`), or runtime-computed paths, use `v.fields.at(path)`:
 
 ```typescript
 v.fields.at('user.email').$model.value = 'peter@example.com';
 v.fields.at('tags[0]').$model.value = 'urgent';
 ```
 
-A field literally named `at` is shadowed by the dynamic accessor — reach it via `v.fields.at('at')` if needed.
+A field literally named `at` is shadowed by the dynamic accessor; reach it via `v.fields.at('at')` if needed.
 
-Declared keys keep their type even when the entity carries an index signature — a common shape for entities that let extra attributes ride along:
+Declared keys keep their type even when the entity carries an index signature, a common shape for entities that let extra attributes ride along:
 
 ```typescript
 interface User {
@@ -112,7 +112,7 @@ interface User {
 
 v.fields.name;   // FieldState<string>
 v.fields.email;  // FieldState<string>
-v.fields.extra;  // any — reachable, but untyped
+v.fields.extra;  // any: reachable, but untyped
 ```
 
 Keys that only the index signature admits resolve to `any` rather than `FieldState<any>`. An entity **without** an index signature still rejects unknown keys outright, so typos stay a compile error wherever the entity type can catch them.
@@ -124,10 +124,10 @@ The `state` argument is typed as `Partial<T>`, so a form that only carries a sub
 ```typescript
 type ComposableOptions<T, C> = {
     group?: MaybeRef<string>;
-    debounce?: number;            // ms — schedule next run after debounce idle
+    debounce?: number;            // ms: schedule next run after debounce idle
     name?: string;                // register with parent composable under this name
-    stopPropagation?: boolean;    // skip inject() — stay invisible to ancestors
-    detached?: boolean;           // skip BOTH inject() and provide() — fully invisible
+    stopPropagation?: boolean;    // skip inject(): stay invisible to ancestors
+    detached?: boolean;           // skip BOTH inject() and provide(): fully invisible
     lazy?: boolean;               // skip the on-mount probe; first $model write triggers validation
     autoDirty?: boolean;          // mark every state key dirty whenever state changes
     scope?: string;               // scoped parent/child injection key
@@ -145,38 +145,38 @@ type ComposableOptions<T, C> = {
 
 `useValidup` owns a [`ResultCache`](/guide/caching) per composable scope and passes it on every `safeRun` call. The practical effect:
 
-- **Per-keystroke runs** only invoke mounts whose `(value, context, group)` snapshot changed. A user editing the `name` field doesn't re-run `email`, `password`, etc. — their cached outcomes replay.
+- **Per-keystroke runs** only invoke mounts whose `(value, context, group)` snapshot changed. A user editing the `name` field doesn't re-run `email`, `password`, etc.; their cached outcomes replay.
 - **Submit (`$validate()`)** reuses everything the scheduled runs already proved fresh, so async validators (uniqueness checks, captcha verifies) don't fire again unless their inputs actually changed.
 
 The cache is cleared automatically when:
 
-- `$reset()` is called — the form returns to a clean state, so the next run hits every validator fresh.
-- The container reference swaps (e.g. you `ref()` a container that gets reassigned) — old mount identities become unreachable; the new container starts cold.
+- `$reset()` is called: the form returns to a clean state, so the next run hits every validator fresh.
+- The container reference swaps (e.g. you `ref()` a container that gets reassigned): old mount identities become unreachable; the new container starts cold.
 
 Cross-field validators must declare themselves with `sideEffect: true` (via `defineValidator` or the adapter's `{ sideEffect: true }` option) so they re-run when a sibling changes. `@validup/validator-js`'s `equals(key)` (no `expectedValue`) does this automatically; see [Caching](/guide/caching#opting-out-sideeffect) for the full contract.
 
 ## Nested forms
 
 ```typescript
-// ParentForm.vue — the aggregation root
+// ParentForm.vue: the aggregation root
 const parent = useValidup(parentContainer, parentState, { stopPropagation: true });
 
-// reactive — re-evaluates when the section registers/unregisters
+// reactive: re-evaluates when the section registers/unregisters
 const address = computed(() => parent.$getResultsForChild<AddressShape>('address'));
 ```
 
 ```typescript
-// AddressSection.vue — a child COMPONENT rendered by ParentForm.vue
+// AddressSection.vue: a child COMPONENT rendered by ParentForm.vue
 const child = useValidup(childContainer, childState, { name: 'address' });
 ```
 
 `$getResultsForChild(name)` returns the child composable (or `undefined`). Nested forms register/unregister via Vue's `provide` / `inject`; `stopPropagation` and `detached` opt out of the registration to keep composables invisible to ancestors and/or descendants.
 
 ::: warning Parent and child must live in different components
-Vue's `inject()` only resolves values provided by **ancestor components** — a component never sees its own `provide()`. Two `useValidup()` calls in the same `<script setup>` therefore never link; the child has to be a real child component of the one that owns the parent composable.
+Vue's `inject()` only resolves values provided by **ancestor components**; a component never sees its own `provide()`. Two `useValidup()` calls in the same `<script setup>` therefore never link; the child has to be a real child component of the one that owns the parent composable.
 :::
 
-The child registry is `shallowReactive`, so `$getResultsForChild` works **reactively** too: a template binding or `computed` over it re-evaluates when the child registers/unregisters, and tracking continues through the returned composable's refs (`$invalid`, `$dirty`, …) for live parent-side aggregation — not just submit-time reads.
+The child registry is `shallowReactive`, so `$getResultsForChild` works **reactively** too: a template binding or `computed` over it re-evaluates when the child registers/unregisters, and tracking continues through the returned composable's refs (`$invalid`, `$dirty`, …) for live parent-side aggregation, not just submit-time reads.
 
 ## External issues
 

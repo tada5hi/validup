@@ -2,9 +2,9 @@
 
 Pass an `AbortSignal` to `run()` (or any sibling) and validup will:
 
-1. **Pre-mount abort check** — `signal.throwIfAborted()` runs before each mount, so a cancelled run short-circuits cleanly without entering the per-mount try/catch.
-2. **Forward the signal to validators** — `ctx.signal` is set so async validators can pass it to `fetch` / DB clients.
-3. **Propagate the abort** — if a validator throws an abort error mid-flight, validup re-throws verbatim instead of folding it into the issue list.
+1. **Pre-mount abort check**: `signal.throwIfAborted()` runs before each mount, so a cancelled run short-circuits cleanly without entering the per-mount try/catch.
+2. **Forward the signal to validators**: `ctx.signal` is set so async validators can pass it to `fetch` / DB clients.
+3. **Propagate the abort**: if a validator throws an abort error mid-flight, validup re-throws verbatim instead of folding it into the issue list.
 
 ## Example
 
@@ -17,7 +17,7 @@ try {
     await container.run(input, { signal: controller.signal });
 } catch (e) {
     if (controller.signal.aborted) {
-        // run was cancelled — `e` is the abort reason, NOT a ValidupError
+        // run was cancelled; `e` is the abort reason, NOT a ValidupError
     }
 }
 ```
@@ -31,11 +31,11 @@ const fetchProfile: Validator = async ({ value, signal }) => {
 };
 ```
 
-Forwarding the signal is what makes cancellation actually save work — without it the validator runs to completion even after the controller fires.
+Forwarding the signal is what makes cancellation actually save work; without it the validator runs to completion even after the controller fires.
 
 ## `safeRun` and abort
 
-`safeRun()` does **not** wrap abort errors as a `Result.failure`. Doing so would produce a misleading "AbortError" issue at path `[]`. Aborts re-throw out of `safeRun`/`safeRunSync` — handle them with try/catch around the call.
+`safeRun()` does **not** wrap abort errors as a `Result.failure`. Doing so would produce a misleading "AbortError" issue at path `[]`. Aborts re-throw out of `safeRun`/`safeRunSync`; handle them with try/catch around the call.
 
 ```typescript
 try {

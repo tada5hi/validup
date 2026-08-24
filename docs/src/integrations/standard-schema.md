@@ -1,6 +1,6 @@
 # @validup/standard-schema
 
-A vendor-neutral validator adapter built on the [Standard Schema](https://standardschema.dev) protocol. Wrap **any** Standard-Schema-conformant library — zod 3.24+, valibot, arktype, effect-schema — as a validup `Validator`.
+A vendor-neutral validator adapter built on the [Standard Schema](https://standardschema.dev) protocol. Wrap **any** Standard-Schema-conformant library (zod 3.24+, valibot, arktype, effect-schema) as a validup `Validator`.
 
 ```bash
 npm install @validup/standard-schema validup --save
@@ -24,7 +24,7 @@ The adapter calls `schema['~standard'].validate(ctx.value)` and returns a validu
 
 ## Result caching (`sideEffect`)
 
-`createValidator` returns a cache-eligible descriptor by default — the [validup result cache](/guide/caching) will replay results when `(ctx.value, ctx.context, ctx.group)` is unchanged. Pass `{ sideEffect: true }` to bypass the cache for schemas that read external state:
+`createValidator` returns a cache-eligible descriptor by default: the [validup result cache](/guide/caching) will replay results when `(ctx.value, ctx.context, ctx.group)` is unchanged. Pass `{ sideEffect: true }` to bypass the cache for schemas that read external state:
 
 ```typescript
 container.mount('email', createValidator(asyncSchema, { sideEffect: true }));

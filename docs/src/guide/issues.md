@@ -2,10 +2,10 @@
 
 `Issue = IssueItem | IssueGroup` is the structured failure record validup produces. They're discriminated by `type`, recursive (groups can wrap groups), and carry a structured payload (`data`) so the message can be re-rendered later in another locale.
 
-Every node carries an **absolute** path — a leaf three groups deep still reads `['user', 'contact', 'email']`, never a path relative to its parent. That's what lets [`flattenIssueItems`](#helpers) produce a directly indexable list without walking the tree to reassemble prefixes.
+Every node carries an **absolute** path: a leaf three groups deep still reads `['user', 'contact', 'email']`, never a path relative to its parent. That's what lets [`flattenIssueItems`](#helpers) produce a directly indexable list without walking the tree to reassemble prefixes.
 
-::: tip The issue model is its own package — import it from `@ebec/core`
-`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` are defined in [**`@ebec/core`**](https://github.com/tada5hi/ebec) — a standalone package with zero dependencies and no `engines` floor.
+::: tip The issue model is its own package: import it from `@ebec/core`
+`Issue`, `IssueItem`, `IssueGroup`, `IssueCode`, `IssueDataByCode`, the `defineIssue*` factories, the `isIssue*` guards, `flattenIssue*`, `prefixIssuePath`, `formatIssue` and `interpolate` are defined in [**`@ebec/core`**](https://github.com/tada5hi/ebec), a standalone package with zero dependencies and no `engines` floor.
 
 They live outside validup so other libraries can share the shape without taking on validup's runtime, which means issue trees compose across libraries instead of needing a translation layer.
 
@@ -13,7 +13,7 @@ They live outside validup so other libraries can share the shape without taking 
 npm install @ebec/core --save
 ```
 
-`validup` used to re-export the whole model, so `import { IssueCode } from 'validup'` kept working — **that re-export was removed in validup v2.0.0**. Import from `@ebec/core` instead. The examples on this page do. Every `@validup/*` integration package already depends on `@ebec/core` directly.
+`validup` used to re-export the whole model, so `import { IssueCode } from 'validup'` kept working; **that re-export was removed in validup v2.0.0**. Import from `@ebec/core` instead. The examples on this page do. Every `@validup/*` integration package already depends on `@ebec/core` directly.
 :::
 
 ## `IssueItem`
@@ -21,7 +21,7 @@ npm install @ebec/core --save
 `IssueItem` is a discriminated union over three branches keyed on the vocabulary `code`. The `defineIssueItem` factory uses TypeScript overloads to enforce the right `data` shape per code at compile time:
 
 ```typescript
-// Parameterized — `data` required and typed
+// Parameterized: `data` required and typed
 type IssueItemTyped = {
     type: 'item';
     code: 'min_length';                  // (or another parameterized vocabulary code)
@@ -33,7 +33,7 @@ type IssueItemTyped = {
     meta?: Record<string, unknown>;
 };
 
-// Bare — `data` must be absent
+// Bare: `data` must be absent
 type IssueItemBare = {
     type: 'item';
     code: 'email';                       // (or another param-less vocabulary code)
@@ -43,7 +43,7 @@ type IssueItemBare = {
     /* …received / expected / meta… */
 };
 
-// Raw — ad-hoc string code, open `data`
+// Raw: ad-hoc string code, open `data`
 type IssueItemRaw = {
     type: 'item';
     code: string & {};                   // anything outside the vocabulary
@@ -54,7 +54,7 @@ type IssueItemRaw = {
 type IssueItem = IssueItemTyped | IssueItemBare | IssueItemRaw;
 ```
 
-Consumers usually don't write these out — narrow on `code` and TypeScript picks the right branch:
+Consumers usually don't write these out; narrow on `code` and TypeScript picks the right branch:
 
 ```typescript
 import { IssueCode, isIssueItem, flattenIssueItems } from '@ebec/core';
@@ -83,19 +83,19 @@ interface IssueGroup {
 
 ## Constructing issues
 
-Always use the factories — they set `type`, default the `code` to `VALUE_INVALID` when omitted, and gatekeep the `data` shape per code:
+Always use the factories; they set `type`, default the `code` to `VALUE_INVALID` when omitted, and gatekeep the `data` shape per code:
 
 ```typescript
 import { defineIssueItem, defineIssueGroup, IssueCode } from '@ebec/core';
 
-// Bare code — no data accepted (default fallback)
+// Bare code: no data accepted (default fallback)
 const fallback = defineIssueItem({
     path: ['email'],
     message: 'Invalid email address',
     received: 'not-an-email',
 });
 
-// Parameterized code — `data` required and typed
+// Parameterized code: `data` required and typed
 const tooShort = defineIssueItem({
     code: IssueCode.MIN_LENGTH,
     path: ['password'],
@@ -103,7 +103,7 @@ const tooShort = defineIssueItem({
     data: { min: 12 },                  // type-checked against IssueDataByCode
 });
 
-// Ad-hoc string code — open `data`
+// Ad-hoc string code: open `data`
 const taken = defineIssueItem({
     code: 'email_taken',
     path: ['email'],
@@ -118,11 +118,11 @@ const group = defineIssueGroup({
 });
 ```
 
-The same gatekeep applies to the `createValidupError` sugar — `createValidupError(value, IssueCode.MIN_LENGTH, msg)` is a compile error (missing `{ min }`); `createValidupError(value, IssueCode.EMAIL, msg, { … })` is a compile error (EMAIL is bare).
+The same gatekeep applies to the `createValidupError` sugar: `createValidupError(value, IssueCode.MIN_LENGTH, msg)` is a compile error (missing `{ min }`); `createValidupError(value, IssueCode.EMAIL, msg, { … })` is a compile error (EMAIL is bare).
 
 ## `meta` conventions
 
-`meta` is an open `Record<string, unknown>` because issues travel across package boundaries — integration adapters, frameworks, and apps each have provenance the core can't know about. To keep the bag focused, **library-owned `meta` keys are limited to provenance the consumer cannot reconstruct from `path` + container config.** Presentation tokens (e.g. severity) and reconstructible facts (e.g. the active `group`) don't qualify.
+`meta` is an open `Record<string, unknown>` because issues travel across package boundaries: integration adapters, frameworks, and apps each have provenance the core can't know about. To keep the bag focused, **library-owned `meta` keys are limited to provenance the consumer cannot reconstruct from `path` + container config.** Presentation tokens (e.g. severity) and reconstructible facts (e.g. the active `group`) don't qualify.
 
 Two keys are library-owned today:
 
@@ -131,7 +131,7 @@ Two keys are library-owned today:
 | `optional?: true` | Core runtime, when the originating mount's `optional` declaration resolves truthy for the current value. `optional: true` always tags; `optional: false` and `undefined` never do; `optional: (v) => boolean` is invoked with the value and tags iff truthy (in practice always false at error time, since the validator would have been skipped otherwise). | The mount permits this field being skipped. Useful for downgrading UX severity (e.g. show a warning instead of an error when an optional field's content is invalid). |
 | `external?: true` | Frameworks injecting server-side issues (e.g. `@validup/vue`'s `setExternalIssues`).        | Distinguishes server-supplied from validator-supplied so themes can render the distinction.        |
 
-### `meta.optional` — no inheritance
+### `meta.optional`: no inheritance
 
 `meta.optional` reflects only the **most-local** mount's config. Inside a child container mounted as optional, the child's own mounts retain their own `optional` status independently:
 
@@ -149,7 +149,7 @@ await user.run({ role: { name: 42 } });               // throws ValidupError
 
 The rationale: "role is optional" means *you don't have to provide a role*. Once you do, the role's own required fields stay required. The wrapping group at `['role']` carries the parent's optional flag; the leaf at `['role', 'name']` does not, because its own mount declared no optional config.
 
-Apps and third-party validators may add their own `meta` keys (e.g. `meta.componentId: 'role-name-input'`) — the open shape is intentional. Naming clashes are the responsibility of the producer.
+Apps and third-party validators may add their own `meta` keys (e.g. `meta.componentId: 'role-name-input'`); the open shape is intentional. Naming clashes are the responsibility of the producer.
 
 ## `ValidupError`
 
@@ -161,11 +161,11 @@ class ValidupError extends BaseError {
 }
 ```
 
-`ValidupError` extends `@ebec/core`'s `BaseError`. It carries a `code`, an optional `cause`, the collected `issues`, and a `toJSON()` overridden to include `issues`. The `.message` is auto-built from issue paths — useful as a default human-readable summary.
+`ValidupError` extends `@ebec/core`'s `BaseError`. It carries a `code`, an optional `cause`, the collected `issues`, and a `toJSON()` overridden to include `issues`. The `.message` is auto-built from issue paths, useful as a default human-readable summary.
 
 ## `isValidupError`
 
-Use the duck-type guard rather than `instanceof` — it works across realm boundaries (e.g. multiple bundled copies of the package, or thrown from a worker):
+Use the duck-type guard rather than `instanceof`; it works across realm boundaries (e.g. multiple bundled copies of the package, or thrown from a worker):
 
 ```typescript
 import { isValidupError } from 'validup';
@@ -181,7 +181,7 @@ try {
 }
 ```
 
-The guard returns `true` for `e instanceof ValidupError`, for an error carrying the `ValidupError` `@instanceof` marker (a duplicate `validup` copy, or an error rehydrated from `toJSON()`), and — as a last-resort fallback — for an error with a non-empty `issues` array of valid issues, or an empty `issues` array on an error whose `code` is `'VALIDUP_ERROR'` (covers a zero-issue `ValidupError` from before the marker existed). A bare empty `issues` array with no `VALIDUP_ERROR` code is not enough on its own, since every `@ebec/core` `BaseError` carries one by default.
+The guard returns `true` for `e instanceof ValidupError`, for an error carrying the `ValidupError` `@instanceof` marker (a duplicate `validup` copy, or an error rehydrated from `toJSON()`), and, as a last-resort fallback, for an error with a non-empty `issues` array of valid issues, or an empty `issues` array on an error whose `code` is `'VALIDUP_ERROR'` (covers a zero-issue `ValidupError` from before the marker existed). A bare empty `issues` array with no `VALIDUP_ERROR` code is not enough on its own, since every `@ebec/core` `BaseError` carries one by default.
 
 ## Helpers
 
@@ -210,7 +210,7 @@ import {
 | `buildErrorMessageForAttribute('email')` | `'Property "email" is invalid.'`                          |
 | `stringifyPath([...])`     | Render a `PropertyKey[]` as `'a.b[0].c'`                            |
 
-`prefixIssuePath` is the one you need when writing a validator that runs its own nested validation and merges the result. The children come back with paths relative to the sub-structure, and every node has to be rebased so the tree keeps its absolute-path invariant — including inside groups, which is why the function recurses:
+`prefixIssuePath` is the one you need when writing a validator that runs its own nested validation and merges the result. The children come back with paths relative to the sub-structure, and every node has to be rebased so the tree keeps its absolute-path invariant, including inside groups, which is why the function recurses:
 
 ```typescript
 // issues from validating `address` alone carry paths like ['street']
@@ -222,32 +222,32 @@ const rebased = childIssues.map((issue) => prefixIssuePath(issue, ['user', 'addr
 
 ## Issue code vocabulary
 
-validup ships a vocabulary of well-known issue codes that adapter packages (`@validup/zod`, `@validup/validator-js`) map onto and that i18n catalogs (`@ilingo/validup`) translate from. The vocabulary tracks the common ground across vuelidate, zod, joi, and yup — enough that a translation catalog can ship one localized string per code instead of a generic "invalid value" fallback.
+validup ships a vocabulary of well-known issue codes that adapter packages (`@validup/zod`, `@validup/validator-js`) map onto and that i18n catalogs (`@ilingo/validup`) translate from. The vocabulary tracks the common ground across vuelidate, zod, joi, and yup, enough that a translation catalog can ship one localized string per code instead of a generic "invalid value" fallback.
 
 | Theme | Code | When | `data` |
 |-------|------|------|----------|
-| **Generic / structural** | `VALUE_INVALID` | Default for any `defineIssueItem(...)` without a code | — |
-|                          | `ONE_OF_FAILED` | All branches of a `oneOf` container failed | — |
-| **Presence**             | `REQUIRED` | Value is missing, `undefined`, `null`, or empty | — |
-| **Type assertions**      | `ALPHA` | Value contains characters outside the alphabetical set | — |
-|                          | `ALPHA_NUM` | Value contains characters outside the alphanumeric set | — |
-|                          | `NUMERIC` | Value is not a number | — |
-|                          | `INTEGER` | Value is not an integer | — |
-|                          | `DECIMAL` | Value is not a decimal number | — |
+| **Generic / structural** | `VALUE_INVALID` | Default for any `defineIssueItem(...)` without a code | - |
+|                          | `ONE_OF_FAILED` | All branches of a `oneOf` container failed | - |
+| **Presence**             | `REQUIRED` | Value is missing, `undefined`, `null`, or empty | - |
+| **Type assertions**      | `ALPHA` | Value contains characters outside the alphabetical set | - |
+|                          | `ALPHA_NUM` | Value contains characters outside the alphanumeric set | - |
+|                          | `NUMERIC` | Value is not a number | - |
+|                          | `INTEGER` | Value is not an integer | - |
+|                          | `DECIMAL` | Value is not a decimal number | - |
 | **Length**               | `MIN_LENGTH` | Value is shorter than the configured minimum | `{ min: number }` |
 |                          | `MAX_LENGTH` | Value is longer than the configured maximum | `{ max: number }` |
 | **Numeric range**        | `MIN_VALUE` | Numeric value is below the configured minimum | `{ min: number }` |
 |                          | `MAX_VALUE` | Numeric value is above the configured maximum | `{ max: number }` |
 |                          | `BETWEEN` | Numeric value falls outside `[min, max]` | `{ min: number, max: number }` |
-| **String format**        | `EMAIL` | Value is not a valid email address | — |
-|                          | `URL` | Value is not a valid URL | — |
-|                          | `IP_ADDRESS` | Value is not a valid IP address | — |
-|                          | `MAC_ADDRESS` | Value is not a valid MAC address | — |
-|                          | `UUID` | Value is not a valid UUID | — |
-|                          | `DATE` | Value is not a valid / parseable date | — |
+| **String format**        | `EMAIL` | Value is not a valid email address | - |
+|                          | `URL` | Value is not a valid URL | - |
+|                          | `IP_ADDRESS` | Value is not a valid IP address | - |
+|                          | `MAC_ADDRESS` | Value is not a valid MAC address | - |
+|                          | `UUID` | Value is not a valid UUID | - |
+|                          | `DATE` | Value is not a valid / parseable date | - |
 |                          | `PATTERN` | Value does not match the expected regex | `{ pattern: string }` |
-|                          | `JSON` | Value is not valid JSON | — |
-|                          | `BASE64` | Value is not valid base64 | — |
+|                          | `JSON` | Value is not valid JSON | - |
+|                          | `BASE64` | Value is not valid base64 | - |
 |                          | `STRONG_PASSWORD` | Value doesn't meet the configured strength rules | `{ minLength?, minLowercase?, minUppercase?, minNumbers?, minSymbols? }` |
 | **Comparison**           | `SAME_AS` | Value must equal another named field's value (e.g. password-confirm) | `{ other: string }` |
 
@@ -286,7 +286,7 @@ throw new ValidupError([
 
 ### Typed `data` for custom codes
 
-`IssueDataByCode` is an `interface`, so consumers can augment it via TypeScript declaration merging — `defineIssueItem` / `createValidupError` then gatekeep the custom code the same way they do the built-ins:
+`IssueDataByCode` is an `interface`, so consumers can augment it via TypeScript declaration merging; `defineIssueItem` / `createValidupError` then gatekeep the custom code the same way they do the built-ins:
 
 ```typescript
 // Anywhere in your codebase (e.g. an ambient `app-types.d.ts`):
@@ -309,10 +309,10 @@ defineIssueItem({
     code: 'email_taken',
     path: ['email'],
     message: 'Already in use',
-    // @ts-expect-error — data required for a parameterized code
+    // @ts-expect-error: data required for a parameterized code
 });
 ```
 
-Augment only with codes you own — adding entries you don't control collides with future vocabulary expansions and other consumers' merges.
+Augment only with codes you own; adding entries you don't control collides with future vocabulary expansions and other consumers' merges.
 
-Target `'@ebec/core'`, since that is where `IssueDataByCode` is declared. Do **not** target `'validup'` — validup no longer re-exports the issue model, so an augmentation against `'validup'` compiles but silently creates a fresh, unrelated interface inside validup's own module scope. `ParameterizedIssueCode` in `@ebec/core` never sees your custom code, so `defineIssueItem` / `createValidupError` quietly fall back to the ad-hoc-string branch, where `data` is optional and untyped instead of gatekept. There is no compiler error to notice — the type-level gate just stops applying.
+Target `'@ebec/core'`, since that is where `IssueDataByCode` is declared. Do **not** target `'validup'`: validup no longer re-exports the issue model, so an augmentation against `'validup'` compiles but silently creates a fresh, unrelated interface inside validup's own module scope. `ParameterizedIssueCode` in `@ebec/core` never sees your custom code, so `defineIssueItem` / `createValidupError` quietly fall back to the ad-hoc-string branch, where `data` is optional and untyped instead of gatekept. There is no compiler error to notice; the type-level gate just stops applying.

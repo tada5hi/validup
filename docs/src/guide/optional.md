@@ -12,7 +12,7 @@ type MountOptions = {
 };
 ```
 
-`optional` is the **gate** — does this mount permit being skipped at all? `optionalValue` is the **definition** — which runtime values qualify as "absent"?
+`optional` is the **gate**: does this mount permit being skipped at all? `optionalValue` is the **definition**: which runtime values qualify as "absent"?
 
 ## `optional: boolean` + `optionalValue`
 
@@ -57,10 +57,10 @@ container.mount('name', {
 // → skipped on undefined OR null OR '' (the common "missing or blank" intent)
 ```
 
-An empty array (`optionalValue: []`) matches nothing — the mount is effectively non-optional.
+An empty array (`optionalValue: []`) matches nothing; the mount is effectively non-optional.
 
 ::: warning NULL semantics
-`NULL` matches `null` only — it does **not** also include `undefined`. Pass `[OptionalValue.NULL, OptionalValue.UNDEFINED]` (or use `OptionalValue.FALSY`) when both should qualify. This was widened in earlier releases for ergonomic reasons; the atomic split is more predictable.
+`NULL` matches `null` only; it does **not** also include `undefined`. Pass `[OptionalValue.NULL, OptionalValue.UNDEFINED]` (or use `OptionalValue.FALSY`) when both should qualify. This was widened in earlier releases for ergonomic reasons; the atomic split is more predictable.
 :::
 
 ::: tip Form inputs
@@ -79,12 +79,12 @@ await container.run(input, {
 
 Precedence (highest → lowest) for both `optionalValue` and `optionalAs`:
 
-1. **`MountOptions`** — `container.mount(path, { optionalValue, optionalAs }, fn)`
-2. **`ContainerRunOptions`** — `.run(input, { optionalValue, optionalAs })`
-3. **`ContainerOptions`** — `new Container({ optionalValue, optionalAs })`
-4. **Core default** — `optionalValue: 'undefined'`, no `optionalAs`
+1. **`MountOptions`**: `container.mount(path, { optionalValue, optionalAs }, fn)`
+2. **`ContainerRunOptions`**: `.run(input, { optionalValue, optionalAs })`
+3. **`ContainerOptions`**: `new Container({ optionalValue, optionalAs })`
+4. **Core default**: `optionalValue: 'undefined'`, no `optionalAs`
 
-`optionalValue` and the run-level `optionalAs` are forwarded into nested container `run()` calls, so the entire sub-tree picks them up unless a child mount overrides. `optionalAs` activation is governed by property **presence** (via `hasOwnProperty`), so `{ optionalAs: undefined }` at any layer is a meaningful directive — "emit `undefined`" — and differs from omitting the option.
+`optionalValue` and the run-level `optionalAs` are forwarded into nested container `run()` calls, so the entire sub-tree picks them up unless a child mount overrides. `optionalAs` activation is governed by property **presence** (via `hasOwnProperty`), so `{ optionalAs: undefined }` at any layer is a meaningful directive ("emit `undefined`") and differs from omitting the option.
 
 ::: tip @validup/vue layers
 Vue users get two extra layers slotted between `ContainerOptions` and the core default: `ComposableOptions` (per `useValidup`) and install options (per `app.use(createValidup(...))`). See the [Vue integration page](/integrations/vue#optional-validation).
@@ -107,7 +107,7 @@ The idiomatic "blank means absent" form throws the first time the field is genui
 container.mount('bio', { optional: (v) => v.trim().length === 0 }, isBio); // TypeError when `bio` is absent
 ```
 
-The throw is caught and folded into an issue on that mount's path, so the rest of the form still validates and reports normally. The mount is treated as **not** optional in that run — a predicate that could not answer is never read as "this field is allowed to be blank", so the resulting issue keeps full severity rather than being downgraded to a warning by consumers like [`@validup/vue`](/integrations/vue).
+The throw is caught and folded into an issue on that mount's path, so the rest of the form still validates and reports normally. The mount is treated as **not** optional in that run: a predicate that could not answer is never read as "this field is allowed to be blank", so the resulting issue keeps full severity rather than being downgraded to a warning by consumers like [`@validup/vue`](/integrations/vue).
 
 Guard the value if you want the skip to actually happen:
 
@@ -153,10 +153,10 @@ await container.run({ description: null });        // → { description: null }
 await container.run({ description: 'value' });     // → { description: 'value' }  (validator ran)
 ```
 
-`optionalAs` implies include semantics and wins when paired with `optionalInclude`. Presence — not value — matters: `{ optionalAs: undefined }` is a meaningful directive ("emit the key as `undefined`") and differs from omitting the option.
+`optionalAs` implies include semantics and wins when paired with `optionalInclude`. Presence, not value, matters: `{ optionalAs: undefined }` is a meaningful directive ("emit the key as `undefined`") and differs from omitting the option.
 
 ## Optional + transforming validators
 
-If the validator runs (the value is **not** considered optional), its return value is what gets written to the output. So a `null` value with `optional: false` will go through the validator like any other value — your validator can decide to accept `null` and return it unchanged.
+If the validator runs (the value is **not** considered optional), its return value is what gets written to the output. So a `null` value with `optional: false` will go through the validator like any other value; your validator can decide to accept `null` and return it unchanged.
 
 `optional` is a fast-path for the common case; for more nuanced semantics, write the check directly into the validator.

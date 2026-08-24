@@ -18,11 +18,11 @@ The playground is **not published** to npm and is excluded from release-please.
 |-------------------|-------------------------------------------------------------------------------|
 | `/` (Home)        | Index / cross-links to every demo                                             |
 | `/basic`          | Per-field state, `$dirty` / `$touch`, `$validate()` on submit, `lazy: true`   |
-| `/groups`         | One container, `create` vs `update` flows — `password` only runs in `create`  |
+| `/groups`         | One container, `create` vs `update` flows; `password` only runs in `create`  |
 | `/nested`         | Parent / child components via inject/provide; reactive `$getResultsForChild('name')` aggregation + submit |
 | `/async`          | Debounced async refine (zod) with `sideEffect: true` to bypass the cache      |
 | `/server-errors`  | Folding server responses back via `setExternalIssues` (per-field + path-less) |
-| `/severity`       | `getSeverity(field)` — optional mounts emit warnings; required keep red       |
+| `/severity`       | `getSeverity(field)`: optional mounts emit warnings; required keep red       |
 
 ## Running
 
@@ -61,8 +61,8 @@ playground/vite-vue/
     │   ├── Field.vue                # Reusable text-input field with error / warning rendering
     │   ├── CrossCuttingErrors.vue   # Render path-less issues at the top of a form
     │   ├── ResultPanel.vue          # Live state / flags / raw $issues for each demo
-    │   ├── ProfileSection.vue       # Leaf section for /nested — own container + useValidup({ name: 'profile' })
-    │   ├── AddressSection.vue       # Leaf section for /nested — own container + useValidup({ name: 'address' })
+    │   ├── ProfileSection.vue       # Leaf section for /nested: own container + useValidup({ name: 'profile' })
+    │   ├── AddressSection.vue       # Leaf section for /nested: own container + useValidup({ name: 'address' })
     │   └── section-types.ts         # Profile / Address state shapes shared by /nested + its sections
     └── pages/
         ├── Home.vue

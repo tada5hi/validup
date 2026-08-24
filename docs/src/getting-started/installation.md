@@ -20,7 +20,7 @@ npm install @validup/vue --save                       # Vue 3 forms
 | Requirement | Version |
 |-------------|---------|
 | Node.js     | `>=22.0.0` |
-| Module format | ESM only — `"type": "module"` (or a bundler that resolves `"exports"`) |
+| Module format | ESM only: `"type": "module"` (or a bundler that resolves `"exports"`) |
 | TypeScript  | 5.x recommended |
 
 All packages publish ESM-only (`dist/index.mjs` + `dist/index.d.mts`). There is no CJS build. If your runtime is CJS, use a bundler that re-emits ESM, or `await import('validup')`.
@@ -29,7 +29,7 @@ All packages publish ESM-only (`dist/index.mjs` + `dist/index.d.mts`). There is 
 
 | Package                       | Peer deps                                       |
 |-------------------------------|-------------------------------------------------|
-| `validup`                     | —                                               |
+| `validup`                     | -                                               |
 | `@validup/standard-schema`    | `validup ^1.0.0`                                |
 | `@validup/zod`                | `validup ^1.0.0`, `zod ^4.0.0`                  |
 | `@validup/validator-js`       | `validup ^1.0.0`, `validator ^13.0.0`           |

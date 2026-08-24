@@ -46,7 +46,7 @@ The mount runs when the active `group` is `'create'` **or** `'verify'`.
 
 ## Combining with paths
 
-Groups and paths are independent — both filters must let the mount through. A common pattern is an `update` group that explicitly **omits** required fields by not registering them under that group:
+Groups and paths are independent: both filters must let the mount through. A common pattern is an `update` group that explicitly **omits** required fields by not registering them under that group:
 
 ```typescript
 class UserContainer extends Container<{ name: string; email: string; password: string }> {

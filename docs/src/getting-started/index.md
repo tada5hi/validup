@@ -26,7 +26,7 @@ The verb is `container.run(data)` (with `runSync`, `runParallel`, `safeRun`, `sa
 
 ## Next steps
 
-- [Installation](/getting-started/installation) — install the core and any integration packages.
-- [Quick Start](/getting-started/quick-start) — compose a Container, run it, handle errors.
-- [Guide → Container](/guide/container) — the full mount semantics.
-- [Integrations](/integrations/) — pick a bridge to zod, validator.js, Standard Schema, or Vue.
+- [Installation](/getting-started/installation): install the core and any integration packages.
+- [Quick Start](/getting-started/quick-start): compose a Container, run it, handle errors.
+- [Guide → Container](/guide/container): the full mount semantics.
+- [Integrations](/integrations/): pick a bridge to zod, validator.js, Standard Schema, or Vue.

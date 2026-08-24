@@ -84,7 +84,7 @@ await container.run({ tags: ['a', 'b', 'c'] }, {
 
 ## Strict mode (`pathsStrict`)
 
-By default, an include/exclude entry that matches **no mount** is silently ignored — the run just executes fewer mounts. That's convenient, but it hides a real failure mode: if a shared validator renames a mounted key out from under a caller's static path list (`client_id` → `clientId`), the scoped validation for that field silently disappears instead of failing.
+By default, an include/exclude entry that matches **no mount** is silently ignored; the run just executes fewer mounts. That's convenient, but it hides a real failure mode: if a shared validator renames a mounted key out from under a caller's static path list (`client_id` → `clientId`), the scoped validation for that field silently disappears instead of failing.
 
 `pathsStrict: true` makes the container **fail loud**. Before running any validator, it verifies every resolved `pathsToInclude` / `pathsToExclude` entry is satisfied (an exact key match, or a prefix descent into a container mount). Any entry that matches nothing throws a structural `PathsStrictViolationError` listing the unmatched (absolute) paths.
 
@@ -115,9 +115,9 @@ new Container({ pathsToInclude: ['client_id'], pathsStrict: true });
 
 Details:
 
-- **Structural, not a validation failure.** Like a `runSync` violation, the error is re-thrown verbatim — `safeRun` / `safeRunSync` do **not** wrap it into a `Result.failure`. It signals a misconfigured validator graph, not bad input.
+- **Structural, not a validation failure.** Like a `runSync` violation, the error is re-thrown verbatim: `safeRun` / `safeRunSync` do **not** wrap it into a `Result.failure`. It signals a misconfigured validator graph, not bad input.
 - **Nested containers self-check.** The flag threads into keyed child `run()` calls alongside the already-stripped filter lists, so a renamed *child* mount (`address.zip` → `address.postal`) is caught inside the child and reported with its absolute path (`address.zip`).
 - **Group filtering stays orthogonal.** A mount excluded from the active `group` still exists, so a valid path targeting it does not trip strict mode.
-- **Keyless container mounts are a blind spot.** A keyless child shares the parent's namespace, so the parent can't tell whether an unmatched path belongs to that child or is genuinely stale — it defers (never throws) and does *not* forward strict into the keyless child (doing so would false-positive on the parent's own sibling paths). Paths only reachable through a keyless container are therefore not strict-checked.
-- **Globs are matched against expanded keys.** A data-dependent glob mount (`items.*`, `**.email`) only expands for the keys present in the input. Pairing such a mount with an index-specific include (`items[0]`) under strict mode can throw when the array is empty — the key genuinely didn't expand for that run. Static keys expand literally (independent of the data), so the common flat-entity case is unaffected.
+- **Keyless container mounts are a blind spot.** A keyless child shares the parent's namespace, so the parent can't tell whether an unmatched path belongs to that child or is genuinely stale; it defers (never throws) and does *not* forward strict into the keyless child (doing so would false-positive on the parent's own sibling paths). Paths only reachable through a keyless container are therefore not strict-checked.
+- **Globs are matched against expanded keys.** A data-dependent glob mount (`items.*`, `**.email`) only expands for the keys present in the input. Pairing such a mount with an index-specific include (`items[0]`) under strict mode can throw when the array is empty: the key genuinely didn't expand for that run. Static keys expand literally (independent of the data), so the common flat-entity case is unaffected.
 - Both `pathsToInclude` and `pathsToExclude` are checked under the same flag.

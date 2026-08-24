@@ -34,7 +34,7 @@ const data = await signup.run({
 
 ## Handling errors
 
-`run()` throws a `ValidupError` whose `.issues` is the structured list of failures. Use the `isValidupError` duck-type guard rather than `instanceof` — it works across realm boundaries (e.g. multiple bundled copies of the package).
+`run()` throws a `ValidupError` whose `.issues` is the structured list of failures. Use the `isValidupError` duck-type guard rather than `instanceof`; it works across realm boundaries (e.g. multiple bundled copies of the package).
 
 ```typescript
 import { isValidupError } from 'validup';
@@ -67,6 +67,6 @@ There is also a `safeRunSync()` for synchronous validator graphs (useful in reac
 
 ## Going further
 
-- [Guide → Container](/guide/container) — every mount option, in detail.
-- [Guide → Issues & Errors](/guide/issues) — the structured `Issue` model.
-- [Integrations → Zod](/integrations/zod) — wrap an existing zod schema as a validator.
+- [Guide → Container](/guide/container): every mount option, in detail.
+- [Guide → Issues & Errors](/guide/issues): the structured `Issue` model.
+- [Integrations → Zod](/integrations/zod): wrap an existing zod schema as a validator.

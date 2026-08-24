@@ -4,7 +4,7 @@
 
 | Method                  | Returns                | Concurrency  | On per-mount throw                | When to pick                          |
 |-------------------------|------------------------|--------------|-----------------------------------|---------------------------------------|
-| `run(data, opts)`       | `Promise<T>`           | sequential   | collects, throws `ValidupError`   | default — most use cases              |
+| `run(data, opts)`       | `Promise<T>`           | sequential   | collects, throws `ValidupError`   | default; most use cases               |
 | `runSync(data, opts)`   | `T`                    | sequential   | collects, throws `ValidupError`   | reactive UIs that must not flicker pending |
 | `run(.. parallel: true)`| `Promise<T>`           | parallel     | collects, throws `ValidupError`   | many independent async validators     |
 | `safeRun(data, opts)`   | `Promise<Result<T>>`   | sequential   | returns `{ success: false, error }` | branch-on-result instead of try/catch |
@@ -23,9 +23,9 @@ container.mount('name', isString);     // sees the trimmed value
 
 ## `runSync()`
 
-Literally the same loop without `await` — `run()` and `runSync()` are two drivers over **one** shared mount-resolution body, not two implementations. Every mount option (groups, `optional` / `optionalValue` / `optionalAs`, path filters, `defaults`, `pathsStrict`, `cache`) resolves identically in both, including the sequential sibling chain-read above, so a sync run cannot silently drift from its async twin.
+Literally the same loop without `await`: `run()` and `runSync()` are two drivers over **one** shared mount-resolution body, not two implementations. Every mount option (groups, `optional` / `optionalValue` / `optionalAs`, path filters, `defaults`, `pathsStrict`, `cache`) resolves identically in both, including the sequential sibling chain-read above, so a sync run cannot silently drift from its async twin.
 
-Two things differ, both structural: validator return values must not be thenable, and nested containers must implement `runSync`. Violations throw a `RunSyncViolationError` (use the duck-type guard `isRunSyncViolation`) — these are **not** folded into the issue list, because they mean the caller can't use sync mode against this graph at all.
+Two things differ, both structural: validator return values must not be thenable, and nested containers must implement `runSync`. Violations throw a `RunSyncViolationError` (use the duck-type guard `isRunSyncViolation`); these are **not** folded into the issue list, because they mean the caller can't use sync mode against this graph at all.
 
 ```typescript
 const out = container.runSync(input); // throws on async validator
@@ -41,7 +41,7 @@ Eagerly kicks off every mount's promise, then awaits via `Promise.allSettled`. I
 await container.run(input, { parallel: true });
 ```
 
-**Trade-off:** parallel mode reads `value` from the input data only — it does **not** read sibling output. Sanitize-then-validate chains (where one mount transforms a value the next mount reads) only work in sequential mode.
+**Trade-off:** parallel mode reads `value` from the input data only; it does **not** read sibling output. Sanitize-then-validate chains (where one mount transforms a value the next mount reads) only work in sequential mode.
 
 Use parallel mode when:
 
@@ -50,7 +50,7 @@ Use parallel mode when:
 
 ## Lazy and computed inputs
 
-Reading the input is part of running a mount: the path is expanded against `data`, then the value is read, then the optional gate sees it. If any of that throws — an ORM entity with a deferred relation, a class instance with a computed getter, a reactive proxy — the throw is folded into an issue **on that mount's path**, exactly like a validator failure:
+Reading the input is part of running a mount: the path is expanded against `data`, then the value is read, then the optional gate sees it. If any of that throws (an ORM entity with a deferred relation, a class instance with a computed getter, a reactive proxy), the throw is folded into an issue **on that mount's path**, exactly like a validator failure:
 
 ```typescript
 const container = new Container<any>();
@@ -79,11 +79,11 @@ if (result.success) {
 }
 ```
 
-Abort errors and `RunSyncViolationError`s are **not** wrapped — they propagate verbatim, since they're not validation outcomes. You'll still see them as a normal throw out of `safeRun`/`safeRunSync`.
+Abort errors and `RunSyncViolationError`s are **not** wrapped: they propagate verbatim, since they're not validation outcomes. You'll still see them as a normal throw out of `safeRun`/`safeRunSync`.
 
 ## `cache`
 
-Every run variant accepts an optional `cache?: IResultCache`. When provided, non-side-effect validator mounts whose `(value, context, group)` snapshot matches a prior invocation are skipped — their cached outcome is replayed instead of calling the validator again. Useful for forms with slow async validators, especially under `@validup/vue` where per-keystroke runs would otherwise re-invoke every mount.
+Every run variant accepts an optional `cache?: IResultCache`. When provided, non-side-effect validator mounts whose `(value, context, group)` snapshot matches a prior invocation are skipped: their cached outcome is replayed instead of calling the validator again. Useful for forms with slow async validators, especially under `@validup/vue` where per-keystroke runs would otherwise re-invoke every mount.
 
 ```typescript
 import { ResultCache } from 'validup';

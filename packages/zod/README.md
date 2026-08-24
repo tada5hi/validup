@@ -5,7 +5,7 @@
 <h1 align="center">@validup/zod</h1>
 
 <p align="center">
-    <b>A <a href="https://www.npmjs.com/package/validup">validup</a> integration for <a href="https://zod.dev">zod</a> — turn any zod schema into a validup <code>Validator</code>.</b>
+    <b>A <a href="https://www.npmjs.com/package/validup">validup</a> integration for <a href="https://zod.dev">zod</a>: turn any zod schema into a validup <code>Validator</code>.</b>
 </p>
 
 [![npm version][npm-version-src]][npm-version-href]
@@ -71,7 +71,7 @@ try {
 }
 ```
 
-`createValidator` returns a validup `ValidatorDescriptor` — interchangeable with a bare `Validator` at the mount site. Mount it like any other validator:
+`createValidator` returns a validup `ValidatorDescriptor`, interchangeable with a bare `Validator` at the mount site. Mount it like any other validator:
 
 ```typescript
 container.mount('field', { group: 'create' }, createValidator(z.string()));
@@ -107,14 +107,14 @@ type ZodCreateFn<C = unknown> = (ctx: ValidatorContext<C>) => ZodType;
 
 ## Result Caching
 
-`createValidator` returns a `ValidatorDescriptor` (interchangeable with a bare `Validator` at the mount site). It participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — most zod schemas (`z.string().email()`, length / regex / enum) are deterministic, so cached `(value, context, group)` snapshots replay without re-running the schema.
+`createValidator` returns a `ValidatorDescriptor` (interchangeable with a bare `Validator` at the mount site). It participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default: most zod schemas (`z.string().email()`, length / regex / enum) are deterministic, so cached `(value, context, group)` snapshots replay without re-running the schema.
 
 ```typescript
 container.mount('email', createValidator(z.string().email()));                              // cached
 container.mount('email', createValidator(asyncZodSchema, { sideEffect: true }));            // never cached
 ```
 
-Pass `{ sideEffect: true }` for schemas with async refines or `superRefine` calls reading external state — the framework will then re-run them on every invocation, ignoring any cached entry.
+Pass `{ sideEffect: true }` for schemas with async refines or `superRefine` calls reading external state; the framework will then re-run them on every invocation, ignoring any cached entry.
 
 ## Error Mapping
 
@@ -126,22 +126,22 @@ Each zod issue's `code` is mapped onto validup's `IssueCode` vocabulary so consu
 
 | Zod issue                                              | Validup `IssueCode`                | `data`              |
 |--------------------------------------------------------|------------------------------------|---------------------|
-| `invalid_type` (input at path is `undefined`)          | `REQUIRED`                         | —                   |
-| `invalid_type` (wrong type)                            | `VALUE_INVALID`                    | —                   |
+| `invalid_type` (input at path is `undefined`)          | `REQUIRED`                         | -                   |
+| `invalid_type` (wrong type)                            | `VALUE_INVALID`                    | -                   |
 | `too_small`, origin `string` / `array` / `set` / `file`| `MIN_LENGTH`                       | `{ min: number }`   |
 | `too_big`, origin `string` / `array` / `set` / `file`  | `MAX_LENGTH`                       | `{ max: number }`   |
 | `too_small`, origin `number` / `bigint` / `date` / `int` | `MIN_VALUE`                      | `{ min: number }`   |
 | `too_big`, origin `number` / `bigint` / `date` / `int` | `MAX_VALUE`                        | `{ max: number }`   |
-| `invalid_format`, format `email`                       | `EMAIL`                            | —                   |
-| `invalid_format`, format `url`                         | `URL`                              | —                   |
-| `invalid_format`, format `uuid` / `guid`               | `UUID`                             | —                   |
+| `invalid_format`, format `email`                       | `EMAIL`                            | -                   |
+| `invalid_format`, format `url`                         | `URL`                              | -                   |
+| `invalid_format`, format `uuid` / `guid`               | `UUID`                             | -                   |
 | `invalid_format`, format `regex`                       | `PATTERN`                          | `{ pattern: string }` |
-| `invalid_format`, format `date` / `time` / `datetime` / `duration` | `DATE`                 | —                   |
-| `invalid_format`, format `ipv4` / `ipv6` / `cidrv4` / `cidrv6` | `IP_ADDRESS`               | —                   |
-| `invalid_format`, format `base64` / `base64url`        | `BASE64`                           | —                   |
-| `invalid_format`, format `json_string`                 | `JSON`                             | —                   |
-| `invalid_value` (enum / literal mismatch)              | `ONE_OF_FAILED`                    | —                   |
-| Everything else (`custom`, `not_multiple_of`, `unrecognized_keys`, `invalid_union`, …) | `VALUE_INVALID` | —          |
+| `invalid_format`, format `date` / `time` / `datetime` / `duration` | `DATE`                 | -                   |
+| `invalid_format`, format `ipv4` / `ipv6` / `cidrv4` / `cidrv6` | `IP_ADDRESS`               | -                   |
+| `invalid_format`, format `base64` / `base64url`        | `BASE64`                           | -                   |
+| `invalid_format`, format `json_string`                 | `JSON`                             | -                   |
+| `invalid_value` (enum / literal mismatch)              | `ONE_OF_FAILED`                    | -                   |
+| Everything else (`custom`, `not_multiple_of`, `unrecognized_keys`, `invalid_union`, …) | `VALUE_INVALID` | -          |
 
 > ℹ️ **REQUIRED detection requires the input.** Zod 4 strips `received` / `input` from the formatted `ZodError`, so the adapter recovers the missing-key signal by looking the issue path up against the original parsed value. `createValidator` threads `ctx.value` through automatically; if you call `buildIssuesForZodError(error)` directly without a second argument, missing keys stay on `VALUE_INVALID`. Pass the input explicitly (`buildIssuesForZodError(error, input)`) to opt in.
 
@@ -170,7 +170,7 @@ Paths from the wrapped zod schema are merged with the parent container's path, s
 
 ### Validup → Zod
 
-Going the other way, you can convert a `ValidupError` (or a single `Issue`) into zod's raw issue format — useful when integrating validup output into zod-driven pipelines such as form libraries:
+Going the other way, you can convert a `ValidupError` (or a single `Issue`) into zod's raw issue format, useful when integrating validup output into zod-driven pipelines such as form libraries:
 
 ```typescript
 import { buildZodIssuesForError, buildZodIssuesForIssue } from '@validup/zod';
@@ -185,7 +185,7 @@ try {
 }
 ```
 
-> ⚠️ **`IssueGroup` round-trip is lossy.** validup's `Issue` is a discriminated union of `IssueItem` and `IssueGroup`. zod has no group equivalent, so `buildZodIssuesForIssue` recursively flattens every `IssueGroup` into its constituent `IssueItem`s when emitting zod issues — group-level metadata (`code: 'one_of_failed'`, `data.name`, etc.) is dropped. The reverse direction (zod → validup) never produces groups, so a `zod ← validup` round-trip on a flat issue list is preserved; a round-trip that involves grouped errors is not.
+> ⚠️ **`IssueGroup` round-trip is lossy.** validup's `Issue` is a discriminated union of `IssueItem` and `IssueGroup`. zod has no group equivalent, so `buildZodIssuesForIssue` recursively flattens every `IssueGroup` into its constituent `IssueItem`s when emitting zod issues; group-level metadata (`code: 'one_of_failed'`, `data.name`, etc.) is dropped. The reverse direction (zod → validup) never produces groups, so a `zod ← validup` round-trip on a flat issue list is preserved; a round-trip that involves grouped errors is not.
 
 ## API Reference
 
@@ -208,19 +208,19 @@ function createValidator<C = unknown, Z extends ZodType = ZodType>(
 
 What's covered by semver:
 
-- **Public exports** — `createValidator`, `buildIssuesForZodError`, `buildZodIssuesForError`, `buildZodIssuesForIssue`, and the `ZodIssue` type alias.
-- **Error-mapping shape** — `IssueItem.path` mirrors the failing zod path; `IssueItem.code` is mapped onto the validup vocabulary (`min_length`, `max_length`, `min_value`, `max_value`, `email`, `url`, `uuid`, `pattern`, `date`, `ip_address`, `base64`, `json`, `required`, `one_of_failed`, …) so consumer-side i18n catalogs can ship one parameterized message per code; unmapped zod codes fall back to `value_invalid`. `IssueItem.expected` / `received` are passed through when zod exposes them. `buildZodIssuesForError` reconstructs a zod-shaped representation from a `ValidupError` (`code: 'custom'`, the message, the path, and the original `received` value as `input`) — it does **not** preserve the round-tripped vocabulary `code`. If you need the original zod codes / vendor fields end-to-end, keep the `ZodError` available alongside the `ValidupError`.
-- **Per-context schema factory** — `(ctx: ValidatorContext<C>) => ZodType` invocation contract.
+- **Public exports**: `createValidator`, `buildIssuesForZodError`, `buildZodIssuesForError`, `buildZodIssuesForIssue`, and the `ZodIssue` type alias.
+- **Error-mapping shape**: `IssueItem.path` mirrors the failing zod path; `IssueItem.code` is mapped onto the validup vocabulary (`min_length`, `max_length`, `min_value`, `max_value`, `email`, `url`, `uuid`, `pattern`, `date`, `ip_address`, `base64`, `json`, `required`, `one_of_failed`, …) so consumer-side i18n catalogs can ship one parameterized message per code; unmapped zod codes fall back to `value_invalid`. `IssueItem.expected` / `received` are passed through when zod exposes them. `buildZodIssuesForError` reconstructs a zod-shaped representation from a `ValidupError` (`code: 'custom'`, the message, the path, and the original `received` value as `input`); it does **not** preserve the round-tripped vocabulary `code`. If you need the original zod codes / vendor fields end-to-end, keep the `ZodError` available alongside the `ValidupError`.
+- **Per-context schema factory**: `(ctx: ValidatorContext<C>) => ZodType` invocation contract.
 
 Known lossy behavior:
 
-- `buildZodIssuesForIssue` flattens `IssueGroup`s when emitting zod issues (zod has no group concept) — group-level `code` and `data` are dropped.
+- `buildZodIssuesForIssue` flattens `IssueGroup`s when emitting zod issues (zod has no group concept); group-level `code` and `data` are dropped.
 
 Peer dependency policy:
 
 - `validup ^2.0.0`, `zod ^4.0.0`. zod 3.x was dropped in `@validup/zod@1.0` because the adapter's `ZodIssue` type alias resolves to `zod/v4/core`, which is not available in zod 3.
 
-Deprecation policy: matches [`validup`](https://npmjs.com/package/validup) — at least one minor release of `@deprecated` notice before removal in a major.
+Deprecation policy: matches [`validup`](https://npmjs.com/package/validup); at least one minor release of `@deprecated` notice before removal in a major.
 
 ## License
 

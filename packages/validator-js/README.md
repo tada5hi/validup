@@ -5,7 +5,7 @@
 <h1 align="center">@validup/validator-js</h1>
 
 <p align="center">
-    <b>A <a href="https://www.npmjs.com/package/validup">validup</a> integration for <a href="https://github.com/validatorjs/validator.js">validator.js</a> — pre-baked factories for the common string rules, plus a generic wrap for the long tail.</b>
+    <b>A <a href="https://www.npmjs.com/package/validup">validup</a> integration for <a href="https://github.com/validatorjs/validator.js">validator.js</a>: pre-baked factories for the common string rules, plus a generic wrap for the long tail.</b>
 </p>
 
 Each factory stamps the right validup [`IssueCode`](https://www.npmjs.com/package/validup#issue-codes) on failure, with structured `data` matching the i18n catalog's placeholders. Drop into `@ilingo/validup` for free per-rule translations.
@@ -67,24 +67,24 @@ const valid = await container.run({
 
 ## Factories
 
-Every factory takes a **flat options object** — the validup-side `message` override sits alongside the validator.js options for that rule (`BaseFactoryOptions & validator.Is*Options`). No nesting; one shape per call site.
+Every factory takes a **flat options object**: the validup-side `message` override sits alongside the validator.js options for that rule (`BaseFactoryOptions & validator.Is*Options`). No nesting; one shape per call site.
 
 | Factory | Options type | Emits | `data` payload |
 |---------|--------------|-------|------------------|
-| `isEmail(opts?)` | `BaseFactoryOptions & validator.IsEmailOptions` | `EMAIL` | — |
-| `isURL(opts?)` | `BaseFactoryOptions & validator.IsURLOptions` | `URL` | — |
-| `isUUID(opts?)` | `BaseFactoryOptions & { version? }` | `UUID` | — |
-| `isIP(opts?)` | `BaseFactoryOptions & { version? }` | `IP_ADDRESS` | — |
-| `isMACAddress(opts?)` | `BaseFactoryOptions & validator.IsMACAddressOptions` | `MAC_ADDRESS` | — |
-| `isDate(opts?)` | `BaseFactoryOptions & validator.IsDateOptions` | `DATE` | — |
-| `isISO8601(opts?)` | `BaseFactoryOptions & validator.IsISO8601Options` | `DATE` | — |
-| `isJSON(opts?)` | `BaseFactoryOptions & validator.IsJSONOptions` | `JSON` | — |
-| `isBase64(opts?)` | `BaseFactoryOptions & validator.IsBase64Options` | `BASE64` | — |
+| `isEmail(opts?)` | `BaseFactoryOptions & validator.IsEmailOptions` | `EMAIL` | - |
+| `isURL(opts?)` | `BaseFactoryOptions & validator.IsURLOptions` | `URL` | - |
+| `isUUID(opts?)` | `BaseFactoryOptions & { version? }` | `UUID` | - |
+| `isIP(opts?)` | `BaseFactoryOptions & { version? }` | `IP_ADDRESS` | - |
+| `isMACAddress(opts?)` | `BaseFactoryOptions & validator.IsMACAddressOptions` | `MAC_ADDRESS` | - |
+| `isDate(opts?)` | `BaseFactoryOptions & validator.IsDateOptions` | `DATE` | - |
+| `isISO8601(opts?)` | `BaseFactoryOptions & validator.IsISO8601Options` | `DATE` | - |
+| `isJSON(opts?)` | `BaseFactoryOptions & validator.IsJSONOptions` | `JSON` | - |
+| `isBase64(opts?)` | `BaseFactoryOptions & validator.IsBase64Options` | `BASE64` | - |
 | `isStrongPassword(opts?)` | `BaseFactoryOptions & validator.StrongPasswordOptions` | `STRONG_PASSWORD` | `{ minLength?, minLowercase?, minUppercase?, minNumbers?, minSymbols? }` |
-| `isAlpha(opts?)` | `BaseFactoryOptions & validator.IsAlphaOptions & { locale? }` | `ALPHA` | — |
-| `isAlphanumeric(opts?)` | `BaseFactoryOptions & validator.IsAlphanumericOptions & { locale? }` | `ALPHA_NUM` | — |
-| `isNumeric(opts?)` | `BaseFactoryOptions & validator.IsNumericOptions` | `NUMERIC` | — |
-| `isDecimal(opts?)` | `BaseFactoryOptions & validator.IsDecimalOptions` | `DECIMAL` | — |
+| `isAlpha(opts?)` | `BaseFactoryOptions & validator.IsAlphaOptions & { locale? }` | `ALPHA` | - |
+| `isAlphanumeric(opts?)` | `BaseFactoryOptions & validator.IsAlphanumericOptions & { locale? }` | `ALPHA_NUM` | - |
+| `isNumeric(opts?)` | `BaseFactoryOptions & validator.IsNumericOptions` | `NUMERIC` | - |
+| `isDecimal(opts?)` | `BaseFactoryOptions & validator.IsDecimalOptions` | `DECIMAL` | - |
 | `isInt(opts?)` | `BaseFactoryOptions & validator.IsIntOptions` | `INTEGER` *or* `MIN_VALUE` / `MAX_VALUE` | `{ min }` / `{ max }` on range failure |
 | `isFloat(opts?)` | `BaseFactoryOptions & validator.IsFloatOptions` | `DECIMAL` *or* `MIN_VALUE` / `MAX_VALUE` | `{ min }` / `{ max }` on range failure |
 | `isLength(opts?)` | `BaseFactoryOptions & validator.IsLengthOptions` | `MIN_LENGTH` *or* `MAX_LENGTH` | `{ min }` / `{ max }` |
@@ -102,13 +102,13 @@ isAlpha({ locale: 'de-DE', ignore: '-' });
 isStrongPassword({ minLength: 12, minNumbers: 2 });
 ```
 
-**`isInt` / `isFloat` / `isLength` are intentionally split.** A failure can be either a type mismatch (`'abc'` for an integer) or a range mismatch (`5` when min is `18`). Validator.js collapses both into a single boolean, so the factory checks them in order and emits the most specific code for each case — that's what makes the i18n story useful ("must be between 18 and 120" vs. "must be an integer" are different messages).
+**`isInt` / `isFloat` / `isLength` are intentionally split.** A failure can be either a type mismatch (`'abc'` for an integer) or a range mismatch (`5` when min is `18`). Validator.js collapses both into a single boolean, so the factory checks them in order and emits the most specific code for each case; that's what makes the i18n story useful ("must be between 18 and 120" vs. "must be an integer" are different messages).
 
-**`equals` resolves its comparison target from `ctx.data`.** When `expectedValue` is omitted, `key` is used as a pathtrace path into the current container's input — so `equals('password')` mounted on `confirm` compares against `ctx.data.password` (the password-confirmation pattern). Pass `expectedValue` for a fixed literal target; `key` always supplies the `{ other }` label for i18n templates.
+**`equals` resolves its comparison target from `ctx.data`.** When `expectedValue` is omitted, `key` is used as a pathtrace path into the current container's input, so `equals('password')` mounted on `confirm` compares against `ctx.data.password` (the password-confirmation pattern). Pass `expectedValue` for a fixed literal target; `key` always supplies the `{ other }` label for i18n templates.
 
-**Result caching.** Every factory returns a `ValidatorDescriptor` that participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default — every shipped factory is a deterministic function of `ctx.value`, so cached `(value, context, group)` snapshots replay without re-running validator.js. The one exception is `equals(key)` **without** `expectedValue`, which stamps `sideEffect: true` automatically because the comparison target comes from `ctx.data[key]` (a sibling field the snapshot doesn't capture). When `expectedValue` is provided, `equals` is pure and participates in the cache like the rest.
+**Result caching.** Every factory returns a `ValidatorDescriptor` that participates in validup's [result cache](https://validup.tada5hi.net/guide/caching) by default: every shipped factory is a deterministic function of `ctx.value`, so cached `(value, context, group)` snapshots replay without re-running validator.js. The one exception is `equals(key)` **without** `expectedValue`, which stamps `sideEffect: true` automatically because the comparison target comes from `ctx.data[key]` (a sibling field the snapshot doesn't capture). When `expectedValue` is provided, `equals` is pure and participates in the cache like the rest.
 
-## Generic wrap — `createValidator`
+## Generic wrap: `createValidator`
 
 For validators not pre-baked (`isCreditCard`, `isJWT`, `isMobilePhone`, `isPostalCode`, …):
 
@@ -133,13 +133,13 @@ container.mount('phone', createValidator(
 
 `createValidator(fn, { code, message, data?, sideEffect? })`:
 
-- `fn` — any function with the signature `(value: string, ...args: any[]) => boolean`. validator.js's predicates all fit.
-- `code` — the validup `IssueCode` (or any project-specific string) attached to the resulting `IssueItem`. `IssueItem.code` widens to `IssueCode | (string & {})`, so ad-hoc strings are accepted.
-- `message` — fallback English message on `IssueItem.message`. Always set this — i18n catalogs key off `code`, but consumers without an i18n setup see the message directly.
-- `data` — structured payload surfaced on `IssueItem.data`. Optional; templates that reference placeholders (`{locale}`, `{min}`, …) resolve against this.
-- `sideEffect` — optional flag for the rare case where the wrapped predicate captures external state. Default is cache-eligible.
+- `fn`: any function with the signature `(value: string, ...args: any[]) => boolean`. validator.js's predicates all fit.
+- `code`: the validup `IssueCode` (or any project-specific string) attached to the resulting `IssueItem`. `IssueItem.code` widens to `IssueCode | (string & {})`, so ad-hoc strings are accepted.
+- `message`: fallback English message on `IssueItem.message`. Always set this; i18n catalogs key off `code`, but consumers without an i18n setup see the message directly.
+- `data`: structured payload surfaced on `IssueItem.data`. Optional; templates that reference placeholders (`{locale}`, `{min}`, …) resolve against this.
+- `sideEffect`: optional flag for the rare case where the wrapped predicate captures external state. Default is cache-eligible.
 
-The wrap stringifies `ctx.value` via `toValidatorString` before calling `fn` — same as the factories — so consumers can mount on `number`-shaped fields without manual coercion.
+The wrap stringifies `ctx.value` via `toValidatorString` before calling `fn` (same as the factories) so consumers can mount on `number`-shaped fields without manual coercion.
 
 ## Per-call message override
 
@@ -154,7 +154,7 @@ Defaults match `@ilingo/validup`'s `en` catalog wording, so consumers without i1
 
 ## Why not express-validator?
 
-express-validator wraps validator.js in a chain API meant for Express middleware. validup doesn't use Express's `req` / `body` / `query` routing — it has its own `Container.mount` for path traversal. The chain abstraction added complexity (no machine-readable validator identity through `ValidationError`, so codes had to come from `.withMessage({ code, message })` opt-ins) without payoff.
+express-validator wraps validator.js in a chain API meant for Express middleware. validup doesn't use Express's `req` / `body` / `query` routing; it has its own `Container.mount` for path traversal. The chain abstraction added complexity (no machine-readable validator identity through `ValidationError`, so codes had to come from `.withMessage({ code, message })` opt-ins) without payoff.
 
 `@validup/validator-js` replaces `@validup/express-validator` outright. Migration is mechanical:
 
