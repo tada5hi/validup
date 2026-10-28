@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2](https://github.com/tada5hi/validup/compare/zod-v2.0.1...zod-v2.0.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* **deps:** bump zod from 4.4.3 to 4.6.6 ([#495](https://github.com/tada5hi/validup/issues/495)) ([3e3487f](https://github.com/tada5hi/validup/commit/3e3487f9541ca60f78db9ee844755bb46476525a))
+
 ## [2.0.1](https://github.com/tada5hi/validup/compare/zod-v2.0.0...zod-v2.0.1) (2026-08-18)
 
 
