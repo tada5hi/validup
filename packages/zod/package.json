@@ -42,7 +42,7 @@
         "pathtrace": "^2.2.3"
     },
     "devDependencies": {
-        "zod": "^4.4.3"
+        "zod": "^4.6.6"
     },
     "peerDependencies": {
         "validup": "^2.0.1",
