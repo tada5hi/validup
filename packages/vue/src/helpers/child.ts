@@ -23,8 +23,8 @@ export function extractResultsFromChild<T extends ObjectLiteral = ObjectLiteral>
 
     const output: Partial<T> = {};
     const fields = child.fields as Record<string, { $model: { value: unknown } }>;
-    for (const key of Object.keys(fields)) {
-        (output as Record<string, unknown>)[key] = fields[key].$model.value;
+    for (const [key, value] of Object.entries(fields)) {
+        (output as Record<string, unknown>)[key] = value.$model.value;
     }
     return output;
 }

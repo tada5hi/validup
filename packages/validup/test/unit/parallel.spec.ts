@@ -15,10 +15,7 @@ describe('Container.run parallel mode', () => {
         // either is allowed to finish. If the runtime were sequential the
         // second `started` resolution would block on the first validator's
         // completion, which can't happen until the test releases it.
-        let releaseAll: (() => void) | undefined;
-        const release = new Promise<void>((resolve) => {
-            releaseAll = resolve;
-        });
+        const { promise: release, resolve: releaseAll } = Promise.withResolvers<void>();
         const startedSignals: Promise<void>[] = [];
         const startedResolvers: Array<() => void> = [];
 
