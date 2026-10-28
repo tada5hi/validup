@@ -13,6 +13,8 @@ export default [
     {
         languageOptions: { globals: { NodeJS: true } },
         rules: {
+            // maintainer: declined 2026-11-04
+            'unicorn/prefer-global-number-constants': 'off',
             '@typescript-eslint/no-unused-vars': 'off',
             '@typescript-eslint/no-use-before-define': 'off',
         },

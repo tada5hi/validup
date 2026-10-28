@@ -122,11 +122,13 @@ export function useCollector(options: CollectorOptions): Collector {
     return {
         childRegistry,
         attach(composable) {
-            if (inComponent && parent && options.name) {
-                parent.register(options.name, composable);
-                if (getCurrentScope()) {
-                    onScopeDispose(() => parent!.unregister(options.name as string));
-                }
+            if (!(inComponent && parent && options.name)) {
+                return;
+            }
+
+            parent.register(options.name, composable);
+            if (getCurrentScope()) {
+                onScopeDispose(() => parent!.unregister(options.name as string));
             }
         },
     };
