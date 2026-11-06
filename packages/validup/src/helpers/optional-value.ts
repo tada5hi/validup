@@ -7,7 +7,7 @@
 
 import { OptionalValue } from '../constants';
 
-export type OptionalValueInput = `${OptionalValue}` | readonly `${OptionalValue}`[];
+import type { OptionalValueInput } from './types';
 
 /**
  * Check whether `value` qualifies as "optional" under the supplied
@@ -28,14 +28,17 @@ export function isOptionalValue(
     optionalValue?: OptionalValueInput,
 ) {
     const input = optionalValue ?? OptionalValue.UNDEFINED;
+
     if (Array.isArray(input)) {
         for (const atom of input) {
             if (matchAtom(value, atom)) {
                 return true;
             }
         }
+
         return false;
     }
+
     return matchAtom(value, input as `${OptionalValue}`);
 }
 
@@ -59,3 +62,4 @@ function matchAtom(value: unknown, atom: `${OptionalValue}`): boolean {
             return false;
     }
 }
+export type { OptionalValueInput };

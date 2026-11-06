@@ -49,12 +49,7 @@ import type {
     Result,
 } from './types';
 import type { Issue } from '@ebec/core';
-import {
-    IssueCode,
-    defineIssueGroup,
-    defineIssueItem,
-    prefixIssuePath,
-} from '@ebec/core';
+import { defineIssueGroup, defineIssueItem, prefixIssuePath } from '@ebec/core';
 import { RunSyncViolationError } from './run-sync-violation';
 import { PathsStrictViolationError } from './paths-strict-violation';
 import { isStructuralThrow } from './structural-throw';
@@ -176,6 +171,7 @@ export class Container<
         if (args.length < 1) {
             throw new SyntaxError('The mount method requires at least one argument');
         }
+
         if (args.length > 3) {
             throw new SyntaxError(`mount() accepts at most 3 arguments, got ${args.length}`);
         }
@@ -198,8 +194,10 @@ export class Container<
                 if (pathSeen) {
                     throw new SyntaxError('mount() received multiple string arguments — only one path is supported.');
                 }
+
                 pathSeen = true;
                 path = arg;
+
                 continue;
             }
 
@@ -207,9 +205,11 @@ export class Container<
                 if (dataSeen) {
                     throw new SyntaxError('mount() received multiple validator/container arguments.');
                 }
+
                 dataSeen = true;
                 data = arg;
                 dataKind = 'validator';
+
                 continue;
             }
 
@@ -217,9 +217,11 @@ export class Container<
                 if (dataSeen) {
                     throw new SyntaxError('mount() received multiple validator/container arguments.');
                 }
+
                 dataSeen = true;
                 data = arg;
                 dataKind = 'container';
+
                 continue;
             }
 
@@ -232,9 +234,11 @@ export class Container<
                 if (dataSeen) {
                     throw new SyntaxError('mount() received multiple validator/container arguments.');
                 }
+
                 dataSeen = true;
                 data = arg;
                 dataKind = 'descriptor';
+
                 continue;
             }
 
@@ -242,6 +246,7 @@ export class Container<
                 if (optionsSeen) {
                     throw new SyntaxError('mount() received multiple options objects.');
                 }
+
                 optionsSeen = true;
                 options = arg;
             }
@@ -271,6 +276,7 @@ export class Container<
 
         if (dataKind === 'descriptor') {
             const descriptor = data as ValidatorDescriptor<C>;
+
             this.items.push({
                 options,
                 data: descriptor.run,
@@ -278,6 +284,7 @@ export class Container<
                 type: 'validator',
                 sideEffect: descriptor.sideEffect,
             });
+
             return;
         }
 
@@ -360,6 +367,7 @@ export class Container<
     ): TwinBody<T> {
         const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
         const pathsStrict = this.resolvePathsStrict(options);
+
         // Structural pre-flight — throws before any validator runs.
         this.assertPathsStrict(pathsStrict, data, pathsToInclude, pathsToExclude, options.path);
 
@@ -394,10 +402,12 @@ export class Container<
             // loop is skipped while the shared bookkeeping below still counts
             // the mount as one failed path.
             let keys: string[] = [];
+
             try {
                 keys = item.path ? expandPath(data, item.path) : [''];
             } catch (e) {
                 const attribution = this.describeKey(item.path || '');
+
                 this.collectExecutionFailure({
                     error: e,
                     item,
@@ -453,6 +463,7 @@ export class Container<
                                         runSync?: (...args: any[]) => any
                                     }
                                 ).runSync;
+
                                 if (typeof childRunSync !== 'function') {
                                     throw new RunSyncViolationError(`runSync: nested container at "${key || '<root>'}" does not implement runSync`);
                                 }
@@ -462,6 +473,7 @@ export class Container<
                         );
 
                         const tmpKeys = Object.keys(tmp);
+
                         for (const tmpKey of tmpKeys) {
                             output[this.mergePaths(key, tmpKey)] = tmp[tmpKey];
                         }
@@ -472,6 +484,7 @@ export class Container<
                             group: options.group,
                         };
                         const cached = this.resolveCachedOutcome(item, key, snapshot, options.cache);
+
                         if (cached) {
                             if (cached.ok) {
                                 output[key] = cached.value;
@@ -492,12 +505,15 @@ export class Container<
                                     () => validator(ctx),
                                     () => {
                                         const outcome = validator(ctx);
+
                                         if (isThenable(outcome)) {
                                             throw new RunSyncViolationError(`runSync: validator at "${key || '<root>'}" returned a Promise`);
                                         }
+
                                         return outcome;
                                     },
                                 );
+
                                 output[key] = result;
                                 this.writeCachedOutcome(
                                     item,
@@ -537,12 +553,14 @@ export class Container<
                                         options.signal,
                                     );
                                 }
+
                                 throw e;
                             }
                         }
                     }
                 } catch (e) {
                     const attribution = plan || this.describeKey(key);
+
                     this.collectExecutionFailure({
                         error: e,
                         item,
@@ -588,6 +606,7 @@ export class Container<
     ): Promise<T> {
         const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
         const pathsStrict = this.resolvePathsStrict(options);
+
         // Structural pre-flight — throws before any mount's promise is created.
         this.assertPathsStrict(pathsStrict, data, pathsToInclude, pathsToExclude, options.path);
 
@@ -625,6 +644,7 @@ export class Container<
             options.signal?.throwIfAborted();
 
             const item = this.items[i];
+
             if (!this.isItemGroupIncluded(item, options.group)) {
                 continue;
             }
@@ -637,10 +657,12 @@ export class Container<
             // already in flight. An escape would leave them unowned as well
             // as dropping their issues — see {@link Container.ownRejection}.
             let keys: string[] = [];
+
             try {
                 keys = item.path ? expandPath(data, item.path) : [''];
             } catch (e) {
                 const attribution = this.describeKey(item.path || '');
+
                 tasks.push({
                     key: item.path || '',
                     keyParts: attribution.keyParts,
@@ -677,11 +699,14 @@ export class Container<
                     }
 
                     const optional = this.resolveOptionalDirective(item, value, options);
+
                     if (optional.skip) {
                         if (optional.write) {
                             output[key] = optional.value;
                         }
+
                         syncPathCount++;
+
                         continue;
                     }
 
@@ -697,6 +722,7 @@ export class Container<
                 }
 
                 const attribution = plan || this.describeKey(key);
+
                 tasks.push({
                     key,
                     keyParts: attribution.keyParts,
@@ -742,6 +768,7 @@ export class Container<
 
             let pathFailed = false;
             const branchStart = issues.length;
+
             for (const [j, task] of tasks.entries()) {
                 const result = settled[j];
 
@@ -749,6 +776,7 @@ export class Container<
                     if (task.kind === 'container') {
                         const tmp = result.value as Record<string, any>;
                         const tmpKeys = Object.keys(tmp);
+
                         for (const tmpKey of tmpKeys) {
                             output[this.mergePaths(task.key, tmpKey)] = tmp[tmpKey];
                         }
@@ -771,6 +799,7 @@ export class Container<
 
             if (tasks.length + syncPathCount > 0) {
                 itemCount++;
+
                 if (pathFailed) {
                     errorCount++;
                     // Use the original registration index so `data.branch`
@@ -839,6 +868,7 @@ export class Container<
         };
 
         const cached = this.resolveCachedOutcome(item, key, snapshot, options.cache);
+
         if (cached) {
             // Materialize cached outcomes as already-settled promises
             // so the existing `Promise.allSettled` merge loop handles
@@ -848,6 +878,7 @@ export class Container<
                 Promise.resolve(cached.value) :
                 Promise.reject(cached.error);
         }
+
         // Wrap sync validators in a microtask so the surrounding
         // `Promise.allSettled` always sees a thenable. Cache writes happen
         // inside the wrapper so the entry is persisted before the promise
@@ -858,6 +889,7 @@ export class Container<
         return (async () => {
             try {
                 const result = await validator(ctx);
+
                 this.writeCachedOutcome(
                     item,
                     key,
@@ -866,6 +898,7 @@ export class Container<
                     options.cache,
                     options.signal,
                 );
+
                 return result;
             } catch (e) {
                 // Structural violations are not validation outcomes — the
@@ -886,6 +919,7 @@ export class Container<
                         options.signal,
                     );
                 }
+
                 throw e;
             }
         })();
@@ -894,6 +928,7 @@ export class Container<
     async safeRun(input: ContainerInput<T> = {}, options: ContainerRunOptions<T, C> = {}): Promise<Result<T>> {
         try {
             const data = await this.run(input, options);
+
             return { success: true, data };
         } catch (e) {
             return this.wrapSafeRunError(e, options);
@@ -939,6 +974,7 @@ export class Container<
     safeRunSync(input: ContainerInput<T> = {}, options: ContainerRunOptions<T, C> = {}): Result<T> {
         try {
             const data = this.runSync(input, options);
+
             return { success: true, data };
         } catch (e) {
             return this.wrapSafeRunError(e, options);
@@ -1011,6 +1047,7 @@ export class Container<
 
         let write = true;
         let writeValue: unknown;
+
         if (hasOwnProperty(item.options, 'optionalAs')) {
             writeValue = item.options.optionalAs;
         } else if (hasOwnProperty(options, 'optionalAs')) {
@@ -1172,10 +1209,13 @@ export class Container<
         ) {
             return undefined;
         }
+
         const entry = cache.get(item, key);
+
         if (!entry) {
             return undefined;
         }
+
         if (
             Object.is(entry.snapshot.value, snapshot.value) &&
             Object.is(entry.snapshot.context, snapshot.context) &&
@@ -1183,6 +1223,7 @@ export class Container<
         ) {
             return entry.outcome;
         }
+
         return undefined;
     }
 
@@ -1216,6 +1257,7 @@ export class Container<
         ) {
             return;
         }
+
         cache.set(item, key, { snapshot, outcome });
     }
 
@@ -1224,6 +1266,7 @@ export class Container<
         pathsToExclude: string[] | undefined,
     } {
         let pathsToInclude: string[] | undefined;
+
         if (options.pathsToInclude) {
             pathsToInclude = options.pathsToInclude as string[];
         } else if (this.options.pathsToInclude) {
@@ -1231,6 +1274,7 @@ export class Container<
         }
 
         let pathsToExclude: string[] | undefined;
+
         if (options.pathsToExclude) {
             pathsToExclude = options.pathsToExclude as string[];
         } else if (this.options.pathsToExclude) {
@@ -1284,20 +1328,27 @@ export class Container<
         if (!strict) {
             return;
         }
+
         const hasInclude = typeof pathsToInclude !== 'undefined' && pathsToInclude.length > 0;
         const hasExclude = typeof pathsToExclude !== 'undefined' && pathsToExclude.length > 0;
+
         if (!hasInclude && !hasExclude) {
             return;
         }
 
         const expanded: { keys: string[], isContainer: boolean }[] = [];
         let hasKeylessContainer = false;
+
         for (const item of this.items) {
             const keys: string[] = item.path ? expandPath(data, item.path) : [''];
             const itemIsContainer = item.type === 'container';
-            if (itemIsContainer && keys.some((key) => key.length === 0)) {
+
+            const isKeylessContainer = itemIsContainer && keys.some((key) => key.length === 0);
+
+            if (isKeylessContainer) {
                 hasKeylessContainer = true;
             }
+
             expanded.push({ keys, isContainer: itemIsContainer });
         }
 
@@ -1308,19 +1359,23 @@ export class Container<
             if (hasKeylessContainer) {
                 return true;
             }
+
             for (const entry of expanded) {
                 for (const key of entry.keys) {
                     if (key.length === 0) {
                         continue;
                     }
+
                     if (path === key) {
                         return true;
                     }
+
                     if (entry.isContainer && path.startsWith(`${key}.`)) {
                         return true;
                     }
                 }
             }
+
             return false;
         };
 
@@ -1328,6 +1383,7 @@ export class Container<
             if (!parentPath || parentPath.length === 0) {
                 return path;
             }
+
             return stringifyPath([...parentPath, ...pathToArray(path)]);
         };
 
@@ -1433,7 +1489,9 @@ export class Container<
             if (!isOptionalMount) {
                 return issue;
             }
+
             issue.meta = { ...(issue.meta ?? {}), optional: true };
+
             return issue;
         };
 
@@ -1447,10 +1505,13 @@ export class Container<
             if (!isOptionalMount) {
                 return issue;
             }
+
             markOptional(issue);
+
             if (issue.type === 'group') {
                 issue.issues = issue.issues.map((nested) => markOptionalDeep(nested));
             }
+
             return issue;
         };
 
@@ -1459,6 +1520,7 @@ export class Container<
         if (isValidupError(error)) {
             for (let i = 0; i < error.issues.length; i++) {
                 const prefixed = prefixIssuePath(error.issues[i], keyParts);
+
                 // Stamp only when a *validator* threw `ValidupError` directly
                 // (e.g. an integration adapter like `@validup/zod` reshaping
                 // a foreign error into validup issues). Deep so that a
@@ -1529,11 +1591,14 @@ export class Container<
         if (!this.options.oneOf) {
             return;
         }
+
         const branchIssues = issues.splice(branchStart);
         const data: Record<string, unknown> = { branch: branchIndex };
+
         if (item.path) {
             data.name = item.path;
         }
+
         issues.push(defineIssueGroup({
             message: item.path ?
                 `Branch "${item.path}" failed` :
@@ -1572,6 +1637,7 @@ export class Container<
 
         if (options.defaults) {
             const defaultKeys = Object.keys(options.defaults);
+
             for (const defaultKey of defaultKeys) {
                 if (
                     !hasOwnProperty(output, defaultKey) ||
@@ -1588,9 +1654,11 @@ export class Container<
 
         const temp: Record<string, any> = {};
         const keys = Object.keys(output);
+
         for (const key of keys) {
             setPathValue(temp, key, output[key]);
         }
+
         return temp as T;
     }
 
@@ -1657,14 +1725,8 @@ export class Container<
                 if (group && item.options.group.includes(group)) {
                     return true;
                 }
-            } else {
-                if (item.options.group === GroupKey.WILDCARD) {
-                    return true;
-                }
-
-                if (item.options.group === group) {
-                    return true;
-                }
+            } else if ((item.options.group === GroupKey.WILDCARD) || (item.options.group === group)) {
+                return true;
             }
 
             return false;

@@ -18,6 +18,7 @@ import CrossCuttingErrors from '../components/CrossCuttingErrors.vue';
 type Form = { email: string; coupon: string };
 
 const container = new Container<Form>();
+
 container.mount('email', createValidator(z.string().email('Must be a valid email')));
 container.mount('coupon', createValidator(z.string().min(3, 'Coupon must be at least 3 characters')));
 
@@ -32,15 +33,19 @@ async function fakeSubmit(form: Form): Promise<{ ok: true } | { ok: false; reaso
     await new Promise<void>((resolve) => {
         setTimeout(resolve, 250);
     });
+
     if (form.email === 'taken@example.com') {
         return { ok: false, reason: 'taken' };
     }
+
     if (form.email === 'rl@example.com') {
         return { ok: false, reason: 'rate-limit' };
     }
+
     if (form.coupon === 'BAD') {
         return { ok: false, reason: 'invalid-coupon' };
     }
+
     return { ok: true };
 }
 
@@ -48,15 +53,21 @@ const lastResult = ref<string | undefined>();
 
 async function submit() {
     const result = await v.$validate();
+
     if (!result.success) {
         lastResult.value = 'Client-side validation failed.';
+
         return;
     }
+
     const response = await fakeSubmit(state);
+
     if (response.ok) {
         lastResult.value = 'Submitted successfully.';
+
         return;
     }
+
     if (response.reason === 'taken') {
         v.setExternalIssues([
             defineIssueItem({
@@ -82,6 +93,7 @@ async function submit() {
             }),
         ]);
     }
+
     lastResult.value = `Server rejected: ${response.reason}`;
 }
 </script>

@@ -18,6 +18,8 @@ import { errorToIssues } from './error-to-issues';
 import { buildOneOfFailedGroup } from './one-of-failed';
 import type { Validator, ValidatorContext } from '../validator';
 
+import type { ComposeElement, ComposeOptions } from './types';
+
 /**
  * A composable element — either a bare `Validator<C>` function or a
  * fully-built `IContainer<T, C>` instance. Containers participate
@@ -30,7 +32,6 @@ import type { Validator, ValidatorContext } from '../validator';
  * generics at every call site. The cost is that the composed
  * `Validator`'s `Out` defaults to `unknown` (same as before).
  */
-export type ComposeElement<C = unknown> = Validator<C> | IContainer<any, any>;
 
 /**
  * Options for {@link compose}. Discriminated on `oneOf` so the type
@@ -45,41 +46,6 @@ export type ComposeElement<C = unknown> = Validator<C> | IContainer<any, any>;
  *   `bail` is rejected at compile time because there's no chain to
  *   bail out of.
  */
-export type ComposeOptions = {
-    /**
-     * Run every validator and require all to pass (default). Stages
-     * thread their return into the next; `bail` controls whether the
-     * first failure stops the chain (`true`, default) or every failure
-     * is collected into one aggregate `ValidupError` (`false`).
-     *
-     * **Threading rule.** A stage's return replaces the threaded
-     * `ctx.value` only when defined — `undefined` is treated as a
-     * pass-through so pure checks that don't re-emit `ctx.value`
-     * compose cleanly with transformers. Stages that DO want to
-     * explicitly clear the field must throw or return a sentinel.
-     */
-    oneOf?: false,
-    bail?: boolean,
-} | {
-    /**
-     * Run branches as alternatives in registration order — the first
-     * one to succeed wins, subsequent branches are not invoked, and
-     * the composed validator returns the winning branch's value
-     * (falling back to `ctx.value` if the winning branch returned
-     * `undefined`). When *every* branch fails, the composed validator
-     * throws a `ValidupError` whose first issue is an `IssueGroup`
-     * with `code: IssueCode.ONE_OF_FAILED` carrying every branch's
-     * collected failures (per-branch index surfaced via
-     * `data: { branch }`). Symmetric with
-     * `Container.options.oneOf`, just at the validator level.
-     *
-     * Each branch sees the original `ctx.value` — no threading
-     * across alternatives, since branches aren't a pipeline.
-     * `bail` is intentionally rejected at the type level under this
-     * mode: there's no chain to fail-fast over.
-     */
-    oneOf: true,
-};
 
 /**
  * Compose multiple validators into a single `Validator`.
@@ -164,6 +130,7 @@ export function compose<C = unknown>(
                 // composed call returns without seeing the post-thread
                 // mutation.
                 const result = await invokeComposeElement(element, { ...ctx, value });
+
                 if (typeof result !== 'undefined') {
                     value = result;
                 }
@@ -234,6 +201,7 @@ function composeAnyOf<C>(elements: ComposeElement<C>[]): Validator<C> {
 
             try {
                 const result = await invokeComposeElement(element, { ...ctx });
+
                 // First branch to succeed wins — pass-through rule:
                 // if the winning branch didn't bother re-emitting
                 // `ctx.value`, surface the input as the output.
@@ -253,6 +221,7 @@ function composeAnyOf<C>(elements: ComposeElement<C>[]): Validator<C> {
                 }
 
                 const wrapped = wrapBranchIssues(e, index);
+
                 for (const issue of wrapped) {
                     branchIssues.push(issue);
                 }
@@ -324,6 +293,7 @@ async function invokeComposeElement<C>(
             },
         );
     }
+
     // `isContainer` narrows `element` to `IContainer`, but the
     // negative branch leaves it as the original union — TypeScript
     // doesn't subtract `IContainer` from a union containing
@@ -348,7 +318,10 @@ async function invokeComposeElement<C>(
 function wrapBranchIssues(error: unknown, index: number): Issue[] {
     const stamp = <I extends Issue>(issue: I): I => {
         issue.data = { ...(issue.data ?? {}), branch: index };
+
         return issue;
     };
+
     return errorToIssues(error).map((issue) => stamp({ ...issue }));
 }
+export type { ComposeElement, ComposeOptions };

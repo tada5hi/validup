@@ -5,11 +5,6 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export type PathsStrictViolationInput = {
-    pathsToInclude?: string[],
-    pathsToExclude?: string[],
-};
-
 /**
  * Thrown by a `Container` run (all variants) when `pathsStrict` is enabled and
  * one or more `pathsToInclude` / `pathsToExclude` entries matched **no mount** —
@@ -28,6 +23,8 @@ export type PathsStrictViolationInput = {
  * `path` when the violation happens inside a nested container), so a caller sees
  * `user.email` rather than the child-local `email`.
  */
+import type { PathsStrictViolationInput } from './types';
+
 export class PathsStrictViolationError extends Error {
     override readonly name = 'PathsStrictViolationError';
 
@@ -42,9 +39,11 @@ export class PathsStrictViolationError extends Error {
         const pathsToExclude = input.pathsToExclude ?? [];
 
         const parts: string[] = [];
+
         if (pathsToInclude.length > 0) {
             parts.push(`pathsToInclude has no mount for: ${pathsToInclude.join(', ')}`);
         }
+
         if (pathsToExclude.length > 0) {
             parts.push(`pathsToExclude has no mount for: ${pathsToExclude.join(', ')}`);
         }
@@ -65,9 +64,11 @@ export function isPathsStrictViolation(e: unknown): e is PathsStrictViolationErr
     if (e instanceof PathsStrictViolationError) {
         return true;
     }
+
     return (
         typeof e === 'object' &&
         e !== null &&
         (e as { name?: unknown }).name === 'PathsStrictViolationError'
     );
 }
+export type { PathsStrictViolationInput };

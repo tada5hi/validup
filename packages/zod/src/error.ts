@@ -1,3 +1,4 @@
+import type { $ZodIssue } from 'zod/v4/core';
 /*
  * Copyright (c) 2024-2026.
  * Author Peter Placzek (tada5hi)
@@ -12,12 +13,12 @@ import {
 } from '@ebec/core';
 import { hasOwnProperty } from 'validup';
 import { getPathValue } from 'pathtrace';
-import type { $ZodIssue, $ZodRawIssue } from 'zod/v4/core';
+
 import type { ZodError } from 'zod';
 import type { Issue } from '@ebec/core';
 import type { ValidupError } from 'validup';
 
-export type ZodIssue = $ZodRawIssue;
+import type { ZodIssue } from './types';
 
 /**
  * Names of zod 4 `too_small` / `too_big` issue `origin` values that
@@ -62,30 +63,37 @@ function mapZodIssue(
                 const leaf = path.length === 0 ?
                     input :
                     getPathValue(input, path as PropertyKey[]);
+
                 if (typeof leaf === 'undefined') {
                     return { code: IssueCode.REQUIRED };
                 }
             }
+
             return { code: IssueCode.VALUE_INVALID };
         }
         case 'too_small': {
             const origin = String(raw.origin ?? '');
             const min = Number(raw.minimum);
+
             if (LENGTH_LIKE_ORIGINS.has(origin)) {
                 return { code: IssueCode.MIN_LENGTH, data: { min } };
             }
+
             return { code: IssueCode.MIN_VALUE, data: { min } };
         }
         case 'too_big': {
             const origin = String(raw.origin ?? '');
             const max = Number(raw.maximum);
+
             if (LENGTH_LIKE_ORIGINS.has(origin)) {
                 return { code: IssueCode.MAX_LENGTH, data: { max } };
             }
+
             return { code: IssueCode.MAX_VALUE, data: { max } };
         }
         case 'invalid_format': {
             const format = String(raw.format ?? '');
+
             switch (format) {
                 case 'email':
                     return { code: IssueCode.EMAIL };
@@ -123,6 +131,7 @@ function mapZodIssue(
                     const pattern = typeof raw.pattern === 'string' ?
                         raw.pattern :
                         String(raw.pattern ?? '');
+
                     return { code: IssueCode.PATTERN, data: { pattern } };
                 }
                 default:
@@ -179,11 +188,13 @@ export function buildIssuesForZodError(error: ZodError, input?: unknown): Issue[
         const { code, data } = mapZodIssue(issue, input, inputProvided);
 
         let expected : unknown;
+
         if (hasOwnProperty(issue, 'expected')) {
             expected = issue.expected;
         }
 
         let received : unknown;
+
         if (hasOwnProperty(issue, 'received')) {
             received = issue.received;
         }
@@ -219,6 +230,7 @@ export function buildZodIssuesForIssue(issue: Issue) : ZodIssue[] {
     }
 
     const output : ZodIssue[] = [];
+
     for (let i = 0; i < issue.issues.length; i++) {
         const child = issue.issues[i];
 
@@ -232,3 +244,4 @@ export function buildZodIssuesForError(error: ValidupError) : ZodIssue[] {
     return error.issues
         .flatMap((issue) => buildZodIssuesForIssue(issue));
 }
+export type { ZodIssue };

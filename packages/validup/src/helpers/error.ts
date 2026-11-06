@@ -13,6 +13,7 @@ export function buildErrorMessageForAttribute(key: PropertyKey) {
 
 export function buildErrorMessageForAttributes(input: PropertyKey[] | Record<string, any>) {
     let names: PropertyKey[];
+
     if (Array.isArray(input)) {
         names = distinctArray(input);
     } else {

@@ -8,25 +8,11 @@
 import { IssueCode, defineIssueGroup } from '@ebec/core';
 import type { Issue, IssueGroup } from '@ebec/core';
 
+import type { BuildOneOfFailedGroupOptions } from './types';
+
 /**
  * Options for {@link buildOneOfFailedGroup}.
  */
-export type BuildOneOfFailedGroupOptions = {
-    /**
-     * Path on the wrapping group. Defaults to `[]` — most callers
-     * (compose's `composeAnyOf`, the run-loop entry to a oneOf
-     * container) emit the group at the boundary they own and let the
-     * surrounding context attach a path.
-     */
-    path?: PropertyKey[],
-    /**
-     * Override the default English message. The wrapping group
-     * carries `code: IssueCode.ONE_OF_FAILED`, so i18n catalogs key
-     * off the code rather than the message; the message is only the
-     * fallback rendering.
-     */
-    message?: string,
-};
 
 /**
  * Build the `IssueGroup` that wraps an every-branch-failed aggregate
@@ -46,3 +32,4 @@ export function buildOneOfFailedGroup(
         issues: branchIssues,
     });
 }
+export type { BuildOneOfFailedGroupOptions };

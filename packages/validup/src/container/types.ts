@@ -424,3 +424,8 @@ export type ValidatorMount<C = unknown> = BaseMount & {
 };
 
 export type Mount<C = unknown> = ContainerMount | ValidatorMount<C>;
+
+export type PathsStrictViolationInput = {
+    pathsToInclude?: string[],
+    pathsToExclude?: string[],
+};

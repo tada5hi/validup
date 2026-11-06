@@ -12,9 +12,11 @@ import { Container } from '../../src';
 describe('module/mount-key', () => {
     it('should mount nested container', async () => {
         const childContainer = new Container();
+
         childContainer.mount('foo.bar', ((ctx) => ctx));
 
         const container = new Container();
+
         container.mount('baz', childContainer);
 
         const output = await container.run({ baz: { foo: { bar: 1 } } }, { flat: true });
@@ -27,9 +29,11 @@ describe('module/mount-key', () => {
 
     it('should mount container on same level', async () => {
         const childContainer = new Container();
+
         childContainer.mount('foo', ((ctx) => ctx));
 
         const container = new Container();
+
         container.mount('bar', ((ctx) => ctx));
         container.mount(childContainer);
 
@@ -51,6 +55,7 @@ describe('module/mount-key', () => {
 
     it('should support nested key with dot notation', async () => {
         const container = new Container();
+
         container.mount('foo.bar', ((ctx) => ctx));
 
         const output = await container.run({ foo: { bar: 1 } }, { flat: true });
@@ -63,6 +68,7 @@ describe('module/mount-key', () => {
 
     it('should support key with square brackets notation', async () => {
         const container = new Container();
+
         container.mount('foo[1]', ((ctx) => ctx));
 
         const output = await container.run({ foo: ['bar', 'baz'] }, { flat: true });
@@ -75,6 +81,7 @@ describe('module/mount-key', () => {
 
     it('should support key with non existent value', async () => {
         const container = new Container();
+
         container.mount('foo.bar.baz', ((ctx) => ctx));
 
         const output = await container.run({}, { flat: true });
@@ -87,6 +94,7 @@ describe('module/mount-key', () => {
 
     it('should support primitive key property', async () => {
         const container = new Container();
+
         container.mount('foo.toFixed', ((ctx) => ctx));
 
         const output = await container.run({ foo: 1 });
@@ -99,6 +107,7 @@ describe('module/mount-key', () => {
 
     it('should support glob star pattern', async () => {
         const container = new Container();
+
         container.mount('**.foo', ((ctx) => ctx));
 
         const output = await container.run({ foo: { foo: 1 } }, { flat: true });
@@ -115,6 +124,7 @@ describe('module/mount-key', () => {
 
     it('should support deeply nested pattern with glob star', async () => {
         const container = new Container();
+
         container.mount('foo.**.bar', ((ctx) => ctx));
 
         const output = await container.run({
@@ -136,6 +146,7 @@ describe('module/mount-key', () => {
 
     it('should reject mount() with no arguments', () => {
         const container = new Container();
+
         // @ts-expect-error — testing runtime validation, not type-level
         expect(() => container.mount()).toThrow(SyntaxError);
     });
@@ -143,6 +154,7 @@ describe('module/mount-key', () => {
     it('should reject mount() with more than three arguments', () => {
         const container = new Container();
         const validator = (ctx: ValidatorContext) => ctx.value;
+
         expect(
             () => (container.mount as (...args: unknown[]) => void)('foo', { optional: true }, validator, 'extra'),
         ).toThrow(/at most 3 arguments/);
@@ -151,6 +163,7 @@ describe('module/mount-key', () => {
     it('should reject mount() with multiple string arguments', () => {
         const container = new Container();
         const validator = (ctx: ValidatorContext) => ctx.value;
+
         expect(
             () => (container.mount as (...args: unknown[]) => void)('foo', 'bar', validator),
         ).toThrow(/multiple string arguments/);
@@ -159,6 +172,7 @@ describe('module/mount-key', () => {
     it('should reject mount() with multiple validator/container arguments', () => {
         const container = new Container();
         const validator = (ctx: ValidatorContext) => ctx.value;
+
         expect(
             () => (container.mount as (...args: unknown[]) => void)('foo', validator, validator),
         ).toThrow(/multiple validator\/container arguments/);
@@ -166,6 +180,7 @@ describe('module/mount-key', () => {
 
     it('should reject mount() with multiple options objects', () => {
         const container = new Container();
+
         // Three args (path + two options objects) stays within the arity
         // guard so the duplicate-options branch is the one that fires.
         // Passing a fourth (validator) would trip the >3 args guard first.

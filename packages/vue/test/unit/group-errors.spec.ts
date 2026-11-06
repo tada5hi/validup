@@ -16,6 +16,7 @@ const isString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string') {
         throw new Error('Value is not a string');
     }
+
     return ctx.value;
 };
 
@@ -30,11 +31,13 @@ async function flush() {
 describe('oneOf group surfacing', () => {
     it('exposes ONE_OF_FAILED group through $groupErrors when any field is dirty', async () => {
         const container = new Container<{ email: string; username: string }>({ oneOf: true });
+
         container.mount('email', isString);
         container.mount('username', isString);
 
         const state = reactive({ email: 1 as unknown as string, username: 2 as unknown as string });
         const $v = useValidup(container, state);
+
         await flush();
 
         // Internal issue list contains a single ONE_OF_FAILED group — but it's
@@ -51,11 +54,13 @@ describe('oneOf group surfacing', () => {
 
     it('clears the group once any branch succeeds', async () => {
         const container = new Container<{ email: string; username: string }>({ oneOf: true });
+
         container.mount('email', isString);
         container.mount('username', isString);
 
         const state = reactive({ email: 1 as unknown as string, username: 2 as unknown as string });
         const $v = useValidup(container, state);
+
         await flush();
         $v.$touch();
         await flush();
@@ -74,11 +79,13 @@ describe('oneOf group surfacing', () => {
         // top-level entries, so leaves wrapped inside an IssueGroup (e.g.
         // ONE_OF_FAILED branches) never surfaced through fields.<path>.$issues.
         const container = new Container<{ email: string; username: string }>({ oneOf: true });
+
         container.mount('email', isString);
         container.mount('username', isString);
 
         const state = reactive({ email: 1 as unknown as string, username: 2 as unknown as string });
         const $v = useValidup(container, state);
+
         await flush();
 
         // The whole-form $issues exposes the wrapping IssueGroup at path [].
@@ -87,6 +94,7 @@ describe('oneOf group surfacing', () => {
         // Per-field $issues: must walk into the group and pull the
         // matching leaf even though the group itself sits at path [].
         const emailIssues = $v.fields.email.$issues.value;
+
         expect(emailIssues.length).toBeGreaterThan(0);
         // The recursed result wraps matching leaves back inside the group
         // shape so consumers can still distinguish item vs group context.
@@ -95,11 +103,13 @@ describe('oneOf group surfacing', () => {
 
     it('keeps $errors as leaf-only — group messages live in $groupErrors', async () => {
         const container = new Container<{ email: string; username: string }>({ oneOf: true });
+
         container.mount('email', isString);
         container.mount('username', isString);
 
         const state = reactive({ email: 1 as unknown as string, username: 2 as unknown as string });
         const $v = useValidup(container, state);
+
         await flush();
         $v.$touch();
         await flush();

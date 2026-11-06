@@ -19,10 +19,36 @@ import {
     Container,
     VALIDUP_ERROR_INSTANCE,
     ValidupError,
+    isError,
     isValidupError,
 } from '../../src';
 
 describe('error', () => {
+    it('handles errors without the optional native predicate', async () => {
+        const descriptor = Object.getOwnPropertyDescriptor(Error, 'isError')!;
+
+        Object.defineProperty(Error, 'isError', { value: undefined, configurable: true });
+
+        try {
+            expect(isError(new Error('validation failed'))).toBe(true);
+            expect(isValidupError(new ValidupError())).toBe(true);
+            expect(isError({ name: 'Error', message: 'cross realm' })).toBe(true);
+            expect(isError(null)).toBe(false);
+
+            const container = new Container<{ value: string }>();
+
+            container.mount('value', async () => {
+                throw new Error('validation failed');
+            });
+
+            const result = await container.safeRun({ value: 'test' });
+
+            expect(result.success).toBe(false);
+        } finally {
+            Object.defineProperty(Error, 'isError', descriptor);
+        }
+    });
+
     it('should verify error', () => {
         const error = new ValidupError();
 
@@ -31,6 +57,7 @@ describe('error', () => {
 
     it('should verify error similar shape', () => {
         const error = new Error();
+
         (error as Record<string, any>).issues = [
             defineIssueGroup({
                 message: 'foo',
@@ -168,6 +195,7 @@ describe('error', () => {
         ]);
 
         const serialized = error.toJSON();
+
         expect(serialized.name).toEqual('ValidupError');
         expect(serialized.code).toEqual('VALIDUP_ERROR');
         expect(serialized.issues).toHaveLength(1);
@@ -191,35 +219,41 @@ describe('error', () => {
         // group's path AND its children's paths must both pick up the parent
         // prefix.
         const child = new Container<{ foo: string, bar: string }>();
+
         child.mount('foo', failing);
         child.mount('bar', failing);
 
         const grandChild = new Container({ oneOf: true });
+
         grandChild.mount('a', failing);
         grandChild.mount('b', failing);
         child.mount('one-of', grandChild);
 
         const parent = new Container<{ nested: Record<string, unknown> }>();
+
         parent.mount('nested', child);
 
         expect.assertions(2);
+
         try {
             await parent.run({
                 nested: {
-                    foo: 1, 
-                    bar: 1, 
-                    'one-of': {}, 
-                }, 
+                    foo: 1,
+                    bar: 1,
+                    'one-of': {},
+                },
             });
         } catch (e) {
             if (e instanceof ValidupError) {
                 const items = flattenIssueItems(e.issues);
+
                 // Every leaf path must start with 'nested' — none kept the
                 // child-local key only.
                 expect(items.every((i) => i.path[0] === 'nested')).toBe(true);
 
                 // The oneOf grand-child surfaces as nested → one-of → a/b.
                 const oneOfLeafs = items.filter((i) => i.path[1] === 'one-of');
+
                 expect(
                     oneOfLeafs.some((i) => i.path.join('.') === 'nested.one-of.a') &&
                     oneOfLeafs.some((i) => i.path.join('.') === 'nested.one-of.b'),
@@ -234,14 +268,17 @@ describe('error', () => {
             throw 'pure string failure';
         };
         const container = new Container<{ foo: string }>();
+
         container.mount('foo', stringThrowing);
 
         expect.assertions(3);
+
         try {
             await container.run({ foo: 'x' });
         } catch (e) {
             if (e instanceof ValidupError) {
                 const items = flattenIssueItems(e.issues);
+
                 expect(items).toHaveLength(1);
                 expect(items[0].path).toEqual(['foo']);
                 expect(items[0].message).toEqual('pure string failure');
@@ -255,14 +292,17 @@ describe('error', () => {
             throw { not: 'an error' };
         };
         const container = new Container<{ foo: string }>();
+
         container.mount('foo', objectThrowing);
 
         expect.assertions(2);
+
         try {
             await container.run({ foo: 'x' });
         } catch (e) {
             if (e instanceof ValidupError) {
                 const items = flattenIssueItems(e.issues);
+
                 expect(items).toHaveLength(1);
                 // Non-Error throws surface with a synthetic prefix so the
                 // diagnostic is at least traceable in logs.
@@ -277,22 +317,28 @@ describe('error', () => {
             throw 'safeRun caught me';
         };
         const container = new Container<{ foo: string }>();
+
         container.mount('foo', stringThrowing);
 
         const result = await container.safeRun({ foo: 'x' });
+
         expect(result.success).toBe(false);
-        if (!result.success) {
-            // A non-Error throw inside a mount goes through the sequential
-            // `run()` path, which folds it via recordMountError — so it ends
-            // up attached to the mount's path (`['foo']`), not as a path-less
-            // synthetic. (`wrapSafeRunError`'s path-less synthesis is reserved
-            // for throws that bypass the mount catch entirely — e.g. a buggy
-            // `IContainer` implementation breaking `safeRun`'s contract.)
-            const items = flattenIssueItems(result.error.issues);
-            expect(items).toHaveLength(1);
-            expect(items[0].path).toEqual(['foo']);
-            expect(items[0].message).toEqual('safeRun caught me');
+
+        if (result.success) {
+            throw new Error('Expected the failure variant.');
         }
+
+        // A non-Error throw inside a mount goes through the sequential
+        // `run()` path, which folds it via recordMountError — so it ends
+        // up attached to the mount's path (`['foo']`), not as a path-less
+        // synthetic. (`wrapSafeRunError`'s path-less synthesis is reserved
+        // for throws that bypass the mount catch entirely — e.g. a buggy
+        // `IContainer` implementation breaking `safeRun`'s contract.)
+        const items = flattenIssueItems(result.error.issues);
+
+        expect(items).toHaveLength(1);
+        expect(items[0].path).toEqual(['foo']);
+        expect(items[0].message).toEqual('safeRun caught me');
     });
 
     it('should re-path the ONE_OF_FAILED group itself when bubbling from a child', async () => {
@@ -300,13 +346,16 @@ describe('error', () => {
             throw new Error('bad');
         };
         const child = new Container({ oneOf: true });
+
         child.mount('a', failing);
         child.mount('b', failing);
 
         const parent = new Container<{ nested: Record<string, unknown> }>();
+
         parent.mount('nested', child);
 
         expect.assertions(3);
+
         try {
             await parent.run({ nested: {} });
         } catch (e) {
@@ -314,8 +363,11 @@ describe('error', () => {
                 // Find the inner group with the ONE_OF_FAILED code, regardless
                 // of how recordMountError chose to wrap it.
                 const items = flattenIssueItems(e.issues);
+
                 expect(items.length).toBeGreaterThanOrEqual(2);
+
                 const codes = items.map((i) => i.code);
+
                 expect(codes.every((c) => c === IssueCode.VALUE_INVALID)).toBe(true);
                 expect(items.every((i) => i.path[0] === 'nested')).toBe(true);
             }

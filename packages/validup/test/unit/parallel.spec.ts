@@ -15,26 +15,27 @@ describe('Container.run parallel mode', () => {
         // either is allowed to finish. If the runtime were sequential the
         // second `started` resolution would block on the first validator's
         // completion, which can't happen until the test releases it.
-        let releaseAll: (() => void) | undefined;
-        const release = new Promise<void>((resolve) => {
-            releaseAll = resolve;
-        });
+        const { promise: release, resolve: releaseAll } = Promise.withResolvers<void>();
         const startedSignals: Promise<void>[] = [];
         const startedResolvers: Array<() => void> = [];
 
         const barrier = (label: string): Validator => {
             const idx = startedSignals.length;
+
             startedSignals.push(new Promise<void>((resolve) => {
                 startedResolvers[idx] = resolve;
             }));
+
             return async () => {
                 startedResolvers[idx]?.();
                 await release;
+
                 return label;
             };
         };
 
         const container = new Container<{ a: string, b: string }>();
+
         container.mount('a', barrier('A'));
         container.mount('b', barrier('B'));
 
@@ -53,7 +54,9 @@ describe('Container.run parallel mode', () => {
         ]);
 
         releaseAll?.();
+
         const out = await runPromise;
+
         expect(out.a).toEqual('A');
         expect(out.b).toEqual('B');
     });
@@ -64,6 +67,7 @@ describe('Container.run parallel mode', () => {
         };
 
         const container = new Container<{ a: string, b: string }>();
+
         container.mount('a', failing);
         container.mount('b', failing);
 
@@ -72,6 +76,7 @@ describe('Container.run parallel mode', () => {
             expect.fail('expected ValidupError');
         } catch (e) {
             expect(e).toBeInstanceOf(ValidupError);
+
             if (e instanceof ValidupError) {
                 expect(e.issues).toHaveLength(2);
             }
@@ -83,6 +88,7 @@ describe('Container.run parallel mode', () => {
             await new Promise<void>((r) => {
                 setTimeout(r, 20);
             });
+
             throw new Error('first');
         };
         const failingSecond: Validator = async () => {
@@ -92,6 +98,7 @@ describe('Container.run parallel mode', () => {
         };
 
         const container = new Container<{ a: string, b: string }>();
+
         container.mount('a', failingFirst);
         container.mount('b', failingSecond);
 
@@ -111,15 +118,18 @@ describe('Container.run parallel mode', () => {
         const stallable: Validator = async (ctx) => {
             await new Promise((resolve, reject) => {
                 const t = setTimeout(resolve, 100);
+
                 ctx.signal?.addEventListener('abort', () => {
                     clearTimeout(t);
                     reject(ctx.signal!.reason);
                 });
             });
+
             return ctx.value;
         };
 
         const container = new Container<{ a: string, b: string }>();
+
         container.mount('a', stallable);
         container.mount('b', stallable);
 
@@ -138,12 +148,14 @@ describe('Container.run parallel mode', () => {
         const child = {
             run: async (input: any, opts: any = {}) => {
                 seenOptions.push(opts);
+
                 return input;
             },
             safeRun: async () => ({ success: true, data: {} }),
         };
 
         const parent = new Container<{ nested: Record<string, unknown> }>();
+
         parent.mount('nested', child as any);
 
         await parent.run({ nested: {} }, { parallel: true });
@@ -159,10 +171,12 @@ describe('Container.run parallel mode', () => {
         const ok: Validator = async (ctx) => ctx.value;
 
         const container = new Container<{ a: string, b: string }>({ oneOf: true });
+
         container.mount('a', fail);
         container.mount('b', ok);
 
         const out = await container.run({ a: 1, b: 'good' }, { parallel: true });
+
         expect(out.b).toEqual('good');
     });
 
@@ -179,10 +193,12 @@ describe('Container.run parallel mode', () => {
             await new Promise<void>((resolve) => {
                 setTimeout(resolve, 20);
             });
+
             return ctx.value;
         };
 
         const container = new Container<{ a: string, b: string }>();
+
         container.mount('a', signalDeaf);
         container.mount('b', signalDeaf);
 
@@ -213,10 +229,12 @@ describe('Container.run parallel mode', () => {
         const onUnhandled = (reason: unknown) => {
             captured.push(reason);
         };
+
         process.on('unhandledRejection', onUnhandled);
 
         try {
             const container = new Container<any>();
+
             container.mount('scheduled', async () => {
                 throw new Error('REAL_ISSUE');
             });
@@ -247,10 +265,12 @@ describe('Container.run parallel mode', () => {
         const seen: string[] = [];
         const tag = (name: string): Validator => async (ctx) => {
             seen.push(name);
+
             return ctx.value;
         };
 
         const container = new Container<{ a: string, b: string }>();
+
         container.mount('a', { group: 'create' }, tag('a'));
         container.mount('b', { group: 'update' }, tag('b'));
 

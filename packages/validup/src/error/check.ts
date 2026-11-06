@@ -15,7 +15,7 @@ export function isError(input: unknown) : input is Error & { [key: string]: any 
     // context where `instanceof Error` is false) duck-typed via the
     // `message` shape — which also matches `ValidupError`-shaped throws
     // from a duplicate copy of the package.
-    if (input instanceof Error) {
+    if (typeof Error.isError === 'function' && Error.isError(input)) {
         return true;
     }
 
@@ -31,16 +31,8 @@ export function isValidupError(error: unknown) : error is ValidupError {
         return false;
     }
 
-    if (error instanceof ValidupError) {
-        return true;
-    }
-
-    // Matches the marker's symbol form (an in-process ValidupError from a
-    // duplicate package copy) or its serialized description string (a
-    // ValidupError rehydrated from `toJSON()` output) — either way, no
-    // ambiguity with a plain BaseError/HTTPError, which never carries this
-    // marker.
-    if (matchesInstanceof(error, VALIDUP_ERROR_INSTANCE)) {
+    // The marker also identifies duplicate package copies and serialized errors.
+    if (error instanceof ValidupError || matchesInstanceof(error, VALIDUP_ERROR_INSTANCE)) {
         return true;
     }
 

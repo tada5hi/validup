@@ -20,6 +20,7 @@ const isString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string') {
         throw new Error('Value must be a string');
     }
+
     return ctx.value;
 };
 
@@ -43,16 +44,19 @@ type User = {
 describe('typing: fields strict-mode access (issue #391)', () => {
     it('typed key access returns FieldState<T[K]> (never undefined)', async () => {
         const container = new Container<User>();
+
         container.mount('name', isString);
 
         const state = reactive({ name: '', email: '' });
         const $v = useValidup(container, state);
+
         await flush();
 
         // Compile-time: `$v.fields.name` must be `FieldState<string>`, not
         // `FieldState<string> | undefined`. Strict equality with a non-null
         // target proves the absence of `| undefined` in the inferred type.
         const nameField: FieldState<string> = $v.fields.name;
+
         expect(nameField).toBeDefined();
     });
 
@@ -69,15 +73,18 @@ describe('typing: fields strict-mode access (issue #391)', () => {
         };
 
         const container = new Container<Profile>();
+
         container.mount('name', isString);
 
         const state = reactive({ name: '', nickname: '' });
         const $v = useValidup(container, state);
+
         await flush();
 
         // Compile-time: assignment to a non-optional target proves the
         // absence of `| undefined` on the property itself.
         const nicknameField: FieldState<string | null | undefined> = $v.fields.nickname;
+
         expect(nicknameField).toBeDefined();
         expect(nicknameField.$model.value).toBe('');
     });
@@ -85,11 +92,13 @@ describe('typing: fields strict-mode access (issue #391)', () => {
     it('fields.at(path) accepts dotted / bracketed paths', async () => {
         const container = new Container<{ user: { email: string }; tags: string[] }>();
         const child = new Container<{ email: string }>();
+
         child.mount('email', isString);
         container.mount('user', child);
 
         const state = reactive({ user: { email: 'peter@example.com' }, tags: ['urgent'] });
         const $v = useValidup(container, state);
+
         await flush();
 
         expect($v.fields.at('user.email').$model.value).toBe('peter@example.com');
@@ -99,18 +108,22 @@ describe('typing: fields strict-mode access (issue #391)', () => {
         // the same path — both go through the same FieldState cache.
         const a = $v.fields.at('user');
         const b = $v.fields.user;
+
         expect(a).toBe(b);
     });
 
     it('fields.at returns a typed FieldState (generic V)', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isString);
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         const named: FieldState<string> = $v.fields.at<string>('name');
+
         expect(named.$model.value).toBe('peter');
     });
 });
@@ -118,6 +131,7 @@ describe('typing: fields strict-mode access (issue #391)', () => {
 describe('typing: state accepts Partial<T> (issue #392)', () => {
     it('accepts a form narrower than the container entity', async () => {
         const container = new Container<User>();
+
         container.mount('name', isString);
         container.mount('email', isString);
 
@@ -125,21 +139,25 @@ describe('typing: state accepts Partial<T> (issue #392)', () => {
         // the validator. Pre-fix this required `form as any`.
         const form = reactive({ name: 'peter', email: 'peter@example.com' });
         const $v: Composable<User> = useValidup(container, form);
+
         await flush();
 
         // T stays bound to User, so typed-key access still works against
         // the entity shape, not the narrower form.
         const nameField: FieldState<string> = $v.fields.name;
+
         expect(nameField.$model.value).toBe('peter');
         expect($v.fields.email.$model.value).toBe('peter@example.com');
     });
 
     it('accepts an empty form (every field is optional in Partial<T>)', async () => {
         const container = new Container<User>();
+
         container.mount('name', isString);
 
         const form = reactive({} as Partial<User>);
         const $v: Composable<User> = useValidup(container, form);
+
         await flush();
 
         // Form starts empty; writing through $model populates state.
@@ -258,14 +276,14 @@ function assertAssignability(
     const loose2 = indexed.fields.whatever.$model.value;
 
     return [
-        widened1, 
-        widened2, 
-        widened3, 
+        widened1,
+        widened2,
+        widened3,
         widenedFields,
-        dynamic1, 
-        dynamic2, 
-        dynamic3, 
-        loose1, 
+        dynamic1,
+        dynamic2,
+        dynamic3,
+        loose1,
         loose2,
     ];
 }
@@ -278,6 +296,7 @@ describe('typing: FieldsAccessor mapped-type constraints', () => {
         // the undeclared half — it exists only via the index signature, so
         // it is the key the type-level `any` case describes.
         const container = new Container<Indexed>();
+
         container.mount('name', isString);
 
         const state = reactive<Indexed>({
@@ -286,6 +305,7 @@ describe('typing: FieldsAccessor mapped-type constraints', () => {
             extra: 'rides along',
         });
         const $v = useValidup(container, state);
+
         await flush();
 
         expect($v.fields.name.$model.value).toBe('peter');

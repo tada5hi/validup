@@ -5,12 +5,6 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export type PathFilterResolution = {
-    skip: boolean,
-    pathsToInclude: string[] | undefined,
-    pathsToExclude: string[] | undefined,
-};
-
 /**
  * Resolve `pathsToInclude` / `pathsToExclude` against a single mounted item's
  * (already-expanded) local `key`. Returns whether to skip the item, plus the
@@ -25,6 +19,8 @@ export type PathFilterResolution = {
  *   validators with deeper-target filters fall through (skipped for include,
  *   kept for exclude).
  */
+import type { PathFilterResolution } from './types';
+
 export function resolvePathFilter(
     pathsToInclude: string[] | undefined,
     pathsToExclude: string[] | undefined,
@@ -40,9 +36,11 @@ export function resolvePathFilter(
     }
 
     let includeForward: string[] | undefined;
+
     if (typeof pathsToInclude !== 'undefined') {
         let exact = false;
         const stripped: string[] = [];
+
         for (const path of pathsToInclude) {
             if (path === key) {
                 exact = true;
@@ -50,6 +48,7 @@ export function resolvePathFilter(
                 stripped.push(path.slice(key.length + 1));
             }
         }
+
         if (exact) {
             includeForward = undefined;
         } else if (stripped.length > 0) {
@@ -64,8 +63,10 @@ export function resolvePathFilter(
     }
 
     let excludeForward: string[] | undefined;
+
     if (typeof pathsToExclude !== 'undefined') {
         const stripped: string[] = [];
+
         for (const path of pathsToExclude) {
             if (path === key) {
                 return {
@@ -74,10 +75,12 @@ export function resolvePathFilter(
                     pathsToExclude: undefined,
                 };
             }
+
             if (isContainer && path.startsWith(`${key}.`)) {
                 stripped.push(path.slice(key.length + 1));
             }
         }
+
         if (stripped.length > 0) {
             excludeForward = stripped;
         }
@@ -89,3 +92,4 @@ export function resolvePathFilter(
         pathsToExclude: excludeForward,
     };
 }
+export type { PathFilterResolution };

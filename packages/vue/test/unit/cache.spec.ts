@@ -22,18 +22,22 @@ describe('useValidup cache', () => {
     it('skips non-side-effect validators when their inputs are unchanged', async () => {
         const container = new Container<{ name: string }>();
         let calls = 0;
+
         container.mount('name', defineValidator({
             run: (ctx) => {
                 calls += 1;
+
                 return ctx.value;
             },
         }));
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         const initialCalls = calls;
+
         expect(initialCalls).toBeGreaterThan(0);
 
         // Force a fresh validate-on-submit pass — value didn't change, so
@@ -45,18 +49,22 @@ describe('useValidup cache', () => {
     it('re-runs when value changes', async () => {
         const container = new Container<{ name: string }>();
         let calls = 0;
+
         container.mount('name', defineValidator({
             run: (ctx) => {
                 calls += 1;
+
                 return ctx.value;
             },
         }));
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         const baseline = calls;
+
         $v.fields.name.$model.value = 'paul';
         await flush();
         expect(calls).toBe(baseline + 1);
@@ -65,19 +73,23 @@ describe('useValidup cache', () => {
     it('always re-runs sideEffect: true validators', async () => {
         const container = new Container<{ name: string }>();
         let calls = 0;
+
         container.mount('name', defineValidator({
             sideEffect: true,
             run: (ctx) => {
                 calls += 1;
+
                 return ctx.value;
             },
         }));
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         const baseline = calls;
+
         // $validate() with unchanged value would skip a non-side-effect
         // validator; sideEffect: true forces a fresh run.
         await $v.$validate();
@@ -87,18 +99,22 @@ describe('useValidup cache', () => {
     it('$reset() clears the cache', async () => {
         const container = new Container<{ name: string }>();
         let calls = 0;
+
         container.mount('name', defineValidator({
             run: (ctx) => {
                 calls += 1;
+
                 return ctx.value;
             },
         }));
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         const baseline = calls;
+
         $v.$reset();
         await $v.$validate();
         // After $reset() the cache is empty, so the validator runs again
@@ -109,18 +125,22 @@ describe('useValidup cache', () => {
     it('clears the cache when the container reference swaps', async () => {
         const containerA = new Container<{ name: string }>();
         let aCalls = 0;
+
         containerA.mount('name', defineValidator({
             run: (ctx) => {
                 aCalls += 1;
+
                 return ctx.value;
             },
         }));
 
         const containerB = new Container<{ name: string }>();
         let bCalls = 0;
+
         containerB.mount('name', defineValidator({
             run: (ctx) => {
                 bCalls += 1;
+
                 return ctx.value;
             },
         }));
@@ -128,6 +148,7 @@ describe('useValidup cache', () => {
         const containerRef = ref(containerA);
         const state = reactive({ name: 'peter' });
         const $v = useValidup(containerRef, state);
+
         await flush();
 
         expect(aCalls).toBeGreaterThan(0);

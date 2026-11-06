@@ -6,16 +6,16 @@
  */
 
 import { mount } from '@vue/test-utils';
-import { 
-    describe, 
-    expect, 
-    it, 
-    vi, 
+import {
+    describe,
+    expect,
+    it,
+    vi,
 } from 'vitest';
 import {
-    defineComponent, 
-    h, 
-    nextTick, 
+    defineComponent,
+    h,
+    nextTick,
     reactive,
 } from 'vue';
 import { Container } from 'validup';
@@ -29,6 +29,7 @@ const isNonEmptyString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string' || ctx.value.length === 0) {
         throw new Error('Value must be a non-empty string');
     }
+
     return ctx.value;
 };
 
@@ -46,6 +47,7 @@ describe('options.lazy', () => {
         const container = { run: vi.fn(), safeRun } as unknown as Container<{ name: string }>;
 
         const state = reactive({ name: '' });
+
         useValidup(container, state, { lazy: true });
         await flush();
 
@@ -57,6 +59,7 @@ describe('options.lazy', () => {
         const container = { run: vi.fn(), safeRun } as unknown as Container<{ name: string }>;
 
         const state = reactive({ name: '' });
+
         useValidup(container, state);
         await flush();
 
@@ -65,11 +68,13 @@ describe('options.lazy', () => {
 
     it('triggers validation on the first $model write under lazy', async () => {
         const realContainer = new Container<{ name: string }>();
+
         realContainer.mount('name', isNonEmptyString);
 
         // start with a valid value so the on-mount run *would* succeed if it ran
         const state = reactive({ name: 'peter' });
         const $v = useValidup(realContainer, state, { lazy: true });
+
         await flush();
 
         expect($v.$invalid.value).toBe(false); // never ran
@@ -83,22 +88,27 @@ describe('options.lazy', () => {
 
     it('runs synchronously when $validate() is called even without prior interaction', async () => {
         const realContainer = new Container<{ name: string }>();
+
         realContainer.mount('name', isNonEmptyString);
 
         const state = reactive({ name: '' });
         const $v = useValidup(realContainer, state, { lazy: true });
+
         await flush();
 
         const result = await $v.$validate();
+
         expect(result.success).toBe(false);
     });
 
     it('triggers validation on explicit $touch() under lazy', async () => {
         const realContainer = new Container<{ name: string }>();
+
         realContainer.mount('name', isNonEmptyString);
 
         const state = reactive({ name: '' });
         const $v = useValidup(realContainer, state, { lazy: true });
+
         await flush();
 
         // Pre-touch: lazy skipped the on-mount run, so no internal issues yet.
@@ -117,10 +127,12 @@ describe('options.lazy', () => {
 describe('options.autoDirty', () => {
     it('marks fields dirty when state changes outside of $model', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isNonEmptyString);
 
         const state = reactive({ name: '' });
         const $v = useValidup(container, state, { autoDirty: true });
+
         await flush();
 
         expect($v.fields.name.$dirty.value).toBe(false);
@@ -134,10 +146,12 @@ describe('options.autoDirty', () => {
 
     it('does not mark dirty on the initial mount', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isNonEmptyString);
 
         const state = reactive({ name: '' });
         const $v = useValidup(container, state, { autoDirty: true });
+
         await flush();
 
         expect($v.fields.name.$dirty.value).toBe(false);
@@ -145,10 +159,12 @@ describe('options.autoDirty', () => {
 
     it('default behaviour (autoDirty unset) leaves hydration silent', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isNonEmptyString);
 
         const state = reactive({ name: '' });
         const $v = useValidup(container, state);
+
         await flush();
 
         Object.assign(state, { name: 'peter' });
@@ -160,9 +176,11 @@ describe('options.autoDirty', () => {
 
 describe('options.scope', () => {
     const childAContainer = new Container<{ a: string }>();
+
     childAContainer.mount('a', isNonEmptyString);
 
     const childBContainer = new Container<{ b: string }>();
+
     childBContainer.mount('b', isNonEmptyString);
 
     it('routes children to the matching scoped parent', async () => {
@@ -170,7 +188,9 @@ describe('options.scope', () => {
             setup(_, { expose }) {
                 const form = reactive({ a: '' });
                 const $v = useValidup(childAContainer, form, { scope: 'tab1', name: 'a' });
+
                 expose({ $v });
+
                 return () => h('div');
             },
         });
@@ -179,7 +199,9 @@ describe('options.scope', () => {
             setup(_, { expose }) {
                 const form = reactive({ b: '' });
                 const $v = useValidup(childBContainer, form, { scope: 'tab2', name: 'b' });
+
                 expose({ $v });
+
                 return () => h('div');
             },
         });
@@ -188,12 +210,15 @@ describe('options.scope', () => {
             setup(_, { expose }) {
                 const tab1 = useValidup(new Container(), {}, { scope: 'tab1', stopPropagation: true });
                 const tab2 = useValidup(new Container(), {}, { scope: 'tab2', stopPropagation: true });
+
                 expose({ tab1, tab2 });
+
                 return () => h('div', [h(ChildA), h(ChildB)]);
             },
         });
 
         const wrapper = mount(Parent);
+
         await flush();
 
         const { tab1, tab2 } = wrapper.vm as unknown as {
@@ -215,7 +240,9 @@ describe('options.scope', () => {
             setup(_, { expose }) {
                 const form = reactive({ a: '' });
                 const $v = useValidup(childAContainer, form, { name: 'leaf' });
+
                 expose({ $v });
+
                 return () => h('div');
             },
         });
@@ -224,12 +251,15 @@ describe('options.scope', () => {
             setup(_, { expose }) {
                 const scoped = useValidup(new Container(), {}, { scope: 'tab1', stopPropagation: true });
                 const unscoped = useValidup(new Container(), {}, { stopPropagation: true });
+
                 expose({ scoped, unscoped });
+
                 return () => h('div', [h(Child)]);
             },
         });
 
         const wrapper = mount(Parent);
+
         await flush();
 
         const { scoped, unscoped } = wrapper.vm as unknown as {

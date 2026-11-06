@@ -44,8 +44,11 @@ async function fail(descriptor: ValidatorDescriptor, value: unknown): Promise<Re
             context: undefined,
         });
     } catch (e) {
-        if (e instanceof ValidupError) return flattenIssueItems(e.issues);
+        if (e instanceof ValidupError) {
+            return flattenIssueItems(e.issues);
+        }
     }
+
     throw new Error('expected validator to throw');
 }
 
@@ -62,6 +65,7 @@ async function pass(descriptor: ValidatorDescriptor, value: unknown): Promise<un
 describe('isEmail', () => {
     it('rejects non-emails with IssueCode.EMAIL', async () => {
         const items = await fail(isEmail(), 'not-an-email');
+
         expect(items[0]?.code).toBe(IssueCode.EMAIL);
     });
     it('accepts valid emails', async () => {
@@ -69,6 +73,7 @@ describe('isEmail', () => {
     });
     it('honours the message override', async () => {
         const items = await fail(isEmail({ message: 'Bad email' }), 'x');
+
         expect(items[0]?.message).toBe('Bad email');
     });
 });
@@ -76,6 +81,7 @@ describe('isEmail', () => {
 describe('isURL', () => {
     it('rejects non-URLs with IssueCode.URL', async () => {
         const items = await fail(isURL(), 'not a url');
+
         expect(items[0]?.code).toBe(IssueCode.URL);
     });
     it('accepts valid URLs', async () => {
@@ -86,10 +92,12 @@ describe('isURL', () => {
 describe('isUUID', () => {
     it('rejects non-UUIDs with IssueCode.UUID', async () => {
         const items = await fail(isUUID(), 'not-a-uuid');
+
         expect(items[0]?.code).toBe(IssueCode.UUID);
     });
     it('accepts valid v4 UUIDs', async () => {
         const v4 = '123e4567-e89b-42d3-a456-426614174000';
+
         expect(await pass(isUUID({ version: 4 }), v4)).toBe(v4);
     });
 });
@@ -97,6 +105,7 @@ describe('isUUID', () => {
 describe('isIP', () => {
     it('rejects non-IPs with IssueCode.IP_ADDRESS', async () => {
         const items = await fail(isIP(), 'not-an-ip');
+
         expect(items[0]?.code).toBe(IssueCode.IP_ADDRESS);
     });
     it('accepts IPv4', async () => {
@@ -107,6 +116,7 @@ describe('isIP', () => {
 describe('isMACAddress', () => {
     it('rejects bad MACs with IssueCode.MAC_ADDRESS', async () => {
         const items = await fail(isMACAddress(), 'not-a-mac');
+
         expect(items[0]?.code).toBe(IssueCode.MAC_ADDRESS);
     });
     it('accepts standard MACs', async () => {
@@ -117,10 +127,12 @@ describe('isMACAddress', () => {
 describe('isDate / isISO8601', () => {
     it('isDate rejects non-dates with IssueCode.DATE', async () => {
         const items = await fail(isDate(), 'not-a-date');
+
         expect(items[0]?.code).toBe(IssueCode.DATE);
     });
     it('isISO8601 rejects non-ISO with IssueCode.DATE (shared code)', async () => {
         const items = await fail(isISO8601(), 'not-iso');
+
         expect(items[0]?.code).toBe(IssueCode.DATE);
     });
 });
@@ -128,10 +140,12 @@ describe('isDate / isISO8601', () => {
 describe('isJSON', () => {
     it('rejects non-JSON with IssueCode.JSON', async () => {
         const items = await fail(isJSON(), 'not { json }');
+
         expect(items[0]?.code).toBe(IssueCode.JSON);
     });
     it('accepts valid JSON', async () => {
         const json = '{"a":1}';
+
         expect(await pass(isJSON(), json)).toBe(json);
     });
 });
@@ -139,6 +153,7 @@ describe('isJSON', () => {
 describe('isBase64', () => {
     it('rejects non-base64 with IssueCode.BASE64', async () => {
         const items = await fail(isBase64(), 'not base64!');
+
         expect(items[0]?.code).toBe(IssueCode.BASE64);
     });
 });
@@ -146,6 +161,7 @@ describe('isBase64', () => {
 describe('isStrongPassword', () => {
     it('rejects weak passwords with IssueCode.STRONG_PASSWORD', async () => {
         const items = await fail(isStrongPassword({ minLength: 12, minNumbers: 2 }), 'short');
+
         expect(items[0]?.code).toBe(IssueCode.STRONG_PASSWORD);
         expect(items[0]?.data).toMatchObject({ minLength: 12, minNumbers: 2 });
     });
@@ -160,6 +176,7 @@ describe('isStrongPassword', () => {
             isStrongPassword({ minLength: 12, returnScore: true }),
             'short',
         );
+
         expect(items[0]?.code).toBe(IssueCode.STRONG_PASSWORD);
     });
 
@@ -170,6 +187,7 @@ describe('isStrongPassword', () => {
             isStrongPassword({ minLength: 12, returnScore: true }),
             'short',
         );
+
         expect(items[0]?.data).not.toHaveProperty('returnScore');
         expect(items[0]?.data).toMatchObject({ minLength: 12 });
     });
@@ -189,6 +207,7 @@ describe('isStrongPassword', () => {
             }),
             'short',
         );
+
         expect(items[0]?.data).toEqual({ minLength: 12 });
     });
 });
@@ -196,18 +215,22 @@ describe('isStrongPassword', () => {
 describe('isAlpha / isAlphanumeric / isNumeric / isDecimal', () => {
     it('isAlpha emits IssueCode.ALPHA', async () => {
         const items = await fail(isAlpha(), '123');
+
         expect(items[0]?.code).toBe(IssueCode.ALPHA);
     });
     it('isAlphanumeric emits IssueCode.ALPHA_NUM', async () => {
         const items = await fail(isAlphanumeric(), 'has-dash');
+
         expect(items[0]?.code).toBe(IssueCode.ALPHA_NUM);
     });
     it('isNumeric emits IssueCode.NUMERIC', async () => {
         const items = await fail(isNumeric(), 'abc');
+
         expect(items[0]?.code).toBe(IssueCode.NUMERIC);
     });
     it('isDecimal emits IssueCode.DECIMAL', async () => {
         const items = await fail(isDecimal(), 'abc');
+
         expect(items[0]?.code).toBe(IssueCode.DECIMAL);
     });
 });
@@ -215,15 +238,18 @@ describe('isAlpha / isAlphanumeric / isNumeric / isDecimal', () => {
 describe('isInt', () => {
     it('emits IssueCode.INTEGER when value isn\'t an integer', async () => {
         const items = await fail(isInt(), 'abc');
+
         expect(items[0]?.code).toBe(IssueCode.INTEGER);
     });
     it('emits IssueCode.MIN_VALUE when below min', async () => {
         const items = await fail(isInt({ min: 18 }), 5);
+
         expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
         expect(items[0]?.data).toEqual({ min: 18 });
     });
     it('emits IssueCode.MAX_VALUE when above max', async () => {
         const items = await fail(isInt({ max: 120 }), 999);
+
         expect(items[0]?.code).toBe(IssueCode.MAX_VALUE);
         expect(items[0]?.data).toEqual({ max: 120 });
     });
@@ -236,12 +262,14 @@ describe('isInt', () => {
         // `<` check (since gt is exclusive) and surfaced as INTEGER from the
         // defensive final-pass. It's a range failure — should be MIN_VALUE.
         const items = await fail(isInt({ gt: 10 }), 10);
+
         expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
         expect(items[0]?.data).toEqual({ min: 10 });
     });
 
     it('emits IssueCode.MAX_VALUE for the strict lt boundary (data.max = lt)', async () => {
         const items = await fail(isInt({ lt: 10 }), 10);
+
         expect(items[0]?.code).toBe(IssueCode.MAX_VALUE);
         expect(items[0]?.data).toEqual({ max: 10 });
     });
@@ -281,12 +309,14 @@ describe('isInt', () => {
         // is false as well, so the full-bag re-check rejects and we report
         // INTEGER ("no usable bound") rather than passing the value through.
         for (const bound of ['min', 'max', 'lt', 'gt'] as const) {
-            const items = await fail(isInt({ [bound]: Number.NaN }), '5');
+            const items = await fail(isInt({ [bound]: NaN }), '5');
+
             expect(items[0]?.code).toBe(IssueCode.INTEGER);
             expect(items[0]?.data).toBeUndefined();
         }
+
         // Honours the message override at this throw site as well.
-        expect((await fail(isInt({ min: Number.NaN, message: 'unusable bound' }), '5'))[0]?.message)
+        expect((await fail(isInt({ min: NaN, message: 'unusable bound' }), '5'))[0]?.message)
             .toBe('unusable bound');
     });
 
@@ -305,20 +335,26 @@ describe('isInt', () => {
 describe('isFloat', () => {
     it('emits IssueCode.DECIMAL when value isn\'t a number', async () => {
         const items = await fail(isFloat(), 'abc');
+
         expect(items[0]?.code).toBe(IssueCode.DECIMAL);
     });
     it('emits IssueCode.MIN_VALUE / MAX_VALUE for range failures', async () => {
         const low = await fail(isFloat({ min: 1 }), 0.5);
+
         expect(low[0]?.code).toBe(IssueCode.MIN_VALUE);
+
         const high = await fail(isFloat({ max: 10 }), 11.5);
+
         expect(high[0]?.code).toBe(IssueCode.MAX_VALUE);
     });
     it('emits IssueCode.MIN_VALUE / MAX_VALUE for strict gt / lt boundaries', async () => {
         const onGt = await fail(isFloat({ gt: 1.5 }), 1.5);
+
         expect(onGt[0]?.code).toBe(IssueCode.MIN_VALUE);
         expect(onGt[0]?.data).toEqual({ min: 1.5 });
 
         const onLt = await fail(isFloat({ lt: 10 }), 10);
+
         expect(onLt[0]?.code).toBe(IssueCode.MAX_VALUE);
         expect(onLt[0]?.data).toEqual({ max: 10 });
     });
@@ -349,6 +385,7 @@ describe('isFloat', () => {
         // purely by ladder order. Reordering `assertNumericRange` flips this to
         // MAX_VALUE / { max: 1 }, which is what makes this a real ordering test.
         const items = await fail(isFloat({ min: 5, lt: 1 }), 2);
+
         expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
         expect(items[0]?.data).toEqual({ min: 5 });
     });
@@ -380,6 +417,7 @@ describe('isFloat', () => {
         // (min: 100, which passes) exercised the same skip without ever
         // reaching this branch.
         const items = await fail(isFloat({ locale: 'de-DE', min: 200 }), '123,45');
+
         expect(items[0]?.code).toBe(IssueCode.DECIMAL);
         expect(items[0]?.message).toBe('The value must be a decimal number');
         // Note what is NOT here: `data: { min: 200 }`. An i18n catalog keyed on
@@ -396,6 +434,7 @@ describe('isFloat', () => {
             }),
             '123,45',
         );
+
         expect(items[0]?.message).toBe('Out of range');
     });
 });
@@ -403,11 +442,13 @@ describe('isFloat', () => {
 describe('isLength', () => {
     it('emits IssueCode.MIN_LENGTH when too short', async () => {
         const items = await fail(isLength({ min: 3 }), 'hi');
+
         expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
         expect(items[0]?.data).toEqual({ min: 3 });
     });
     it('emits IssueCode.MAX_LENGTH when too long', async () => {
         const items = await fail(isLength({ max: 3 }), 'toolong');
+
         expect(items[0]?.code).toBe(IssueCode.MAX_LENGTH);
         expect(items[0]?.data).toEqual({ max: 3 });
     });
@@ -449,6 +490,7 @@ describe('isLength', () => {
             // astral-plane input (emoji, many CJK extensions): a user typing a
             // single emoji into a `min: 2` field gets the generic wording.
             const items = await fail(isLength({ min: 2 }), '👍');
+
             expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
             expect(items[0]?.message).toBe('The value has an invalid length');
             // The bound IS carried even though it was never crossed, because
@@ -461,6 +503,7 @@ describe('isLength', () => {
             // MIN_LENGTH / MAX_LENGTH both REQUIRE their bound in `data`, so
             // the only contract-honouring code left is the generic one.
             const items = await fail(isLength({ discreteLengths: [5, 10] }), 'abcdefg');
+
             expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
             expect(items[0]?.message).toBe('The value has an invalid length');
             expect(items[0]?.data).toBeUndefined();
@@ -472,6 +515,7 @@ describe('isLength', () => {
             // arguably misleading, and pinned so that a later correction is a
             // deliberate change.
             const items = await fail(isLength({ min: 1, discreteLengths: [5, 10] }), 'abcdefg');
+
             expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
             expect(items[0]?.data).toEqual({ min: 1 });
         });
@@ -492,6 +536,7 @@ describe('isLength', () => {
 describe('matches', () => {
     it('emits IssueCode.PATTERN with { pattern: string }', async () => {
         const items = await fail(matches(/^[a-z]+$/), 'UPPER');
+
         expect(items[0]?.code).toBe(IssueCode.PATTERN);
         expect(items[0]?.data).toEqual({ pattern: '^[a-z]+$' });
     });
@@ -500,6 +545,7 @@ describe('matches', () => {
 describe('equals', () => {
     it('emits IssueCode.SAME_AS with { other }', async () => {
         const items = await fail(equals('password'), 'mismatch');
+
         expect(items[0]?.code).toBe(IssueCode.SAME_AS);
         expect(items[0]?.data).toEqual({ other: 'password' });
     });
@@ -514,6 +560,7 @@ describe('equals', () => {
             data: { password: 'hunter2', passwordConfirm: 'hunter2' },
             context: undefined,
         });
+
         expect(result).toBe('hunter2');
     });
     it('fails when ctx.data target differs from ctx.value', async () => {
@@ -528,11 +575,14 @@ describe('equals', () => {
         } catch (e) {
             if (e instanceof ValidupError) {
                 const items = flattenIssueItems(e.issues);
+
                 expect(items[0]?.code).toBe(IssueCode.SAME_AS);
                 expect(items[0]?.data).toEqual({ other: 'password' });
+
                 return;
             }
         }
+
         throw new Error('expected validator to throw');
     });
     it('stamps sideEffect=true when reading from ctx.data (no expectedValue)', () => {

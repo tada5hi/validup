@@ -15,6 +15,7 @@ const isNonEmptyString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string' || ctx.value.length === 0) {
         throw new Error('Value must be a non-empty string');
     }
+
     return ctx.value;
 };
 
@@ -26,9 +27,9 @@ class RoleValidator extends Container<Role> {
 
         this.mount('name', { group: 'create' }, isNonEmptyString);
         this.mount('name', {
-            group: 'update', 
-            optional: true, 
-            optionalValue: OptionalValue.FALSY, 
+            group: 'update',
+            optional: true,
+            optionalValue: OptionalValue.FALSY,
         }, isNonEmptyString);
         this.mount('description', { optional: true, optionalValue: OptionalValue.FALSY }, isNonEmptyString);
     }
@@ -46,6 +47,7 @@ describe('initialize() subclass pattern', () => {
     it('runs mounts registered in initialize() under the create group', async () => {
         const state = reactive({ name: '', description: '' });
         const $v = useValidup(new RoleValidator(), state, { group: 'create' });
+
         await flush();
 
         expect($v.$invalid.value).toBe(true);
@@ -56,6 +58,7 @@ describe('initialize() subclass pattern', () => {
         const state = reactive({ name: '', description: '' });
         const group = ref<'create' | 'update'>('create');
         const $v = useValidup(new RoleValidator(), state, { group });
+
         await flush();
 
         // 'create' requires non-empty name → invalid
@@ -71,6 +74,7 @@ describe('initialize() subclass pattern', () => {
     it('runs a successful create flow end-to-end', async () => {
         const state = reactive({ name: '', description: '' });
         const $v = useValidup(new RoleValidator(), state, { group: 'create' });
+
         await flush();
 
         $v.fields.name.$model.value = 'admin';
@@ -80,7 +84,9 @@ describe('initialize() subclass pattern', () => {
         expect($v.$invalid.value).toBe(false);
 
         const result = await $v.$validate();
+
         expect(result.success).toBe(true);
+
         if (result.success) {
             expect(result.data.name).toBe('admin');
         }
@@ -95,6 +101,7 @@ describe('initialize() subclass pattern', () => {
 
         const $vA = useValidup(a, stateA, { group: 'create' });
         const $vB = useValidup(b, stateB, { group: 'create' });
+
         await flush();
 
         expect($vA.$invalid.value).toBe(false);

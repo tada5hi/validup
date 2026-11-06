@@ -35,14 +35,17 @@ describe('error', () => {
         ]);
 
         const zodIssues = buildZodIssuesForError(error);
+
         expect(zodIssues).toHaveLength(1);
     });
 
     it('should wrap error as zod issue', async () => {
         const childContainer = new Container();
+
         childContainer.mount('bar', createValidator(z.string()));
 
         const container = new Container<{ foo: string }>();
+
         container.mount('foo', createValidator(
             z
                 .any()
@@ -60,7 +63,9 @@ describe('error', () => {
         expect.assertions(2);
 
         const output = await container.safeRun({ foo: 1 });
+
         expect(output.success).toBeFalsy();
+
         if (!output.success) {
             expect(output.error).toBeInstanceOf(ValidupError);
         }
@@ -78,13 +83,18 @@ describe('error', () => {
         // by the same code path the runtime uses via `createValidator`.
         const parseAndMap = (schema: z.ZodTypeAny, value: unknown) => {
             const parsed = schema.safeParse(value);
-            if (parsed.success) throw new Error('expected zod parse to fail');
+
+            if (parsed.success) {
+                throw new Error('expected zod parse to fail');
+            }
+
             return flattenIssueItems(buildIssuesForZodError(parsed.error, value));
         };
 
         const isJsonString = (value: string) => {
             try {
                 JSON.parse(value);
+
                 return true;
             } catch {
                 return false;
@@ -94,31 +104,37 @@ describe('error', () => {
         // ── too_small / too_big — length axis vs. magnitude axis ───────────
         it('too_small (string) → MIN_LENGTH', () => {
             const items = parseAndMap(z.string().min(5), 'hi');
+
             expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
             expect(items[0]?.data).toEqual({ min: 5 });
         });
         it('too_big (string) → MAX_LENGTH', () => {
             const items = parseAndMap(z.string().max(3), 'toolong');
+
             expect(items[0]?.code).toBe(IssueCode.MAX_LENGTH);
             expect(items[0]?.data).toEqual({ max: 3 });
         });
         it('too_small (array) → MIN_LENGTH', () => {
             const items = parseAndMap(z.array(z.number()).min(2), [1]);
+
             expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
             expect(items[0]?.data).toEqual({ min: 2 });
         });
         it('too_big (array) → MAX_LENGTH', () => {
             const items = parseAndMap(z.array(z.number()).max(2), [1, 2, 3]);
+
             expect(items[0]?.code).toBe(IssueCode.MAX_LENGTH);
             expect(items[0]?.data).toEqual({ max: 2 });
         });
         it('too_small (number) → MIN_VALUE', () => {
             const items = parseAndMap(z.number().min(10), 5);
+
             expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
             expect(items[0]?.data).toEqual({ min: 10 });
         });
         it('too_big (number) → MAX_VALUE', () => {
             const items = parseAndMap(z.number().max(10), 50);
+
             expect(items[0]?.code).toBe(IssueCode.MAX_VALUE);
             expect(items[0]?.data).toEqual({ max: 10 });
         });
@@ -128,6 +144,7 @@ describe('error', () => {
             // MIN_VALUE template ("must be at least 2" vs. "must have at
             // least 2 items").
             const items = parseAndMap(z.set(z.string()).min(2), new Set(['a']));
+
             expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
             expect(items[0]?.data).toEqual({ min: 2 });
         });
@@ -137,6 +154,7 @@ describe('error', () => {
             // number, which is what lands in `data.min`.
             const min = new Date('2030-01-01T00:00:00.000Z');
             const items = parseAndMap(z.date().min(min), new Date('2020-01-01T00:00:00.000Z'));
+
             expect(items[0]?.code).toBe(IssueCode.MIN_VALUE);
             expect(items[0]?.data).toEqual({ min: min.getTime() });
         });
@@ -204,8 +222,10 @@ describe('error', () => {
 
         it.each(formatCases)('invalid_format $0 → $3', (label, schema, value, code, data) => {
             const items = parseAndMap(schema, value);
+
             expect(items).toHaveLength(1);
             expect(items[0]?.code).toBe(code);
+
             if (data) {
                 expect(items[0]?.data).toMatchObject(data);
             } else {
@@ -216,6 +236,7 @@ describe('error', () => {
         // ── invalid_type (incl. zod-4 missing-key collapse) ──────────────
         it('invalid_type (wrong type) → VALUE_INVALID', () => {
             const items = parseAndMap(z.string(), 42);
+
             expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
         });
         it('invalid_type (missing key) → REQUIRED', () => {
@@ -225,6 +246,7 @@ describe('error', () => {
             // issue path up against the original parsed input — when the
             // leaf is `undefined`, the field was absent.
             const items = parseAndMap(z.object({ email: z.string() }), {});
+
             expect(items[0]?.code).toBe(IssueCode.REQUIRED);
         });
         it('invalid_type → falls back to VALUE_INVALID when input not threaded', () => {
@@ -233,20 +255,27 @@ describe('error', () => {
             // fallback. Preserves the contract of the single-arg overload
             // for callers that hold a ZodError but not the input.
             const parsed = z.object({ email: z.string() }).safeParse({});
-            if (parsed.success) throw new Error('expected zod parse to fail');
+
+            if (parsed.success) {
+                throw new Error('expected zod parse to fail');
+            }
+
             const items = flattenIssueItems(buildIssuesForZodError(parsed.error));
+
             expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
         });
 
         // ── invalid_value — enum / literal mismatches ────────────────────
         it('invalid_value (enum) → ONE_OF_FAILED', () => {
             const items = parseAndMap(z.enum(['a', 'b']), 'c');
+
             expect(items[0]?.code).toBe(IssueCode.ONE_OF_FAILED);
             // Original zod message survives as the fallback display string.
             expect(items[0]?.message).toMatch(/Invalid|expected/i);
         });
         it('invalid_value (literal) → ONE_OF_FAILED', () => {
             const items = parseAndMap(z.literal('foo'), 'bar');
+
             expect(items[0]?.code).toBe(IssueCode.ONE_OF_FAILED);
         });
 
@@ -266,6 +295,7 @@ describe('error', () => {
 
         it.each(defaultCases)('$0 → VALUE_INVALID (no vocabulary match)', (label, schema, value) => {
             const items = parseAndMap(schema, value);
+
             expect(items).toHaveLength(1);
             expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
             expect(items[0]?.data).toBeUndefined();
@@ -355,16 +385,19 @@ describe('error', () => {
             const outcome = schema.safeParse('anything');
 
             expect(outcome.success).toBe(false);
-            if (!outcome.success) {
-                expect(outcome.error.issues.map((issue) => issue.path)).toEqual([
-                    ['user', 'name'],
-                    ['user', 'email'],
-                ]);
-                expect(outcome.error.issues.map((issue) => issue.message)).toEqual([
-                    'name is required',
-                    'email is required',
-                ]);
+
+            if (outcome.success) {
+                return;
             }
+
+            expect(outcome.error.issues.map((issue) => issue.path)).toEqual([
+                ['user', 'name'],
+                ['user', 'email'],
+            ]);
+            expect(outcome.error.issues.map((issue) => issue.message)).toEqual([
+                'name is required',
+                'email is required',
+            ]);
         });
     });
 });

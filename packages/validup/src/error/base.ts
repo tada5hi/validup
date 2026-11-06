@@ -16,6 +16,7 @@ export class ValidupError extends BaseError {
 
     constructor(issues: Issue[] = []) {
         const paths = issues.map((issue) => stringifyPath(issue.path));
+
         super({ message: buildErrorMessageForAttributes(paths) });
 
         this.issues = issues;

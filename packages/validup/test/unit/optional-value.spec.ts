@@ -20,7 +20,7 @@ describe('isOptionalValue', () => {
         emptyString: '',
         zero: 0,
         false: false,
-        nan: Number.NaN,
+        nan: NaN,
         string: 'x',
         one: 1,
         true: true,
@@ -40,8 +40,10 @@ describe('isOptionalValue', () => {
     for (const [atom, matching] of table) {
         describe(`'${atom}'`, () => {
             const keys = Object.keys(values);
+
             for (const key of keys) {
                 const expected = matching.includes(key);
+
                 it(`should ${expected ? 'match' : 'not match'} ${key}`, () => {
                     expect(isOptionalValue(values[key], atom)).toEqual(expected);
                 });
@@ -87,7 +89,7 @@ describe('isOptionalValue', () => {
     });
 
     it('should only match NaN for numeric NaN', () => {
-        expect(isOptionalValue(Number.NaN, OptionalValue.NAN)).toEqual(true);
+        expect(isOptionalValue(NaN, OptionalValue.NAN)).toEqual(true);
         // `Number.isNaN('x')` is false, but a naive `isNaN('x')` would be true.
         expect(isOptionalValue('x', OptionalValue.NAN)).toEqual(false);
     });

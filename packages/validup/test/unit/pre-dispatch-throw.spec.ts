@@ -50,6 +50,7 @@ async function safeRunIn<T extends Record<string, any>>(
 /** Assert failure and hand back the issue tree. */
 function expectFailure<T extends Record<string, any>>(result: Result<T>): Issue[] {
     expect(result.success).toBe(false);
+
     if (result.success) {
         throw new Error('unreachable');
     }
@@ -60,6 +61,7 @@ function expectFailure<T extends Record<string, any>>(result: Result<T>): Issue[
 /** `message` keyed by the leaf's dotted path, for order-free comparison. */
 function messagesByPath(issues: Issue[]): Record<string, string> {
     const output: Record<string, string> = {};
+
     for (const leaf of flattenIssueItems(issues)) {
         output[leaf.path.join('.')] = leaf.message;
     }
@@ -73,6 +75,7 @@ describe('pre-dispatch throw containment', () => {
             // The precondition is only "another mount also failed", i.e. the
             // normal case for an invalid request.
             const container = new Container<any>();
+
             container.mount('good', () => {
                 throw new Error('REAL_ISSUE');
             });
@@ -97,6 +100,7 @@ describe('pre-dispatch throw containment', () => {
             // so consumers (`@validup/vue`, i18n catalogs) can render it
             // against the right field.
             const container = new Container<any>();
+
             container.mount('lazy', (ctx) => ctx.value);
 
             const issues = expectFailure(await safeRunIn(mode, container, {
@@ -106,6 +110,7 @@ describe('pre-dispatch throw containment', () => {
             }));
 
             const [leaf] = flattenIssueItems(issues);
+
             expect(leaf.path).toEqual(['lazy']);
             expect(leaf.message).toBe('GETTER_BOOM');
         });
@@ -115,12 +120,17 @@ describe('pre-dispatch throw containment', () => {
             // "blank means absent" idiom — throws a TypeError the first time
             // the field is genuinely absent.
             const container = new Container<any>();
+
             container.mount('good', () => {
                 throw new Error('REAL_ISSUE');
             });
             container.mount(
                 'flaky',
-                { optional: () => { throw new Error('PREDICATE_BOOM'); } },
+                {
+                    optional: () => {
+                        throw new Error('PREDICATE_BOOM');
+                    },
+                },
                 () => 'never reached',
             );
 
@@ -138,15 +148,21 @@ describe('pre-dispatch throw containment', () => {
             // downgrade must not be inferred from a predicate that failed to
             // answer.
             const container = new Container<any>();
+
             container.mount(
                 'flaky',
-                { optional: () => { throw new Error('PREDICATE_BOOM'); } },
+                {
+                    optional: () => {
+                        throw new Error('PREDICATE_BOOM');
+                    },
+                },
                 () => 'never reached',
             );
 
             const issues = expectFailure(await safeRunIn(mode, container, { flaky: 'y' }));
 
             const [leaf] = flattenIssueItems(issues);
+
             expect(leaf.message).toBe('PREDICATE_BOOM');
             expect(leaf.meta?.optional).toBeUndefined();
             // Asserted alongside the stamp: an escaped predicate throw also
@@ -161,6 +177,7 @@ describe('pre-dispatch throw containment', () => {
             // steps, and the one the original reports mis-attributed to the
             // value read.
             const container = new Container<any>();
+
             container.mount('good', () => {
                 throw new Error('REAL_ISSUE');
             });
@@ -174,6 +191,7 @@ describe('pre-dispatch throw containment', () => {
             }));
 
             const byPath = messagesByPath(issues);
+
             expect(byPath.good).toBe('REAL_ISSUE');
             // Attributed to the literal mount pattern: the keys it would have
             // expanded to are exactly what could not be computed.
@@ -186,10 +204,12 @@ describe('pre-dispatch throw containment', () => {
         // pin that they converge rather than merely each being non-empty.
         const build = () => {
             const container = new Container<any>();
+
             container.mount('good', () => {
                 throw new Error('REAL_ISSUE');
             });
             container.mount('lazy', (ctx) => ctx.value);
+
             return container;
         };
 

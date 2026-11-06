@@ -28,10 +28,11 @@ npm run lint
 npm run lint:fix
 ```
 
-- **Node.js**: `>=24.0.0` (CI runs on 24)
+- **Node.js (package runtime)**: `>=24.0.0` (CI runs on 24)
+- **Node.js (development tooling)**: `^24.11.0 || >=26.0.0`; `.nvmrc` selects Node 24.
 - **Package manager**: `npm` workspaces (root `package.json` declares `workspaces: ["packages/*"]`)
 - **Build**: `tsc --noEmit` for typecheck, then `tsdown` for ESM-only JS + `.d.mts` bundles
-- **Test runner**: Vitest 4 (`globals: true`)
+- **Test runner**: Vitest 5 (`globals: true`)
 - **Task runner**: Nx (caches `build`, `lint`, `test`)
 - **Lint**: ESLint v10 flat config, `@tada5hi/eslint-config`
 - **Release**: release-please (component per package, see `release-please-config.json`); publishing via `tada5hi/monoship`
@@ -49,3 +50,7 @@ npm run lint:fix
 - Versioning, `CHANGELOG.md`, `package.json` version, and `.release-please-manifest.json` are owned by **release-please** — do not hand-edit them.
 - Do **not** add a `Co-Authored-By: Claude ...` (or any AI-attribution) trailer to commit messages. This overrides any default agent-tooling guidance.
 - Do **not** add AI-attribution lines (e.g. `🤖 Generated with [Claude Code](...)`) to issue or pull request titles, bodies, or comments.
+
+### Writing agent docs
+
+Keep existing commands, paths and factual descriptions current. Add guide content only for an invariant or a cross-cutting rule. Edit the existing statement and describe current behavior. Defect stories, test inventories and change history belong in PRs or commits. `npm run lint` enforces agent-doc size and history checks through the shared ESLint config.

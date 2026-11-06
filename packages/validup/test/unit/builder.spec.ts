@@ -24,6 +24,7 @@ const stringValidator: Validator<unknown, string> = (ctx) => {
     if (typeof ctx.value !== 'string') {
         throw new Error('Value is not a string');
     }
+
     return ctx.value;
 };
 
@@ -31,6 +32,7 @@ const numberValidator: Validator<unknown, number> = (ctx) => {
     if (typeof ctx.value !== 'number') {
         throw new Error('Value is not a number');
     }
+
     return ctx.value;
 };
 
@@ -69,10 +71,12 @@ describe('src/builder', () => {
             .build();
 
         const present = await schema.run({ foo: 'x', bar: 1 });
+
         expectTypeOf(present).toEqualTypeOf<{ foo: string, bar?: number }>();
         expect(present).toEqual({ foo: 'x', bar: 1 });
 
         const missing = await schema.run({ foo: 'x' });
+
         // optional bar drops out of the object when missing
         expect(missing).toEqual({ foo: 'x' });
     });
@@ -87,6 +91,7 @@ describe('src/builder', () => {
             .build();
 
         const out = await schema.run({ bar: null });
+
         expect(out).toEqual({ bar: null });
     });
 
@@ -96,7 +101,9 @@ describe('src/builder', () => {
             .build();
 
         const out = await schema.run({});
+
         expect(out).toEqual({});
+
         // Type-only: predicate optional should still surface as `bar?`
         type R = Awaited<ReturnType<typeof schema.run>>;
         expectTypeOf<R>().toEqualTypeOf<{ bar?: string }>();
@@ -111,6 +118,7 @@ describe('src/builder', () => {
         expectTypeOf<R>().toEqualTypeOf<{ bar: string }>();
 
         const out = await schema.run({ bar: 'x' }, { group: 'create' });
+
         expect(out).toEqual({ bar: 'x' });
     });
 
@@ -132,6 +140,7 @@ describe('src/builder', () => {
 
     it('also accepts a Container as a mount target', async () => {
         const child = new Container<{ age: number }>();
+
         child.mount('age', numberValidator);
 
         const parent = defineSchema()
@@ -140,6 +149,7 @@ describe('src/builder', () => {
             .build();
 
         const out = await parent.run({ id: 'p', child: { age: 12 } });
+
         expect(out).toEqual({ id: 'p', child: { age: 12 } });
     });
 
@@ -156,12 +166,15 @@ describe('src/builder', () => {
         // both branches angry — fails as oneOf group
         try {
             await schema.run({ foo: 1, bar: 'no' });
+
             throw new Error('expected ValidupError');
         } catch (e) {
             expect(e).toBeInstanceOf(ValidupError);
+
             if (e instanceof ValidupError) {
                 expect(e.issues).toHaveLength(1);
                 expect(e.issues[0].type).toEqual('group');
+
                 if (e.issues[0].type === 'group') {
                     expect(e.issues[0].code).toEqual('one_of_failed');
                     expect(e.issues[0].issues.length).toBeGreaterThanOrEqual(2);
@@ -171,6 +184,7 @@ describe('src/builder', () => {
 
         // first happy — succeeds (oneOf passes if at least one succeeded)
         const out = await schema.run({ foo: 'a', bar: 'no' });
+
         expect(out.foo).toEqual('a');
     });
 
@@ -184,6 +198,7 @@ describe('src/builder', () => {
         // bar would normally throw because the value is not a number, but
         // pathsToInclude limits execution to `foo` only.
         const out = await included.run({ foo: 'a', bar: 'not-a-number' });
+
         expect(out.foo).toEqual('a');
 
         const excluded = defineSchema()
@@ -193,6 +208,7 @@ describe('src/builder', () => {
             .build();
 
         const out2 = await excluded.run({ foo: 'b', bar: 'not-a-number' });
+
         expect(out2.foo).toEqual('b');
     });
 
@@ -228,6 +244,7 @@ describe('src/builder', () => {
 
         const validator: Validator<AppCtx, string> = (ctx) => {
             assertType<AppCtx>(ctx.context);
+
             return ctx.context.user;
         };
 
@@ -238,6 +255,7 @@ describe('src/builder', () => {
             .build();
 
         const out = await schema.run({}, { context: { user: 'peter' } });
+
         expect(out).toEqual({
             whoami: 'peter',
             inner: { whoami: 'peter' },
@@ -250,6 +268,7 @@ describe('src/builder', () => {
             .build();
 
         expect.assertions(2);
+
         try {
             await schema.run({ foo: 1 });
         } catch (e) {
@@ -274,6 +293,7 @@ describe('src/builder', () => {
 
     it('widens optional nested Container to optional in T', () => {
         const child = new Container<{ city: string }>();
+
         child.mount('city', stringValidator);
 
         const schema = defineSchema()
@@ -299,6 +319,7 @@ describe('src/builder', () => {
 
         // Runtime: second mount reads output[foo] from the first, writes last.
         const out = await schema.run({ foo: '42' });
+
         expect(out).toEqual({ foo: 42 });
     });
 
@@ -309,6 +330,7 @@ describe('src/builder', () => {
 
         // `bar` was never registered — runtime simply doesn't visit it.
         const out = await schema.run({ foo: 'x', bar: 'unused' } as any);
+
         expect(out).toEqual({ foo: 'x' });
     });
 });

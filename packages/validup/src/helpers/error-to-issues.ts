@@ -9,29 +9,13 @@ import { isError, isValidupError } from '../error';
 import { IssueCode, defineIssueItem } from '@ebec/core';
 import type { Issue } from '@ebec/core';
 
+import type { ErrorToIssuesOptions } from './types';
+
 /**
  * Options for {@link errorToIssues}. Defaults match what the
  * orchestrating helpers (compose's collect-all catch, composeAnyOf's
  * branch-failure path) want out of the box.
  */
-export type ErrorToIssuesOptions = {
-    /**
-     * Code stamped on the synthetic `IssueItem` when the thrown value
-     * is an `Error` or a non-`Error` throw. Defaults to
-     * `IssueCode.VALUE_INVALID`. `ValidupError` issues are spread
-     * verbatim and DO NOT get this code applied; their own codes are
-     * preserved.
-     */
-    code?: IssueCode | (string & {}),
-    /**
-     * Path on the synthetic `IssueItem`. Defaults to `[]`.
-     * `ValidupError` issues are spread verbatim with their original
-     * paths intact — callers that want to prefix or transform spread
-     * paths should do so after this fold (the surrounding Container
-     * run loop does this in `prefixIssuePath`, for example).
-     */
-    path?: PropertyKey[],
-};
 
 /**
  * The "given an unknown throw, produce `Issue[]`" cascade shared by
@@ -78,3 +62,4 @@ export function errorToIssues(
             `Non-Error throw: ${String(error)}`,
     })];
 }
+export type { ErrorToIssuesOptions };

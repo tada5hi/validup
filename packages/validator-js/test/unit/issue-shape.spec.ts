@@ -54,8 +54,12 @@ function run(descriptor: ValidatorDescriptor, value: unknown, data: Record<strin
     try {
         return { ok: true, value: descriptor.run(contextFor(value, data)) };
     } catch (error) {
-        if (!isValidupError(error)) throw error;
+        if (!isValidupError(error)) {
+            throw error;
+        }
+
         const issue = error.issues[0] as any;
+
         return {
             ok: false,
             code: issue.code,
@@ -240,8 +244,13 @@ describe('the code → message → data contract', () => {
     for (const row of CONTRACT) {
         it(`${row.name} emits the documented triple`, () => {
             const failure = run(row.descriptor, row.failing, row.data ?? {});
+
             expect(failure.ok).toBe(false);
-            if (failure.ok) return;
+
+            if (failure.ok) {
+                return;
+            }
+
             expect(failure.code).toBe(row.code);
             expect(failure.message).toBe(row.message);
             expect(failure.data).toEqual(row.payload);
@@ -254,6 +263,7 @@ describe('the code → message → data contract', () => {
             // NOT tell `return ctx.value` from `return s`. The identity table
             // below is the one that discriminates; keep fixtures there.
             const success = run(row.descriptor, row.passing, row.data ?? {});
+
             expect(success).toEqual({ ok: true, value: row.passing });
         });
 
@@ -287,9 +297,14 @@ describe('the code → message → data contract', () => {
         // `data` and makes `grep` skip it, silently dropping the file out of
         // every grep-based audit. See `.agents/conventions.md` → Code Style.
         for (const descriptor of overrides) {
-            const outcome = run(descriptor, '\u0000 not-valid !!', { password: 'other' });
+            const outcome = run(descriptor, '\0 not-valid !!', { password: 'other' });
+
             expect(outcome.ok).toBe(false);
-            if (outcome.ok) continue;
+
+            if (outcome.ok) {
+                continue;
+            }
+
             expect(outcome.message).toBe('custom');
         }
     });
@@ -377,8 +392,13 @@ describe('every factory returns ctx.value, never the stringified probe', () => {
     for (const [name, descriptor, passing, data] of IDENTITY) {
         it(`${name} hands back the original value, not the coerced probe`, () => {
             const outcome = run(descriptor, passing, data ?? {});
+
             expect(outcome.ok).toBe(true);
-            if (!outcome.ok) return;
+
+            if (!outcome.ok) {
+                return;
+            }
+
             // `toBe`, not `toEqual` — `Object.is(42, '42')` is false, and for
             // the boxed rows only reference identity separates the value from
             // its own stringification.
@@ -496,25 +516,41 @@ describe('issue `data` is a fresh object per failure', () => {
         it(`${row.name} does not share the payload reference between failures`, () => {
             const first = run(row.descriptor, row.failing);
             const second = run(row.descriptor, row.failing);
+
             expect(first.ok).toBe(false);
             expect(second.ok).toBe(false);
-            if (first.ok || second.ok) return;
+
+            if (first.ok || second.ok) {
+                return;
+            }
+
             expect(first.data).toEqual(second.data);
             expect(first.data).not.toBe(second.data);
 
             // …and mutating one really is invisible to the next run.
             (first.data as Record<string, unknown>).injected = true;
+
             const third = run(row.descriptor, row.failing);
+
             expect(third.ok).toBe(false);
-            if (third.ok) return;
+
+            if (third.ok) {
+                return;
+            }
+
             expect(third.data).not.toHaveProperty('injected');
         });
     }
 
     it('leaves `data` undefined for a bare code', () => {
         const outcome = run(isEmail(), 'nope');
+
         expect(outcome.ok).toBe(false);
-        if (outcome.ok) return;
+
+        if (outcome.ok) {
+            return;
+        }
+
         expect(outcome.data).toBeUndefined();
     });
 });
@@ -654,16 +690,23 @@ describe('when `message` is resolved', () => {
         it(`${row.name} freezes the message at factory-call time`, () => {
             const bag = row.makeBag();
             const descriptor = row.build(bag);
+
             bag.message = MUTATED;
 
             const outcome = run(descriptor, row.failing);
+
             expect(outcome.ok).toBe(false);
-            if (outcome.ok) return;
+
+            if (outcome.ok) {
+                return;
+            }
+
             expect(outcome.message).toBe(row.fallback);
 
             // …and the same bag populated BEFORE construction IS honoured, so
             // this is about timing rather than `message` being ignored.
             const upFront = row.makeBag();
+
             upFront.message = 'up front';
             expect((run(row.build(upFront), row.failing) as { message: string }).message).toBe('up front');
         });
@@ -713,14 +756,25 @@ describe('when `message` is resolved', () => {
             const descriptor = row.build(bag);
 
             const before = run(descriptor, row.failing);
+
             expect(before.ok).toBe(false);
-            if (before.ok) return;
+
+            if (before.ok) {
+                return;
+            }
+
             expect(before.message).toBe(row.fallback);
 
             bag.message = MUTATED;
+
             const after = run(descriptor, row.failing);
+
             expect(after.ok).toBe(false);
-            if (after.ok) return;
+
+            if (after.ok) {
+                return;
+            }
+
             expect(after.message).toBe(MUTATED);
         });
     }
@@ -774,10 +828,12 @@ describe('type-level: the core per-code data gatekeep, seen from the adapter', (
         // Runtime assertions so this `it()` can fail for a reason vitest sees
         // rather than resting entirely on `tsc`.
         const parameterized = createValidupError('a', IssueCode.MIN_LENGTH, 'too short', { min: 1 });
+
         expect(isValidupError(parameterized)).toBe(true);
         expect((parameterized.issues[0] as any).data).toEqual({ min: 1 });
 
         const bare = createValidupError('a', IssueCode.EMAIL, 'bad email');
+
         expect((bare.issues[0] as any).data).toBeUndefined();
     });
 

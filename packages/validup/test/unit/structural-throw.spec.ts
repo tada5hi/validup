@@ -17,7 +17,9 @@ import { RunSyncViolationError } from '../../src/container/run-sync-violation';
 
 const abortedSignal = (): AbortSignal => {
     const controller = new AbortController();
+
     controller.abort();
+
     return controller.signal;
 };
 

@@ -27,19 +27,23 @@ describe('useValidup abort behaviour', () => {
             // Honor the signal so the abort short-circuits the await.
             await new Promise<void>((resolve, reject) => {
                 const timer = setTimeout(resolve, 30);
+
                 ctx.signal?.addEventListener('abort', () => {
                     clearTimeout(timer);
                     reject(ctx.signal!.reason);
                 });
             });
             seen.push({ value: ctx.value, aborted: ctx.signal?.aborted ?? false });
+
             return ctx.value;
         };
 
         const container = new Container<{ name: string }>();
+
         container.mount('name', slow);
 
         const state = reactive({ name: 'a' });
+
         useValidup(container, state);
 
         // Initial run starts. Mutate before it can complete.
@@ -58,6 +62,7 @@ describe('useValidup abort behaviour', () => {
         // `toBe(1)` (vs. `toBeLessThanOrEqual(1)`) prevents a regression
         // where the final run also gets aborted from silently passing.
         const completed = seen.filter((s) => !s.aborted);
+
         expect(completed.length).toBe(1);
         expect(completed[0]?.value).toEqual('abc');
     });
@@ -67,10 +72,12 @@ describe('useValidup abort behaviour', () => {
 
         const validator: Validator = (ctx) => {
             seen.push(ctx.signal);
+
             return ctx.value;
         };
 
         const container = new Container<{ name: string }>();
+
         container.mount('name', validator);
 
         const state = reactive({ name: 'a' });

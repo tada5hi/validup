@@ -19,9 +19,11 @@ import { stringValidator } from '../data';
 describe('optional', () => {
     it('should work with default optionalValue (UNDEFINED)', async () => {
         const child = new Container<{ foo: string }>();
+
         child.mount('foo', stringValidator);
 
         const parent = new Container();
+
         parent.mount(
             'child',
             { optional: true },
@@ -29,14 +31,17 @@ describe('optional', () => {
         );
 
         const output = await parent.run({});
+
         expect(Object.keys(output)).toHaveLength(0);
     });
 
     it('should work with default optionalValue and optionalInclude', async () => {
         const child = new Container<{ foo: string }>();
+
         child.mount('foo', stringValidator);
 
         const parent = new Container();
+
         parent.mount(
             'child',
             {
@@ -47,15 +52,18 @@ describe('optional', () => {
         );
 
         const output = await parent.run({});
+
         expect(Object.keys(output)).toHaveLength(1);
         expect(output.child).toBeUndefined();
     });
 
     it('should work with null optionalValue', async () => {
         const child = new Container<{ foo: string }>();
+
         child.mount('foo', stringValidator);
 
         const parent = new Container();
+
         parent.mount(
             'child',
             { optional: true, optionalValue: OptionalValue.NULL },
@@ -63,14 +71,17 @@ describe('optional', () => {
         );
 
         const output = await parent.run({ child: null });
+
         expect(Object.keys(output)).toHaveLength(0);
     });
 
     it('should work with null optionalValue and optionalInclude', async () => {
         const child = new Container<{ foo: string }>();
+
         child.mount('foo', stringValidator);
 
         const parent = new Container();
+
         parent.mount(
             'child',
             {
@@ -82,15 +93,18 @@ describe('optional', () => {
         );
 
         const output = await parent.run({ child: null });
+
         expect(Object.keys(output)).toHaveLength(1);
         expect(output.child).toEqual(null);
     });
 
     it('should work with falsy optionalValue', async () => {
         const child = new Container<{ foo: string }>();
+
         child.mount('foo', stringValidator);
 
         const parent = new Container();
+
         parent.mount(
             'child',
             { optional: true, optionalValue: OptionalValue.FALSY },
@@ -98,14 +112,17 @@ describe('optional', () => {
         );
 
         const output = await parent.run({ child: '' });
+
         expect(Object.keys(output)).toHaveLength(0);
     });
 
     it('should work with falsy optionalValue and optionalInclude', async () => {
         const child = new Container<{ foo: string }>();
+
         child.mount('foo', stringValidator);
 
         const parent = new Container();
+
         parent.mount(
             'child',
             {
@@ -117,15 +134,18 @@ describe('optional', () => {
         );
 
         const output = await parent.run({ child: '' });
+
         expect(Object.keys(output)).toHaveLength(1);
         expect(output.child).toEqual('');
     });
 
     it('should not work with default optionalValue and invalid value', async () => {
         const child = new Container<{ foo: string }>();
+
         child.mount('foo', stringValidator);
 
         const parent = new Container();
+
         parent.mount(
             'child',
             { optional: true },
@@ -143,9 +163,11 @@ describe('optional', () => {
 
     it('should not work with null optionalValue and invalid value', async () => {
         const child = new Container<{ foo: string }>();
+
         child.mount('foo', stringValidator);
 
         const parent = new Container();
+
         parent.mount(
             'child',
             { optional: true, optionalValue: OptionalValue.NULL },
@@ -163,9 +185,11 @@ describe('optional', () => {
 
     it('should not work with falsy optionalValue and invalid value', async () => {
         const child = new Container<{ foo: string }>();
+
         child.mount('foo', stringValidator);
 
         const parent = new Container();
+
         parent.mount(
             'child',
             { optional: true, optionalValue: OptionalValue.FALSY },
@@ -185,6 +209,7 @@ describe('optional', () => {
         // Predicate use case the FALSY enum can't express: drop empty strings,
         // keep numeric zeros (0 must reach the validator).
         const container = new Container<{ name: string, count: number }>();
+
         container.mount(
             'name',
             { optional: (v) => v === '' || typeof v === 'undefined' },
@@ -194,16 +219,19 @@ describe('optional', () => {
             if (typeof ctx.value !== 'number') {
                 throw new Error('Value is not a number');
             }
+
             return ctx.value;
         });
 
         const output = await container.run({ name: '', count: 0 });
+
         expect(output.name).toBeUndefined();
         expect(output.count).toEqual(0);
     });
 
     it('should pass through optionalInclude with a predicate', async () => {
         const container = new Container<{ tag: string }>();
+
         container.mount(
             'tag',
             { optional: (v) => typeof v !== 'string', optionalInclude: true },
@@ -211,6 +239,7 @@ describe('optional', () => {
         );
 
         const output = await container.run({ tag: 42 } as any);
+
         expect(output.tag).toEqual(42);
     });
 
@@ -220,18 +249,21 @@ describe('optional', () => {
         // widens an atom (e.g. NULL → null|undefined like pre-2.0) trips here.
         function buildContainer(optionalValue: any): Container<{ x: any }> {
             const c = new Container<{ x: any }>();
+
             c.mount('x', {
-                optional: true, 
-                optionalValue, 
-                optionalInclude: true, 
+                optional: true,
+                optionalValue,
+                optionalInclude: true,
             }, (ctx) => {
                 throw new Error(`validator ran on ${String(ctx.value)}`);
             });
+
             return c;
         }
 
         it('NULL matches null only, NOT undefined', async () => {
             const c = buildContainer(OptionalValue.NULL);
+
             // null → optional → skipped (validator never throws), value preserved via optionalInclude
             await expect(c.run({ x: null })).resolves.toEqual({ x: null });
             // undefined → NOT optional under atomic NULL → validator runs → throws
@@ -240,6 +272,7 @@ describe('optional', () => {
 
         it('EMPTY_STRING matches "" only', async () => {
             const c = buildContainer(OptionalValue.EMPTY_STRING);
+
             await expect(c.run({ x: '' })).resolves.toEqual({ x: '' });
             await expect(c.run({ x: ' ' })).rejects.toBeDefined();
             await expect(c.run({ x: 0 })).rejects.toBeDefined();
@@ -247,6 +280,7 @@ describe('optional', () => {
 
         it('ZERO matches 0 only', async () => {
             const c = buildContainer(OptionalValue.ZERO);
+
             await expect(c.run({ x: 0 })).resolves.toEqual({ x: 0 });
             await expect(c.run({ x: 1 })).rejects.toBeDefined();
             await expect(c.run({ x: false })).rejects.toBeDefined();
@@ -254,6 +288,7 @@ describe('optional', () => {
 
         it('FALSE matches false only', async () => {
             const c = buildContainer(OptionalValue.FALSE);
+
             await expect(c.run({ x: false })).resolves.toEqual({ x: false });
             await expect(c.run({ x: 0 })).rejects.toBeDefined();
             await expect(c.run({ x: '' })).rejects.toBeDefined();
@@ -261,7 +296,8 @@ describe('optional', () => {
 
         it('NAN matches NaN only', async () => {
             const c = buildContainer(OptionalValue.NAN);
-            const result = await c.run({ x: Number.NaN });
+            const result = await c.run({ x: NaN });
+
             expect(Number.isNaN(result.x)).toBe(true);
             await expect(c.run({ x: 0 })).rejects.toBeDefined();
             // String "NaN" is not a numeric NaN.
@@ -272,6 +308,7 @@ describe('optional', () => {
     describe('array optionalValue', () => {
         it('matches if any atom matches', async () => {
             const container = new Container<{ x: any }>();
+
             container.mount(
                 'x',
                 {
@@ -294,6 +331,7 @@ describe('optional', () => {
 
         it('empty array never matches (effectively non-optional)', async () => {
             const container = new Container<{ x: any }>();
+
             container.mount(
                 'x',
                 { optional: true, optionalValue: [] },
@@ -308,6 +346,7 @@ describe('optional', () => {
 
         it('composite FALSY mixed with atoms is harmless (any-of)', async () => {
             const container = new Container<{ x: any }>();
+
             container.mount(
                 'x',
                 {
@@ -331,6 +370,7 @@ describe('optional', () => {
     describe('ContainerRunOptions.optionalValue (run-level fallback)', () => {
         it('applies when the mount does not set its own optionalValue', async () => {
             const container = new Container<{ x: any }>();
+
             container.mount(
                 'x',
                 { optional: true, optionalInclude: true },
@@ -352,6 +392,7 @@ describe('optional', () => {
 
         it('per-mount optionalValue wins over the run-level fallback', async () => {
             const container = new Container<{ x: any }>();
+
             container.mount(
                 'x',
                 {
@@ -379,6 +420,7 @@ describe('optional', () => {
 
         it('is forwarded into nested containers', async () => {
             const child = new Container<{ inner: string }>();
+
             child.mount(
                 'inner',
                 { optional: true, optionalInclude: true },
@@ -388,6 +430,7 @@ describe('optional', () => {
             );
 
             const parent = new Container<{ wrap: { inner: string } }>();
+
             parent.mount('wrap', child);
 
             // Run-level `['undefined', 'empty_string']` on the parent should
@@ -405,6 +448,7 @@ describe('optional', () => {
     describe('optionalAs (canonical normalization)', () => {
         it('writes optionalAs to output when the mount qualifies as optional', async () => {
             const container = new Container<{ description: string | null }>();
+
             container.mount(
                 'description',
                 {
@@ -426,6 +470,7 @@ describe('optional', () => {
 
         it('takes precedence over optionalInclude when both set', async () => {
             const container = new Container<{ x: any }>();
+
             container.mount(
                 'x',
                 {
@@ -443,6 +488,7 @@ describe('optional', () => {
 
         it('honors `optionalAs: undefined` as an explicit directive (presence over value)', async () => {
             const container = new Container<{ x: any }>();
+
             container.mount(
                 'x',
                 {
@@ -455,6 +501,7 @@ describe('optional', () => {
             );
 
             const out = await container.run({ x: '' });
+
             // Distinguish "key emitted with value undefined" from "key omitted".
             expect(Object.prototype.hasOwnProperty.call(out, 'x')).toBe(true);
             expect(out.x).toBeUndefined();
@@ -464,6 +511,7 @@ describe('optional', () => {
     describe('ContainerOptions precedence (mount > run > container > default)', () => {
         it('ContainerOptions.optionalValue applies when neither mount nor run set it', async () => {
             const container = new Container<{ x: any }>({ optionalValue: [OptionalValue.UNDEFINED, OptionalValue.EMPTY_STRING] });
+
             container.mount(
                 'x',
                 { optional: true, optionalInclude: true },
@@ -479,6 +527,7 @@ describe('optional', () => {
 
         it('ContainerRunOptions.optionalValue overrides ContainerOptions', async () => {
             const container = new Container<{ x: any }>({ optionalValue: OptionalValue.EMPTY_STRING });
+
             container.mount(
                 'x',
                 { optional: true, optionalInclude: true },
@@ -495,6 +544,7 @@ describe('optional', () => {
 
         it('MountOptions.optionalValue overrides ContainerRunOptions and ContainerOptions', async () => {
             const container = new Container<{ x: any }>({ optionalValue: OptionalValue.FALSY });
+
             container.mount(
                 'x',
                 {
@@ -516,6 +566,7 @@ describe('optional', () => {
 
         it('ContainerOptions.optionalAs writes its canonical value when neither mount nor run set it', async () => {
             const container = new Container<{ x: any }>({ optionalAs: 'CONTAINER_DEFAULT' });
+
             container.mount(
                 'x',
                 { optional: true, optionalValue: OptionalValue.EMPTY_STRING },
@@ -527,6 +578,7 @@ describe('optional', () => {
 
         it('ContainerRunOptions.optionalAs overrides ContainerOptions.optionalAs', async () => {
             const container = new Container<{ x: any }>({ optionalAs: 'CONTAINER_DEFAULT' });
+
             container.mount(
                 'x',
                 { optional: true, optionalValue: OptionalValue.EMPTY_STRING },
@@ -540,6 +592,7 @@ describe('optional', () => {
 
         it('MountOptions.optionalAs overrides every higher layer', async () => {
             const container = new Container<{ x: any }>({ optionalAs: 'CONTAINER' });
+
             container.mount(
                 'x',
                 {
@@ -557,6 +610,7 @@ describe('optional', () => {
 
         it('optionalAs is forwarded into nested containers', async () => {
             const child = new Container<{ inner: any }>();
+
             child.mount(
                 'inner',
                 { optional: true, optionalValue: OptionalValue.EMPTY_STRING },
@@ -564,6 +618,7 @@ describe('optional', () => {
             );
 
             const parent = new Container<{ wrap: { inner: any } }>();
+
             parent.mount('wrap', child);
 
             await expect(
@@ -588,13 +643,16 @@ describe('optional', () => {
                 if (!isValidupError(e)) {
                     throw e;
                 }
+
                 return (e as ValidupError).issues;
             }
+
             throw new Error('expected ValidupError');
         }
 
         it('tags leaf issues from a boolean-optional mount with present invalid value', async () => {
             const container = new Container<{ tag: string }>();
+
             container.mount(
                 'tag',
                 { optional: true },
@@ -606,6 +664,7 @@ describe('optional', () => {
             const issues = await runAndCollectIssues(container, { tag: 42 });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+
             expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBe(true);
         });
@@ -616,6 +675,7 @@ describe('optional', () => {
             // (otherwise the validator would have been skipped), so the
             // blanket "this mount is optional" claim isn't accurate.
             const container = new Container<{ tag: string }>();
+
             container.mount(
                 'tag',
                 { optional: (v) => v === 'skipme' },
@@ -627,6 +687,7 @@ describe('optional', () => {
             const issues = await runAndCollectIssues(container, { tag: 42 });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+
             expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBeUndefined();
         });
@@ -635,6 +696,7 @@ describe('optional', () => {
             // `optional: false` matches the runtime's truthy check elsewhere
             // — treated as not optional — so the tag must NOT be set.
             const container = new Container<{ tag: string }>();
+
             container.mount(
                 'tag',
                 { optional: false },
@@ -644,6 +706,7 @@ describe('optional', () => {
             const issues = await runAndCollectIssues(container, { tag: 42 });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+
             expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBeUndefined();
         });
@@ -654,9 +717,11 @@ describe('optional', () => {
             // fields stay required. The leaf at `child.foo` must not carry
             // meta.optional — only the wrapping group at `child` does.
             const child = new Container<{ foo: string }>();
+
             child.mount('foo', stringValidator);
 
             const parent = new Container();
+
             parent.mount(
                 'child',
                 { optional: true },
@@ -668,6 +733,7 @@ describe('optional', () => {
 
             // Wrapping group at ['child'] should carry meta.optional.
             const group = issues.find((i): i is Issue & { type: 'group' } => isIssueGroup(i) && i.path.length === 1 && i.path[0] === 'child');
+
             expect(group).toBeDefined();
             expect(group!.meta?.optional).toBe(true);
 
@@ -675,6 +741,7 @@ describe('optional', () => {
             // the child's own mount for `foo` was not optional.
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path.length === 2 && i.path[0] === 'child' && i.path[1] === 'foo') as IssueItem;
+
             expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBeUndefined();
         });
@@ -685,9 +752,11 @@ describe('optional', () => {
             // OWN mount (not propagated from the parent — the parent's
             // optionality is captured by the wrapping group's meta).
             const child = new Container<{ foo: string }>();
+
             child.mount('foo', { optional: true }, stringValidator);
 
             const parent = new Container();
+
             parent.mount(
                 'child',
                 { optional: true },
@@ -697,17 +766,20 @@ describe('optional', () => {
             const issues = await runAndCollectIssues(parent, { child: { foo: 42 } });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path.length === 2 && i.path[0] === 'child' && i.path[1] === 'foo') as IssueItem;
+
             expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBe(true);
         });
 
         it('does not stamp issues from a mount without optional config', async () => {
             const container = new Container<{ tag: string }>();
+
             container.mount('tag', stringValidator);
 
             const issues = await runAndCollectIssues(container, { tag: 42 });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+
             expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBeUndefined();
         });
@@ -719,6 +791,7 @@ describe('optional', () => {
             // pulls the leaves, and they'd surface to consumers WITHOUT
             // meta.optional — breaking severity gating downstream.
             const container = new Container<{ tag: string }>();
+
             container.mount(
                 'tag',
                 { optional: true },
@@ -729,16 +802,16 @@ describe('optional', () => {
                         message: 'two-leaf group',
                         issues: [
                             {
-                                type: 'item', 
-                                code: 'A', 
-                                path: ['inner-a'], 
-                                message: 'a', 
+                                type: 'item',
+                                code: 'A',
+                                path: ['inner-a'],
+                                message: 'a',
                             } as IssueItem,
                             {
-                                type: 'item', 
-                                code: 'B', 
-                                path: ['inner-b'], 
-                                message: 'b', 
+                                type: 'item',
+                                code: 'B',
+                                path: ['inner-b'],
+                                message: 'b',
                             } as IssueItem,
                         ],
                     } as Issue]);
@@ -747,7 +820,9 @@ describe('optional', () => {
 
             const issues = await runAndCollectIssues(container, { tag: 'anything' });
             const leaves = flattenIssueItems(issues);
+
             expect(leaves.length).toBeGreaterThanOrEqual(2);
+
             for (const leaf of leaves) {
                 expect(leaf.meta?.optional).toBe(true);
             }
@@ -772,6 +847,7 @@ describe('optional', () => {
             } as IssueItem]);
 
             const container = new Container<{ tag: string }>();
+
             container.mount('tag', { optional: true }, () => {
                 throw validatorError;
             });
@@ -779,7 +855,9 @@ describe('optional', () => {
             try {
                 await container.run({ tag: 'anything' });
             } catch (e) {
-                if (!isValidupError(e)) throw e;
+                if (!isValidupError(e)) {
+                    throw e;
+                }
             }
 
             // The validator's original meta object must be untouched.
@@ -792,6 +870,7 @@ describe('optional', () => {
             // integration adapter shape) with pre-existing meta — the
             // stamping must merge, not clobber.
             const container = new Container<{ tag: string }>();
+
             container.mount(
                 'tag',
                 { optional: true },
@@ -809,6 +888,7 @@ describe('optional', () => {
             const issues = await runAndCollectIssues(container, { tag: 'anything' });
             const leaves = flattenIssueItems(issues);
             const leaf = leaves.find((i) => i.path[0] === 'tag') as IssueItem;
+
             expect(leaf).toBeDefined();
             expect(leaf.meta?.optional).toBe(true);
             expect(leaf.meta?.source).toBe('unit-test');
@@ -834,6 +914,7 @@ describe('optional', () => {
 
             it('should not discard a sibling mount\'s issues', async () => {
                 const container = new Container<{ other: string, flaky: string }>();
+
                 container.mount('other', stringValidator);
                 container.mount('flaky', { optional: boom }, stringValidator);
 
@@ -847,6 +928,7 @@ describe('optional', () => {
 
             it('should surface the predicate failure against its own mount path', async () => {
                 const container = new Container<{ flaky: string }>();
+
                 container.mount('flaky', { optional: boom }, stringValidator);
 
                 const issues = await runAndCollectIssues(container, { flaky: 'x' });
@@ -862,6 +944,7 @@ describe('optional', () => {
                 // `@validup/vue`'s `getSeverity` downgrade a real failure to a
                 // warning.
                 const container = new Container<{ flaky: string }>();
+
                 container.mount('flaky', { optional: boom }, stringValidator);
 
                 const issues = await runAndCollectIssues(container, { flaky: 'x' });
@@ -873,6 +956,7 @@ describe('optional', () => {
             it('should still gate normally when the predicate answers', async () => {
                 // Guard against "fixed" by neutering the predicate entirely.
                 const container = new Container<{ flaky: string }>();
+
                 container.mount(
                     'flaky',
                     { optional: (value) => value === 'skip' },

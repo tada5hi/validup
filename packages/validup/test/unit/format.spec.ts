@@ -16,9 +16,11 @@ import { stringValidator } from '../data';
 describe('Issue.data populated by the runtime', () => {
     it('should set data: { name } on the wrapping IssueGroup of a failing mount', async () => {
         const child = new Container<{ inner: string }>();
+
         child.mount('inner', stringValidator);
 
         const parent = new Container<{ profile: { inner: string } }>();
+
         parent.mount('profile', child);
 
         try {
@@ -27,7 +29,9 @@ describe('Issue.data populated by the runtime', () => {
         } catch (e) {
             if (e instanceof ValidupError) {
                 const [group] = e.issues;
+
                 expect(group?.type).toEqual('group');
+
                 if (group?.type === 'group') {
                     expect(group.data).toEqual({ name: 'profile' });
                 }

@@ -5,29 +5,16 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { ValidatorContext, ValidatorDescriptor } from 'validup';
+import type { ValidatorDescriptor } from 'validup';
 import { ValidupError, defineValidator } from 'validup';
 import type { output as ZodOutput, ZodType } from 'zod';
 import { buildIssuesForZodError } from './error';
 
-type ZodCreateFn<C, Z extends ZodType> = (ctx: ValidatorContext<C>) => Z;
+import type { ZodCreateFn, ZodCreateValidatorOptions } from './types';
 
 /**
  * Options accepted by {@link createValidator}.
  */
-export type ZodCreateValidatorOptions = {
-    /**
-     * Mark the resulting validator as having side effects (network
-     * calls, sibling-field reads, observable state) so the framework
-     * never caches its outcome. Default `false` — most zod schemas
-     * (`z.string().email()`, length / regex / enum checks) are
-     * deterministic and safe to cache by `(ctx.value, ctx.context,
-     * ctx.group)`. Set to `true` for schemas that use async refines,
-     * `superRefine` calls reading external state, or transforms with
-     * side effects.
-     */
-    sideEffect?: boolean,
-};
 
 /**
  * Wrap a zod schema as a validup `ValidatorDescriptor`. The returned
@@ -56,6 +43,7 @@ export function createValidator<
             const zod = typeof input === 'function' ? input(ctx) : input;
 
             const outcome = await zod.safeParseAsync(ctx.value);
+
             if (outcome.success) {
                 return outcome.data as ZodOutput<Z>;
             }
@@ -64,3 +52,4 @@ export function createValidator<
         },
     });
 }
+export type { ZodCreateValidatorOptions };

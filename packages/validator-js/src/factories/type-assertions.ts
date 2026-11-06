@@ -24,10 +24,15 @@ export function isAlpha<C = unknown>(
     } = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not alphabetical';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isAlpha(s, options.locale, options)) return ctx.value;
+
+            if (validator.isAlpha(s, options.locale, options)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.ALPHA, message);
         },
     });
@@ -42,10 +47,15 @@ export function isAlphanumeric<C = unknown>(
     } = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value must be alphanumeric';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isAlphanumeric(s, options.locale, options)) return ctx.value;
+
+            if (validator.isAlphanumeric(s, options.locale, options)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.ALPHA_NUM, message);
         },
     });
@@ -58,10 +68,15 @@ export function isNumeric<C = unknown>(
     options: BaseFactoryOptions & validator.IsNumericOptions = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value must be numeric';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isNumeric(s, options)) return ctx.value;
+
+            if (validator.isNumeric(s, options)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.NUMERIC, message);
         },
     });
@@ -74,10 +89,15 @@ export function isDecimal<C = unknown>(
     options: BaseFactoryOptions & validator.IsDecimalOptions = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value must be a decimal number';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isDecimal(s, options)) return ctx.value;
+
+            if (validator.isDecimal(s, options)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.DECIMAL, message);
         },
     });
@@ -129,6 +149,7 @@ function assertNumericRange(
         lt,
         gt,
     } = options;
+
     if (typeof min === 'number' && numeric < min) {
         throw createValidupError(
             received,
@@ -137,6 +158,7 @@ function assertNumericRange(
             { min },
         );
     }
+
     if (typeof gt === 'number' && numeric <= gt) {
         throw createValidupError(
             received,
@@ -145,6 +167,7 @@ function assertNumericRange(
             { min: gt },
         );
     }
+
     if (typeof max === 'number' && numeric > max) {
         throw createValidupError(
             received,
@@ -153,6 +176,7 @@ function assertNumericRange(
             { max },
         );
     }
+
     if (typeof lt === 'number' && numeric >= lt) {
         throw createValidupError(
             received,
@@ -184,6 +208,7 @@ export function isInt<C = unknown>(
             // Type check first — strip range bounds so a non-integer always
             // surfaces as INTEGER instead of being swallowed by a range failure.
             const isInteger = validator.isInt(s, { allow_leading_zeroes: options.allow_leading_zeroes });
+
             if (!isInteger) {
                 throw createValidupError(
                     ctx.value,
@@ -191,7 +216,9 @@ export function isInt<C = unknown>(
                     options.message ?? 'The value must be an integer',
                 );
             }
+
             assertNumericRange(ctx.value, Number(s), options);
+
             // Defensive final pass — catches any remaining option we didn't
             // model explicitly (currently none beyond min/max/lt/gt and
             // allow_leading_zeroes). If this fires the failure is a true type
@@ -203,6 +230,7 @@ export function isInt<C = unknown>(
                     options.message ?? 'The value must be an integer',
                 );
             }
+
             return ctx.value;
         },
     });
@@ -231,6 +259,7 @@ export function isFloat<C = unknown>(
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
+
             // Pre-check honours `locale` so localized floats (e.g. '123,45' for
             // 'de-DE') aren't rejected by the type gate before the range checks
             // get a chance to run.
@@ -241,7 +270,9 @@ export function isFloat<C = unknown>(
                     options.message ?? 'The value must be a decimal number',
                 );
             }
+
             const numeric = Number(s);
+
             // NaN from a localized input skips the explicit range checks — see
             // the JSDoc above for the resulting code-vs-message trade-off. The
             // guard stays at THIS call site rather than moving into
@@ -252,6 +283,7 @@ export function isFloat<C = unknown>(
             if (!Number.isNaN(numeric)) {
                 assertNumericRange(ctx.value, numeric, options);
             }
+
             if (!validator.isFloat(s, options)) {
                 throw createValidupError(
                     ctx.value,
@@ -259,6 +291,7 @@ export function isFloat<C = unknown>(
                     options.message ?? 'The value must be a decimal number',
                 );
             }
+
             return ctx.value;
         },
     });

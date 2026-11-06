@@ -27,6 +27,7 @@ describe('nested output reconstruction', () => {
 
     it('rebuilds an array from a glob mount', async () => {
         const container = new Container();
+
         container.mount('items.*.name', echo);
 
         const input = { items: [{ name: 'alpha' }, { name: 'beta' }] };
@@ -38,6 +39,7 @@ describe('nested output reconstruction', () => {
 
     it('rebuilds an array from an explicit numeric path', async () => {
         const container = new Container();
+
         container.mount('a.0.b', echo);
 
         const input = { a: [{ b: 1 }] };
@@ -49,9 +51,11 @@ describe('nested output reconstruction', () => {
 
     it('rebuilds an array around a nested container mounted at a numeric key', async () => {
         const child = new Container();
+
         child.mount('name', echo);
 
         const container = new Container();
+
         container.mount('items.0', child);
 
         const input = { items: [{ name: 'x' }] };
@@ -63,6 +67,7 @@ describe('nested output reconstruction', () => {
 
     it('rebuilds a deeply mixed array/object path', async () => {
         const container = new Container();
+
         container.mount('a.0.b.1.c', echo);
 
         const output = await container.run({ a: [{ b: [{ c: 'skip' }, { c: 'deep' }] }] });
@@ -76,6 +81,7 @@ describe('nested output reconstruction', () => {
 
     it('still nests plain object paths', async () => {
         const container = new Container();
+
         container.mount('foo.bar.baz', echo);
 
         const input = { foo: { bar: { baz: 1 } } };
@@ -87,6 +93,7 @@ describe('nested output reconstruction', () => {
 
     it('leaves the dotted keys alone under flat: true', async () => {
         const container = new Container();
+
         container.mount('items.*.name', echo);
 
         const output = await container.run(
@@ -105,6 +112,7 @@ describe('nested output reconstruction', () => {
         // JSON would leave the structured-clone path (postMessage, IndexedDB)
         // unpinned.
         const container = new Container();
+
         container.mount('items.*.name', echo);
 
         const input = { items: [{ name: 'alpha' }] };

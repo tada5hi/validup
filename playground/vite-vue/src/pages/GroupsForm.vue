@@ -22,6 +22,7 @@ type User = {
 // `password` only participates when group === 'create' — the same container
 // covers the "edit profile" flow without forcing a password re-entry.
 const container = new Container<User>();
+
 container.mount('name', createValidator(z.string().min(2, 'Must be at least 2 characters')));
 container.mount('email', createValidator(z.string().email('Must be a valid email')));
 container.mount(
@@ -31,9 +32,9 @@ container.mount(
 );
 
 const state = reactive<User>({
-    name: '', 
-    email: '', 
-    password: '', 
+    name: '',
+    email: '',
+    password: '',
 });
 const group = ref<string | undefined>('create');
 
@@ -43,6 +44,7 @@ const lastResult = ref<string | undefined>();
 
 async function submit() {
     const result = await v.$validate();
+
     lastResult.value = result.success ?
         `Submitted (group=${group.value}): ${JSON.stringify(result.data)}` :
         `Failed (group=${group.value})`;

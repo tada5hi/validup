@@ -7,12 +7,12 @@
 
 import { ValidupError } from '../error';
 import { defineIssueItem } from '@ebec/core';
-import type { 
-    BareIssueCode, 
-    IssueCode, 
-    IssueDataByCode, 
-    ParameterizedIssueCode, 
-    ResolveIssueCode, 
+import type {
+    BareIssueCode,
+    IssueCode,
+    IssueDataByCode,
+    ParameterizedIssueCode,
+    ResolveIssueCode,
 } from '@ebec/core';
 
 /**
@@ -63,6 +63,7 @@ export function createValidupError<C extends string = typeof IssueCode.VALUE_INV
     ...rest: CreateValidupErrorTail<C>
 ): ValidupError {
     const data = rest[0] as Record<string, unknown> | undefined;
+
     return new ValidupError([
         defineIssueItem({
             path: [],

@@ -28,10 +28,15 @@ export function isLength<C = unknown>(
     options: BaseFactoryOptions & validator.IsLengthOptions = {},
 ): ValidatorDescriptor<C> {
     const { min, max } = options;
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isLength(s, options)) return ctx.value;
+
+            if (validator.isLength(s, options)) {
+                return ctx.value;
+            }
+
             if (typeof min === 'number' && s.length < min) {
                 throw createValidupError(
                     ctx.value,
@@ -40,6 +45,7 @@ export function isLength<C = unknown>(
                     { min },
                 );
             }
+
             if (typeof max === 'number' && s.length > max) {
                 throw createValidupError(
                     ctx.value,
@@ -48,6 +54,7 @@ export function isLength<C = unknown>(
                     { max },
                 );
             }
+
             // Fallback (shouldn't normally hit — `isLength` returned false but
             // neither bound was crossed). The MIN_LENGTH / MAX_LENGTH codes
             // both require their bound in `data`; without a bound we can't
@@ -60,6 +67,7 @@ export function isLength<C = unknown>(
                     { min },
                 );
             }
+
             throw createValidupError(
                 ctx.value,
                 IssueCode.VALUE_INVALID,

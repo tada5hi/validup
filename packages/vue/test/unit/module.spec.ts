@@ -16,6 +16,7 @@ const isString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string') {
         throw new Error('Value is not a string');
     }
+
     return ctx.value;
 };
 
@@ -23,6 +24,7 @@ const isNonEmptyString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string' || ctx.value.length === 0) {
         throw new Error('Value must be a non-empty string');
     }
+
     return ctx.value;
 };
 
@@ -38,6 +40,7 @@ async function flush() {
 describe('useValidup', () => {
     it('surfaces required-mount errors immediately, even before $touch', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isString);
 
         const state = reactive({ name: 1 as unknown as string });
@@ -57,11 +60,13 @@ describe('useValidup', () => {
 
     it('hides optional-mount errors until $touch', async () => {
         const container = new Container<{ bio: string }>();
+
         // Optional mount that runs against non-empty values and fails.
         container.mount('bio', { optional: true }, (ctx) => {
             if (typeof ctx.value !== 'string' || ctx.value.length < 5) {
                 throw new Error('Bio is too short');
             }
+
             return ctx.value;
         });
 
@@ -83,10 +88,12 @@ describe('useValidup', () => {
 
     it('surfaces field errors after $touch()', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isString);
 
         const state = reactive({ name: 1 as unknown as string });
         const $v = useValidup(container, state);
+
         await flush();
 
         $v.fields.name.$touch();
@@ -98,10 +105,12 @@ describe('useValidup', () => {
 
     it('flips $dirty automatically on $model write', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isString);
 
         const state = reactive({ name: '' });
         const $v = useValidup(container, state);
+
         await flush();
 
         $v.fields.name.$model.value = 'peter';
@@ -113,10 +122,12 @@ describe('useValidup', () => {
 
     it('clears errors once a previously invalid field becomes valid', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isString);
 
         const state = reactive({ name: 1 as unknown as string });
         const $v = useValidup(container, state);
+
         await flush();
         $v.fields.name.$touch();
         await flush();
@@ -131,10 +142,12 @@ describe('useValidup', () => {
 
     it('injects external issues and auto-clears them on $model write', async () => {
         const container = new Container<{ email: string }>();
+
         container.mount('email', isString);
 
         const state = reactive({ email: 'taken@example.com' });
         const $v = useValidup(container, state);
+
         await flush();
 
         $v.setExternalIssues([
@@ -160,12 +173,14 @@ describe('useValidup', () => {
 
     it('re-validates when group changes', async () => {
         const container = new Container<{ id: string; name: string }>();
+
         container.mount('id', { group: ['update'] }, isNonEmptyString);
         container.mount('name', { group: ['create', 'update'] }, isNonEmptyString);
 
         const state = reactive({ id: '', name: 'peter' });
         const group = ref<string | undefined>('create');
         const $v = useValidup(container, state, { group });
+
         await flush();
 
         // 'id' is not in the create group → no errors yet

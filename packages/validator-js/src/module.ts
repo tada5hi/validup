@@ -9,42 +9,23 @@ import { IssueCode } from '@ebec/core';
 import { createValidupError, defineValidator } from 'validup';
 import type { ValidatorDescriptor } from 'validup';
 
+import type { BaseFactoryOptions, CreateValidatorOptions, ValidatorJsFn } from './types';
+
 /**
  * Shape of a validator.js boolean predicate. The first argument is always
  * the string to test; subsequent arguments are validator-specific options.
  */
-export type ValidatorJsFn = (value: string, ...args: any[]) => boolean;
 
 /**
  * Options accepted by every factory (and {@link createValidator}). The
  * factory layers vocabulary-specific fields on top of this shape.
  */
-export interface BaseFactoryOptions {
-    /**
-     * Override the default English message produced by the factory. The
-     * default tracks `@ilingo/validup`'s `en` catalog so the same wording
-     * surfaces with and without i18n.
-     */
-    message?: string;
-}
 
 /**
  * Options accepted by {@link createValidator}. The vocabulary code is
  * required — that's the entire point of the generic wrap; if you just
  * want `VALUE_INVALID`, hand-roll a `Validator` instead.
  */
-export interface CreateValidatorOptions extends BaseFactoryOptions {
-    /**
-     * `IssueCode` value (or any project-specific string) attached to the
-     * `IssueItem` on failure.
-     */
-    code: string;
-    /**
-     * Optional structured payload surfaced on `IssueItem.data` — what
-     * the i18n template's `{{placeholders}}` resolve against.
-     */
-    data?: Record<string, unknown>;
-}
 
 /**
  * Build a string representation suitable for validator.js. validator.js
@@ -53,9 +34,18 @@ export interface CreateValidatorOptions extends BaseFactoryOptions {
  * pre-stringifying.
  */
 export function toValidatorString(value: unknown): string {
-    if (typeof value === 'string') return value;
-    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') {
+        return value;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+    }
+
+    if (value === null || value === undefined) {
+        return '';
+    }
+
     return String(value);
 }
 
@@ -96,10 +86,13 @@ export function createValidator<C = unknown>(
         sideEffect: options.sideEffect,
         run: (ctx) => {
             const stringified = toValidatorString(ctx.value);
+
             if (fn(stringified)) {
                 return ctx.value;
             }
+
             throw createValidupError(ctx.value, fallbackCode, fallbackMessage, options.data);
         },
     });
 }
+export type { ValidatorJsFn, BaseFactoryOptions, CreateValidatorOptions };
