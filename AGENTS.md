@@ -28,7 +28,8 @@ npm run lint
 npm run lint:fix
 ```
 
-- **Node.js**: `>=24.0.0` (CI runs on 24)
+- **Node.js (package runtime)**: `>=24.0.0` (CI runs on 24)
+- **Node.js (development tooling)**: `^24.11.0 || >=26.0.0`; `.nvmrc` selects Node 24.
 - **Package manager**: `npm` workspaces (root `package.json` declares `workspaces: ["packages/*"]`)
 - **Build**: `tsc --noEmit` for typecheck, then `tsdown` for ESM-only JS + `.d.mts` bundles
 - **Test runner**: Vitest 5 (`globals: true`)
