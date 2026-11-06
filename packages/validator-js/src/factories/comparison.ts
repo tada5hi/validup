@@ -22,13 +22,18 @@ export function matches<C = unknown>(pattern: RegExp | string, options: BaseFact
     modifiers?: string,
 } = {}): ValidatorDescriptor<C> {
     const patternSource = typeof pattern === 'string' ? pattern : pattern.source;
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
             const ok = typeof pattern === 'string' ?
                 validator.matches(s, pattern, options.modifiers) :
                 validator.matches(s, pattern);
-            if (ok) return ctx.value;
+
+            if (ok) {
+                return ctx.value;
+            }
+
             throw createValidupError(
                 ctx.value,
                 IssueCode.PATTERN,
@@ -68,7 +73,11 @@ export function equals<C = unknown>(key: string, options: BaseFactoryOptions & {
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
             const target = options.expectedValue ?? toValidatorString(getPathValue(ctx.data, key));
-            if (validator.equals(s, target)) return ctx.value;
+
+            if (validator.equals(s, target)) {
+                return ctx.value;
+            }
+
             throw createValidupError(
                 ctx.value,
                 IssueCode.SAME_AS,

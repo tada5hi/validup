@@ -21,6 +21,7 @@ import type { Profile } from './section-types';
 const props = defineProps<{ state: Profile }>();
 
 const container = new Container<Profile>();
+
 container.mount('firstName', createValidator(z.string().min(1, 'Required')));
 container.mount('lastName', createValidator(z.string().min(1, 'Required')));
 

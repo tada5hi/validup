@@ -6,29 +6,15 @@
  */
 
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import type { ValidatorContext, ValidatorDescriptor } from 'validup';
+import type { ValidatorDescriptor } from 'validup';
 import { ValidupError, defineValidator } from 'validup';
 import { buildIssuesForStandardSchemaIssues } from './error';
 
-type StandardSchemaCreateFn<C, S extends StandardSchemaV1> = (
-    ctx: ValidatorContext<C>,
-) => S;
+import type { StandardSchemaCreateFn, StandardSchemaCreateValidatorOptions } from './types';
 
 /**
  * Options accepted by {@link createValidator}.
  */
-export type StandardSchemaCreateValidatorOptions = {
-    /**
-     * Mark the resulting validator as having side effects (network
-     * calls, sibling-field reads, observable state) so the framework
-     * never caches its outcome. Default `false` — most Standard
-     * Schema validators (regex / length / enum / type checks) are
-     * deterministic and safe to cache by `(ctx.value, ctx.context,
-     * ctx.group)`. Set to `true` for schemas that resolve against
-     * external state.
-     */
-    sideEffect?: boolean,
-};
 
 /**
  * Wrap any Standard Schema validator (zod 3.24+, valibot, arktype,
@@ -68,3 +54,4 @@ export function createValidator<
         },
     });
 }
+export type { StandardSchemaCreateValidatorOptions };

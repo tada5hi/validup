@@ -13,6 +13,7 @@ const isString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string') {
         throw new Error('Value must be a string');
     }
+
     return ctx.value;
 };
 
@@ -30,6 +31,7 @@ type User = {
 describe('typing: run/safeRun accept Partial<T> (issue #392)', () => {
     it('run() accepts an input narrower than T', async () => {
         const container = new Container<User>();
+
         container.mount('name', isString);
         container.mount('email', isString);
 
@@ -37,17 +39,21 @@ describe('typing: run/safeRun accept Partial<T> (issue #392)', () => {
         // runtime already tolerates and the type now reflects that.
         const form: Partial<User> = { name: 'peter', email: 'peter@example.com' };
         const out = await container.run(form);
+
         expect(out.name).toBe('peter');
         expect(out.email).toBe('peter@example.com');
     });
 
     it('safeRun() accepts an input narrower than T', async () => {
         const container = new Container<User>();
+
         container.mount('name', isString);
 
         const form: Partial<User> = { name: 'peter' };
         const result = await container.safeRun(form);
+
         expect(result.success).toBe(true);
+
         if (result.success) {
             expect(result.data.name).toBe('peter');
         }
@@ -55,13 +61,16 @@ describe('typing: run/safeRun accept Partial<T> (issue #392)', () => {
 
     it('runSync() / safeRunSync() accept Partial<T>', () => {
         const container = new Container<User>();
+
         container.mount('name', isString);
 
         const form: Partial<User> = { name: 'peter' };
         const out = container.runSync(form);
+
         expect(out.name).toBe('peter');
 
         const result = container.safeRunSync(form);
+
         expect(result.success).toBe(true);
     });
 
@@ -69,6 +78,7 @@ describe('typing: run/safeRun accept Partial<T> (issue #392)', () => {
         const container = new Container<User>();
         // No mounts; we only want to exercise the defaults-fill path.
         const out = await container.run({}, { defaults: { name: 'fallback' } });
+
         // Pre-fix this required defaults to enumerate every Path<User> key.
         expect(out).toEqual({ name: 'fallback' });
     });

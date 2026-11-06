@@ -31,7 +31,7 @@ npm run lint:fix
 - **Node.js**: `>=24.0.0` (CI runs on 24)
 - **Package manager**: `npm` workspaces (root `package.json` declares `workspaces: ["packages/*"]`)
 - **Build**: `tsc --noEmit` for typecheck, then `tsdown` for ESM-only JS + `.d.mts` bundles
-- **Test runner**: Vitest 4 (`globals: true`)
+- **Test runner**: Vitest 5 (`globals: true`)
 - **Task runner**: Nx (caches `build`, `lint`, `test`)
 - **Lint**: ESLint v10 flat config, `@tada5hi/eslint-config`
 - **Release**: release-please (component per package, see `release-please-config.json`); publishing via `tada5hi/monoship`

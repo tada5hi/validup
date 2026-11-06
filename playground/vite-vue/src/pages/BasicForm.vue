@@ -21,6 +21,7 @@ type Register = {
 };
 
 const container = new Container<Register>();
+
 container.mount('name', createValidator(z.string().min(2, 'Must be at least 2 characters')));
 container.mount('email', createValidator(z.string().email('Must be a valid email')));
 container.mount(
@@ -34,9 +35,9 @@ container.mount(
 );
 
 const state = reactive<Register>({
-    name: '', 
-    email: '', 
-    password: '', 
+    name: '',
+    email: '',
+    password: '',
 });
 
 const v = useValidup<Register>(container, state, { lazy: true });
@@ -45,6 +46,7 @@ const lastResult = ref<string | undefined>();
 
 async function submit() {
     const result = await v.$validate();
+
     if (result.success) {
         lastResult.value = `Submitted: ${JSON.stringify(result.data)}`;
     } else {

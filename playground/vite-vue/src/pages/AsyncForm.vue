@@ -25,15 +25,18 @@ const TAKEN = new Set(['admin', 'root', 'peter', 'tada5hi']);
 async function isUsernameAvailable(name: string, signal?: AbortSignal): Promise<boolean> {
     await new Promise((resolve, reject) => {
         const timer = setTimeout(resolve, 350);
+
         signal?.addEventListener('abort', () => {
             clearTimeout(timer);
             reject(signal.reason ?? new DOMException('aborted', 'AbortError'));
         });
     });
+
     return !TAKEN.has(name.toLowerCase());
 }
 
 const container = new Container<Signup>();
+
 container.mount('email', createValidator(z.string().email('Must be a valid email')));
 container.mount(
     'username',

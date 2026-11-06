@@ -49,10 +49,12 @@ describe('Container.mount — argument dispatch', () => {
         expect(isObject(containerLike)).toBe(true);
 
         const container = new Container<{ child: { inner: string } }>();
+
         container.mount('child', containerLike as any);
 
         // Structural: the mount landed in the container branch.
         const item = (container as any).items[0];
+
         expect(item.type).toBe('container');
         expect(item.data).toBe(containerLike);
 
@@ -61,6 +63,7 @@ describe('Container.mount — argument dispatch', () => {
         // first being the raw value object. A validator mount would receive a
         // single `ValidatorContext` carrying `key` / `value` / `path`.
         const output = await container.run({ child: { inner: 'raw' } });
+
         expect(output).toEqual({ child: { inner: 'ok' } });
 
         expect(run).toHaveBeenCalledTimes(1);
@@ -81,9 +84,11 @@ describe('Container.mount — argument dispatch', () => {
         expect(isObject(descriptor)).toBe(true);
 
         const container = new Container<{ foo: string }>();
+
         container.mount('foo', descriptor);
 
         const item = (container as any).items[0];
+
         expect(item.type).toBe('validator');
         // The stored callee is the descriptor's `run`, not the descriptor.
         expect(item.data).toBe(descriptor.run);
@@ -97,9 +102,11 @@ describe('Container.mount — argument dispatch', () => {
         const containerLike = createContainerLike(run);
 
         const container = new Container<{ child: { inner: string } }>();
+
         container.mount('child', { group: 'create' }, containerLike as any);
 
         const item = (container as any).items[0];
+
         expect(item.type).toBe('container');
         expect(item.options).toEqual({ group: 'create' });
 
@@ -115,14 +122,17 @@ describe('Container.mount — argument dispatch', () => {
         // preventing a container from being registered as a validator — pin it
         // here so that regression is caught at the guard, not downstream.
         const containerLike = createContainerLike(() => ({}));
+
         expect(isContainer(containerLike)).toBe(true);
         expect(isValidatorDescriptor(containerLike)).toBe(false);
 
         const descriptor = defineValidator({ run: (ctx) => ctx.value });
+
         expect(isValidatorDescriptor(descriptor)).toBe(true);
         expect(isContainer(descriptor)).toBe(false);
 
         const container = new Container();
+
         expect(isContainer(container)).toBe(true);
         expect(isValidatorDescriptor(container)).toBe(false);
     });
@@ -187,6 +197,7 @@ describe('Builder.mount — target dispatch', () => {
 
     it('prefers the builder branch for a target satisfying isBuilder AND isContainer', async () => {
         const built = new Container<{ marker: string }>();
+
         built.mount('marker', () => 'from-build');
 
         const build = vi.fn(() => built);
@@ -219,17 +230,20 @@ describe('Builder.mount — target dispatch', () => {
         expect(isContainer(child)).toBe(false);
 
         const item = (parent as any).items[0];
+
         expect(item.type).toBe('container');
         expect(item.data).toBeInstanceOf(Container);
     });
 
     it('mounts an existing Container as-is', async () => {
         const child = new Container<{ city: string }>();
+
         child.mount('city', (ctx) => String(ctx.value));
 
         const parent = defineSchema().mount('address', child).build();
 
         const item = (parent as any).items[0];
+
         expect(item.type).toBe('container');
         // No `build()` indirection for a real container — it is the child.
         expect(item.data).toBe(child);
@@ -242,6 +256,7 @@ describe('Builder.mount — target dispatch', () => {
         const parent = defineSchema().mount('name', (ctx) => String(ctx.value)).build();
 
         const item = (parent as any).items[0];
+
         expect(item.type).toBe('validator');
 
         expect(await parent.run({ name: 'Peter' })).toEqual({ name: 'Peter' });

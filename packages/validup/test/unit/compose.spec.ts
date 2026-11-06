@@ -24,6 +24,7 @@ function isString(): Validator {
         if (typeof ctx.value !== 'string') {
             throw createValidupError(ctx.value, IssueCode.VALUE_INVALID, 'must be a string');
         }
+
         return ctx.value;
     };
 }
@@ -31,6 +32,7 @@ function isString(): Validator {
 function minLength(min: number): Validator {
     return (ctx) => {
         const s = String(ctx.value);
+
         if (s.length < min) {
             throw createValidupError(
                 ctx.value,
@@ -39,6 +41,7 @@ function minLength(min: number): Validator {
                 { min },
             );
         }
+
         return ctx.value;
     };
 }
@@ -53,6 +56,7 @@ function matchesPattern(pattern: RegExp): Validator {
                 { pattern: pattern.source },
             );
         }
+
         return ctx.value;
     };
 }
@@ -65,10 +69,10 @@ function trim(): Validator {
 
 async function run(validator: Validator, value: unknown): Promise<unknown> {
     return validator({
-        key: '', 
-        path: [], 
-        value, 
-        data: {}, 
+        key: '',
+        path: [],
+        value,
+        data: {},
         context: undefined,
     });
 }
@@ -77,15 +81,20 @@ async function captureFail(validator: Validator, value: unknown): Promise<Validu
     try {
         await run(validator, value);
     } catch (e) {
-        if (e instanceof ValidupError) return e;
+        if (e instanceof ValidupError) {
+            return e;
+        }
+
         throw e;
     }
+
     throw new Error('expected validator to throw');
 }
 
 describe('compose (default — bail: true, fail-fast + threaded)', () => {
     it('returns the (final-stage) value on success', async () => {
         const out = await run(compose([trim(), isString(), minLength(3)]), '  hello  ');
+
         // trim ran first, so the IS-STRING + MIN-LENGTH stages saw the
         // trimmed value, and `compose` returns the threaded result.
         expect(out).toBe('hello');
@@ -94,6 +103,7 @@ describe('compose (default — bail: true, fail-fast + threaded)', () => {
     it('stops at the first failure (fail-fast)', async () => {
         const err = await captureFail(compose([isString(), minLength(3)]), 42);
         const items = flattenIssueItems(err.issues);
+
         // Only the isString failure surfaces — minLength didn't run.
         expect(items).toHaveLength(1);
         expect(items[0]?.message).toBe('must be a string');
@@ -104,6 +114,7 @@ describe('compose (default — bail: true, fail-fast + threaded)', () => {
         // chars) not '  ab  ' (6 chars), so the chain fails on length.
         const err = await captureFail(compose([trim(), minLength(3)]), '  ab  ');
         const items = flattenIssueItems(err.issues);
+
         expect(items[0]?.code).toBe(IssueCode.MIN_LENGTH);
     });
 
@@ -125,6 +136,7 @@ describe('compose (default — bail: true, fail-fast + threaded)', () => {
             compose([trim(), voidCheck, minLength(3)]),
             '  hello  ',
         );
+
         expect(out).toBe('hello');
     });
 });
@@ -135,6 +147,7 @@ describe('compose with { bail: false } — collect-all', () => {
             compose([isString(), minLength(3)], { bail: false }),
             'hello',
         );
+
         expect(out).toBe('hello');
     });
 
@@ -148,8 +161,11 @@ describe('compose with { bail: false } — collect-all', () => {
             'a',
         );
         const items = flattenIssueItems(err.issues);
+
         expect(items).toHaveLength(2);
+
         const codes = items.map((i) => i.code).sort();
+
         expect(codes).toEqual([IssueCode.MIN_LENGTH, IssueCode.PATTERN].sort());
     });
 
@@ -167,8 +183,11 @@ describe('compose with { bail: false } — collect-all', () => {
             '  ab  ',
         );
         const items = flattenIssueItems(err.issues);
+
         expect(items).toHaveLength(2);
+
         const codes = items.map((i) => i.code).sort();
+
         expect(codes).toEqual([IssueCode.MIN_LENGTH, IssueCode.PATTERN].sort());
     });
 
@@ -180,6 +199,7 @@ describe('compose with { bail: false } — collect-all', () => {
             42,
         );
         const items = flattenIssueItems(err.issues);
+
         expect(items.length).toBeGreaterThanOrEqual(2);
     });
 
@@ -190,6 +210,7 @@ describe('compose with { bail: false } — collect-all', () => {
         };
         const err = await captureFail(compose([bad], { bail: false }), 'x');
         const items = flattenIssueItems(err.issues);
+
         expect(items).toHaveLength(1);
         expect(items[0]?.message).toBe('plain string failure');
         // Synthesized issues must always carry a code so consumer-side
@@ -203,6 +224,7 @@ describe('compose with { bail: false } — collect-all', () => {
         };
         const err = await captureFail(compose([bad], { bail: false }), 'x');
         const items = flattenIssueItems(err.issues);
+
         expect(items).toHaveLength(1);
         expect(items[0]?.message).toBe('plain error failure');
         expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
@@ -213,6 +235,7 @@ describe('compose with { bail: false } — collect-all', () => {
         // value flows through and is what the composed validator
         // returns when every stage passes.
         const out = await run(compose([trim()], { bail: false }), '  hello  ');
+
         expect(out).toBe('hello');
     });
 
@@ -231,6 +254,7 @@ describe('compose with { bail: false } — collect-all', () => {
         );
         const items = flattenIssueItems(err.issues);
         const codes = items.map((i) => i.code).sort();
+
         expect(codes).toEqual([IssueCode.MIN_LENGTH, IssueCode.PATTERN].sort());
     });
 });
@@ -240,6 +264,7 @@ describe('compose with { oneOf: true } — any-of', () => {
         let secondCalls = 0;
         const second: Validator = (ctx) => {
             secondCalls += 1;
+
             return ctx.value;
         };
 
@@ -250,6 +275,7 @@ describe('compose with { oneOf: true } — any-of', () => {
             ], { oneOf: true }),
             'hello',
         );
+
         expect(out).toBe('hello');
         expect(secondCalls).toBe(0);
     });
@@ -262,6 +288,7 @@ describe('compose with { oneOf: true } — any-of', () => {
             ], { oneOf: true }),
             'hello',
         );
+
         expect(out).toBe('hello');
     });
 
@@ -275,6 +302,7 @@ describe('compose with { oneOf: true } — any-of', () => {
             ], { oneOf: true }),
             '  ab  ',
         );
+
         expect(out).toBe('ab');
     });
 
@@ -289,6 +317,7 @@ describe('compose with { oneOf: true } — any-of', () => {
             ], { oneOf: true }),
             'hi',
         );
+
         expect(out).toBe('hi');
     });
 
@@ -301,19 +330,29 @@ describe('compose with { oneOf: true } — any-of', () => {
             ], { oneOf: true }),
             42,
         );
+
         expect(err.issues).toHaveLength(1);
+
         const [group] = err.issues;
+
         expect(isIssueGroup(group)).toBe(true);
-        if (isIssueGroup(group)) {
-            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
-            expect(group.message).toBe('None of the branches succeeded');
-            // Every branch contributed; each issue is stamped with its
-            // branch index for downstream attribution.
-            const inner = flattenIssueItems(group.issues);
-            expect(inner).toHaveLength(3);
-            const branches = inner.map((i) => i.data?.branch).sort();
-            expect(branches).toEqual([0, 1, 2]);
+
+        if (!(isIssueGroup(group))) {
+            throw new Error('Expected the failure variant.');
         }
+
+        expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+        expect(group.message).toBe('None of the branches succeeded');
+
+        // Every branch contributed; each issue is stamped with its
+        // branch index for downstream attribution.
+        const inner = flattenIssueItems(group.issues);
+
+        expect(inner).toHaveLength(3);
+
+        const branches = inner.map((i) => i.data?.branch).sort();
+
+        expect(branches).toEqual([0, 1, 2]);
     });
 
     it('throws ONE_OF_FAILED with an empty inner list when no branches are supplied', async () => {
@@ -321,13 +360,19 @@ describe('compose with { oneOf: true } — any-of', () => {
         // successes — surfaces the empty list as a configuration mistake
         // the consumer can detect via the empty group.
         const err = await captureFail(compose([], { oneOf: true }), 'whatever');
+
         expect(err.issues).toHaveLength(1);
+
         const [group] = err.issues;
+
         expect(isIssueGroup(group)).toBe(true);
-        if (isIssueGroup(group)) {
-            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
-            expect(group.issues).toHaveLength(0);
+
+        if (!isIssueGroup(group)) {
+            return;
         }
+
+        expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+        expect(group.issues).toHaveLength(0);
     });
 
     it('synthesizes a VALUE_INVALID IssueItem for non-Error throws from a branch', async () => {
@@ -343,19 +388,26 @@ describe('compose with { oneOf: true } — any-of', () => {
             'x',
         );
         const [group] = err.issues;
-        if (isIssueGroup(group)) {
-            const inner = flattenIssueItems(group.issues);
-            expect(inner).toHaveLength(2);
-            expect(inner.every((i) => i.code === IssueCode.VALUE_INVALID)).toBe(true);
-            const messages = inner.map((i) => i.message).sort();
-            expect(messages).toEqual(['plain error failure', 'plain string failure'].sort());
+
+        if (!(isIssueGroup(group))) {
+            throw new Error('Expected the failure variant.');
         }
+
+        const inner = flattenIssueItems(group.issues);
+
+        expect(inner).toHaveLength(2);
+        expect(inner.every((i) => i.code === IssueCode.VALUE_INVALID)).toBe(true);
+
+        const messages = inner.map((i) => i.message).sort();
+
+        expect(messages).toEqual(['plain error failure', 'plain string failure'].sort());
     });
 
     it('re-raises an AbortError verbatim instead of folding it into a branch failure', async () => {
         const controller = new AbortController();
         const branchA: Validator = () => {
             controller.abort(new Error('cancelled mid-branch'));
+
             throw new Error('cancelled mid-branch');
         };
         const branchB: Validator = (ctx) => ctx.value;
@@ -374,11 +426,14 @@ describe('compose with { oneOf: true } — any-of', () => {
 
     it('composeOneOf() is sugar for compose([...], { oneOf: true })', async () => {
         const out = await run(composeOneOf([isString()]), 'hello');
+
         expect(out).toBe('hello');
 
         const err = await captureFail(composeOneOf([isString()]), 42);
         const [group] = err.issues;
+
         expect(isIssueGroup(group)).toBe(true);
+
         if (isIssueGroup(group)) {
             expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
         }
@@ -397,8 +452,10 @@ describe('compose with { oneOf: true } — any-of', () => {
 describe('compose with IContainer elements', () => {
     function addressContainer(): Container<{ street: string, city: string }> {
         const c = new Container<{ street: string, city: string }>();
+
         c.mount('street', isString());
         c.mount('city', isString());
+
         return c;
     }
 
@@ -407,12 +464,14 @@ describe('compose with IContainer elements', () => {
         // and the chain returns the container's parsed result.
         const normalise: Validator = (ctx) => {
             const v = ctx.value as Record<string, unknown>;
+
             return { street: String(v.street).trim(), city: String(v.city).trim() };
         };
         const out = await run(
             compose([normalise, addressContainer()]),
             { street: '  10 Downing St  ', city: '  London  ' },
         );
+
         expect(out).toEqual({ street: '10 Downing St', city: 'London' });
     });
 
@@ -424,6 +483,7 @@ describe('compose with IContainer elements', () => {
         // The container threw a ValidupError; bail: true (default) lets it
         // bubble up unchanged.
         const items = flattenIssueItems(err.issues);
+
         expect(items.some((i) => i.message === 'must be a string')).toBe(true);
     });
 
@@ -435,6 +495,7 @@ describe('compose with IContainer elements', () => {
             ]),
             { street: '10 Downing St', city: 'London' },
         );
+
         expect(out).toEqual({ street: '10 Downing St', city: 'London' });
     });
 
@@ -447,15 +508,21 @@ describe('compose with IContainer elements', () => {
             { street: '10 Downing St', city: 42 },
         );
         const [group] = err.issues;
+
         expect(isIssueGroup(group)).toBe(true);
-        if (isIssueGroup(group)) {
-            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
-            // Both branches contributed; container branch carries
-            // data.branch=1 on every issue it surfaced.
-            const inner = flattenIssueItems(group.issues);
-            expect(inner.some((i) => i.data?.branch === 0)).toBe(true);
-            expect(inner.some((i) => i.data?.branch === 1)).toBe(true);
+
+        if (!(isIssueGroup(group))) {
+            throw new Error('Expected the failure variant.');
         }
+
+        expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+
+        // Both branches contributed; container branch carries
+        // data.branch=1 on every issue it surfaced.
+        const inner = flattenIssueItems(group.issues);
+
+        expect(inner.some((i) => i.data?.branch === 0)).toBe(true);
+        expect(inner.some((i) => i.data?.branch === 1)).toBe(true);
     });
 
     it('forwards the outer run\'s cache into a container element', async () => {
@@ -464,18 +531,22 @@ describe('compose with IContainer elements', () => {
         // it, mounts inside the child would silently bypass the cache.
         const inner = new Container<{ name: string }>();
         let calls = 0;
+
         inner.mount('name', defineValidator({
             run: (ctx) => {
                 calls += 1;
+
                 return ctx.value;
             },
         }));
 
         const outer = new Container<{ user: { name: string } }>();
+
         outer.mount('user', compose([inner]));
 
         const cache = new ResultCache();
         const data = { user: { name: 'peter' } };
+
         await outer.run(data, { cache });
         await outer.run(data, { cache });
         // First run: cache miss → child validator runs once.
@@ -497,14 +568,20 @@ describe('compose with IContainer elements', () => {
             'not-an-object',
         );
         const [group] = err.issues;
+
         expect(isIssueGroup(group)).toBe(true);
-        if (isIssueGroup(group)) {
-            expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
-            const inner = flattenIssueItems(group.issues);
-            // The container ran against `{}` and produced its own
-            // missing-field failures; compose folded them as branch 0.
-            expect(inner.every((i) => i.data?.branch === 0)).toBe(true);
+
+        if (!(isIssueGroup(group))) {
+            throw new Error('Expected the failure variant.');
         }
+
+        expect(group.code).toBe(IssueCode.ONE_OF_FAILED);
+
+        const inner = flattenIssueItems(group.issues);
+
+        // The container ran against `{}` and produced its own
+        // missing-field failures; compose folded them as branch 0.
+        expect(inner.every((i) => i.data?.branch === 0)).toBe(true);
     });
 });
 
@@ -520,9 +597,12 @@ describe('createValidupError', () => {
             'bad value',
             { foo: 'bar' },
         );
+
         expect(err).toBeInstanceOf(ValidupError);
         expect(err.issues).toHaveLength(1);
+
         const items = flattenIssueItems(err.issues);
+
         expect(items[0]?.code).toBe('custom_failure');
         expect(items[0]?.message).toBe('bad value');
         expect(items[0]?.data).toEqual({ foo: 'bar' });
@@ -531,6 +611,7 @@ describe('createValidupError', () => {
 
     it('omits data when not provided', () => {
         const err = createValidupError(0, IssueCode.REQUIRED, 'required');
+
         expect(err.issues[0]?.data).toBeUndefined();
     });
 });
@@ -549,15 +630,17 @@ describe('compose — structural throws are not folded into issues', () => {
             pathsStrict: true,
             pathsToInclude: ['does-not-exist'],
         });
+
         child.mount('foo', (ctx) => ctx.value);
+
         return child;
     };
 
     const ctx = () => ({
-        key: 'root', 
-        path: [], 
-        value: { foo: 'x' }, 
-        data: {}, 
+        key: 'root',
+        path: [],
+        value: { foo: 'x' },
+        data: {},
         context: undefined,
     }) as any;
 
@@ -565,6 +648,7 @@ describe('compose — structural throws are not folded into issues', () => {
         const validator = compose([strictChild()], { bail: false });
 
         expect.assertions(2);
+
         try {
             await validator(ctx());
         } catch (e) {
@@ -578,6 +662,7 @@ describe('compose — structural throws are not folded into issues', () => {
         const validator = composeOneOf([strictChild()]);
 
         expect.assertions(2);
+
         try {
             await validator(ctx());
         } catch (e) {
@@ -594,6 +679,7 @@ describe('compose — structural throws are not folded into issues', () => {
         }]);
 
         expect.assertions(2);
+
         try {
             await validator(ctx());
         } catch (e) {
@@ -608,6 +694,7 @@ describe('compose — structural throws are not folded into issues', () => {
         }], { bail: false });
 
         expect.assertions(2);
+
         try {
             await validator(ctx());
         } catch (e) {

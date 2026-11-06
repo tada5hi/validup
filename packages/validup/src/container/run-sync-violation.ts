@@ -27,6 +27,7 @@ export function isRunSyncViolation(e: unknown): e is RunSyncViolationError {
     if (e instanceof RunSyncViolationError) {
         return true;
     }
+
     return (
         typeof e === 'object' &&
         e !== null &&

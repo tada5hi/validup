@@ -10,10 +10,11 @@ import { Container } from '../../src';
 import { stringValidator } from '../data';
 
 const container = new Container<{
-    foo: string, 
-    bar: string, 
-    boz: string 
+    foo: string,
+    bar: string,
+    boz: string
 }>();
+
 container.mount('foo', { group: 'foo' }, stringValidator);
 container.mount('bar', { group: ['foo', 'bar'] }, stringValidator);
 container.mount('boz', stringValidator);
@@ -25,6 +26,7 @@ describe('group', () => {
             bar: 'baz',
             boz: 'biz',
         }, { group: 'bar' });
+
         expect(outcome.foo).toBeUndefined();
         expect(outcome.bar).toEqual('baz');
         expect(outcome.boz).toEqual('biz');
@@ -36,6 +38,7 @@ describe('group', () => {
             bar: 'baz',
             boz: 'biz',
         }, { group: '*' });
+
         expect(outcome.foo).toEqual('bar');
         expect(outcome.bar).toEqual('baz');
         expect(outcome.boz).toEqual('biz');
@@ -47,6 +50,7 @@ describe('group', () => {
             bar: 'baz',
             boz: 'biz',
         });
+
         expect(outcome.foo).toBeUndefined();
         expect(outcome.bar).toBeUndefined();
         expect(outcome.boz).toEqual('biz');

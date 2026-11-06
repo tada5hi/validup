@@ -16,6 +16,7 @@ const isString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string') {
         throw new Error('Value is not a string');
     }
+
     return ctx.value;
 };
 
@@ -30,10 +31,12 @@ async function flush() {
 describe('external errors', () => {
     it('surfaces path-less issues via $crossCuttingErrors with no dirty gate', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isString);
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         expect($v.$crossCuttingErrors.value).toEqual([]);
@@ -55,22 +58,24 @@ describe('external errors', () => {
 
     it('keeps path-less external issues separate from field-level $errors', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isString);
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         $v.setExternalIssues([
             defineIssueItem({
-                path: [], 
-                message: 'something went wrong', 
-                code: 'unknown', 
+                path: [],
+                message: 'something went wrong',
+                code: 'unknown',
             }),
             defineIssueItem({
-                path: ['name'], 
-                message: 'name conflict', 
-                code: 'conflict', 
+                path: ['name'],
+                message: 'name conflict',
+                code: 'conflict',
             }),
         ]);
         $v.fields.name.$touch();
@@ -89,17 +94,19 @@ describe('external errors', () => {
 
     it('clears path-less issues on $reset()', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isString);
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         $v.setExternalIssues([
             defineIssueItem({
-                path: [], 
-                message: 'fail', 
-                code: 'unknown', 
+                path: [],
+                message: 'fail',
+                code: 'unknown',
             }),
         ]);
         await flush();
@@ -112,19 +119,21 @@ describe('external errors', () => {
 
     it('$invalid flips true when only path-less external issues are present', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isString);
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         expect($v.$invalid.value).toBe(false);
 
         $v.setExternalIssues([
             defineIssueItem({
-                path: [], 
-                message: 'rate limit', 
-                code: 'rate_limited', 
+                path: [],
+                message: 'rate limit',
+                code: 'rate_limited',
             }),
         ]);
         await flush();

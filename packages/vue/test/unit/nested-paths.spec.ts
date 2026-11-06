@@ -15,6 +15,7 @@ const isNonEmptyString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string' || ctx.value.length === 0) {
         throw new Error('Value must be a non-empty string');
     }
+
     return ctx.value;
 };
 
@@ -30,11 +31,13 @@ describe('nested paths', () => {
     it('reads $model via dotted key', async () => {
         const container = new Container<{ user: { email: string } }>();
         const child = new Container<{ email: string }>();
+
         child.mount('email', isNonEmptyString);
         container.mount('user', child);
 
         const state = reactive({ user: { email: 'peter@example.com' } });
         const $v = useValidup(container, state);
+
         await flush();
 
         expect($v.fields.at('user.email').$model.value).toBe('peter@example.com');
@@ -43,11 +46,13 @@ describe('nested paths', () => {
     it('writes $model via dotted key and creates intermediate objects', async () => {
         const container = new Container<{ address: { city: string } }>();
         const child = new Container<{ city: string }>();
+
         child.mount('city', isNonEmptyString);
         container.mount('address', child);
 
         const state = reactive({} as { address?: { city: string } });
         const $v = useValidup(container, state as { address: { city: string } });
+
         await flush();
 
         $v.fields.at('address.city').$model.value = 'Berlin';
@@ -61,6 +66,7 @@ describe('nested paths', () => {
         const state = reactive({ tags: ['', ''] });
         const container = new Container<{ tags: string[] }>();
         const $v = useValidup(container, state);
+
         await flush();
 
         $v.fields.at('tags[0]').$model.value = 'urgent';
@@ -73,11 +79,13 @@ describe('nested paths', () => {
     it('surfaces nested errors when an ancestor path is dirty', async () => {
         const container = new Container<{ address: { city: string } }>();
         const child = new Container<{ city: string }>();
+
         child.mount('city', isNonEmptyString);
         container.mount('address', child);
 
         const state = reactive({ address: { city: '' } });
         const $v = useValidup(container, state);
+
         await flush();
 
         // marking the parent dirty surfaces the descendant error
@@ -91,11 +99,13 @@ describe('nested paths', () => {
     it('treats descendant-only dirty paths correctly', async () => {
         const container = new Container<{ address: { city: string } }>();
         const child = new Container<{ city: string }>();
+
         child.mount('city', isNonEmptyString);
         container.mount('address', child);
 
         const state = reactive({ address: { city: '' } });
         const $v = useValidup(container, state);
+
         await flush();
 
         // touch only the leaf — sibling/parent fields should not auto-surface their own state
@@ -110,12 +120,14 @@ describe('nested paths', () => {
     it('surfaces required-mount issues across the whole form pre-touch', async () => {
         const container = new Container<{ user: { email: string }; tags: string[] }>();
         const userChild = new Container<{ email: string }>();
+
         userChild.mount('email', isNonEmptyString);
         container.mount('user', userChild);
         container.mount('tags[0]', isNonEmptyString);
 
         const state = reactive({ user: { email: '' }, tags: [''] });
         const $v = useValidup(container, state);
+
         await flush();
 
         // Both required-mount issues surface immediately — no $touch needed.
@@ -128,6 +140,7 @@ describe('nested paths', () => {
     it('whole-form $errors honours prefix-dirty matching for optional-mount items', async () => {
         const container = new Container<{ user: { email: string }; tags: string[] }>();
         const userChild = new Container<{ email: string }>();
+
         // Pin `optionalValue` to UNDEFINED so the empty-string sentinel
         // below still trips the validator — the test needs an
         // optional-tagged issue to exist so it can assert prefix-dirty
@@ -143,6 +156,7 @@ describe('nested paths', () => {
         // `$errors` once the path becomes dirty.
         const state = reactive({ user: { email: '' }, tags: [''] });
         const $v = useValidup(container, state);
+
         await flush();
 
         expect($v.$errors.value).toEqual([]);

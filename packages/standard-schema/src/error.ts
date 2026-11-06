@@ -22,6 +22,7 @@ function normalizePath(
     }
 
     const output: PropertyKey[] = [];
+
     for (const segment of path) {
         if (isObject(segment) && 'key' in segment) {
             output.push(segment.key as PropertyKey);
@@ -29,6 +30,7 @@ function normalizePath(
             output.push(segment as PropertyKey);
         }
     }
+
     return output;
 }
 
@@ -43,11 +45,13 @@ export function buildIssuesForStandardSchemaIssues(
     issues: ReadonlyArray<StandardSchemaV1.Issue>,
 ): Issue[] {
     const output: Issue[] = [];
+
     for (const issue of issues) {
         output.push(defineIssueItem({
             path: normalizePath(issue.path),
             message: issue.message,
         }));
     }
+
     return output;
 }

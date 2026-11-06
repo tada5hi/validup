@@ -21,17 +21,20 @@ describe('createValidator', () => {
 
     it('lifts a validator.js predicate into a validup Validator', async () => {
         const container = new Container<{ card: string }>();
+
         container.mount('card', createValidator(validator.isCreditCard, {
             code: 'credit_card',
             message: 'Invalid credit card number',
         }));
 
         expect.assertions(3);
+
         try {
             await container.run({ card: 'not-a-card' });
         } catch (e) {
             if (e instanceof ValidupError) {
                 const items = flattenIssueItems(e.issues);
+
                 expect(items).toHaveLength(1);
                 expect(items[0]?.code).toBe('credit_card');
                 expect(items[0]?.message).toBe('Invalid credit card number');
@@ -41,12 +44,15 @@ describe('createValidator', () => {
 
     it('passes valid values through unchanged', async () => {
         const container = new Container<{ card: string }>();
+
         container.mount('card', createValidator(validator.isCreditCard, {
             code: 'credit_card',
             message: 'Invalid credit card number',
         }));
+
         // Test card number — Visa.
         const out = await container.run({ card: '4111111111111111' });
+
         expect(out.card).toBe('4111111111111111');
     });
 
@@ -59,16 +65,20 @@ describe('createValidator', () => {
         // contract and the same silent-retype failure mode. Feed a number,
         // whose stringification is a DIFFERENT value, and it bites.
         const container = new Container<{ pin: number }>();
+
         container.mount('pin', createValidator(validator.isNumeric, { code: 'numeric' }));
 
         const out = await container.run({ pin: 1234 });
+
         expect(out.pin).toBe(1234);
         expect(typeof out.pin).toBe('number');
     });
 
     it('forwards data onto the resulting IssueItem', async () => {
         expect.assertions(1);
+
         const container = new Container<{ phone: string }>();
+
         container.mount('phone', createValidator(
             (v: string) => validator.isMobilePhone(v, 'de-DE'),
             {
@@ -80,10 +90,15 @@ describe('createValidator', () => {
 
         try {
             await container.run({ phone: '12345' });
+
             throw new Error('expected ValidupError');
         } catch (e) {
-            if (!(e instanceof ValidupError)) throw e;
+            if (!(e instanceof ValidupError)) {
+                throw e;
+            }
+
             const items = flattenIssueItems(e.issues);
+
             expect(items[0]?.data).toEqual({ locale: 'de-DE' });
         }
     });
@@ -96,14 +111,22 @@ describe('createValidator', () => {
         // `CreateValidatorOptions`, so this is a supported call shape rather
         // than a defensive branch.
         expect.assertions(2);
+
         const container = new Container<{ card: string }>();
+
         container.mount('card', createValidator(validator.isCreditCard, { code: 'credit_card' }));
+
         try {
             await container.run({ card: 'not-a-card' });
+
             throw new Error('expected ValidupError');
         } catch (e) {
-            if (!(e instanceof ValidupError)) throw e;
+            if (!(e instanceof ValidupError)) {
+                throw e;
+            }
+
             const items = flattenIssueItems(e.issues);
+
             expect(items[0]?.code).toBe('credit_card');
             expect(items[0]?.message).toBe('The value is invalid');
         }
@@ -122,9 +145,11 @@ describe('createValidator', () => {
             message: 'nope',
             sideEffect: true,
         });
+
         expect(declared.sideEffect).toBe(true);
 
         const undeclared = createValidator((value) => value === 'ok', { code: 'custom_code' });
+
         expect(undeclared.sideEffect).toBeUndefined();
         expect(Object.hasOwn(undeclared, 'sideEffect')).toBe(true);
     });
@@ -133,17 +158,25 @@ describe('createValidator', () => {
         // The factory signature requires `code`, but a runtime caller
         // might pass an empty string. Defensive default.
         expect.assertions(1);
+
         const container = new Container<{ x: string }>();
+
         container.mount('x', createValidator(validator.isAlpha, {
             code: '',
             message: 'Bad value',
         }));
+
         try {
             await container.run({ x: '123' });
+
             throw new Error('expected ValidupError');
         } catch (e) {
-            if (!(e instanceof ValidupError)) throw e;
+            if (!(e instanceof ValidupError)) {
+                throw e;
+            }
+
             const items = flattenIssueItems(e.issues);
+
             expect(items[0]?.code).toBe(IssueCode.VALUE_INVALID);
         }
     });

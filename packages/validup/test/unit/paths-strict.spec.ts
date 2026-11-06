@@ -18,6 +18,7 @@ const syncStringValidator: Validator = (ctx): unknown => {
     if (typeof ctx.value !== 'string') {
         throw new Error('Value is not a string');
     }
+
     return ctx.value;
 };
 
@@ -25,6 +26,7 @@ describe('pathsStrict', () => {
     describe('include', () => {
         it('should run normally when every include path matches a mount', async () => {
             const container = new Container<{ foo: string, bar: string }>();
+
             container.mount('foo', stringValidator);
             container.mount('bar', stringValidator);
 
@@ -41,6 +43,7 @@ describe('pathsStrict', () => {
             expect.assertions(4);
 
             const container = new Container<{ client_id: string }>();
+
             container.mount('client_id', stringValidator);
 
             try {
@@ -60,6 +63,7 @@ describe('pathsStrict', () => {
             expect.assertions(1);
 
             const container = new Container<{ foo: string }>();
+
             container.mount('foo', stringValidator);
 
             try {
@@ -74,6 +78,7 @@ describe('pathsStrict', () => {
 
         it('should stay silent (existing behavior) when pathsStrict is off', async () => {
             const container = new Container<{ foo: string }>();
+
             container.mount('foo', stringValidator);
 
             const output = await container.run(
@@ -86,6 +91,7 @@ describe('pathsStrict', () => {
 
         it('should not throw for an empty include list', async () => {
             const container = new Container<{ foo: string }>();
+
             container.mount('foo', stringValidator);
 
             const output = await container.run(
@@ -100,6 +106,7 @@ describe('pathsStrict', () => {
     describe('exclude', () => {
         it('should run normally when every exclude path matches a mount', async () => {
             const container = new Container<{ foo: string, bar: string }>();
+
             container.mount('foo', stringValidator);
             container.mount('bar', stringValidator);
 
@@ -116,6 +123,7 @@ describe('pathsStrict', () => {
             expect.assertions(2);
 
             const container = new Container<{ foo: string }>();
+
             container.mount('foo', stringValidator);
 
             try {
@@ -138,6 +146,7 @@ describe('pathsStrict', () => {
                 pathsToInclude: ['bar'],
                 pathsStrict: true,
             });
+
             container.mount('foo', stringValidator);
 
             try {
@@ -151,6 +160,7 @@ describe('pathsStrict', () => {
             expect.assertions(1);
 
             const container = new Container<{ foo: string }>({ pathsToInclude: ['bar'] });
+
             container.mount('foo', stringValidator);
 
             try {
@@ -164,10 +174,12 @@ describe('pathsStrict', () => {
     describe('nested containers', () => {
         it('should pass when a dotted include path descends to a real child mount', async () => {
             const child = new Container<{ baz: string, qux: string }>();
+
             child.mount('baz', stringValidator);
             child.mount('qux', stringValidator);
 
             const parent = new Container<{ nested: { baz: string, qux: string } }>();
+
             parent.mount('nested', child);
 
             const output = await parent.run(
@@ -183,10 +195,12 @@ describe('pathsStrict', () => {
             expect.assertions(2);
 
             const child = new Container<{ quux: string }>();
+
             // The shared child renamed `qux` → `quux`; the parent still asks for `nested.qux`.
             child.mount('quux', stringValidator);
 
             const parent = new Container<{ nested: Record<string, unknown> }>();
+
             parent.mount('nested', child);
 
             try {
@@ -205,9 +219,11 @@ describe('pathsStrict', () => {
             expect.assertions(1);
 
             const child = new Container<{ quux: string }>();
+
             child.mount('quux', stringValidator);
 
             const parent = new Container<{ nested: Record<string, unknown> }>();
+
             parent.mount('nested', child);
 
             try {
@@ -219,9 +235,11 @@ describe('pathsStrict', () => {
 
         it('should defer to the child for a keyless container mount', async () => {
             const child = new Container<{ qux: string }>();
+
             child.mount('qux', stringValidator);
 
             const parent = new Container<{ qux: string }>();
+
             parent.mount(child); // keyless — shares the parent namespace
 
             const output = await parent.run(
@@ -239,9 +257,11 @@ describe('pathsStrict', () => {
             // NOT forward strict into the keyless child (that would false-positive
             // on parent-sibling paths). So an unmatched path is silently ignored.
             const child = new Container<{ qux: string }>();
+
             child.mount('qux', stringValidator);
 
             const parent = new Container<{ qux: string }>();
+
             parent.mount(child);
 
             const output = await parent.run(
@@ -258,9 +278,11 @@ describe('pathsStrict', () => {
             // parent forwarded its full filter list + strict into the keyless
             // child, which threw because `foo` is not one of its mounts).
             const child = new Container<{ bar: string }>();
+
             child.mount('bar', stringValidator);
 
             const parent = new Container<{ foo: string, bar: string }>();
+
             parent.mount('foo', stringValidator);
             parent.mount(child); // keyless
 
@@ -276,6 +298,7 @@ describe('pathsStrict', () => {
     describe('orthogonal concerns', () => {
         it('should not trip on a mount excluded from the active group', async () => {
             const container = new Container<{ foo: string }>();
+
             container.mount('foo', { group: ['create'] }, stringValidator);
 
             // `foo` is group-skipped for the `update` run, but it still exists —
@@ -283,9 +306,9 @@ describe('pathsStrict', () => {
             const output = await container.run(
                 { foo: 'a' },
                 {
-                    group: 'update', 
-                    pathsToInclude: ['foo'], 
-                    pathsStrict: true, 
+                    group: 'update',
+                    pathsToInclude: ['foo'],
+                    pathsStrict: true,
                 },
             );
 
@@ -298,15 +321,16 @@ describe('pathsStrict', () => {
             expect.assertions(1);
 
             const container = new Container<{ foo: string }>();
+
             container.mount('foo', stringValidator);
 
             try {
                 await container.run(
                     { foo: 'a' },
                     {
-                        parallel: true, 
-                        pathsToInclude: ['bar'], 
-                        pathsStrict: true, 
+                        parallel: true,
+                        pathsToInclude: ['bar'],
+                        pathsStrict: true,
                     },
                 );
             } catch (e) {
@@ -318,6 +342,7 @@ describe('pathsStrict', () => {
             expect.assertions(1);
 
             const container = new Container<{ foo: string }>();
+
             container.mount('foo', syncStringValidator);
 
             try {
@@ -336,6 +361,7 @@ describe('pathsStrict', () => {
             expect.assertions(1);
 
             const container = new Container<{ foo: string }>();
+
             container.mount('foo', stringValidator);
 
             try {
@@ -352,6 +378,7 @@ describe('pathsStrict', () => {
             expect.assertions(1);
 
             const container = new Container<{ foo: string }>();
+
             container.mount('foo', syncStringValidator);
 
             try {

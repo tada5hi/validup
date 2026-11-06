@@ -13,6 +13,7 @@ import { buildIssuesForStandardSchemaIssues, createValidator } from '../../src';
 describe('@validup/standard-schema', () => {
     it('should validate via a Standard Schema (zod 4)', async () => {
         const validator = new Container<{ email: string }>();
+
         validator.mount('email', createValidator(z.string().email()));
 
         const outcome = await validator.run({ email: 'foo@example.com' });
@@ -22,21 +23,26 @@ describe('@validup/standard-schema', () => {
 
     it('should accept a factory that builds the schema from context', async () => {
         const validator = new Container<{ email: string }>();
+
         validator.mount('email', createValidator((ctx) => {
             // Schema can depend on validator context (group/data/context).
             expect(ctx.key).toEqual('email');
+
             return z.string().email();
         }));
 
         const outcome = await validator.run({ email: 'foo@example.com' });
+
         expect(outcome.email).toEqual('foo@example.com');
     });
 
     it('should translate Standard Schema issues into validup IssueItems', async () => {
         const validator = new Container<{ email: string }>();
+
         validator.mount('email', createValidator(z.string().email()));
 
         expect.assertions(3);
+
         try {
             await validator.run({ email: 'not-an-email' });
         } catch (e) {
@@ -50,12 +56,14 @@ describe('@validup/standard-schema', () => {
 
     it('should normalize PathSegment objects in nested schemas', async () => {
         const validator = new Container<{ foo: unknown }>();
+
         validator.mount(
             'foo',
             createValidator(z.object({ bar: z.string().array().min(2) })),
         );
 
         expect.assertions(3);
+
         try {
             await validator.run({ foo: { bar: [0] } });
         } catch (e) {
@@ -63,8 +71,10 @@ describe('@validup/standard-schema', () => {
                 // Multiple schema-side issues collapse into an IssueGroup at
                 // the mount path; the inner issues carry the merged paths.
                 const [group] = e.issues;
+
                 if (group?.type === 'group') {
                     const innerPaths = group.issues.map((i) => i.path);
+
                     expect(innerPaths).toContainEqual(['foo', 'bar', 0]);
                     expect(innerPaths).toContainEqual(['foo', 'bar']);
                     expect(group.issues.every((i) => i.type === 'item')).toBe(true);
@@ -83,6 +93,7 @@ describe('@validup/standard-schema', () => {
                     if (typeof value === 'number' && value > 10) {
                         return { value };
                     }
+
                     return {
                         issues: [
                             {
@@ -97,12 +108,15 @@ describe('@validup/standard-schema', () => {
         };
 
         const validator = new Container<{ amount: number }>();
+
         validator.mount('amount', createValidator(greaterThan10));
 
         const ok = await validator.run({ amount: 42 });
+
         expect(ok.amount).toEqual(42);
 
         expect.assertions(3);
+
         try {
             await validator.run({ amount: 5 });
         } catch (e) {
@@ -116,13 +130,16 @@ describe('@validup/standard-schema', () => {
     it('createValidator participates in the result cache by default', async () => {
         const container = new Container<{ email: string }>();
         let calls = 0;
+
         container.mount('email', createValidator(() => {
             calls += 1;
+
             return z.string().email();
         }));
 
         const cache = new ResultCache();
         const data = { email: 'foo@example.com' };
+
         await container.run(data, { cache });
         await container.run(data, { cache });
         expect(calls).toBe(1);
@@ -131,9 +148,11 @@ describe('@validup/standard-schema', () => {
     it('createValidator({ sideEffect: true }) bypasses the cache', async () => {
         const container = new Container<{ email: string }>();
         let calls = 0;
+
         container.mount('email', createValidator(
             () => {
                 calls += 1;
+
                 return z.string().email();
             },
             { sideEffect: true },
@@ -141,6 +160,7 @@ describe('@validup/standard-schema', () => {
 
         const cache = new ResultCache();
         const data = { email: 'foo@example.com' };
+
         await container.run(data, { cache });
         await container.run(data, { cache });
         expect(calls).toBe(2);
@@ -152,6 +172,7 @@ describe('@validup/standard-schema', () => {
         const out = buildIssuesForStandardSchemaIssues([
             { message: 'invalid', path: [{ key: 'foo' }, { key: 0 }, 'bar'] },
         ]);
+
         expect(out[0]?.path).toEqual(['foo', 0, 'bar']);
     });
 });

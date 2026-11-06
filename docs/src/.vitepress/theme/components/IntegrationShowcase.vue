@@ -5,7 +5,7 @@
   view the LICENSE file that was distributed with this source code.
 -->
 <script setup lang="ts">
-interface IntegrationCard {
+interface IIntegrationCard {
     name: string;
     accent: string;
     href: string;
@@ -13,7 +13,7 @@ interface IntegrationCard {
     bullets: string[];
 }
 
-const integrations: IntegrationCard[] = [
+const integrations: IIntegrationCard[] = [
     {
         name: '@validup/standard-schema',
         accent: 'var(--vu-color-info-500)',

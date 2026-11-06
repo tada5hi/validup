@@ -136,6 +136,7 @@ describe('readNested', () => {
 
     it('returns the object itself for an empty segment list', () => {
         const state = { a: 1 };
+
         expect(readNested(state, [])).toBe(state);
     });
 
@@ -150,18 +151,21 @@ describe('readNested', () => {
 describe('writeNested', () => {
     it('writes a top-level value', () => {
         const state: Record<string, unknown> = {};
+
         writeNested(state, ['name'], 'Peter');
         expect(state).toEqual({ name: 'Peter' });
     });
 
     it('creates missing object intermediates', () => {
         const state: Record<string, unknown> = {};
+
         writeNested(state, ['address', 'city'], 'Berlin');
         expect(state).toEqual({ address: { city: 'Berlin' } });
     });
 
     it('creates an ARRAY when the next segment is numeric', () => {
         const state: Record<string, unknown> = {};
+
         writeNested(state, ['items', '0', 'name'], 'x');
         expect(Array.isArray(state.items)).toBe(true);
         expect(state).toEqual({ items: [{ name: 'x' }] });
@@ -169,6 +173,7 @@ describe('writeNested', () => {
 
     it('creates an array even when the leaf itself is the index', () => {
         const state: Record<string, unknown> = {};
+
         writeNested(state, ['tags', '1'], 'b');
         expect(Array.isArray(state.tags)).toBe(true);
         expect((state.tags as unknown[])[1]).toBe('b');
@@ -178,18 +183,21 @@ describe('writeNested', () => {
         // Form state initialized as `{ address: null }` is common; the
         // write must still land instead of being silently dropped.
         const state: Record<string, unknown> = { address: null };
+
         writeNested(state, ['address', 'city'], 'Berlin');
         expect(state).toEqual({ address: { city: 'Berlin' } });
     });
 
     it('keeps existing sibling keys on an intermediate', () => {
         const state: Record<string, unknown> = { address: { zip: '10115' } };
+
         writeNested(state, ['address', 'city'], 'Berlin');
         expect(state).toEqual({ address: { zip: '10115', city: 'Berlin' } });
     });
 
     it('is a no-op for an empty segment list', () => {
         const state: Record<string, unknown> = { a: 1 };
+
         writeNested(state, [], 'ignored');
         expect(state).toEqual({ a: 1 });
     });
@@ -200,6 +208,7 @@ describe('writeNested', () => {
         // from user input, a route param or a server response was a vector:
         // `fields.at('__proto__.polluted').$model.value = x`.
         const state: Record<string, unknown> = {};
+
         writeNested(state, pathFromKey('__proto__.polluted'), 'PWN');
         expect(({} as Record<string, unknown>).polluted).toBeUndefined();
         expect(state).toEqual({});
@@ -207,6 +216,7 @@ describe('writeNested', () => {
 
     it('refuses to write through constructor or prototype', () => {
         const state: Record<string, unknown> = {};
+
         writeNested(state, ['constructor', 'prototype', 'owned'], 'PWN');
         writeNested(state, ['prototype', 'owned'], 'PWN');
         expect(({} as Record<string, unknown>).owned).toBeUndefined();
@@ -222,6 +232,7 @@ describe('writeNested', () => {
         // `state` empty — a stricter guarantee, given up deliberately so the
         // unsafe-key list lives in one repo instead of two.)
         const state: Record<string, unknown> = {};
+
         writeNested(state, ['safe', '__proto__', 'x'], 'PWN');
 
         expect(state).toEqual({ safe: {} });
@@ -234,6 +245,7 @@ describe('writeNested', () => {
         // `name` off it as a non-index property, which JSON.stringify drops.
         // pathtrace 2.2.3 applies canonical array-index rules instead.
         const state: Record<string, unknown> = {};
+
         writeNested(state, ['items', '01', 'name'], 'V');
 
         expect(Array.isArray(state.items)).toBe(false);
@@ -248,6 +260,7 @@ describe('writeNested', () => {
         // the dependency floor ever slipped. `{ address: null }` is ordinary
         // initial form state.
         const state: Record<string, unknown> = { address: null };
+
         writeNested(state, ['address', 'city'], 'Berlin');
 
         expect(state).toEqual({ address: { city: 'Berlin' } });
@@ -255,6 +268,7 @@ describe('writeNested', () => {
 
     it('still writes keys that merely resemble unsafe ones', () => {
         const state: Record<string, unknown> = {};
+
         writeNested(state, ['__proto__x'], 'ok');
         writeNested(state, ['constructors'], 'ok');
         expect(state).toEqual({ __proto__x: 'ok', constructors: 'ok' });
@@ -345,11 +359,13 @@ describe('flatItemsAtPath', () => {
 
     it('flattens leaves out of nested groups', () => {
         const nested: Issue[] = [group([], [item(['name']), item(['email'])])];
+
         expect(flatItemsAtPath(nested, 'name').map((i) => pathKey(i.path))).toEqual(['name']);
     });
 
     it('matches array-element paths stamped as numeric segments', () => {
         const nested: Issue[] = [item(['tags', 0, 'label'])];
+
         expect(flatItemsAtPath(nested, 'tags.0')).toHaveLength(1);
         expect(flatItemsAtPath(nested, 'tags')).toHaveLength(1);
     });
@@ -358,6 +374,7 @@ describe('flatItemsAtPath', () => {
 describe('visibleItems', () => {
     it('applies the shared visibility rule to a field slice', () => {
         const items = [item(['bio']), optionalItem(['bio'])];
+
         expect(visibleItems(items, false)).toHaveLength(1);
         expect(visibleItems(items, true)).toHaveLength(2);
     });
@@ -366,6 +383,7 @@ describe('visibleItems', () => {
 describe('rawIssuesAtPath', () => {
     it('returns the input untouched for the empty path', () => {
         const issues: Issue[] = [item(['name'])];
+
         expect(rawIssuesAtPath(issues, '')).toBe(issues);
     });
 
@@ -376,6 +394,7 @@ describe('rawIssuesAtPath', () => {
         // distinguishes the branch. A child that also matched would make the
         // rebuild produce a structurally identical group and pass either way.
         const g = group(['address'], [item(['name'])]);
+
         expect(rawIssuesAtPath([g], 'address')).toEqual([g]);
     });
 
@@ -384,8 +403,11 @@ describe('rawIssuesAtPath', () => {
         // `fields.name.$issues` must still surface the `name` leaf.
         const g = group([], [item(['name']), item(['email'])]);
         const output = rawIssuesAtPath([g], 'name');
+
         expect(output).toHaveLength(1);
+
         const [rebuilt] = output as [Extract<Issue, { type: 'group' }>];
+
         expect(rebuilt.type).toBe('group');
         expect(rebuilt).not.toBe(g);
         expect(rebuilt.issues.map((i) => pathKey(i.path))).toEqual(['name']);
@@ -395,18 +417,23 @@ describe('rawIssuesAtPath', () => {
         const inner = group([], [item(['name'])]);
         const outer = group([], [inner, item(['email'])]);
         const output = rawIssuesAtPath([outer], 'name') as [Extract<Issue, { type: 'group' }>];
+
         expect(output).toHaveLength(1);
+
         const [nested] = output[0].issues as [Extract<Issue, { type: 'group' }>];
+
         expect(nested.issues.map((i) => pathKey(i.path))).toEqual(['name']);
     });
 
     it('drops a group whose children do not match', () => {
         const g = group([], [item(['email'])]);
+
         expect(rawIssuesAtPath([g], 'name')).toEqual([]);
     });
 
     it('keeps leaves at or below the path and drops the rest', () => {
         const issues: Issue[] = [item(['address']), item(['address', 'city']), item(['name'])];
+
         expect(rawIssuesAtPath(issues, 'address').map((i) => pathKey(i.path)))
             .toEqual(['address', 'address.city']);
     });
@@ -415,23 +442,27 @@ describe('rawIssuesAtPath', () => {
 describe('visibleFormItems', () => {
     it('gates each item on ITS OWN path being dirty', () => {
         const issues: Issue[] = [optionalItem(['bio']), optionalItem(['nickname'])];
+
         expect(visibleFormItems(issues, new Set(['bio'])).map((i) => pathKey(i.path)))
             .toEqual(['bio']);
     });
 
     it('surfaces required-mount items regardless of dirty state', () => {
         const issues: Issue[] = [item(['name'])];
+
         expect(visibleFormItems(issues, new Set())).toHaveLength(1);
     });
 
     it('honours ancestor-prefix dirtiness', () => {
         const issues: Issue[] = [optionalItem(['address', 'city'])];
+
         expect(visibleFormItems(issues, new Set())).toHaveLength(0);
         expect(visibleFormItems(issues, new Set(['address']))).toHaveLength(1);
     });
 
     it('excludes path-less issues — those belong to $crossCuttingErrors', () => {
         const issues: Issue[] = [item([]), item(['name'])];
+
         expect(visibleFormItems(issues, new Set()).map((i) => pathKey(i.path))).toEqual(['name']);
     });
 
@@ -439,6 +470,7 @@ describe('visibleFormItems', () => {
         // Regression guard for the "one visibility rule" invariant: the
         // form-level and field-level projections must agree on a given item.
         const optional = optionalItem(['bio']);
+
         expect(visibleFormItems([optional], new Set())).toEqual(visibleItems([optional], false));
         expect(visibleFormItems([optional], new Set(['bio'])))
             .toEqual(visibleItems([optional], true));
@@ -448,11 +480,13 @@ describe('visibleFormItems', () => {
 describe('crossCuttingItems', () => {
     it('keeps only path-less leaves', () => {
         const issues: Issue[] = [item([]), item(['name'])];
+
         expect(crossCuttingItems(issues).map((i) => i.path)).toEqual([[]]);
     });
 
     it('flattens path-less leaves out of groups', () => {
         const issues: Issue[] = [group([], [item([]), item(['name'])])];
+
         expect(crossCuttingItems(issues)).toHaveLength(1);
     });
 });
@@ -464,12 +498,14 @@ describe('visibleGroups', () => {
 
     it('surfaces an empty-path group once anything is dirty', () => {
         const g = group([], [item(['name'])]);
+
         expect(visibleGroups([g], new Set())).toEqual([]);
         expect(visibleGroups([g], new Set(['name']))).toEqual([g]);
     });
 
     it('gates a pathed group on prefix dirtiness', () => {
         const g = group(['address'], [item(['address', 'city'])]);
+
         expect(visibleGroups([g], new Set(['name']))).toEqual([]);
         expect(visibleGroups([g], new Set(['address']))).toEqual([g]);
     });
@@ -477,6 +513,7 @@ describe('visibleGroups', () => {
     it('does not descend into nested sub-groups', () => {
         const inner = group(['address'], []);
         const outer = group(['profile'], [inner]);
+
         expect(visibleGroups([outer], new Set(['address']))).toEqual([]);
     });
 });
@@ -484,12 +521,14 @@ describe('visibleGroups', () => {
 describe('pruneExternalAtPath', () => {
     it('drops leaves at or below the cleared path', () => {
         const issues: Issue[] = [item(['name']), item(['address']), item(['address', 'city'])];
+
         expect(pruneExternalAtPath(issues, 'address').map((i) => pathKey(i.path)))
             .toEqual(['name']);
     });
 
     it('keeps a string-prefix sibling', () => {
         const issues: Issue[] = [item(['addressLine'])];
+
         expect(pruneExternalAtPath(issues, 'address')).toHaveLength(1);
     });
 
@@ -499,12 +538,14 @@ describe('pruneExternalAtPath', () => {
         // emptied-group path and the test passes vacuously. With a
         // non-matching child, dropping the branch pushes the group back.
         const g = group(['address'], [item(['name'])]);
+
         expect(pruneExternalAtPath([g], 'address')).toEqual([]);
     });
 
     it('keeps a non-matching group by identity when nothing inside matched', () => {
         const g = group([], [item(['name']), item(['email'])]);
         const output = pruneExternalAtPath([g], 'phone');
+
         expect(output).toHaveLength(1);
         expect(output[0]).toBe(g);
     });
@@ -512,14 +553,18 @@ describe('pruneExternalAtPath', () => {
     it('rebuilds a partially-matching group with the survivors', () => {
         const g = group([], [item(['name']), item(['email'])]);
         const output = pruneExternalAtPath([g], 'name');
+
         expect(output).toHaveLength(1);
+
         const [rebuilt] = output as [Extract<Issue, { type: 'group' }>];
+
         expect(rebuilt).not.toBe(g);
         expect(rebuilt.issues.map((i) => pathKey(i.path))).toEqual(['email']);
     });
 
     it('drops a group emptied by pruning', () => {
         const g = group([], [item(['name']), item(['name', 'first'])]);
+
         expect(pruneExternalAtPath([g], 'name')).toEqual([]);
     });
 
@@ -527,8 +572,11 @@ describe('pruneExternalAtPath', () => {
         const inner = group([], [item(['name']), item(['email'])]);
         const outer = group([], [inner, item(['name'])]);
         const output = pruneExternalAtPath([outer], 'name') as [Extract<Issue, { type: 'group' }>];
+
         expect(output[0].issues).toHaveLength(1);
+
         const [nested] = output[0].issues as [Extract<Issue, { type: 'group' }>];
+
         expect(nested.issues.map((i) => pathKey(i.path))).toEqual(['email']);
     });
 
@@ -547,6 +595,7 @@ describe('pruneExternalAtPath', () => {
         const inner = group([], [item(['name']), item(['email'])]);
         const outer = group([], [inner]);
         const output = pruneExternalAtPath([outer], 'name');
+
         expect(output[0]).toBe(outer);
     });
 
@@ -568,8 +617,11 @@ describe('tagExternal', () => {
         const nested = group([], [item(['name'])]);
         const tagged = tagExternal(group([], [nested, item(['email'])])) as
             Extract<Issue, { type: 'group' }>;
+
         expect(tagged.meta).toEqual({ external: true });
+
         const [taggedNested, taggedLeaf] = tagged.issues as [Extract<Issue, { type: 'group' }>, Issue];
+
         expect(taggedNested.meta).toEqual({ external: true });
         expect(taggedNested.issues[0]?.meta).toEqual({ external: true });
         expect(taggedLeaf.meta).toEqual({ external: true });
@@ -577,6 +629,7 @@ describe('tagExternal', () => {
 
     it('does not mutate the input', () => {
         const original = item(['name']);
+
         tagExternal(original);
         expect(original.meta).toBeUndefined();
     });

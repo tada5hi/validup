@@ -58,9 +58,11 @@ describe('src/module', () => {
 
     it('should not validate nested container', async () => {
         const child = new Container<{ email: string }>();
+
         child.mount('email', createValidator(z.string().email()));
 
         const parent = new Container<{ child: { email: string } }>();
+
         parent.mount('child', child);
 
         expect.assertions(3);
@@ -70,6 +72,7 @@ describe('src/module', () => {
         } catch (e) {
             if (e instanceof ValidupError) {
                 const [issue] = e.issues;
+
                 expect(issue.path).toEqual(['child']);
 
                 if (issue.type === 'group') {
@@ -82,9 +85,11 @@ describe('src/module', () => {
 
     it('should not validate nested container with empty child mount path', async () => {
         const child = new Container<{ email: string }>();
+
         child.mount('email', createValidator(z.string().email()));
 
         const parent = new Container<{ child: { email: string } }>();
+
         parent.mount(child);
 
         expect.assertions(2);
@@ -102,13 +107,16 @@ describe('src/module', () => {
     it('createValidator participates in the result cache by default', async () => {
         const container = new Container<{ email: string }>();
         let calls = 0;
+
         container.mount('email', createValidator(() => {
             calls += 1;
+
             return z.string().email();
         }));
 
         const cache = new ResultCache();
         const data = { email: 'foo@example.com' };
+
         await container.run(data, { cache });
         await container.run(data, { cache });
         expect(calls).toBe(1);
@@ -117,9 +125,11 @@ describe('src/module', () => {
     it('createValidator({ sideEffect: true }) bypasses the cache', async () => {
         const container = new Container<{ email: string }>();
         let calls = 0;
+
         container.mount('email', createValidator(
             () => {
                 calls += 1;
+
                 return z.string().email();
             },
             { sideEffect: true },
@@ -127,6 +137,7 @@ describe('src/module', () => {
 
         const cache = new ResultCache();
         const data = { email: 'foo@example.com' };
+
         await container.run(data, { cache });
         await container.run(data, { cache });
         expect(calls).toBe(2);
@@ -139,6 +150,7 @@ describe('src/module', () => {
         // thread, every missing field would collapse back to VALUE_INVALID
         // (the historical bug described in #397).
         const validator = new Container<{ user: { email: string } }>();
+
         validator.mount('user', createValidator(z.object({
             email: z.string(),
             name: z.string(),
@@ -152,6 +164,7 @@ describe('src/module', () => {
             if (e instanceof ValidupError) {
                 const items = flattenIssueItems(e.issues);
                 const missing = items.find((it) => it.path.join('.') === 'user.name');
+
                 expect(missing).toBeDefined();
                 expect(missing?.code).toBe(IssueCode.REQUIRED);
             }
@@ -170,6 +183,7 @@ describe('src/module', () => {
         } catch (e) {
             if (e instanceof ValidupError) {
                 const [group] = e.issues;
+
                 if (group.type === 'group') {
                     expect(group.issues.length).toEqual(2);
 

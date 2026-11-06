@@ -27,6 +27,7 @@ const isNonEmptyString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string' || ctx.value.length === 0) {
         throw new Error('Value must be a non-empty string');
     }
+
     return ctx.value;
 };
 
@@ -39,16 +40,20 @@ async function flush() {
 }
 
 const basicContainer = new Container<{ name: string }>();
+
 basicContainer.mount('name', isNonEmptyString);
 
 const credentialsContainer = new Container<{ password: string }>();
+
 credentialsContainer.mount('password', isNonEmptyString);
 
 const ChildBasic = defineComponent({
     setup(_, { expose }) {
         const form = reactive({ name: '' });
         const $v = useValidup(basicContainer, form, { name: 'basic' });
+
         expose({ $v, form });
+
         return () => h('div', { class: 'child-basic' });
     },
 });
@@ -57,7 +62,9 @@ const ChildCredentials = defineComponent({
     setup(_, { expose }) {
         const form = reactive({ password: '' });
         const $v = useValidup(credentialsContainer, form, { name: 'credentials' });
+
         expose({ $v, form });
+
         return () => h('div', { class: 'child-credentials' });
     },
 });
@@ -65,7 +72,9 @@ const ChildCredentials = defineComponent({
 const Parent = defineComponent({
     setup(_, { expose }) {
         const $v = useValidup(new Container(), {}, { stopPropagation: true });
+
         expose({ $v });
+
         return () => h('div', [h(ChildBasic), h(ChildCredentials)]);
     },
 });
@@ -73,6 +82,7 @@ const Parent = defineComponent({
 describe('nested forms', () => {
     it('children auto-register with the parent collector via provide/inject', async () => {
         const wrapper = mount(Parent);
+
         await flush();
 
         const { $v } = (wrapper.vm as unknown as { $v: Composable });
@@ -86,6 +96,7 @@ describe('nested forms', () => {
 
     it('parent surfaces invalidity from any child', async () => {
         const wrapper = mount(Parent);
+
         await flush();
 
         const { $v } = (wrapper.vm as unknown as { $v: Composable });
@@ -99,6 +110,7 @@ describe('nested forms', () => {
         const anyChildInvalid = ['basic', 'credentials']
             .map((n) => $v.$getResultsForChild(n))
             .some((c) => c?.$invalid.value);
+
         expect(anyChildInvalid).toBe(true);
 
         wrapper.unmount();
@@ -106,6 +118,7 @@ describe('nested forms', () => {
 
     it('extractResultsFromChild collects child $model values', async () => {
         const wrapper = mount(Parent);
+
         await flush();
 
         const { $v } = (wrapper.vm as unknown as { $v: Composable });
@@ -128,9 +141,11 @@ describe('nested forms', () => {
 
     it('children unregister when their component scope disposes', async () => {
         const wrapper = mount(Parent);
+
         await flush();
 
         const { $v } = (wrapper.vm as unknown as { $v: Composable });
+
         expect($v.$getResultsForChild('basic')).toBeDefined();
 
         wrapper.unmount();
@@ -165,6 +180,7 @@ describe('child registry reactivity', () => {
                 initial,
                 hide,
             });
+
             return () => h('div', [
                 show.value ? h(ChildBasic) : null,
                 h('span', { class: 'agg' }, basic.value ?
@@ -176,6 +192,7 @@ describe('child registry reactivity', () => {
 
     it('a computed over $getResultsForChild re-evaluates when the child registers', async () => {
         const wrapper = mount(AggregatingParent);
+
         await flush();
 
         const vm = wrapper.vm as unknown as { $v: Composable, initial: unknown };
@@ -190,11 +207,13 @@ describe('child registry reactivity', () => {
 
     it('parent template tracks a child\'s $invalid through the registry', async () => {
         const wrapper = mount(AggregatingParent);
+
         await flush();
 
         const vm = wrapper.vm as unknown as { $v: Composable, hide: () => void };
 
         const child = vm.$v.$getResultsForChild<{ name: string }>('basic')!;
+
         child.fields.name.$model.value = 'peter';
         await flush();
 
@@ -211,6 +230,7 @@ describe('child registry reactivity', () => {
 
     it('registry lookups return the child composable raw — nested refs are not unwrapped', async () => {
         const wrapper = mount(Parent);
+
         await flush();
 
         const { $v } = (wrapper.vm as unknown as { $v: Composable });

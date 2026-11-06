@@ -115,19 +115,24 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         Object.prototype.hasOwnProperty.call(installOptions, 'optionalAs') :
         false;
     let resolvedOptionalAs: unknown;
+
     if (composableHasOptionalAs) {
         resolvedOptionalAs = options.optionalAs;
     } else if (installHasOptionalAs) {
         resolvedOptionalAs = installOptions!.optionalAs;
     }
+
     const propagateOptionalAs = composableHasOptionalAs || installHasOptionalAs;
 
     async function runOnce(signal?: AbortSignal): Promise<Result<T>> {
         const id = ++runId;
+
         pending.value = true;
+
         try {
             const c = unref(containerRef);
             let result: Result<T>;
+
             try {
                 result = await c.safeRun(
                     unref(stateRef) as Record<string, any>,
@@ -150,20 +155,25 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
                 if (signal?.aborted) {
                     return { success: false, error: new ValidupError() } as Result<T>;
                 }
+
                 const error = isValidupError(rawError) ?
                     rawError :
                     new ValidupError([{
                         type: 'item',
                         code: IssueCode.VALUE_INVALID,
                         path: [],
-                        message: rawError instanceof Error ? rawError.message : String(rawError),
+                        message: Error.isError(rawError) ? rawError.message : String(rawError),
                     } as IssueItem]);
+
                 result = { success: false, error } as Result<T>;
             }
+
             if (id !== runId) {
                 return result;
             }
+
             internalIssues.value = result.success ? [] : result.error.issues;
+
             return result;
         } finally {
             if (id === runId) {
@@ -175,16 +185,21 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
     function schedule() {
         scheduleAbortController?.abort();
         scheduleAbortController = new AbortController();
+
         const { signal } = scheduleAbortController;
+
         if (options.debounce && options.debounce > 0) {
             if (debounceTimer) {
                 clearTimeout(debounceTimer);
             }
+
             debounceTimer = setTimeout(() => {
                 void runOnce(signal);
             }, options.debounce);
+
             return;
         }
+
         void runOnce(signal);
     }
 
@@ -212,6 +227,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
             clearTimeout(debounceTimer);
             debounceTimer = undefined;
         }
+
         scheduleAbortController?.abort();
         scheduleAbortController = undefined;
         runId += 1;
@@ -250,6 +266,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
             stateRef,
             () => {
                 const data = unref(stateRef) as Record<string, unknown> | null | undefined;
+
                 if (data && typeof data === 'object') {
                     for (const key of Object.keys(data)) {
                         dirtyPaths.add(key);
@@ -287,6 +304,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         if (externalIssues.value.length === 0) {
             return;
         }
+
         externalIssues.value = pruneExternalAtPath(externalIssues.value, path);
     }
 
@@ -303,9 +321,11 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
                 // is a no-op for dirty tracking. Object.is matches Vue's own
                 // change-detection (handles NaN === NaN, distinguishes ±0).
                 const prev = readNested(toRaw(unref(stateRef)), segments);
+
                 if (Object.is(prev, value)) {
                     return;
                 }
+
                 writeNested(unref(stateRef), segments, value);
                 dirtyPaths.add(path);
                 clearExternalAtPath(path);
@@ -338,10 +358,12 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
     const fieldsCache = new Map<string, FieldState<any>>();
     function getOrBuildFieldState(prop: string): FieldState<any> {
         let cached = fieldsCache.get(prop);
+
         if (!cached) {
             cached = buildFieldState(prop);
             fieldsCache.set(prop, cached);
         }
+
         return cached;
     }
 
@@ -355,6 +377,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
     // the documented "conditional sub-forms" use case.
     const liveStateKeysRef = computed<string[]>(() => {
         const data = stateRef.value as Record<string, unknown> | null | undefined;
+
         return data && typeof data === 'object' ? Object.keys(data) : [];
     });
     function liveStateKeys(): string[] {
@@ -376,6 +399,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
             if (typeof prop !== 'string') {
                 return undefined;
             }
+
             // `at` is reserved as the dynamic-path accessor (matches the
             // public `FieldsAccessor` type). A field literally named `at`
             // is therefore shadowed — documented trade-off, see
@@ -383,6 +407,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
             if (prop === 'at') {
                 return fieldAt;
             }
+
             return getOrBuildFieldState(prop);
         },
         has(_, prop) {
@@ -395,6 +420,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
             if (typeof prop !== 'string' || !liveStateKeys().includes(prop)) {
                 return undefined;
             }
+
             // Returning a *data* descriptor with `value` (the field state) is
             // what `Object.keys(fields)` and the spread operator rely on to
             // surface the field. Reading `value` here goes through the proxy
@@ -425,6 +451,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
 
     function markStateKeysDirty() {
         const data = unref(stateRef) as Record<string, unknown> | null | undefined;
+
         if (data && typeof data === 'object') {
             for (const key of Object.keys(data)) {
                 dirtyPaths.add(key);
@@ -480,10 +507,13 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
         // outside the state object (e.g. `address.city` against `state = {}`)
         // are caught after the run completes via `markIssuePathsDirty()`.
         markStateKeysDirty();
+
         // No signal — `$validate` is intentionally non-cancellable so an
         // intervening state-change-driven schedule can't abort the submit.
         const result = await runOnce();
+
         markIssuePathsDirty();
+
         return result;
     }
 
@@ -537,6 +567,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
                 clearTimeout(debounceTimer);
                 debounceTimer = undefined;
             }
+
             scheduleAbortController?.abort();
             scheduleAbortController = undefined;
         });

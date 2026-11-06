@@ -36,23 +36,30 @@ export class ResultCache implements IResultCache {
 
     set(mount: object, key: string, entry: ResultCacheEntry): void {
         let inner = this.store.get(mount);
+
         if (!inner) {
             inner = new Map();
             this.store.set(mount, inner);
         }
+
         inner.set(key, entry);
     }
 
     delete(mount: object, key?: string): void {
         if (typeof key === 'undefined') {
             this.store.delete(mount);
+
             return;
         }
+
         const inner = this.store.get(mount);
+
         if (!inner) {
             return;
         }
+
         inner.delete(key);
+
         if (inner.size === 0) {
             this.store.delete(mount);
         }

@@ -39,8 +39,8 @@ describe('toValidatorString', () => {
         expect(toValidatorString(1.5)).toBe('1.5');
         expect(toValidatorString(0)).toBe('0');
         expect(toValidatorString(-0)).toBe('0');
-        expect(toValidatorString(Number.NaN)).toBe('NaN');
-        expect(toValidatorString(Number.POSITIVE_INFINITY)).toBe('Infinity');
+        expect(toValidatorString(NaN)).toBe('NaN');
+        expect(toValidatorString(Infinity)).toBe('Infinity');
     });
 
     it('stringifies booleans', () => {
@@ -105,10 +105,14 @@ describe('toValidatorString: the consequence for equals()', () => {
             data,
             context: undefined,
         };
+
         try {
             return { ok: true as const, value: equals('password').run(ctx) };
         } catch (error) {
-            if (!isValidupError(error)) throw error;
+            if (!isValidupError(error)) {
+                throw error;
+            }
+
             return { ok: false as const, code: (error.issues[0] as any).code };
         }
     }

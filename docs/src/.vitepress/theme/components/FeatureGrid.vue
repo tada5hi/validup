@@ -5,13 +5,13 @@
   view the LICENSE file that was distributed with this source code.
 -->
 <script setup lang="ts">
-interface Feature {
+interface IFeature {
     icon: string;
     title: string;
     detail: string;
 }
 
-const features: Feature[] = [
+const features: IFeature[] = [
     {
         icon: '🧩',
         title: 'Composable',

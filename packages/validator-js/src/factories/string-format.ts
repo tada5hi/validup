@@ -23,10 +23,15 @@ export function isEmail<C = unknown>(
     options: BaseFactoryOptions & validator.IsEmailOptions = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid email address';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isEmail(s, options)) return ctx.value;
+
+            if (validator.isEmail(s, options)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.EMAIL, message);
         },
     });
@@ -39,10 +44,15 @@ export function isURL<C = unknown>(
     options: BaseFactoryOptions & validator.IsURLOptions = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid URL';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isURL(s, options)) return ctx.value;
+
+            if (validator.isURL(s, options)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.URL, message);
         },
     });
@@ -59,10 +69,15 @@ export function isUUID<C = unknown>(
     options: BaseFactoryOptions & { version?: validator.UUIDVersion } = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid UUID';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isUUID(s, options.version)) return ctx.value;
+
+            if (validator.isUUID(s, options.version)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.UUID, message);
         },
     });
@@ -77,10 +92,15 @@ export function isIP<C = unknown>(
     options: BaseFactoryOptions & { version?: '4' | '6' | 4 | 6 } = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid IP address';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isIP(s, options.version)) return ctx.value;
+
+            if (validator.isIP(s, options.version)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.IP_ADDRESS, message);
         },
     });
@@ -93,10 +113,15 @@ export function isMACAddress<C = unknown>(
     options: BaseFactoryOptions & validator.IsMACAddressOptions = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid MAC address';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isMACAddress(s, options)) return ctx.value;
+
+            if (validator.isMACAddress(s, options)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.MAC_ADDRESS, message);
         },
     });
@@ -109,10 +134,15 @@ export function isDate<C = unknown>(
     options: BaseFactoryOptions & validator.IsDateOptions = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid date';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isDate(s, options)) return ctx.value;
+
+            if (validator.isDate(s, options)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.DATE, message);
         },
     });
@@ -127,10 +157,15 @@ export function isISO8601<C = unknown>(
     options: BaseFactoryOptions & validator.IsISO8601Options = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not a valid date';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isISO8601(s, options)) return ctx.value;
+
+            if (validator.isISO8601(s, options)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.DATE, message);
         },
     });
@@ -143,10 +178,15 @@ export function isJSON<C = unknown>(
     options: BaseFactoryOptions & validator.IsJSONOptions = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not valid JSON';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isJSON(s, options)) return ctx.value;
+
+            if (validator.isJSON(s, options)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.JSON, message);
         },
     });
@@ -159,10 +199,15 @@ export function isBase64<C = unknown>(
     options: BaseFactoryOptions & validator.IsBase64Options = {},
 ): ValidatorDescriptor<C> {
     const message = options.message ?? 'The value is not valid base64';
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
-            if (validator.isBase64(s, options)) return ctx.value;
+
+            if (validator.isBase64(s, options)) {
+                return ctx.value;
+            }
+
             throw createValidupError(ctx.value, IssueCode.BASE64, message);
         },
     });
@@ -233,11 +278,13 @@ export function isStrongPassword<C = unknown>(
     // consumer mutating `issue.data` on one IssueItem can't bleed into a
     // future failure from the same factory.
     const paramsTemplate: StrongPasswordRequirementParams = {};
+
     for (const key of STRONG_PASSWORD_REQUIREMENT_KEYS) {
         if (typeof rest[key] === 'number') {
             paramsTemplate[key] = rest[key];
         }
     }
+
     return defineValidator<C>({
         run: (ctx) => {
             const s = toValidatorString(ctx.value);
@@ -245,7 +292,11 @@ export function isStrongPassword<C = unknown>(
             // defaults in-place). Pass a shallow clone so consumer-side
             // `options` and our captured template stay clean.
             const probeOptions = { ...rest } as validator.StrongPasswordOptions;
-            if (validator.isStrongPassword(s, probeOptions) === true) return ctx.value;
+
+            if (validator.isStrongPassword(s, probeOptions) === true) {
+                return ctx.value;
+            }
+
             throw createValidupError(
                 ctx.value,
                 IssueCode.STRONG_PASSWORD,

@@ -18,8 +18,10 @@ describe('container context propagation', () => {
         const container = new Container<{ foo: string }, AppContext>();
         const validator: Validator<AppContext> = (ctx) => {
             seen.push(ctx.context);
+
             return ctx.value;
         };
+
         container.mount('foo', validator);
 
         await container.run({ foo: 'bar' }, { context: { userId: 'u-1' } });
@@ -33,8 +35,10 @@ describe('container context propagation', () => {
         const container = new Container<{ foo: string }>();
         const validator: Validator = (ctx) => {
             seen.push(ctx.context);
+
             return ctx.value;
         };
+
         container.mount('foo', validator);
 
         await container.run({ foo: 'bar' });
@@ -48,14 +52,18 @@ describe('container context propagation', () => {
         const child = new Container<{ inner: string }, AppContext>();
         const childValidator: Validator<AppContext> = (ctx) => {
             seen.push(ctx.context);
+
             return ctx.value;
         };
+
         child.mount('inner', childValidator);
 
         const parent = new Container<{ nested: { inner: string } }, AppContext>();
+
         parent.mount('nested', child);
 
         const ctx: AppContext = { userId: 'u-2' };
+
         await parent.run(
             { nested: { inner: 'value' } },
             { context: ctx },
@@ -70,8 +78,10 @@ describe('container context propagation', () => {
         const container = new Container<{ foo: string }, AppContext>();
         const validator: Validator<AppContext> = (ctx) => {
             seen.push(ctx.context);
+
             return ctx.value;
         };
+
         container.mount('foo', validator);
 
         const result = await container.safeRun(

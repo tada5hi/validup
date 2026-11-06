@@ -17,11 +17,14 @@ describe('container abort-signal propagation', () => {
         const container = new Container<{ foo: string }>();
         const validator: Validator = (ctx) => {
             seen.push(ctx.signal);
+
             return ctx.value;
         };
+
         container.mount('foo', validator);
 
         const controller = new AbortController();
+
         await container.run({ foo: 'bar' }, { signal: controller.signal });
 
         expect(seen).toHaveLength(1);
@@ -34,8 +37,10 @@ describe('container abort-signal propagation', () => {
         const container = new Container<{ foo: string }>();
         const validator: Validator = (ctx) => {
             seen.push(ctx.signal);
+
             return ctx.value;
         };
+
         container.mount('foo', validator);
 
         await container.run({ foo: 'bar' });
@@ -48,17 +53,21 @@ describe('container abort-signal propagation', () => {
         const controller = new AbortController();
 
         const container = new Container<{ foo: string, bar: string }>();
+
         container.mount('foo', (ctx) => {
             calls.push('foo');
             controller.abort();
+
             return ctx.value;
         });
         container.mount('bar', (ctx) => {
             calls.push('bar');
+
             return ctx.value;
         });
 
         expect.assertions(2);
+
         try {
             await container.run({ foo: 'a', bar: 'b' }, { signal: controller.signal });
         } catch (e) {
@@ -72,13 +81,16 @@ describe('container abort-signal propagation', () => {
         const controller = new AbortController();
 
         const container = new Container<{ foo: string }>();
+
         container.mount('foo', async (ctx) => {
             controller.abort(new Error('cancelled'));
             ctx.signal?.throwIfAborted();
+
             return ctx.value;
         });
 
         expect.assertions(1);
+
         try {
             await container.run({ foo: 'a' }, { signal: controller.signal });
         } catch (e) {
@@ -90,15 +102,19 @@ describe('container abort-signal propagation', () => {
         const childSeen: (AbortSignal | undefined)[] = [];
 
         const child = new Container<{ inner: string }>();
+
         child.mount('inner', (ctx) => {
             childSeen.push(ctx.signal);
+
             return ctx.value;
         });
 
         const parent = new Container<{ nested: { inner: string } }>();
+
         parent.mount('nested', child);
 
         const controller = new AbortController();
+
         await parent.run(
             { nested: { inner: 'x' } },
             { signal: controller.signal },
@@ -112,13 +128,16 @@ describe('container abort-signal propagation', () => {
         const controller = new AbortController();
 
         const container = new Container<{ foo: string, bar: string }>();
+
         container.mount('foo', (ctx) => {
             controller.abort();
+
             return ctx.value;
         });
         container.mount('bar', (ctx) => ctx.value);
 
         expect.assertions(1);
+
         try {
             await container.safeRun({ foo: 'a', bar: 'b' }, { signal: controller.signal });
         } catch (e) {
@@ -139,8 +158,10 @@ describe('container abort-signal propagation', () => {
         ]);
 
         const container = new Container<{ foo: string, bar: string }>();
+
         container.mount('foo', () => {
             controller.abort();
+
             throw thrown;
         });
         container.mount('bar', (ctx) => ctx.value);

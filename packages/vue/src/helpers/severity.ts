@@ -39,11 +39,15 @@ export function getSeverity(state: FieldState<any>): Severity {
     if (state.$pending.value) {
         return 'warning';
     }
+
     const errors = state.$errors.value;
+
     if (errors.length === 0) {
         return state.$dirty.value ? 'success' : undefined;
     }
+
     const hasRequiredError = errors.some((e) => !e.meta?.optional);
+
     if (!state.$dirty.value) {
         // Pre-touch — `$errors` only contains required-mount items here
         // (optional ones are filtered by `isIssueItemVisible`), so any
@@ -51,5 +55,6 @@ export function getSeverity(state: FieldState<any>): Severity {
         // the user hasn't engaged yet, this is a hint not a blocker.
         return hasRequiredError ? 'warning' : undefined;
     }
+
     return hasRequiredError ? 'error' : 'warning';
 }

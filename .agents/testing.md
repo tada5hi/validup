@@ -2,7 +2,7 @@
 
 ## Runner
 
-- **Vitest 4** with the v8 coverage provider.
+- **Vitest 5** with the v8 coverage provider.
 - Each package has its own `test/vitest.config.ts` — there is no root-level Vitest config. Run from the package directory or via `npm run test` (which delegates to `nx run-many -t test`).
 - `globals: true` is set in four of the five packages (`@validup/validator-js` omits it deliberately), but **specs must import `describe` / `it` / `expect` explicitly from `vitest` regardless**. Every spec in the repo does; don't lean on the globals.
 
@@ -93,7 +93,7 @@ When adding a predicate to either chain, add its row here — a spec that only a
 
 For a **keyed** mount the tell is the resulting issue's `path`: `['foo']` means `collectExecutionFailure`, `[]` means `wrapSafeRunError`. That tell does **not** generalise — `prepareMountKey` sets `keyParts = key ? pathToArray(key) : []`, so a *keyless* container mount (the one mount form `Container` allows without a path) that fails with a non-`ValidupError` also emits `path: []` from `collectExecutionFailure`. If the spec's container has any keyless mount, drive the two sites apart some other way: throw from the strict pre-flight (below) for `wrapSafeRunError`, from inside a mounted unit for `collectExecutionFailure`.
 
-To hit `wrapSafeRunError` the throw has to escape the run loop entirely. The **pre-dispatch region is no longer such a site**: path expansion, key preparation, the value read and the optional gate all sit inside per-mount error capture, because a throw there is attributable to a mount and letting it escape discarded every issue the earlier mounts had collected (issues #448 / #449). A getter on the input therefore lands in `collectExecutionFailure` now.
+To hit `wrapSafeRunError` the throw has to escape the run loop entirely. The **pre-dispatch region is not such a site**: path expansion, key preparation, the value read and the optional gate all sit inside per-mount error capture, because a throw there is attributable to a mount and letting it escape discarded every issue the earlier mounts had collected (issues #448 / #449). A getter on the input therefore lands in `collectExecutionFailure` now.
 
 What remains outside is the **strict pre-flight** — `assertPathsStrict` walks `expandPath(data, item.path)` over every mount before the loop starts, with no issue accumulator to protect and no mount to attribute a failure to. So `pathsStrict` plus a filter list plus a throwing accessor drives every branch with no `Container` subclass:
 
@@ -125,7 +125,7 @@ The parallel mode carries a second, non-issue-shaped failure: an escaping throw 
 
 ### The abort × `ValidupError` cell
 
-`isStructuralThrow`'s three legs look independently testable, but only one input class distinguishes the abort leg from the rest: a **`ValidupError` thrown while the signal is aborted**. Every other value is either structural on its own (`RunSyncViolationError`, `PathsStrictViolationError`) or foldable either way. So a spec that exercises the abort leg with an `Error`, a string, and `undefined` — as `structural-throw.spec.ts` originally did — pins nothing: the leg narrows to `signal?.aborted && !isValidupError(error)` with the whole suite green, while `safeRun` silently starts returning a `Result` where it used to reject.
+`isStructuralThrow`'s three legs look independently testable, but only one input class distinguishes the abort leg from the rest: a **`ValidupError` thrown while the signal is aborted**. Every other value is either structural on its own (`RunSyncViolationError`, `PathsStrictViolationError`) or foldable either way. So a spec that exercises the abort leg with an `Error`, a string, and `undefined` — as `structural-throw.spec.ts` originally did — pins nothing: the leg narrows to `signal?.aborted && !isValidupError(error)` with the whole suite green, while `safeRun` silently starts returning a `Result` where it must reject.
 
 Three cases cover it, one per layer, and each is load-bearing on its own:
 
@@ -149,7 +149,7 @@ The same file carries four `@ts-expect-error` cases pinning the core's per-code 
 
 ### Specs are typechecked in `validator-js` and `vue` only
 
-Each package has **two** TypeScript configs: `tsconfig.build.json` (`src/**/*` only — what `npm run build:types` and therefore the published declarations read) and `tsconfig.json` (what `npx tsc --noEmit` and your editor read). Both used to include only `src`, so **nothing typechecked `test/` in any package**.
+Each package has **two** TypeScript configs: `tsconfig.build.json` (`src/**/*` only — what `npm run build:types` and therefore the published declarations read) and `tsconfig.json` (what `npx tsc --noEmit` and your editor read). Test coverage in these configs is explicit; keep each package’s `test:types` command wired to its test configuration.
 
 `@validup/validator-js` and `@validup/vue` now close that: their `tsconfig.json` includes `test/**/*.ts` and `npm run test:types` (`tsc --noEmit`) covers the specs. Each `tsconfig.build.json` is deliberately untouched, so specs still never influence the emitted `.d.mts`.
 
@@ -209,7 +209,7 @@ Three of those exist because a table of defaults cannot see certain classes of d
 
 - `type-assertions.ts` — `isFloat`'s **`Number.isNaN(numeric)` guard** before the range ladder is behaviourally inert (every ladder comparison against `NaN` is already false). Mutation-verified: deleting it leaves the whole suite green. It is documentation-in-code for the locale contract; do not "fix" its coverage.
 
-- `type-assertions.ts` — `isInt`'s **defensive final `validator.isInt(s, options)` re-check** was previously documented here as "KNOWN DEAD against validator 13.15.x, verified by an exhaustive 294,912-combination probe … reaching it needs a type-violating `as any`". **That was wrong, and is corrected.** `isInt({ min: Number.NaN })` is fully type-legal — `NaN` has type `number`, so it compiles clean under `--strict` with no cast — and it reaches the throw: the ladder cannot classify a NaN bound (every comparison against `NaN` is false) while validator.js's own `str >= options.min` is false too. Same for `max` / `lt` / `gt`, and `Infinity` behaves comparably. The branch is now covered by `factories.spec.ts` → "the defensive re-check catches bounds the ladder cannot express", so it is no longer the package's one uncovered line.
+- `type-assertions.ts` — `isInt`'s **defensive final `validator.isInt(s, options)` re-check** was previously documented here as "KNOWN DEAD against validator 13.15.x, verified by an exhaustive 294,912-combination probe … reaching it needs a type-violating `as any`". **That was wrong, and is corrected.** `isInt({ min: Number.NaN })` is fully type-legal — `NaN` has type `number`, so it compiles clean under `--strict` with no cast — and it reaches the throw: the ladder cannot classify a NaN bound (every comparison against `NaN` is false) while validator.js's own `str >= options.min` is false too. Same for `max` / `lt` / `gt`, and `Infinity` behaves comparably. The branch is now covered by `factories.spec.ts` → "the defensive re-check catches bounds the ladder cannot express", so it is covered by the suite.
 
   The retracted probe was also internally inconsistent: its stated parameters (`8^4` bound combinations × 3 `allow_leading_zeroes` × 23 values) multiply to 282,624, not the 294,912 it claimed — that figure needs 24 values. **The lesson generalises: a comment asserting an exhaustive-search result is a load-bearing claim.** If the search space omits the interesting inputs (here: non-finite bounds), "zero reached" measures the probe, not the code. State the enumerated domain precisely enough that a reader can spot what it excluded, and prefer a spec that exercises the branch over a comment asserting nothing can.
 

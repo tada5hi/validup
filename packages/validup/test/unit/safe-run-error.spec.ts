@@ -59,7 +59,9 @@ function buildContainer() {
         pathsStrict: true,
         pathsToInclude: ['foo'],
     });
+
     container.mount('foo', stringValidatorSync);
+
     return container;
 }
 
@@ -68,7 +70,9 @@ function expectSingleItem(error: ValidupError) {
     expect(error.issues).toHaveLength(1);
 
     const [issue] = error.issues;
+
     expect(isIssueItem(issue)).toBe(true);
+
     if (!isIssueItem(issue)) {
         throw new Error('unreachable');
     }
@@ -82,11 +86,13 @@ describe('safeRun error fold', () => {
             const result = await buildContainer().safeRun(inputWithThrowingRead(new Error('GETTER_BOOM')));
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
 
             const issue = expectSingleItem(result.error);
+
             expect(issue.path).toEqual([]);
             expect(issue.message).toBe('GETTER_BOOM');
             expect(issue.code).toBe(IssueCode.VALUE_INVALID);
@@ -96,11 +102,13 @@ describe('safeRun error fold', () => {
             const result = buildContainer().safeRunSync(inputWithThrowingRead(new Error('GETTER_BOOM')));
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
 
             const issue = expectSingleItem(result.error);
+
             expect(issue.path).toEqual([]);
             expect(issue.message).toBe('GETTER_BOOM');
             expect(issue.code).toBe(IssueCode.VALUE_INVALID);
@@ -110,6 +118,7 @@ describe('safeRun error fold', () => {
             const result = await buildContainer().safeRun(inputWithThrowingRead(new TypeError('not callable')));
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
@@ -121,6 +130,7 @@ describe('safeRun error fold', () => {
             const result = await buildContainer().safeRun(inputWithThrowingRead(new Error('')));
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
@@ -136,6 +146,7 @@ describe('safeRun error fold', () => {
             );
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
@@ -149,11 +160,13 @@ describe('safeRun error fold', () => {
             const result = await buildContainer().safeRun(inputWithThrowingRead('BARE_STRING_THROW'));
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
 
             const issue = expectSingleItem(result.error);
+
             expect(issue.message).toBe('BARE_STRING_THROW');
             expect(issue.path).toEqual([]);
             expect(issue.code).toBe(IssueCode.VALUE_INVALID);
@@ -163,6 +176,7 @@ describe('safeRun error fold', () => {
             const result = await buildContainer().safeRun(inputWithThrowingRead(''));
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
@@ -174,6 +188,7 @@ describe('safeRun error fold', () => {
             const result = await buildContainer().safeRun(inputWithThrowingRead({ notAnError: true }));
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
@@ -185,6 +200,7 @@ describe('safeRun error fold', () => {
             const result = await buildContainer().safeRun(inputWithThrowingRead(null));
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
@@ -196,6 +212,7 @@ describe('safeRun error fold', () => {
             const result = await buildContainer().safeRun(inputWithThrowingRead(Symbol('nope')));
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
@@ -214,6 +231,7 @@ describe('safeRun error fold', () => {
             const result = await buildContainer().safeRun(inputWithThrowingRead(thrown));
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
@@ -238,6 +256,7 @@ describe('safeRun error fold', () => {
             const result = await buildContainer().safeRun(inputWithThrowingRead(thrown));
 
             expect(result.success).toBe(false);
+
             if (result.success) {
                 throw new Error('unreachable');
             }
@@ -263,6 +282,7 @@ describe('safeRun error fold', () => {
             // which is exactly what breaks a consumer's
             // `catch (e) { if (isRunSyncViolation(e)) … }`.
             expect.assertions(1);
+
             try {
                 buildContainer().safeRunSync(inputWithThrowingRead(thrown));
             } catch (e) {
@@ -288,6 +308,7 @@ describe('safeRun error fold', () => {
             const input: { foo: string } = {
                 get foo(): string {
                     controller.abort();
+
                     throw thrown;
                 },
             };

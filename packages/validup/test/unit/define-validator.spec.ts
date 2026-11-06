@@ -18,6 +18,7 @@ describe('src/validator/define', () => {
             sideEffect: true,
             run: (ctx) => ctx.value,
         });
+
         expect(descriptor.sideEffect).toBe(true);
         expect(typeof descriptor.run).toBe('function');
     });
@@ -37,29 +38,35 @@ describe('src/validator/define', () => {
 
     it('mounts a descriptor and runs its `run` function', async () => {
         const container = new Container<{ foo: string }>();
+
         container.mount('foo', defineValidator({
             run: (ctx) => {
                 if (typeof ctx.value !== 'string') {
                     throw new Error('Value is not a string');
                 }
+
                 return ctx.value;
             },
         }));
 
         const out = await container.run({ foo: 'bar' });
+
         expect(out.foo).toBe('bar');
     });
 
     it('still accepts a bare function (back-compat)', async () => {
         const container = new Container<{ foo: string }>();
+
         container.mount('foo', (ctx) => ctx.value as string);
 
         const out = await container.run({ foo: 'bar' });
+
         expect(out.foo).toBe('bar');
     });
 
     it('accepts a descriptor under the (key, options, data) signature', async () => {
         const container = new Container<{ foo: string }>();
+
         container.mount(
             'foo',
             { group: 'create' },
@@ -67,6 +74,7 @@ describe('src/validator/define', () => {
         );
 
         const out = await container.run({ foo: 'bar' }, { group: 'create' });
+
         expect(out.foo).toBe('bar');
     });
 });

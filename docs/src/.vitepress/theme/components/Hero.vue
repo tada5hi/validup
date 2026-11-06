@@ -24,6 +24,7 @@ const isString: Validator = ({ value }) => {
     if (typeof value !== 'string' || value.length === 0) {
         throw new Error('Must be a non-empty string');
     }
+
     return value;
 };
 
@@ -31,6 +32,7 @@ const isEmail: Validator = ({ value }) => {
     if (typeof value !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
         throw new Error('Must look like an email address');
     }
+
     return value;
 };
 
@@ -38,17 +40,20 @@ const isStrongPassword: Validator = ({ value }) => {
     if (typeof value !== 'string' || value.length < 8) {
         throw new Error('Must be at least 8 characters');
     }
+
     if (!/[A-Z]/.test(value) || !/\d/.test(value)) {
         throw new Error('Needs an uppercase letter and a digit');
     }
+
     return value;
 };
 
 const signup = new Container<{
-    name: string; 
-    email: string; 
-    password: string 
+    name: string;
+    email: string;
+    password: string
 }>();
+
 signup.mount('name', isString);
 signup.mount('email', isEmail);
 signup.mount('password', isStrongPassword);
@@ -63,6 +68,7 @@ type RunState = { ok: true; data: unknown } | { ok: false; issues: Issue[] };
 
 const result = computed<RunState>(() => {
     const outcome = signup.safeRunSync({ ...form });
+
     return outcome.success ?
         { ok: true, data: outcome.data } :
         { ok: false, issues: outcome.error.issues };

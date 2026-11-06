@@ -15,6 +15,7 @@ const isNonEmptyString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string' || ctx.value.length === 0) {
         throw new Error('Value must be a non-empty string');
     }
+
     return ctx.value;
 };
 
@@ -29,14 +30,18 @@ async function flush() {
 describe('$validate', () => {
     it('returns the run result and reflects current state', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isNonEmptyString);
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         const result = await $v.$validate();
+
         expect(result.success).toBe(true);
+
         if (result.success) {
             expect(result.data.name).toBe('peter');
         }
@@ -44,11 +49,13 @@ describe('$validate', () => {
 
     it('marks every state key dirty so severity escalates from warning to error', async () => {
         const container = new Container<{ name: string; email: string }>();
+
         container.mount('name', isNonEmptyString);
         container.mount('email', isNonEmptyString);
 
         const state = reactive({ name: '', email: '' });
         const $v = useValidup(container, state);
+
         await flush();
 
         // before validate: dirty isn't flipped yet, but required-mount
@@ -58,6 +65,7 @@ describe('$validate', () => {
         expect($v.fields.name.$errors.value.length).toBeGreaterThan(0);
 
         const result = await $v.$validate();
+
         expect(result.success).toBe(false);
 
         await flush();
@@ -71,6 +79,7 @@ describe('$validate', () => {
     it('surfaces $errors for validation paths absent from state (regression: copilot review #353)', async () => {
         const container = new Container<{ address: { city: string } }>();
         const child = new Container<{ city: string }>();
+
         child.mount('city', isNonEmptyString);
         container.mount('address', child);
 
@@ -79,9 +88,11 @@ describe('$validate', () => {
         // paths dirty, `$errors` would stay empty here.
         const state = reactive({} as { address?: { city: string } });
         const $v = useValidup(container, state as { address: { city: string } });
+
         await flush();
 
         const result = await $v.$validate();
+
         expect(result.success).toBe(false);
         await flush();
 
@@ -91,17 +102,21 @@ describe('$validate', () => {
 
     it('cancels a pending debounce timer (stale debounced runs cannot overwrite the result)', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isNonEmptyString);
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state, { debounce: 50 });
+
         await flush();
 
         // Trigger a debounced run by writing $model — schedule fires, real run pending.
         $v.fields.name.$model.value = '';
+
         // Within the debounce window, call $validate — must clear the timer
         // and use the live (empty) state.
         const result = await $v.$validate();
+
         expect(result.success).toBe(false);
 
         // Wait long enough for the cancelled timer to have fired had it not been cleared.
@@ -117,10 +132,12 @@ describe('$validate', () => {
 describe('hydration', () => {
     it('direct state writes do not flip $dirty', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isNonEmptyString);
 
         const state = reactive({ name: '' });
         const $v = useValidup(container, state);
+
         await flush();
 
         // Simulate `assignFormProperties(state, entity)` — the dominant authup hydration pattern.
@@ -134,11 +151,13 @@ describe('hydration', () => {
 
     it('hydration leaves $dirty false; required-mount errors are visible, $touch escalates them', async () => {
         const container = new Container<{ name: string; email: string }>();
+
         container.mount('name', isNonEmptyString);
         container.mount('email', isNonEmptyString);
 
         const state = reactive({ name: '', email: '' });
         const $v = useValidup(container, state);
+
         await flush();
 
         // Hydrate from "loaded entity" — `Object.assign` writes around
@@ -164,10 +183,12 @@ describe('hydration', () => {
 
     it('$reset() returns to clean after edits', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isNonEmptyString);
 
         const state = reactive({ name: '' });
         const $v = useValidup(container, state);
+
         await flush();
 
         $v.fields.name.$model.value = 'partial';
@@ -187,11 +208,13 @@ describe('hydration', () => {
     it('field-level $touch surfaces a single nested path', async () => {
         const container = new Container<{ user: { email: string } }>();
         const child = new Container<{ email: string }>();
+
         child.mount('email', isNonEmptyString);
         container.mount('user', child);
 
         const state = reactive({ user: { email: '' } });
         const $v = useValidup(container, state);
+
         await flush();
 
         $v.fields.at('user.email').$touch();

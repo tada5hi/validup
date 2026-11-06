@@ -8,6 +8,8 @@
 import type { App, InjectionKey, Plugin } from 'vue';
 import type { ContainerRunOptions } from 'validup';
 
+import type { InstallOptions } from './types';
+
 /**
  * Options surfaced app-wide by the `createValidup` plugin. Read inside
  * `useValidup` via `inject(VALIDUP_INSTALL_KEY)` and used as the
@@ -20,10 +22,6 @@ import type { ContainerRunOptions } from 'validup';
  * `{ optionalValue: ['undefined', 'empty_string'], optionalAs: null }`
  * to treat untouched inputs as missing AND emit `null` to the backend).
  */
-export type InstallOptions = {
-    optionalValue?: ContainerRunOptions['optionalValue'];
-    optionalAs?: unknown;
-};
 
 /**
  * Injection key for the install-level options. Exposed so an
@@ -57,3 +55,4 @@ export function createValidup(options: InstallOptions = {}): Plugin {
         },
     };
 }
+export type { InstallOptions };

@@ -59,6 +59,7 @@ export class Builder<T extends Record<string, any>, C> implements IBuilder<T, C>
         }
 
         let step: Step<C>;
+
         if (isBuilder(target)) {
             step = {
                 kind: 'nest',
@@ -127,6 +128,7 @@ export class Builder<T extends Record<string, any>, C> implements IBuilder<T, C>
 
     build(): Container<T, C> {
         const container = new Container<T, C>(this.options as ContainerOptions<T>);
+
         for (const step of this.steps) {
             if (step.kind === 'nest') {
                 container.mount(step.key, step.options, step.child);
@@ -134,6 +136,7 @@ export class Builder<T extends Record<string, any>, C> implements IBuilder<T, C>
                 container.mount(step.key, step.options, step.validator);
             }
         }
+
         return container;
     }
 }

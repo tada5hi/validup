@@ -56,6 +56,7 @@ describe('oneOf', () => {
                 expect(e.issues).toHaveLength(1);
 
                 const [issue] = e.issues;
+
                 if (issue.type === 'item') {
                     expect(issue.path).toEqual(['bar']);
                 }
@@ -68,6 +69,7 @@ describe('oneOf', () => {
         // so a container whose branches were all filtered out (itemCount === 0)
         // threw ONE_OF_FAILED with an empty issues list.
         const container = new Container<{ foo: string, bar: string }>({ oneOf: true });
+
         container.mount('foo', { group: 'create' }, stringValidator);
         container.mount('bar', { group: 'create' }, stringValidator);
 
@@ -78,6 +80,7 @@ describe('oneOf', () => {
 
     it('should not throw when every branch is filtered out by pathsToInclude', async () => {
         const container = new Container<{ foo: string, bar: string }>({ oneOf: true });
+
         container.mount('foo', stringValidator);
         container.mount('bar', stringValidator);
 
@@ -91,10 +94,12 @@ describe('oneOf', () => {
 
     it('should wrap each failing branch in its own sub-group inside ONE_OF_FAILED', async () => {
         const container = new Container<{ foo: string, bar: string }>({ oneOf: true });
+
         container.mount('foo', stringValidator);
         container.mount('bar', stringValidator);
 
         expect.assertions(7);
+
         try {
             await container.run({ foo: 1, bar: 2 });
         } catch (e) {
@@ -102,8 +107,13 @@ describe('oneOf', () => {
                 expect(e.issues).toHaveLength(1);
 
                 const [outer] = e.issues;
+
                 expect(isIssueGroup(outer)).toBe(true);
-                if (!isIssueGroup(outer)) return;
+
+                if (!isIssueGroup(outer)) {
+                    return;
+                }
+
                 expect(outer.code).toEqual(IssueCode.ONE_OF_FAILED);
 
                 // Two sub-groups, one per branch — per-branch identity preserved.
@@ -113,10 +123,12 @@ describe('oneOf', () => {
                 const branchNames = outer.issues
                     .filter(isIssueGroup)
                     .map((g) => g.data?.name);
+
                 expect(branchNames).toEqual(['foo', 'bar']);
 
                 // Leaves still flatten to the original two failures.
                 const items = flattenIssueItems(e.issues);
+
                 expect(items.map((i) => i.path.join('.')).sort()).toEqual(['bar', 'foo']);
             }
         }

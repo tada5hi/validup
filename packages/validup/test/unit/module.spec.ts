@@ -24,6 +24,7 @@ describe('src/module', () => {
         container.mount('foo', validator);
 
         const outcome = await container.run({ foo: 'bar' });
+
         expect(outcome).toBeDefined();
         expect(outcome.foo).toEqual('bar');
         expect(outcome.bar).toBeUndefined();
@@ -32,6 +33,7 @@ describe('src/module', () => {
     it('should validate empty request', async () => {
         const container = new Container();
         const outcome = await container.run({});
+
         expect(outcome).toBeDefined();
     });
 
@@ -53,6 +55,7 @@ describe('src/module', () => {
         container.mount('foo', chain);
 
         let outcome = await container.run({});
+
         expect(outcome.foo).toBeUndefined();
 
         outcome = await container.run({}, { defaults: { foo: 'boz' } });
@@ -64,12 +67,14 @@ describe('src/module', () => {
         const child = {
             run: (async (input: any, opts: any = {}) => {
                 childOptionsSeen.push(opts);
+
                 return input;
             }),
             safeRun: (async () => ({ success: true, data: {} })),
         };
 
         const parent = new Container<{ nested: Record<string, unknown>, top: string }>();
+
         parent.mount('nested', child as any);
 
         await parent.run(
@@ -93,6 +98,7 @@ describe('src/module', () => {
     it('should fill nested defaults into the expanded output', async () => {
         const child = new Container<{ foo: string }>();
         const parent = new Container<{ nested: { foo: string } }>();
+
         parent.mount('nested', child);
 
         const outcome = await parent.run(

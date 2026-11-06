@@ -31,6 +31,7 @@ const isNonEmptyString: Validator = (ctx) => {
     if (typeof ctx.value !== 'string' || ctx.value.length === 0) {
         throw new Error('Value must be a non-empty string');
     }
+
     return ctx.value;
 };
 
@@ -45,10 +46,12 @@ async function flush() {
 describe('state passed as Ref<T> (T1)', () => {
     it('reads and writes through the wrapping ref', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isNonEmptyString);
 
         const state = ref({ name: '' });
         const $v = useValidup(container, state);
+
         await flush();
 
         // initial run flagged the empty value invalid
@@ -63,10 +66,12 @@ describe('state passed as Ref<T> (T1)', () => {
 
     it('replacing the wrapped state object re-runs validation', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isNonEmptyString);
 
         const state = ref<{ name: string }>({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
         expect($v.$invalid.value).toBe(false);
 
@@ -80,10 +85,12 @@ describe('state passed as Ref<T> (T1)', () => {
 describe('$reset preserves internalIssues (T2)', () => {
     it('keeps $invalid true after $reset() because state is still bad', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isNonEmptyString);
 
         const state = reactive({ name: '' });
         const $v = useValidup(container, state);
+
         await flush();
 
         $v.$touch();
@@ -109,10 +116,12 @@ describe('$reset preserves internalIssues (T2)', () => {
 describe('$model write triggers validation + autoDirty (T3)', () => {
     it('autoDirty does not double-mark when $model already did', async () => {
         const container = new Container<{ name: string }>();
+
         container.mount('name', isNonEmptyString);
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state, { autoDirty: true });
+
         await flush();
         expect($v.fields.name.$dirty.value).toBe(false);
 
@@ -136,10 +145,12 @@ describe('$pending lifecycle through slow async validator (T4)', () => {
         });
 
         const container = new Container<{ name: string }>();
+
         container.mount('name', slow);
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         // do not flush — kick the run, then sample $pending mid-flight
         await nextTick();
 
@@ -157,13 +168,16 @@ describe('$pending lifecycle through slow async validator (T4)', () => {
 describe('detached vs stopPropagation (F1)', () => {
     it('detached parent: descendants do NOT see it as a parent', async () => {
         const childContainer = new Container<{ name: string }>();
+
         childContainer.mount('name', isNonEmptyString);
 
         const Child = defineComponent({
             setup(_, { expose }) {
                 const form = reactive({ name: '' });
                 const $v = useValidup(childContainer, form, { name: 'leaf' });
+
                 expose({ $v });
+
                 return () => h('div');
             },
         });
@@ -172,15 +186,19 @@ describe('detached vs stopPropagation (F1)', () => {
             setup(_, { expose }) {
                 // detached → no provide() → child cannot register here
                 const $v = useValidup(new Container(), {}, { detached: true });
+
                 expose({ $v });
+
                 return () => h('div', [h(Child)]);
             },
         });
 
         const wrapper = mount(Parent);
+
         await flush();
 
         const { $v } = wrapper.vm as unknown as { $v: Composable };
+
         expect($v.$getResultsForChild('leaf')).toBeUndefined();
 
         wrapper.unmount();
@@ -188,13 +206,16 @@ describe('detached vs stopPropagation (F1)', () => {
 
     it('stopPropagation parent: descendants register, parent itself stays unattached', async () => {
         const childContainer = new Container<{ name: string }>();
+
         childContainer.mount('name', isNonEmptyString);
 
         const Child = defineComponent({
             setup(_, { expose }) {
                 const form = reactive({ name: '' });
                 const $v = useValidup(childContainer, form, { name: 'leaf' });
+
                 expose({ $v });
+
                 return () => h('div');
             },
         });
@@ -203,7 +224,9 @@ describe('detached vs stopPropagation (F1)', () => {
         const Outer = defineComponent({
             setup(_, { expose }) {
                 const $v = useValidup(new Container(), {}, { stopPropagation: true });
+
                 expose({ $v });
+
                 return () => h(Inner);
             },
         });
@@ -216,15 +239,19 @@ describe('detached vs stopPropagation (F1)', () => {
                     name: 'inner',
                     stopPropagation: true,
                 });
+
                 expose({ $v });
+
                 return () => h('div', [h(Child)]);
             },
         });
 
         const wrapper = mount(Outer);
+
         await flush();
 
         const outer = (wrapper.vm as unknown as { $v: Composable }).$v;
+
         // Outer doesn't see Inner because Inner stopPropagation'd.
         expect(outer.$getResultsForChild('inner')).toBeUndefined();
 
@@ -243,6 +270,7 @@ describe('runOnce defensive guard (F2)', () => {
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         expect($v.$invalid.value).toBe(true);
@@ -269,10 +297,13 @@ describe('runOnce defensive guard (F2)', () => {
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         const result = await $v.$validate();
+
         expect(result.success).toBe(false);
+
         if (!result.success) {
             expect(result.error.issues).toEqual(customIssues);
         }
@@ -297,6 +328,7 @@ describe('$crossCuttingErrors surfaces internal path-less issues (F4)', () => {
 
         const state = reactive({ name: 'peter' });
         const $v = useValidup(container, state);
+
         await flush();
 
         expect($v.$crossCuttingErrors.value).toHaveLength(1);
@@ -316,11 +348,13 @@ describe('Object.keys(fields) is reactive to state-shape changes', () => {
         // tracking those traps as reactive accesses. The fix routes key
         // discovery through a `computed` so the dependency is always set up.
         const container = new Container<Record<string, unknown>>();
+
         container.mount('a', noop);
         container.mount('b', noop);
 
         const state = reactive<Record<string, unknown>>({ a: 'x' });
         const $v = useValidup(container, state);
+
         await flush();
 
         const observed: string[][] = [];
@@ -333,6 +367,7 @@ describe('Object.keys(fields) is reactive to state-shape changes', () => {
             },
             render() {
                 observed.push(this.keys());
+
                 return h('div');
             },
         });

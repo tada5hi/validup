@@ -23,9 +23,9 @@ describe('src/cache', () => {
 
             cache.set(mountA, 'foo', {
                 snapshot: {
-                    value: 1, 
-                    context: undefined, 
-                    group: undefined, 
+                    value: 1,
+                    context: undefined,
+                    group: undefined,
                 },
                 outcome: { ok: true, value: 1 },
             });
@@ -39,21 +39,22 @@ describe('src/cache', () => {
         it('delete() removes per-key or per-mount entries', () => {
             const cache = new ResultCache();
             const mount = { id: 'a' };
+
             cache.set(mount, 'foo', {
                 snapshot: {
-                    value: 1, 
-                    context: undefined, 
-                    group: undefined, 
+                    value: 1,
+                    context: undefined,
+                    group: undefined,
                 },
-                outcome: { ok: true, value: 1 }, 
+                outcome: { ok: true, value: 1 },
             });
             cache.set(mount, 'bar', {
                 snapshot: {
-                    value: 2, 
-                    context: undefined, 
-                    group: undefined, 
+                    value: 2,
+                    context: undefined,
+                    group: undefined,
                 },
-                outcome: { ok: true, value: 2 }, 
+                outcome: { ok: true, value: 2 },
             });
 
             cache.delete(mount, 'foo');
@@ -67,13 +68,14 @@ describe('src/cache', () => {
         it('clear() wipes every entry', () => {
             const cache = new ResultCache();
             const mount = { id: 'a' };
+
             cache.set(mount, 'foo', {
                 snapshot: {
-                    value: 1, 
-                    context: undefined, 
-                    group: undefined, 
+                    value: 1,
+                    context: undefined,
+                    group: undefined,
                 },
-                outcome: { ok: true, value: 1 }, 
+                outcome: { ok: true, value: 1 },
             });
             cache.clear();
             expect(cache.get(mount, 'foo')).toBeUndefined();
@@ -82,9 +84,9 @@ describe('src/cache', () => {
         it('isResultCache is duck-typed', () => {
             expect(isResultCache(new ResultCache())).toBe(true);
             expect(isResultCache({
-                get: () => undefined, 
-                set: () => {}, 
-                delete: () => {}, 
+                get: () => undefined,
+                set: () => {},
+                delete: () => {},
                 clear: () => {},
             })).toBe(true);
             expect(isResultCache({})).toBe(false);
@@ -96,9 +98,11 @@ describe('src/cache', () => {
         it('skips a cache-hit pure validator and reuses its output', async () => {
             const container = new Container<{ foo: string }>();
             let calls = 0;
+
             container.mount('foo', defineValidator({
                 run: (ctx) => {
                     calls += 1;
+
                     return (ctx.value as string).toUpperCase();
                 },
             }));
@@ -117,14 +121,17 @@ describe('src/cache', () => {
         it('runs again when value changes', async () => {
             const container = new Container<{ foo: string }>();
             let calls = 0;
+
             container.mount('foo', defineValidator({
                 run: (ctx) => {
                     calls += 1;
+
                     return ctx.value;
                 },
             }));
 
             const cache = new ResultCache();
+
             await container.run({ foo: 'a' }, { cache });
             await container.run({ foo: 'b' }, { cache });
             expect(calls).toBe(2);
@@ -133,15 +140,18 @@ describe('src/cache', () => {
         it('runs again when context changes by reference', async () => {
             const container = new Container<{ foo: string }, { tenant: string }>();
             let calls = 0;
+
             container.mount('foo', defineValidator({
                 run: (ctx) => {
                     calls += 1;
+
                     return ctx.value;
                 },
             }));
 
             const cache = new ResultCache();
             const data = { foo: 'bar' };
+
             await container.run(data, { cache, context: { tenant: 'a' } });
             await container.run(data, { cache, context: { tenant: 'a' } });
             // New `context` object — different identity, so cache misses.
@@ -151,15 +161,18 @@ describe('src/cache', () => {
         it('runs again when group changes', async () => {
             const container = new Container<{ foo: string }>();
             let calls = 0;
+
             container.mount('foo', { group: ['*'] }, defineValidator({
                 run: (ctx) => {
                     calls += 1;
+
                     return ctx.value;
                 },
             }));
 
             const cache = new ResultCache();
             const data = { foo: 'bar' };
+
             await container.run(data, { cache, group: 'create' });
             await container.run(data, { cache, group: 'update' });
             expect(calls).toBe(2);
@@ -168,16 +181,19 @@ describe('src/cache', () => {
         it('always runs a sideEffect: true validator, even on identical inputs', async () => {
             const container = new Container<{ foo: string }>();
             let calls = 0;
+
             container.mount('foo', defineValidator({
                 sideEffect: true,
                 run: (ctx) => {
                     calls += 1;
+
                     return ctx.value;
                 },
             }));
 
             const cache = new ResultCache();
             const data = { foo: 'bar' };
+
             await container.run(data, { cache });
             await container.run(data, { cache });
             expect(calls).toBe(2);
@@ -186,9 +202,11 @@ describe('src/cache', () => {
         it('caches a failure and replays it through the issue path on hit', async () => {
             const container = new Container<{ foo: string }>();
             let calls = 0;
+
             container.mount('foo', defineValidator({
                 run: () => {
                     calls += 1;
+
                     throw new Error('always fails');
                 },
             }));
@@ -204,18 +222,22 @@ describe('src/cache', () => {
         it('threads the cache through nested containers', async () => {
             const inner = new Container<{ bar: string }>();
             let calls = 0;
+
             inner.mount('bar', defineValidator({
                 run: (ctx) => {
                     calls += 1;
+
                     return ctx.value;
                 },
             }));
 
             const outer = new Container<{ foo: { bar: string } }>();
+
             outer.mount('foo', inner);
 
             const cache = new ResultCache();
             const data = { foo: { bar: 'baz' } };
+
             await outer.run(data, { cache });
             await outer.run(data, { cache });
             expect(calls).toBe(1);
@@ -224,14 +246,17 @@ describe('src/cache', () => {
         it('does nothing when no cache is supplied', async () => {
             const container = new Container<{ foo: string }>();
             let calls = 0;
+
             container.mount('foo', defineValidator({
                 run: (ctx) => {
                     calls += 1;
+
                     return ctx.value;
                 },
             }));
 
             const data = { foo: 'bar' };
+
             await container.run(data);
             await container.run(data);
             expect(calls).toBe(2);
@@ -242,15 +267,18 @@ describe('src/cache', () => {
         it('caches and replays synchronous outcomes', () => {
             const container = new Container<{ foo: string }>();
             let calls = 0;
+
             container.mount('foo', defineValidator({
                 run: (ctx) => {
                     calls += 1;
+
                     return ctx.value;
                 },
             }));
 
             const cache = new ResultCache();
             const data = { foo: 'bar' };
+
             container.runSync(data, { cache });
             container.runSync(data, { cache });
             expect(calls).toBe(1);
@@ -267,9 +295,11 @@ describe('src/cache', () => {
             // guard is the mutation this case exists to kill.
             const container = new Container<{ foo: string }>();
             let calls = 0;
+
             container.mount('foo', defineValidator({
                 run: async (ctx) => {
                     calls += 1;
+
                     return ctx.value;
                 },
             }));
@@ -292,14 +322,17 @@ describe('src/cache', () => {
             // entry would replay the violation on the next matching snapshot
             // even after the caller fixed the offending filter list.
             const child = new Container<{ inner: string }>();
+
             child.mount('inner', (ctx) => ctx.value);
 
             let strict = true;
             let calls = 0;
             const container = new Container<{ foo: string }>();
+
             container.mount('foo', defineValidator({
                 run: async (ctx) => {
                     calls += 1;
+
                     return child.run(ctx.value as any, {
                         pathsStrict: strict,
                         pathsToInclude: strict ? ['nope'] : undefined,
@@ -330,14 +363,17 @@ describe('src/cache', () => {
             const v = defineValidator({
                 run: async (ctx) => {
                     calls += 1;
+
                     return ctx.value;
                 },
             });
+
             container.mount('a', v);
             container.mount('b', v);
 
             const cache = new ResultCache();
             const data = { a: 'a', b: 'b' };
+
             await container.run(data, { cache, parallel: true });
             await container.run(data, { cache, parallel: true });
             // Two mounts × first run = 2 calls; second run is all cached.
@@ -350,14 +386,17 @@ describe('src/cache', () => {
             // `isStructuralThrow`, this catch had no filter at all and a
             // misconfiguration was cached and replayed forever.
             const child = new Container<{ inner: string }>();
+
             child.mount('inner', (ctx) => ctx.value);
 
             let strict = true;
             let calls = 0;
             const container = new Container<{ foo: string }>();
+
             container.mount('foo', defineValidator({
                 run: async (ctx) => {
                     calls += 1;
+
                     return child.run(ctx.value as any, {
                         pathsStrict: strict,
                         pathsToInclude: strict ? ['nope'] : undefined,

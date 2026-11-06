@@ -58,9 +58,13 @@ function verdictOf(descriptor: ValidatorDescriptor, value: unknown): Verdict {
             data: { field: value },
             context: undefined,
         });
+
         return 'pass';
     } catch (error) {
-        if (!isValidupError(error)) throw error;
+        if (!isValidupError(error)) {
+            throw error;
+        }
+
         return 'fail';
     }
 }
@@ -315,10 +319,15 @@ describe('option pass-through: the string-pattern overload carries the same data
                 data: {},
                 context: undefined,
             });
+
             throw new Error('expected the validator to throw');
         } catch (error) {
-            if (!isValidupError(error)) throw error;
+            if (!isValidupError(error)) {
+                throw error;
+            }
+
             const issue = error.issues[0] as any;
+
             expect(issue.code).toBe(IssueCode.PATTERN);
             expect(issue.data).toEqual({ pattern: '^ab+c$' });
         }
@@ -332,6 +341,7 @@ describe('option pass-through: the string-pattern overload carries the same data
             data: {},
             context: undefined,
         });
+
         expect(out).toBe('abbbc');
     });
 });
@@ -349,9 +359,13 @@ function codeOf(descriptor: ValidatorDescriptor, value: unknown): string | undef
             data: { field: value },
             context: undefined,
         });
+
         return undefined;
     } catch (error) {
-        if (!isValidupError(error)) throw error;
+        if (!isValidupError(error)) {
+            throw error;
+        }
+
         return (error.issues[0] as any).code;
     }
 }
@@ -419,9 +433,13 @@ describe('assertNumericRange: the bound ladder order decides data, not just code
                 data: { field: value },
                 context: undefined,
             });
+
             return undefined;
         } catch (error) {
-            if (!isValidupError(error)) throw error;
+            if (!isValidupError(error)) {
+                throw error;
+            }
+
             return (error.issues[0] as any).data;
         }
     }

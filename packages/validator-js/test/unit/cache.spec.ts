@@ -45,11 +45,13 @@ function spyOn(descriptor: ValidatorDescriptor<unknown>): {
     calls: () => number,
 } {
     let calls = 0;
+
     return {
         descriptor: {
             sideEffect: descriptor.sideEffect,
             run: (ctx) => {
                 calls += 1;
+
                 return descriptor.run(ctx);
             },
         },
@@ -65,6 +67,7 @@ describe('equals(): sideEffect makes the sibling read cache-safe', () => {
         // `sideEffect: true` the run-2 outcome would be replayed from run 1
         // and the mismatch would go unreported.
         const container = new Container<{ password: string, passwordConfirm: string }>();
+
         container.mount('passwordConfirm', equals('password'));
 
         const cache = new ResultCache();
@@ -73,6 +76,7 @@ describe('equals(): sideEffect makes the sibling read cache-safe', () => {
             { password: 'hunter2', passwordConfirm: 'hunter2' },
             { cache },
         );
+
         expect(first.success).toBe(true);
 
         const second = await container.safeRun(
@@ -81,10 +85,15 @@ describe('equals(): sideEffect makes the sibling read cache-safe', () => {
         );
 
         expect(second.success).toBe(false);
-        if (second.success) return;
+
+        if (second.success) {
+            return;
+        }
+
         const items = flattenIssueItems(
             isValidupError(second.error) ? second.error.issues : [],
         );
+
         expect(items[0]?.code).toBe(IssueCode.SAME_AS);
         expect(items[0]?.data).toEqual({ other: 'password' });
     });
@@ -100,10 +109,13 @@ describe('equals(): sideEffect makes the sibling read cache-safe', () => {
         const withoutFlag = defineValidator<unknown>({ run: sibling.run });
 
         const container = new Container<{ password: string, passwordConfirm: string }>();
+
         container.mount('passwordConfirm', withoutFlag);
 
         const cache = new ResultCache();
+
         await container.safeRun({ password: 'hunter2', passwordConfirm: 'hunter2' }, { cache });
+
         const stale = await container.safeRun({ password: 'CHANGED', passwordConfirm: 'hunter2' }, { cache });
 
         // Stale hit: the mismatch is NOT reported.
@@ -111,16 +123,19 @@ describe('equals(): sideEffect makes the sibling read cache-safe', () => {
 
         // …and drops out the moment the cache is not consulted.
         const uncached = await container.safeRun({ password: 'CHANGED', passwordConfirm: 'hunter2' });
+
         expect(uncached.success).toBe(false);
     });
 
     it('invokes the sibling-reading validator once per run', async () => {
         const spy = spyOn(equals<unknown>('password'));
         const container = new Container<{ password: string, passwordConfirm: string }>();
+
         container.mount('passwordConfirm', spy.descriptor);
 
         const cache = new ResultCache();
         const data = { password: 'hunter2', passwordConfirm: 'hunter2' };
+
         await container.safeRun(data, { cache });
         await container.safeRun(data, { cache });
         await container.safeRun(data, { cache });
@@ -135,13 +150,16 @@ describe('equals(): sideEffect makes the sibling read cache-safe', () => {
         // free to replay. Asserting only the boolean would leave this half of
         // the contract unproven.
         const descriptor = equals<unknown>('password', { expectedValue: 'hunter2' });
+
         expect(descriptor.sideEffect).toBe(false);
 
         const spy = spyOn(descriptor);
         const container = new Container<{ passwordConfirm: string }>();
+
         container.mount('passwordConfirm', spy.descriptor);
 
         const cache = new ResultCache();
+
         await container.safeRun({ passwordConfirm: 'hunter2' }, { cache });
         await container.safeRun({ passwordConfirm: 'hunter2' }, { cache });
 
@@ -153,9 +171,11 @@ describe('equals(): sideEffect makes the sibling read cache-safe', () => {
         // `ctx.value`, so a keystroke invalidates it.
         const spy = spyOn(equals<unknown>('password', { expectedValue: 'hunter2' }));
         const container = new Container<{ passwordConfirm: string }>();
+
         container.mount('passwordConfirm', spy.descriptor);
 
         const cache = new ResultCache();
+
         container.safeRunSync({ passwordConfirm: 'hunter2' }, { cache });
         container.safeRunSync({ passwordConfirm: 'hunter' }, { cache });
         container.safeRunSync({ passwordConfirm: 'hunter2' }, { cache });
@@ -172,9 +192,11 @@ describe('createValidator(): the generic escape hatch honours the cache', () => 
     it('participates in the result cache by default', async () => {
         let calls = 0;
         const container = new Container<{ card: string }>();
+
         container.mount('card', createValidator(
             (value: string) => {
                 calls += 1;
+
                 return validator.isCreditCard(value);
             },
             { code: 'credit_card' },
@@ -182,6 +204,7 @@ describe('createValidator(): the generic escape hatch honours the cache', () => 
 
         const cache = new ResultCache();
         const data = { card: '4111111111111111' };
+
         await container.run(data, { cache });
         await container.run(data, { cache });
 
@@ -191,9 +214,11 @@ describe('createValidator(): the generic escape hatch honours the cache', () => 
     it('bypasses the cache when sideEffect: true is opted into', async () => {
         let calls = 0;
         const container = new Container<{ card: string }>();
+
         container.mount('card', createValidator(
             (value: string) => {
                 calls += 1;
+
                 return validator.isCreditCard(value);
             },
             { code: 'credit_card', sideEffect: true },
@@ -201,6 +226,7 @@ describe('createValidator(): the generic escape hatch honours the cache', () => 
 
         const cache = new ResultCache();
         const data = { card: '4111111111111111' };
+
         await container.run(data, { cache });
         await container.run(data, { cache });
 
@@ -213,9 +239,11 @@ describe('createValidator(): the generic escape hatch honours the cache', () => 
         // must still be rebuilt with the right code.
         let calls = 0;
         const container = new Container<{ card: string }>();
+
         container.mount('card', createValidator(
             () => {
                 calls += 1;
+
                 return false;
             },
             { code: 'credit_card', message: 'nope' },
@@ -229,8 +257,13 @@ describe('createValidator(): the generic escape hatch honours the cache', () => 
         expect(calls).toBe(1);
         expect(first.success).toBe(false);
         expect(second.success).toBe(false);
-        if (second.success) return;
+
+        if (second.success) {
+            return;
+        }
+
         const items = flattenIssueItems(isValidupError(second.error) ? second.error.issues : []);
+
         expect(items[0]?.code).toBe('credit_card');
         expect(items[0]?.path).toEqual(['card']);
     });
@@ -242,14 +275,17 @@ describe('pre-baked factories are cache-eligible', () => {
         // stringified value. If a future factory started reading `ctx.data`
         // without stamping the flag, this is the shape that would go stale.
         const descriptor = isEmail<unknown>();
+
         expect(descriptor.sideEffect).toBeUndefined();
 
         const spy = spyOn(descriptor);
         const container = new Container<{ email: string }>();
+
         container.mount('email', spy.descriptor);
 
         const cache = new ResultCache();
         const data = { email: 'user@example.com' };
+
         await container.run(data, { cache });
         await container.run(data, { cache });
 

@@ -20,6 +20,7 @@ describe('resolveDefaults', () => {
 
     it('should forward the whole map for a keyless mount', () => {
         const defaults = { 'a.b': 1, c: 2 };
+
         expect(resolveDefaults(defaults, '')).toEqual(defaults);
     });
 

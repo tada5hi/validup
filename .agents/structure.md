@@ -34,7 +34,7 @@ validup/
 
 `@validup/zod`, `@validup/validator-js` and `@validup/vue` each declare `pathtrace` as a **direct runtime dependency** — `zod/src/error.ts` uses `getPathValue` for the `invalid_type` → `REQUIRED` probe, `validator-js/src/factories/comparison.ts` for `equals`' sibling-field read, and `vue/src/helpers/projection.ts` uses `getPathValue` / `setPathValue` for form-state traversal. It must stay declared even though the core also depends on it: reaching it transitively through the `validup` peer happens to resolve under npm's hoisting in this workspace, but breaks for consumers on pnpm's strict node-linker or Yarn PnP. **Any integration package that imports something the core happens to depend on must declare it directly.**
 
-`@ebec/core` is declared by **all four** integration packages under the same rule — they import the issue model from it directly, and there is no longer a validup re-export to reach it through. See [Import the model from `@ebec/core`](#import-the-model-from-ebeccore).
+`@ebec/core` is declared by **all four** integration packages under the same rule — they import the issue model from it directly, and there is no validup re-export to reach it through. See [Import the model from `@ebec/core`](#import-the-model-from-ebeccore).
 
 All packages are `"type": "module"` and publish **ESM-only** (`dist/index.mjs` + `dist/index.d.mts`). No CJS output. License: Apache-2.0 across the board (root + every package).
 
@@ -54,7 +54,7 @@ vue ──────────────┘
                      (BaseError + the issue model — zero deps, no engines floor)
 ```
 
-**Every package depends on `@ebec/core` directly** — the integration packages do not reach it through `validup`. This is the same rule that already applies to `pathtrace` (see the note under [Packages](#packages)): an undeclared transitive import happens to resolve under npm's hoisting and breaks on pnpm's strict node-linker or Yarn PnP. Here it is not merely hygiene: `validup` no longer re-exports the model at all, so an undeclared import has nothing to resolve through.
+**Every package depends on `@ebec/core` directly** — the integration packages do not reach it through `validup`. This is the same rule that already applies to `pathtrace` (see the note under [Packages](#packages)): an undeclared transitive import happens to resolve under npm's hoisting and breaks on pnpm's strict node-linker or Yarn PnP. Here it is not merely hygiene: `validup` does not re-export the model at all, so an undeclared import has nothing to resolve through.
 
 ### The issue model lives in [`@ebec/core`](https://github.com/tada5hi/ebec)
 
@@ -64,7 +64,7 @@ vue ──────────────┘
 
 **Why it lives in `@ebec/core` specifically.** The extraction first landed in a standalone `blemish` package; #469 moved it into `@ebec/core` instead. That is the cheaper home for the same guarantee: `validup` already depended on `@ebec/core` for `BaseError`, so the model costs the core **no** additional dependency, and a consumer that catches a `ValidupError` and reads its `issues` now installs one package rather than two. `blemish` is gone — nothing in this repo references it.
 
-**This is a breaking change for consumers, and deliberately so** (#466, shipped in #469). `import { IssueCode } from 'validup'` no longer resolves; the import moves to `'@ebec/core'`. The compatibility scaffolding that guarded the re-export is gone with it — `packages/validup/scripts/verify-reexport.mjs` (and its `build:verify` script) and `test/unit/issue-reexport.spec.ts` were both deleted, because there is no re-export left to verify. Don't reinstate either.
+**This is a breaking change for consumers, and deliberately so** (#466, shipped in #469). `import { IssueCode } from 'validup'` does not resolve; the import moves to `'@ebec/core'`. The compatibility scaffolding that guarded the re-export is gone with it — `packages/validup/scripts/verify-reexport.mjs` (and its `build:verify` script) and `test/unit/issue-reexport.spec.ts` were both deleted, because there is no re-export left to verify. Don't reinstate either.
 
 **The augmentation target moved too, and its failure mode is silent.** Write `declare module '@ebec/core' { interface IssueDataByCode { … } }`. Targeting `'validup'` still *compiles* — it just declares a fresh, unrelated interface inside validup's own module scope. `ParameterizedIssueCode` is computed in `@ebec/core` and never sees the added code, so `defineIssueItem` / `createValidupError` quietly fall through to the ad-hoc-string branch where `data` is optional and untyped. No compiler error marks the moment the gatekeep stopped applying, so a stale `'validup'` augmentation in a consumer's codebase is worth flagging on sight.
 
@@ -72,7 +72,7 @@ vue ──────────────┘
 
 **Every package in this repo imports the model from `'@ebec/core'` directly**, and each of the five declares `@ebec/core` in its own `dependencies`. There is no second path to it — see the previous section.
 
-Splitting an import is often the right move rather than picking one source: `packages/zod/src/error.ts` takes `IssueCode` / `defineIssueItem` / `isIssueItem` / `Issue` from `@ebec/core` and `hasOwnProperty` / `ValidupError` from `validup`, because those genuinely come from different packages. `packages/vue/src/helpers/projection.ts` went the whole way — it imports from `@ebec/core` and `pathtrace` only and no longer references `validup` at all, which is the honest description of a framework-free projection layer that only ever touched the model.
+Splitting an import is often the right move rather than picking one source: `packages/zod/src/error.ts` takes `IssueCode` / `defineIssueItem` / `isIssueItem` / `Issue` from `@ebec/core` and `hasOwnProperty` / `ValidupError` from `validup`, because those genuinely come from different packages. `packages/vue/src/helpers/projection.ts` went the whole way — it imports from `@ebec/core` and `pathtrace` only and does not reference `validup` at all, which is the honest description of a framework-free projection layer that only ever touched the model.
 
 **Where to make a change.** A change to the *shape* of an issue, the `IssueCode` vocabulary, the per-code `data` contract, or any of the pure tree walks belongs in the [`ebec`](https://github.com/tada5hi/ebec) repo, not here. What remains validup-owned: `ValidupError`, the `isValidupError` guard, `createValidupError`, `errorToIssues`, `buildOneOfFailedGroup`, `buildErrorMessageForAttribute(s)` — all of which carry validup semantics or depend on `@ebec/core`'s `BaseError`.
 

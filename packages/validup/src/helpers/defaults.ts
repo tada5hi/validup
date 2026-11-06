@@ -20,6 +20,7 @@ export function resolveDefaults(
     if (typeof defaults === 'undefined') {
         return undefined;
     }
+
     if (key.length === 0) {
         return defaults;
     }
@@ -27,11 +28,13 @@ export function resolveDefaults(
     const output: Record<string, any> = {};
     let matched = false;
     const keys = Object.keys(defaults);
+
     for (const k of keys) {
         if (k.startsWith(`${key}.`)) {
             output[k.slice(key.length + 1)] = defaults[k];
             matched = true;
         }
     }
+
     return matched ? output : undefined;
 }

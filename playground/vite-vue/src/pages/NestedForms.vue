@@ -50,11 +50,15 @@ async function submit() {
     // not be conflated with "validation failed".
     const profileSection = profileFromParent.value;
     const addressSection = addressFromParent.value;
+
     if (!profileSection || !addressSection) {
         submitMessage.value = 'A section is not registered — wiring problem, not a validation failure.';
+
         return;
     }
+
     const [p, a] = await Promise.all([profileSection.$validate(), addressSection.$validate()]);
+
     submitMessage.value = p.success && a.success ?
         'Both sections valid — would submit now.' :
         'One or more sections invalid — fix and try again.';

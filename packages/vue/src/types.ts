@@ -303,3 +303,8 @@ export type ParentRegistry = {
  */
 export type StateInput<T extends ObjectLiteral> = Partial<T> | Ref<Partial<T>>;
 export type ContainerInput<T extends ObjectLiteral, C = unknown> = IContainer<T, C> | Ref<IContainer<T, C>>;
+
+export type InstallOptions = {
+    optionalValue?: ContainerRunOptions['optionalValue'];
+    optionalAs?: unknown;
+};

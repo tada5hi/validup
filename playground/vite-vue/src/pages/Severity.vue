@@ -28,6 +28,7 @@ type Profile = {
 };
 
 const container = new Container<Profile>();
+
 container.mount('email', createValidator(z.string().email('Must be a valid email')));
 
 container.mount(
@@ -37,6 +38,7 @@ container.mount(
 );
 
 const requireBio = ref(false);
+
 container.mount(
     'bio',
     { optional: (value) => !requireBio.value && (typeof value !== 'string' || value.length === 0) },
@@ -50,9 +52,9 @@ container.mount(
 );
 
 const state = reactive<Profile>({
-    email: '', 
-    bio: '', 
-    phone: '', 
+    email: '',
+    bio: '',
+    phone: '',
 });
 const v = useValidup<Profile>(container, state);
 </script>

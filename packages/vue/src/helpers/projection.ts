@@ -152,12 +152,15 @@ export function isPrefixDirty(dirtyPaths: ReadonlySet<string>, key: string): boo
     if (dirtyPaths.has(key)) {
         return true;
     }
+
     const segments = key.split('.');
+
     for (let n = 1; n < segments.length; n++) {
         if (dirtyPaths.has(segments.slice(0, n).join('.'))) {
             return true;
         }
     }
+
     return false;
 }
 
@@ -190,9 +193,11 @@ export function isIssueItemVisible(item: IssueItem, dirty: boolean): boolean {
  */
 export function flatItemsAtPath(issues: Issue[], path: string): IssueItem[] {
     const flat = flattenIssueItems(issues);
+
     if (path === '') {
         return flat;
     }
+
     return flat.filter((i) => isUnderPath(pathKey(i.path), path));
 }
 
@@ -217,24 +222,33 @@ export function rawIssuesAtPath(issues: Issue[], path: string): Issue[] {
     if (path === '') {
         return issues;
     }
+
     const output: Issue[] = [];
+
     for (const issue of issues) {
         const matches = isUnderPath(pathKey(issue.path), path);
+
         if (isIssueGroup(issue)) {
             if (matches) {
                 output.push(issue);
+
                 continue;
             }
+
             const inner = rawIssuesAtPath(issue.issues, path);
+
             if (inner.length > 0) {
                 output.push({ ...issue, issues: inner });
             }
+
             continue;
         }
+
         if (matches) {
             output.push(issue);
         }
     }
+
     return output;
 }
 
@@ -275,6 +289,7 @@ export function visibleGroups(issues: Issue[], dirtyPaths: ReadonlySet<string>):
             if (g.path.length === 0) {
                 return dirtyPaths.size > 0;
             }
+
             return isPrefixDirty(dirtyPaths, pathKey(g.path));
         });
 }
@@ -291,28 +306,35 @@ export function visibleGroups(issues: Issue[], dirtyPaths: ReadonlySet<string>):
  */
 export function pruneExternalAtPath(issues: Issue[], target: string): Issue[] {
     const output: Issue[] = [];
+
     for (const issue of issues) {
         const ip = pathKey(issue.path);
+
         if (isIssueGroup(issue)) {
             if (isUnderPath(ip, target)) {
                 // Whole group sits under the cleared path — drop it.
                 continue;
             }
+
             // The group itself is outside but its leaves may still match
             // (e.g. a top-level `oneOf` group contains a leaf at `name`).
             const inner = pruneExternalAtPath(issue.issues, target);
+
             if (inner.length === issue.issues.length) {
                 output.push(issue);
             } else if (inner.length > 0) {
                 output.push({ ...issue, issues: inner });
             }
+
             // empty group → drop entirely
             continue;
         }
+
         if (!isUnderPath(ip, target)) {
             output.push(issue);
         }
     }
+
     return output;
 }
 
@@ -323,6 +345,7 @@ export function pruneExternalAtPath(issues: Issue[], target: string): Issue[] {
  */
 export function tagExternal(issue: Issue): Issue {
     const meta = { ...(issue.meta ?? {}), external: true };
+
     if (isIssueGroup(issue)) {
         return {
             ...issue,
@@ -330,5 +353,6 @@ export function tagExternal(issue: Issue): Issue {
             issues: issue.issues.map(tagExternal),
         };
     }
+
     return { ...issue, meta };
 }

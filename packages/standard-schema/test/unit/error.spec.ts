@@ -19,6 +19,7 @@ describe('buildIssuesForStandardSchemaIssues', () => {
         const result = await schema['~standard'].validate({ profile: { tags: [1] } });
 
         expect(result.issues).toBeDefined();
+
         const issues = buildIssuesForStandardSchemaIssues(result.issues!);
 
         // One IssueItem per Standard Schema issue, in order. Paths carry
@@ -39,6 +40,7 @@ describe('buildIssuesForStandardSchemaIssues', () => {
         const result = await z.email()['~standard'].validate('not-an-email');
 
         expect(result.issues).toBeDefined();
+
         const [issue] = flattenIssueItems(buildIssuesForStandardSchemaIssues(result.issues!));
 
         expect(issue?.message).toEqual('Invalid email address');
