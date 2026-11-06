@@ -1,7 +1,5 @@
 <!-- NOTE: Keep this file and the .agents/*.md files updated as the project evolves. When adding patterns, packages, or conventions, update the relevant section. -->
 
-Use this guide as the entry point. Read linked guides on demand before changing their areas.
-
 # Validup — Agent Guide
 
 Validup is a TypeScript validation library that lets you compose domain-specific validators by mounting `Validator` functions (or nested `Container`s) onto paths of an input object. The runtime expands paths via [pathtrace](https://www.npmjs.com/package/pathtrace), runs each mounted unit, collects structured `Issue`s on failure, and throws a `ValidupError` (extends `@ebec/core` `BaseError`; or returns a discriminated `Result` via `safeRun`). Integration packages bridge external validators (`@validup/standard-schema`, `@validup/zod`, `@validup/validator-js`) and frameworks (`@validup/vue`) into this model.
