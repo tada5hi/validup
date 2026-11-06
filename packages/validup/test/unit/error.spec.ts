@@ -19,10 +19,36 @@ import {
     Container,
     VALIDUP_ERROR_INSTANCE,
     ValidupError,
+    isError,
     isValidupError,
 } from '../../src';
 
 describe('error', () => {
+    it('handles errors without the optional native predicate', async () => {
+        const descriptor = Object.getOwnPropertyDescriptor(Error, 'isError')!;
+
+        Object.defineProperty(Error, 'isError', { value: undefined, configurable: true });
+
+        try {
+            expect(isError(new Error('validation failed'))).toBe(true);
+            expect(isValidupError(new ValidupError())).toBe(true);
+            expect(isError({ name: 'Error', message: 'cross realm' })).toBe(true);
+            expect(isError(null)).toBe(false);
+
+            const container = new Container<{ value: string }>();
+
+            container.mount('value', async () => {
+                throw new Error('validation failed');
+            });
+
+            const result = await container.safeRun({ value: 'test' });
+
+            expect(result.success).toBe(false);
+        } finally {
+            Object.defineProperty(Error, 'isError', descriptor);
+        }
+    });
+
     it('should verify error', () => {
         const error = new ValidupError();
 

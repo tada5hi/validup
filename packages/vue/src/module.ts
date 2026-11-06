@@ -24,6 +24,7 @@ import type { ObjectLiteral, Result } from 'validup';
 import {
     ResultCache,
     ValidupError,
+    isError,
     isValidupError,
 } from 'validup';
 import { useCollector } from './helpers/collector';
@@ -162,7 +163,7 @@ export function useValidup<T extends ObjectLiteral = ObjectLiteral, C = unknown>
                         type: 'item',
                         code: IssueCode.VALUE_INVALID,
                         path: [],
-                        message: Error.isError(rawError) ? rawError.message : String(rawError),
+                        message: isError(rawError) ? rawError.message : String(rawError),
                     } as IssueItem]);
 
                 result = { success: false, error } as Result<T>;

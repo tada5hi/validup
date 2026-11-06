@@ -15,7 +15,7 @@ export function isError(input: unknown) : input is Error & { [key: string]: any 
     // context where `instanceof Error` is false) duck-typed via the
     // `message` shape — which also matches `ValidupError`-shaped throws
     // from a duplicate copy of the package.
-    if (Error.isError(input)) {
+    if (typeof Error.isError === 'function' && Error.isError(input)) {
         return true;
     }
 
