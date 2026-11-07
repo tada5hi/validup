@@ -54,6 +54,7 @@
     },
     "overrides": {
         "vue": "3.5.41",
-        "@vue/server-renderer": "3.5.41"
+        "@vue/server-renderer": "3.5.41",
+        "undici": "7.30.1"
     }
 }
