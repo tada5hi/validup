@@ -9,6 +9,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
     test: {
+        injectCjsGlobals: false,
         globals: true,
         environment: 'happy-dom',
         include: ['test/unit/**/*.{test,spec}.{js,ts}'],

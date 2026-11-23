@@ -9,6 +9,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
     test: {
+        injectCjsGlobals: false,
         globals: true,
         include: ['test/unit/**/*.{test,spec}.{js,ts}'],
         coverage: {
