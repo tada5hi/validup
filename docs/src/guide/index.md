@@ -30,6 +30,7 @@ type ValidatorContext<C = unknown> = {
     group?: string;
     context: C;             // caller-supplied context; flows into nested containers unchanged
     signal?: AbortSignal;   // run-level cancellation signal
+    sync?: boolean;         // true under runSync / safeRunSync, false otherwise
 };
 
 type Validator<C = unknown, Out = unknown> =

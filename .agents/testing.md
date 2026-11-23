@@ -4,6 +4,7 @@
 
 - **Vitest 5** with the v8 coverage provider.
 - Each package has its own `test/vitest.config.ts` — there is no root-level Vitest config. Run from the package directory or via `npm run test` (which delegates to `nx run-many -t test`).
+- Every config sets `injectCjsGlobals: false`, so specs see no `require` / `module` / `exports` / `__dirname` / `__filename`, matching the ESM-only packages consumers install. Keep it when adding a package.
 - `globals: true` is set in four of the five packages (`@validup/validator-js` omits it deliberately), but **specs must import `describe` / `it` / `expect` explicitly from `vitest` regardless**. Every spec in the repo does; don't lean on the globals.
 
 ## Layout

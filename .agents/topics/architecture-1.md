@@ -6,7 +6,7 @@ There are **two ways to build a container**: the imperative `new Container<T>()`
 
 ## Core Types
 
-`packages/validup/src/types.ts`:
+`packages/validup/src/validator/types.ts`:
 
 ```ts
 export type ValidatorContext<C = unknown> = {
@@ -17,6 +17,8 @@ export type ValidatorContext<C = unknown> = {
     group?: string,         // active execution group (if any)
     context: C,             // caller-supplied context; flows unchanged into nested containers
     signal?: AbortSignal,   // run-level cancellation signal
+    cache?: IResultCache,   // run-level result cache, for orchestrating validators (compose)
+    sync?: boolean,         // true under runSync / safeRunSync, false under run / safeRun / runParallel
 };
 
 export type Validator<C = unknown, Out = unknown> = (ctx: ValidatorContext<C>) => Out | Promise<Out>;
@@ -167,6 +169,8 @@ A twin body yields **effect pairs** — `yield* op(asyncThunk, syncThunk)` — a
 | nested container | `child.run(input, childOptions)` | `child.runSync(...)`, throwing `RunSyncViolationError` when the method is absent |
 | validator | `validator(ctx)` | `validator(ctx)`, throwing `RunSyncViolationError` when the return value is thenable (`isThenable`) |
 
+`runBody(data, options, sync)` takes the driver as a third argument and stamps it on `ValidatorContext.sync`; `runParallel` passes `false`. It is deliberately **not** a run option and not part of `buildChildRunOptions`: a nested container inherits it because the sync thunk enters the child through `child.runSync`, which passes `true` again, and `compose` enters a container element through `runSync` when `ctx.sync` is set. Adapters use it to pick a library's sync entry point (`@validup/zod`: `safeParse` vs. `safeParseAsync`).
+
 Both structural probes therefore live *inside the sync thunk*, where they belong — the async side cannot produce them. Everything else (abort checks, group filter, path expansion, path filter, optional resolution, cache gating, issue collection, `oneOf` branch wrapping, `finalizeOutput`) exists exactly once.
 
 **`runParallel` deliberately does NOT share the body.** A generator is sequential by construction; expressing "launch every mount, then settle" through it would mean yielding batches *and* giving up the chain-read that distinguishes sequential mode. Instead it shares every per-key helper:
@@ -176,7 +180,7 @@ Both structural probes therefore live *inside the sync thunk*, where they belong
 | `prepareMountKey(item, key, options, pathsToInclude, pathsToExclude)` | `keyParts` / `pathRelative` / `pathAbsolute` / include-exclude verdict (`MountKeyPlan`) |
 | `resolveOptionalDirective(item, value, options)` | skip or proceed, and what a skipped key writes (`OptionalDirective`) |
 | `buildChildRunOptions(options, key, plan, pathsStrict, parallel?)` | the child-container forward bag — one source of truth for what a nested container inherits |
-| `buildValidatorContext(key, plan, value, data, options)` | the `ValidatorContext` handed to a validator |
+| `buildValidatorContext(key, plan, value, data, options, sync)` | the `ValidatorContext` handed to a validator |
 | `resolveCachedOutcome` / `writeCachedOutcome` | cache gating (see [Result cache](#result-cache-packagesvalidupsrccache)) |
 
 `prepareMountKey` deliberately does **not** read the mount's input `value` — the sequential-vs-parallel value-source asymmetry is a documented behavioural difference, so it stays in the caller and the helper stays pure.
@@ -221,6 +225,8 @@ With this, every fold site in the codebase consults one predicate. There are no 
 One behaviour was unified in passing: the "don't cache a `RunSyncViolationError`" guard was previously `runSync`-only and now applies to **both twin drivers** (`run` and `runSync` — one body, one site). It is unreachable on the async side except for the pathological case of a validator letting a `RunSyncViolationError` escape — which `collectExecutionFailure` already rethrows structurally, so not caching it is the consistent reading. It has since been widened to the full `isStructuralThrow` predicate and mirrored into `runParallel` — see [The structural carve-out](#the-structural-carve-out-isstructuralthrow).
 
 **`runParallel` owns every rejection it schedules.** Mount promises are created eagerly and `Promise.allSettled` is only attached after the whole scheduling loop, so any rejection settling in that window — or any throw that escapes the loop before `allSettled` is reached at all — would be unowned, and Node's default `--unhandled-rejections=throw` (this package requires Node >= 24) terminates the process. `Container.ownRejection` attaches a no-op `.catch` at creation and returns the **original** promise, so `allSettled` still observes the real settlement. Every scheduled promise goes through it, including the `Promise.reject(e)` for materializing a pre-dispatch failure as a task. Covered in `parallel.spec.ts` → "should not leak an unhandled rejection when a pre-dispatch read throws".
+
+The twin body's sync thunk follows the same rule: when a validator returns a thenable under `runSync`, it attaches a no-op rejection handler before throwing `RunSyncViolationError`, because nothing else will ever await that promise. Without it, an async validator that rejects (or a `compose` whose element fails) would crash the process after `runSync` has already returned control to the caller. Covered in `run-sync.spec.ts` → "should not leak an unhandled rejection from a rejected thenable".
 
 ### Optional values (`helpers/optional-value.ts`)
 

@@ -181,7 +181,7 @@ try {
 }
 ```
 
-The guard returns `true` for `e instanceof ValidupError`, for an error carrying the `ValidupError` `@instanceof` marker (a duplicate `validup` copy, or an error rehydrated from `toJSON()`), and, as a last-resort fallback, for an error with a non-empty `issues` array of valid issues, or an empty `issues` array on an error whose `code` is `'VALIDUP_ERROR'` (covers a zero-issue `ValidupError` from before the marker existed). A bare empty `issues` array with no `VALIDUP_ERROR` code is not enough on its own, since every `@ebec/core` `BaseError` carries one by default.
+The guard returns `true` for `e instanceof ValidupError`, for an error carrying the `ValidupError` `@instanceof` marker (a duplicate `validup` copy, or an error rehydrated from `toJSON()`), Any other error that carries an `@instanceof` chain belongs to a different class and is rejected, even when it carries valid `issues`: every `@ebec/core` `BaseError` can, so a permission or HTTP error with issues is not mistaken for a validation failure. Only an error without a chain, such as plain JSON, falls back to its shape: a non-empty `issues` array of valid issues counts, and so does an empty one on an error whose `code` is `'VALIDUP_ERROR'`. A bare empty `issues` array with any other code does not.
 
 ## Helpers
 

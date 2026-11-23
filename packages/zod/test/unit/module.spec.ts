@@ -196,4 +196,165 @@ describe('src/module', () => {
             }
         }
     });
+
+    describe('run mode', () => {
+        const buildContext = (value: unknown, sync?: boolean) => ({
+            key: 'name',
+            path: ['name'],
+            value,
+            data: { name: value },
+            context: undefined,
+            sync,
+        });
+
+        it('should run a sync schema under runSync', () => {
+            const validator = new Container<{ email: string }>();
+
+            validator.mount('email', createValidator(z.string().email()));
+
+            const outcome = validator.runSync({ email: 'foo@example.com' });
+
+            expect(outcome.email).toEqual('foo@example.com');
+        });
+
+        it('should run a schema factory under runSync', () => {
+            const validator = new Container<{ email: string }>();
+
+            validator.mount('email', createValidator(() => z.string().email()));
+
+            const outcome = validator.runSync({ email: 'foo@example.com' });
+
+            expect(outcome.email).toEqual('foo@example.com');
+        });
+
+        it('should return the parsed value synchronously in sync mode', () => {
+            const descriptor = createValidator(z.string().trim());
+
+            expect(descriptor.run(buildContext(' foo ', true))).toEqual('foo');
+        });
+
+        it('should return a promise outside sync mode', async () => {
+            const descriptor = createValidator(z.string().trim());
+
+            const output = descriptor.run(buildContext(' foo '));
+
+            expect(output).toBeInstanceOf(Promise);
+            await expect(output).resolves.toEqual('foo');
+        });
+
+        it('should report the same issues under safeRunSync as under safeRun', async () => {
+            const validator = new Container<{ email: string, age: number }>();
+
+            validator.mount('email', createValidator(z.string().email()));
+            validator.mount('age', createValidator(z.number().min(18)));
+
+            const input = { email: 'foo', age: 3 };
+            const syncOutcome = validator.safeRunSync(input);
+            const asyncOutcome = await validator.safeRun(input);
+
+            expect(syncOutcome.success).toBe(false);
+            expect(asyncOutcome.success).toBe(false);
+
+            if (syncOutcome.success || asyncOutcome.success) {
+                return;
+            }
+
+            expect(syncOutcome.error.issues).toEqual(asyncOutcome.error.issues);
+
+            const items = flattenIssueItems(syncOutcome.error.issues);
+
+            expect(items.map((item) => item.code)).toEqual([IssueCode.EMAIL, IssueCode.MIN_VALUE]);
+        });
+
+        it('should throw a ValidupError under runSync', () => {
+            const validator = new Container<{ email: string }>();
+
+            validator.mount('email', createValidator(z.string().email()));
+
+            expect(() => validator.runSync({ email: 'foo' })).toThrow(ValidupError);
+        });
+
+        it('should call an async refine exactly once under run', async () => {
+            let calls = 0;
+            const validator = new Container<{ name: string }>();
+
+            validator.mount('name', createValidator(z.string().refine(async (value) => {
+                calls++;
+
+                return value === 'foo';
+            })));
+
+            await expect(validator.run({ name: 'foo' })).resolves.toEqual({ name: 'foo' });
+            expect(calls).toEqual(1);
+
+            const outcome = await validator.safeRun({ name: 'bar' });
+
+            expect(calls).toEqual(2);
+            expect(outcome.success).toBe(false);
+
+            if (outcome.success) {
+                return;
+            }
+
+            const items = flattenIssueItems(outcome.error.issues);
+
+            expect(items).toHaveLength(1);
+            expect(items[0].path).toEqual(['name']);
+        });
+
+        it('should surface an async schema under runSync as a structural violation', async () => {
+            const unhandled: unknown[] = [];
+            const listener = (reason: unknown) => {
+                unhandled.push(reason);
+            };
+
+            process.on('unhandledRejection', listener);
+
+            let calls = 0;
+
+            try {
+                const validator = new Container<{ name: string }>();
+
+                validator.mount('name', createValidator(z.string().refine(async () => {
+                    calls++;
+
+                    return true;
+                })));
+
+                expect(() => validator.runSync({ name: 'foo' })).toThrow(
+                    expect.objectContaining({ name: 'RunSyncViolationError' }),
+                );
+                expect(() => validator.safeRunSync({ name: 'foo' })).toThrow(
+                    expect.objectContaining({ name: 'RunSyncViolationError' }),
+                );
+
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 10); 
+                });
+            } finally {
+                process.off('unhandledRejection', listener);
+            }
+
+            expect(calls).toEqual(2);
+            expect(unhandled).toEqual([]);
+        });
+
+        it('should propagate a non-zod error thrown by a refine in sync mode', () => {
+            const error = new Error('boom');
+            const descriptor = createValidator(z.string().refine(() => {
+                throw error;
+            }));
+
+            expect(() => descriptor.run(buildContext('foo', true))).toThrow(error);
+        });
+
+        it('should propagate a non-zod error thrown by a refine outside sync mode', async () => {
+            const error = new Error('boom');
+            const descriptor = createValidator(z.string().refine(() => {
+                throw error;
+            }));
+
+            await expect(descriptor.run(buildContext('foo'))).rejects.toBe(error);
+        });
+    });
 });

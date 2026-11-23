@@ -68,19 +68,39 @@ import { type Validator, type ValidatorContext, ValidupError } from 'validup';
 type CreateFn<C> = (ctx: ValidatorContext<C>) => Schema;
 
 export function createValidator<C = unknown>(input: Schema | CreateFn<C>): Validator<C> {
-    return async (ctx): Promise<unknown> => {
+    return (ctx) => {
         const schema = typeof input === 'function' ? input(ctx) : input;
-        const outcome = await schema.safeParseAsync(ctx.value);
-        if (outcome.success) return outcome.data;
-        throw new ValidupError(buildIssuesForError(outcome.error));
+        const unwrap = (outcome: ParseResult): unknown => {
+            if (outcome.success) return outcome.data;
+            throw new ValidupError(buildIssuesForError(outcome.error));
+        };
+
+        // Under runSync / safeRunSync, use the library's synchronous entry point.
+        if (ctx.sync) {
+            try {
+                return unwrap(schema.safeParse(ctx.value));
+            } catch (e) {
+                // The schema needs async work: hand back an owned rejection,
+                // which runSync reports as RunSyncViolationError.
+                if (e instanceof AsyncSchemaError) {
+                    const rejected = Promise.reject(e);
+                    rejected.catch(() => {});
+                    return rejected;
+                }
+                throw e;
+            }
+        }
+
+        return schema.safeParseAsync(ctx.value).then(unwrap);
     };
 }
 ```
 
-Three contract points to preserve:
+Four contract points to preserve:
 
 1. Accept either a schema or a `(ctx) => schema` factory.
 2. Make `createValidator<C>` generic over the validup context.
-3. Translate foreign errors into `Issue[]` using `defineIssueItem` / `defineIssueGroup`; never construct issue objects literally.
+3. Pick the parse entry point from `ctx.sync`, so the adapter works under both `run()` and `runSync()`. If a schema cannot be parsed synchronously, return a promise whose rejection you have already handled: `runSync()` reports it as a `RunSyncViolationError` instead of a validation issue.
+4. Translate foreign errors into `Issue[]` using `defineIssueItem` / `defineIssueGroup`; never construct issue objects literally.
 
 For framework integrations, study `@validup/vue`, a reactive composable that drives form state from `safeRun()`.

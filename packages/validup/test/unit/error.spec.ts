@@ -11,8 +11,11 @@ import {
     INSTANCEOF_PROPERTY,
     IssueCode,
     defineIssueGroup,
+    defineIssueItem,
     flattenIssueItems,
+    markInstanceof,
 } from '@ebec/core';
+import type { Issue } from '@ebec/core';
 import { NotFoundError } from '@ebec/http';
 import type { Validator } from '../../src';
 import {
@@ -179,10 +182,97 @@ describe('error', () => {
         expect(isValidupError(foreignShaped)).toBeFalsy();
     });
 
+    describe('foreign @instanceof chains', () => {
+        const FOREIGN_ERROR_INSTANCE = Symbol.for('test/ForeignPermissionError');
+
+        class ForeignPermissionError extends BaseError {
+            constructor(issues: Issue[]) {
+                super({ message: 'Permission evaluation failed', issues });
+
+                markInstanceof(this, FOREIGN_ERROR_INSTANCE);
+            }
+        }
+
+        const buildIssues = () => [
+            defineIssueItem({
+                path: ['realm_id'],
+                code: IssueCode.VALUE_INVALID,
+                message: 'Realm mismatch',
+            }),
+        ];
+
+        it('should not verify a foreign BaseError subclass carrying well-formed issues', () => {
+            expect(isValidupError(new ForeignPermissionError(buildIssues()))).toBeFalsy();
+        });
+
+        it('should not verify the JSON form of a foreign BaseError subclass carrying issues', () => {
+            const serialized = JSON.parse(JSON.stringify(new ForeignPermissionError(buildIssues())));
+
+            expect(serialized[INSTANCEOF_PROPERTY]).toEqual([
+                '@ebec/core/BaseError',
+                'test/ForeignPermissionError',
+            ]);
+            expect(isValidupError(serialized)).toBeFalsy();
+        });
+
+        it('should not verify a plain BaseError carrying well-formed issues', () => {
+            expect(isValidupError(new BaseError({ issues: buildIssues() }))).toBeFalsy();
+        });
+
+        // `code` cannot override a chain: BaseError derives it from the
+        // constructor name unless passed explicitly, and minifiers mangle
+        // class names. Only chain-less input falls back to `code`.
+        it('should not verify a chained error without the validup marker even when its code is VALIDUP_ERROR', () => {
+            const chained = new BaseError({ code: 'VALIDUP_ERROR', issues: buildIssues() });
+
+            expect(isValidupError(chained)).toBeFalsy();
+            expect(isValidupError(JSON.parse(JSON.stringify(chained)))).toBeFalsy();
+        });
+
+        it('should still verify the chain-less JSON form of an error whose code is VALIDUP_ERROR', () => {
+            const { [INSTANCEOF_PROPERTY]: _chain, ...chainLess } = JSON.parse(
+                JSON.stringify(new BaseError({ code: 'VALIDUP_ERROR' })),
+            );
+
+            expect(chainLess[INSTANCEOF_PROPERTY]).toBeUndefined();
+            expect(isValidupError({ ...chainLess, issues: [] })).toBeTruthy();
+        });
+
+        it('should still verify a chain-less plain object carrying well-formed issues', () => {
+            const plain = {
+                name: 'Error',
+                message: 'Properties are invalid',
+                issues: buildIssues(),
+            };
+
+            expect(isValidupError(plain)).toBeTruthy();
+        });
+
+        it('should still verify a ValidupError and its JSON form', () => {
+            const error = new ValidupError(buildIssues());
+
+            expect(isValidupError(error)).toBeTruthy();
+            expect(isValidupError(JSON.parse(JSON.stringify(error)))).toBeTruthy();
+        });
+    });
+
     it('should expose an ebec-style code on ValidupError', () => {
         const error = new ValidupError();
 
         expect(error.code).toEqual('VALIDUP_ERROR');
+    });
+
+    // `code` must not depend on the class name, which a minifier mangles.
+    it('should keep code VALIDUP_ERROR when the class name is mangled', () => {
+        const descriptor = Object.getOwnPropertyDescriptor(ValidupError, 'name')!;
+
+        Object.defineProperty(ValidupError, 'name', { value: 'a', configurable: true });
+
+        try {
+            expect(new ValidupError().code).toEqual('VALIDUP_ERROR');
+        } finally {
+            Object.defineProperty(ValidupError, 'name', descriptor);
+        }
     });
 
     it('should serialize via toJSON including issues', () => {

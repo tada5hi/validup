@@ -334,7 +334,7 @@ export class Container<
             return this.runParallel(data, options);
         }
 
-        return runTwinAsync(this.runBody(data, options));
+        return runTwinAsync(this.runBody(data, options, false));
     }
 
     /**
@@ -360,10 +360,16 @@ export class Container<
      * chain-read. It shares the extracted per-key helpers instead
      * (`prepareMountKey` / `resolveOptionalDirective` / `buildChildRunOptions` /
      * `buildValidatorContext`).
+     *
+     * `sync` names the driver so validators can see it on
+     * `ValidatorContext.sync`. It is a driver fact rather than a run option:
+     * a nested container inherits it because the sync thunk calls
+     * `child.runSync`, which passes `true` again.
      */
     private * runBody(
         data: ContainerInput<T>,
         options: ContainerRunOptions<T, C>,
+        sync: boolean,
     ): TwinBody<T> {
         const { pathsToInclude, pathsToExclude } = this.resolveContainerFilters(options);
         const pathsStrict = this.resolvePathsStrict(options);
@@ -498,7 +504,7 @@ export class Container<
                             }
                         } else {
                             const validator = item.data;
-                            const ctx = this.buildValidatorContext(key, plan, value, data, options);
+                            const ctx = this.buildValidatorContext(key, plan, value, data, options, sync);
 
                             try {
                                 const result = yield* op(
@@ -507,6 +513,15 @@ export class Container<
                                         const outcome = validator(ctx);
 
                                         if (isThenable(outcome)) {
+                                            // The thenable is abandoned here, so own its
+                                            // rejection: an async validator that rejects
+                                            // later must not surface as an unhandled
+                                            // rejection (fatal under Node's default mode).
+                                            // `Promise.resolve` subscribes on a later tick, so
+                                            // a `then` that throws becomes a handled rejection
+                                            // instead of replacing the structural error.
+                                            Promise.resolve(outcome).catch(() => { /* ownership only */ });
+
                                             throw new RunSyncViolationError(`runSync: validator at "${key || '<root>'}" returned a Promise`);
                                         }
 
@@ -884,7 +899,7 @@ export class Container<
         // inside the wrapper so the entry is persisted before the promise
         // settles.
         const validator = item.data;
-        const ctx = this.buildValidatorContext(key, plan, value, data, options);
+        const ctx = this.buildValidatorContext(key, plan, value, data, options, false);
 
         return (async () => {
             try {
@@ -968,7 +983,7 @@ export class Container<
         data: ContainerInput<T> = {},
         options: ContainerRunOptions<T, C> = {},
     ): T {
-        return runTwinSync(this.runBody(data, options));
+        return runTwinSync(this.runBody(data, options, true));
     }
 
     safeRunSync(input: ContainerInput<T> = {}, options: ContainerRunOptions<T, C> = {}): Result<T> {
@@ -1168,6 +1183,7 @@ export class Container<
         value: unknown,
         data: ContainerInput<T>,
         options: ContainerRunOptions<T, C>,
+        sync: boolean,
     ): ValidatorContext<C> {
         return {
             key,
@@ -1179,6 +1195,7 @@ export class Container<
             context: options.context as C,
             signal: options.signal,
             cache: options.cache,
+            sync,
         };
     }
 

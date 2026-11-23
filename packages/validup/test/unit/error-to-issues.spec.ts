@@ -6,7 +6,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { IssueCode, defineIssueItem, isIssueGroup } from '@ebec/core';
+import {
+    BaseError,
+    IssueCode,
+    defineIssueItem,
+    isIssueGroup,
+    markInstanceof,
+} from '@ebec/core';
 import {
     ValidupError,
     buildOneOfFailedGroup,
@@ -74,6 +80,28 @@ describe('errorToIssues', () => {
         const nullThrow = errorToIssues(null);
 
         expect(nullThrow[0]?.message).toBe('Non-Error throw: null');
+    });
+
+    it('folds a foreign BaseError carrying issues into one item instead of spreading them', () => {
+        const error = new BaseError({
+            message: 'Permission evaluation failed',
+            issues: [
+                defineIssueItem({
+                    path: ['realm_id'],
+                    code: IssueCode.VALUE_INVALID,
+                    message: 'Realm mismatch',
+                }),
+            ],
+        });
+
+        markInstanceof(error, Symbol.for('test/ForeignPermissionError'));
+
+        const out = errorToIssues(error, { path: ['permission'] });
+
+        expect(out).toHaveLength(1);
+        expect(out[0]?.message).toBe('Permission evaluation failed');
+        expect(out[0]?.path).toEqual(['permission']);
+        expect(out[0]?.code).toBe(IssueCode.VALUE_INVALID);
     });
 
     it('does NOT apply the supplied code to spread ValidupError issues', () => {

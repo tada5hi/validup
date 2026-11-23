@@ -115,8 +115,11 @@ type ValidatorContext<C = unknown> = {
     group?: string;         // active execution group, if any
     context: C;             // caller-supplied context (see [Context](#context))
     signal?: AbortSignal;   // cancellation signal (see [Cancellation](#cancellation))
+    sync?: boolean;         // true under runSync / safeRunSync, false under run / safeRun / parallel
 };
 ```
+
+`sync` tells a validator which run mode invoked it. `runSync` rejects any thenable return value, so an adapter over a library with separate sync and async entry points can read `ctx.sync` and pick the synchronous one (this is how `@validup/zod` stays usable under `runSync`). Nested containers and `compose` elements see the same value as the mount that reached them.
 
 A validator's **return value** becomes the output for that path, so validators double as transformers/sanitizers. The optional second generic `Out` lets callers (and the [Builder API](#builder-api-compile-time-typing)) infer per-field types from the validator's return type; `Out` defaults to `unknown`, so existing call sites compile unchanged.
 
@@ -709,7 +712,7 @@ class ValidupError extends BaseError {
 
 Subclass `ValidupError` (or `BaseError` directly) when you need a domain-specific code; ebec derives it from the class name automatically.
 
-Use `isValidupError(err)` to check across package boundaries. It matches `instanceof ValidupError`, then the error's `@instanceof` marker chain (which also covers a duplicate copy of `validup` in the dependency tree and a `ValidupError` rehydrated from `toJSON()` output), and only falls back to duck-typing when neither matches: a non-empty `issues` array whose members all look like `Issue`s, or an empty one on an error whose `code` is `'VALIDUP_ERROR'` (covers a zero-issue `ValidupError` from before the marker existed, e.g. validup <= 2.0.0). A bare empty `issues` array with no `VALIDUP_ERROR` code is not sufficient: every `@ebec/core` `BaseError` (and therefore every `@ebec/http` error) carries an `issues` array by default.
+Use `isValidupError(err)` to check across package boundaries. It matches `instanceof ValidupError`, then the error's `@instanceof` marker chain (which also covers a duplicate copy of `validup` in the dependency tree and a `ValidupError` rehydrated from `toJSON()` output), An error that carries an `@instanceof` chain without the `ValidupError` marker belongs to another class and is rejected, even when it carries well-formed `issues` (every `@ebec/core` `BaseError` can) and whatever its `code`. Only an error with no chain at all, such as plain JSON, falls back to duck-typing: a non-empty `issues` array whose members all look like `Issue`s, or an empty one on an error whose `code` is `'VALIDUP_ERROR'`. A bare empty `issues` array with no `VALIDUP_ERROR` code is not sufficient.
 
 ```typescript
 import { isValidupError } from 'validup';

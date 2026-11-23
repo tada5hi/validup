@@ -87,8 +87,8 @@ interface IssueGroup extends IssueBase {
 - **Library-owned `meta` keys** (stable, semver-protected):
   - `optional?: true` — stamped by the runtime when the originating mount's `optional` declaration resolves truthy for the current `value`. Resolution mirrors the run-loop check (boolean → tag iff `true`; predicate → invoke with `value` and tag iff truthy). The predicate is re-evaluated at error time rather than relying on the "predicate already returned false in the run loop" invariant — explicit intent, decoupled from the run path. Reflects only the **most-local** mount, never inherited: a leaf inside an optional child container does NOT carry the flag unless its own mount also evaluated truthy. Wrapping `IssueGroup`s emitted by the optional mount itself DO carry the flag — so a tree walker can distinguish "subtree was optional" from "leaf's own mount was optional." Stamping happens in `container/module.ts` → `recordMountError` (`stampOptional` helper); the "no inheritance" rule is implemented by gating the stamp on `item.type === 'validator'` in the `isValidupError` branch. `recordMountError` takes a single `RecordMountErrorContext` bag (named for `error`, `item`, `value`, `keyParts`, `pathRelative`, `issues`, `signal`) so adding provenance fields is a one-line change at every call site instead of a positional-arg shuffle.
   - `external?: true` — stamped by frameworks injecting server-side issues (e.g. `@validup/vue`'s `setExternalIssues`). Distinguishes server-supplied from validator-supplied so themes can render the distinction.
-- `ValidupError` (`error/base.ts`) extends `@ebec/core`'s `BaseError` — it carries `code: 'VALIDUP_ERROR'` (auto-derived from the class name), an optional `cause`, `readonly issues: Issue[]`, and a `toJSON()` overridden to include `issues`. The `.message` is still auto-built from issue paths via `buildErrorMessageForAttributes`.
-- `isValidupError(e)` checks `instanceof ValidupError`, then the error's `@instanceof` marker chain (`VALIDUP_ERROR_INSTANCE`, via `matchesInstanceof` — covers a duplicate copy of the package and an error rehydrated from `toJSON()` output, since the marker's serialized description string survives a JSON round trip even though the symbol itself doesn't), and only falls back to duck-typing when neither matches: a non-empty `issues` array whose members all pass `isIssue`, or an empty one on an error whose `code` is `'VALIDUP_ERROR'` — `code` survives serialization, so it catches a zero-issue `ValidupError` from before the marker existed (validup <= 2.0.0) that `instanceof`/the marker cannot see. An empty `issues` array with no `VALIDUP_ERROR` code is not sufficient on its own: every `@ebec/core` `BaseError` carries an `issues` array by default. Use `isValidupError` across package boundaries — direct `instanceof ValidupError` may miss errors from a duplicate copy of the package. Same duck-typed-fallback pattern (without a marker) for `isRunSyncViolation` (private, internal to `container/`) and `isPathsStrictViolation` (exported — consumers catch `PathsStrictViolationError` to read the stale `pathsToInclude` / `pathsToExclude`).
+- `ValidupError` (`error/base.ts`) extends `@ebec/core`'s `BaseError` — it carries `code: 'VALIDUP_ERROR'` (passed to `super` explicitly, so it survives minification), an optional `cause`, `readonly issues: Issue[]`, and a `toJSON()` overridden to include `issues`. The `.message` is still auto-built from issue paths via `buildErrorMessageForAttributes`.
+- `isValidupError(e)` checks `instanceof ValidupError`, then the error's `@instanceof` marker chain (`VALIDUP_ERROR_INSTANCE`, via `matchesInstanceof`; covers a duplicate copy of the package and an error rehydrated from `toJSON()` output, since the marker's serialized description string survives a JSON round trip even though the symbol itself doesn't). **An `@instanceof` chain without the validup marker decides the answer**, as it does for `@ebec/core`'s `isBaseError`: every `BaseError` subclass can carry well-formed `issues`, so the issue shape must not override a foreign class identity. Such an error never matches, whatever its `code`: `BaseError` derives `code` from `this.constructor.name` unless a class passes one, and minifiers mangle class names. `ValidupError` therefore passes `code: 'VALIDUP_ERROR'` to `super` explicitly. Chain-less input (plain JSON) falls back to duck-typing: a non-empty `issues` array whose members all pass `isIssue`, or an empty one on an error whose `code` is `'VALIDUP_ERROR'`. `errorToIssues` relies on this, so a foreign error with issues folds into one item instead of being spread as container issues. Use `isValidupError` across package boundaries: direct `instanceof ValidupError` may miss errors from a duplicate copy of the package. Same duck-typed-fallback pattern (without a marker) for `isRunSyncViolation` (private, internal to `container/`) and `isPathsStrictViolation` (exported; consumers catch `PathsStrictViolationError` to read the stale `pathsToInclude` / `pathsToExclude`).
 
 ## Integration Package Contract
 
@@ -103,21 +103,32 @@ export function createValidator<C, Z extends ZodType>(
 ): ValidatorDescriptor<C, ZodOutput<Z>> {
     return defineValidator<C, ZodOutput<Z>>({
         sideEffect: options.sideEffect,
-        run: async (ctx) => {
+        run: (ctx) => {
             const zod = typeof input === 'function' ? input(ctx) : input;
-            const outcome = await zod.safeParseAsync(ctx.value);
-            if (outcome.success) return outcome.data as ZodOutput<Z>;
-            throw new ValidupError(buildIssuesForZodError(outcome.error, ctx.value));
+            const unwrap = (outcome) => {
+                if (outcome.success) return outcome.data as ZodOutput<Z>;
+                throw new ValidupError(buildIssuesForZodError(outcome.error, ctx.value));
+            };
+            if (!ctx.sync) return zod.safeParseAsync(ctx.value).then(unwrap);
+            try {
+                return unwrap(zod.safeParse(ctx.value));
+            } catch (e) {
+                if (!(e instanceof $ZodAsyncError)) throw e;
+                const rejected = Promise.reject(e); // runSync reports it as RunSyncViolationError
+                rejected.catch(() => {});           // owned: never an unhandled rejection
+                return rejected;
+            }
         },
     });
 }
 ```
 
-   Four contract points to preserve when writing or modifying validator adapters:
+   Five contract points to preserve when writing or modifying validator adapters:
 
    - **Accept `T | (ctx: ValidatorContext<C>) => T`** — letting users build per-context validators (e.g. depending on `ctx.data`, `ctx.group`, or `ctx.context`).
    - **Make `createValidator<C>` generic over the validup context type** so the parent `Container<T, C>` keeps `ctx.context` typed end-to-end.
    - **Return a `ValidatorDescriptor<C, Out>`, not a bare `Validator<C, Out>`** — wrap the closure via `defineValidator({ sideEffect, run })`. Accept a `sideEffect?: boolean` option on the public factory so callers can flip it for known-impure schemas (async refines, `superRefine` reading external state); default to undefined (cached). `@validup/validator-js` is a special case — its shipped factories know their own contract (`equals` flips `sideEffect: true` when no `expectedValue` is provided because the comparison target is read from `ctx.data`) and don't surface the option.
+   - **Follow `ctx.sync`.** When the foreign library has separate sync and async entry points, use the sync one when `ctx.sync` is `true` and the async one otherwise. An always-`async` `run` makes the adapter unusable under `runSync` / `safeRunSync`; a sync-first-then-async fallback invokes async refines twice and can leak an unhandled rejection. When the schema cannot run synchronously, return a thenable (with its rejection owned) so `runSync` raises `RunSyncViolationError` rather than an issue.
    - **Translate foreign errors into `Issue[]`** in a separate `error.ts` module, then throw `new ValidupError(issues)`. Use `defineIssueItem`/`defineIssueGroup` — never construct issue objects literally. (`@validup/standard-schema` is a special case: the spec only exposes `message + path`, so the resulting issues carry only the portable subset.) When the foreign library strips structural information the validup vocabulary needs (e.g. zod 4 drops `received` / `input` from the formatted `ZodError`, hiding the missing-key signal needed to emit `REQUIRED`), accept the original input as a second arg on the error-builder and probe it via `getPathValue(input, issue.path)` to recover the signal — `@validup/zod`'s `buildIssuesForZodError(error, input?)` does exactly this. Preserve the single-arg overload (gate the probe on `arguments.length > 1`) so ad-hoc callers without the input keep their existing behavior.
 
 2. **Framework / runtime integrations** (`@validup/vue`) — consume a whole `Container<T, C>` and wire it into a host environment.

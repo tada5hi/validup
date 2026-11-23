@@ -11,6 +11,7 @@ type ValidatorContext<C = unknown> = {
     group?: string;
     context: C;
     signal?: AbortSignal;
+    sync?: boolean;
 };
 
 type Validator<C = unknown> =
@@ -143,6 +144,16 @@ await c.run({ email: 'peter@example.com' }, { context: { db } });
 ## Sync vs async
 
 Validators may be sync or async. `run()` always awaits; `runSync()` throws if the return value is thenable. Use sync validators for reactive UIs that should not flicker through a `pending` state.
+
+`ctx.sync` tells a validator which mode invoked it: `true` under `runSync()` / `safeRunSync()`, `false` under `run()` / `safeRun()` / `parallel: true`. Nested containers and `compose` elements see the same value as the mount that reached them. A validator wrapping a library with separate sync and async entry points can branch on it:
+
+```typescript
+const parseUser: Validator = (ctx) => (ctx.sync ?
+    schema.parse(ctx.value) :
+    schema.parseAsync(ctx.value));
+```
+
+The flag selects how a result is computed, never what it is. The [result cache](./caching.md) does not key on it, so a value cached by `run()` is replayed by `runSync()` and the other way round.
 
 ## Cancellation
 

@@ -31,7 +31,7 @@ const integrations: IIntegrationCard[] = [
         href: '/integrations/zod',
         summary: 'Vendor-specific bridge for zod 3 / 4: surfaces expected & received fields on each issue.',
         bullets: [
-            'safeParseAsync under the hood',
+            'safeParse under runSync, safeParseAsync under run',
             'expected / received preserved',
             'Reverse helper buildZodIssuesForError',
         ],
