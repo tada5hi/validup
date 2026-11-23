@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Validator } from '../../src';
-import { Container, ValidupError } from '../../src';
+import { Container, ValidupError, compose } from '../../src';
 // Imported by direct module path on purpose: `run-sync-violation.ts` is
 // deliberately left out of `container/index.ts` (internal plumbing, not public
 // API — the exported counterpart is `isPathsStrictViolation`). Do not "fix"
@@ -197,5 +197,76 @@ describe('isRunSyncViolation', () => {
         expect(isRunSyncViolation('RunSyncViolationError')).toBe(false);
         expect(isRunSyncViolation(null)).toBe(false);
         expect(isRunSyncViolation(undefined)).toBe(false);
+    });
+});
+
+describe('ValidatorContext.sync', () => {
+    const record = (seen: unknown[]): Validator => (ctx) => {
+        seen.push(ctx.sync);
+
+        return ctx.value;
+    };
+
+    it('should be true under runSync / safeRunSync and false under run / safeRun', async () => {
+        const seen: unknown[] = [];
+        const container = new Container();
+
+        container.mount('name', record(seen));
+
+        container.runSync({ name: 'a' });
+        container.safeRunSync({ name: 'a' });
+        await container.run({ name: 'a' });
+        await container.safeRun({ name: 'a' });
+
+        expect(seen).toEqual([true, true, false, false]);
+    });
+
+    it('should be false under runParallel', async () => {
+        const seen: unknown[] = [];
+        const container = new Container();
+
+        container.mount('name', record(seen));
+
+        await container.run({ name: 'a' }, { parallel: true });
+
+        expect(seen).toEqual([false]);
+    });
+
+    it('should be inherited by a nested container', async () => {
+        const seen: unknown[] = [];
+        const child = new Container();
+
+        child.mount('name', record(seen));
+
+        const parent = new Container();
+
+        parent.mount('child', child);
+
+        parent.runSync({ child: { name: 'a' } });
+        await parent.run({ child: { name: 'a' } });
+
+        expect(seen).toEqual([true, false]);
+    });
+
+    it('should reach validators and container elements inside compose', async () => {
+        const seen: unknown[] = [];
+        const branch = new Container();
+
+        branch.mount('name', record(seen));
+
+        const parent = new Container();
+
+        parent.mount('child', compose([record(seen), branch]));
+
+        // compose itself returns a promise, so runSync rejects it as a
+        // structural violation; the elements have still observed the mode.
+        expect(() => parent.runSync({ child: { name: 'a' } })).toThrow(RunSyncViolationError);
+        // Let the abandoned compose chain reach its container element.
+        await new Promise((resolve) => {
+            setTimeout(resolve, 0); 
+        });
+        await parent.run({ child: { name: 'a' } });
+
+        expect(seen).toEqual([true, true, false, false]);
     });
 });

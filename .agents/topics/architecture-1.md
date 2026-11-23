@@ -6,7 +6,7 @@ There are **two ways to build a container**: the imperative `new Container<T>()`
 
 ## Core Types
 
-`packages/validup/src/types.ts`:
+`packages/validup/src/validator/types.ts`:
 
 ```ts
 export type ValidatorContext<C = unknown> = {
@@ -17,6 +17,8 @@ export type ValidatorContext<C = unknown> = {
     group?: string,         // active execution group (if any)
     context: C,             // caller-supplied context; flows unchanged into nested containers
     signal?: AbortSignal,   // run-level cancellation signal
+    cache?: IResultCache,   // run-level result cache, for orchestrating validators (compose)
+    sync?: boolean,         // true under runSync / safeRunSync, false under run / safeRun / runParallel
 };
 
 export type Validator<C = unknown, Out = unknown> = (ctx: ValidatorContext<C>) => Out | Promise<Out>;
@@ -167,6 +169,8 @@ A twin body yields **effect pairs** — `yield* op(asyncThunk, syncThunk)` — a
 | nested container | `child.run(input, childOptions)` | `child.runSync(...)`, throwing `RunSyncViolationError` when the method is absent |
 | validator | `validator(ctx)` | `validator(ctx)`, throwing `RunSyncViolationError` when the return value is thenable (`isThenable`) |
 
+`runBody(data, options, sync)` takes the driver as a third argument and stamps it on `ValidatorContext.sync`; `runParallel` passes `false`. It is deliberately **not** a run option and not part of `buildChildRunOptions`: a nested container inherits it because the sync thunk enters the child through `child.runSync`, which passes `true` again, and `compose` enters a container element through `runSync` when `ctx.sync` is set. Adapters use it to pick a library's sync entry point (`@validup/zod`: `safeParse` vs. `safeParseAsync`).
+
 Both structural probes therefore live *inside the sync thunk*, where they belong — the async side cannot produce them. Everything else (abort checks, group filter, path expansion, path filter, optional resolution, cache gating, issue collection, `oneOf` branch wrapping, `finalizeOutput`) exists exactly once.
 
 **`runParallel` deliberately does NOT share the body.** A generator is sequential by construction; expressing "launch every mount, then settle" through it would mean yielding batches *and* giving up the chain-read that distinguishes sequential mode. Instead it shares every per-key helper:
@@ -176,7 +180,7 @@ Both structural probes therefore live *inside the sync thunk*, where they belong
 | `prepareMountKey(item, key, options, pathsToInclude, pathsToExclude)` | `keyParts` / `pathRelative` / `pathAbsolute` / include-exclude verdict (`MountKeyPlan`) |
 | `resolveOptionalDirective(item, value, options)` | skip or proceed, and what a skipped key writes (`OptionalDirective`) |
 | `buildChildRunOptions(options, key, plan, pathsStrict, parallel?)` | the child-container forward bag — one source of truth for what a nested container inherits |
-| `buildValidatorContext(key, plan, value, data, options)` | the `ValidatorContext` handed to a validator |
+| `buildValidatorContext(key, plan, value, data, options, sync)` | the `ValidatorContext` handed to a validator |
 | `resolveCachedOutcome` / `writeCachedOutcome` | cache gating (see [Result cache](#result-cache-packagesvalidupsrccache)) |
 
 `prepareMountKey` deliberately does **not** read the mount's input `value` — the sequential-vs-parallel value-source asymmetry is a documented behavioural difference, so it stays in the caller and the helper stays pure.

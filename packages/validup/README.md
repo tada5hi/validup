@@ -115,8 +115,11 @@ type ValidatorContext<C = unknown> = {
     group?: string;         // active execution group, if any
     context: C;             // caller-supplied context (see [Context](#context))
     signal?: AbortSignal;   // cancellation signal (see [Cancellation](#cancellation))
+    sync?: boolean;         // true under runSync / safeRunSync, false under run / safeRun / parallel
 };
 ```
+
+`sync` tells a validator which run mode invoked it. `runSync` rejects any thenable return value, so an adapter over a library with separate sync and async entry points can read `ctx.sync` and pick the synchronous one (this is how `@validup/zod` stays usable under `runSync`). Nested containers and `compose` elements see the same value as the mount that reached them.
 
 A validator's **return value** becomes the output for that path, so validators double as transformers/sanitizers. The optional second generic `Out` lets callers (and the [Builder API](#builder-api-compile-time-typing)) infer per-field types from the validator's return type; `Out` defaults to `unknown`, so existing call sites compile unchanged.
 

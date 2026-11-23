@@ -258,6 +258,10 @@ function composeAnyOf<C>(elements: ComposeElement<C>[]): Validator<C> {
  *   `keyParts` — but validators that inspect `ctx.path` (for
  *   logging, custom error formatting, etc.) would see a misleading
  *   relative path without it.
+ * - `ctx.sync` — not an option but a driver choice: a container
+ *   element is entered through `runSync` when `ctx.sync` is `true`
+ *   (and the element implements it), so validators inside it observe
+ *   the same run mode as the outer container.
  * - `cache: ctx.cache` — the outer Container surfaces its run-level
  *   `IResultCache` on `ctx`, so threading it here keeps a
  *   container-as-branch participating in the same per-mount cache
@@ -282,16 +286,24 @@ async function invokeComposeElement<C>(
     ctx: ValidatorContext<C>,
 ): Promise<unknown> {
     if (isContainer(element)) {
-        return element.run(
-            isObject(ctx.value) ? ctx.value : {},
-            {
-                path: ctx.path,
-                group: ctx.group,
-                context: ctx.context,
-                signal: ctx.signal,
-                cache: ctx.cache,
-            },
-        );
+        const input = isObject(ctx.value) ? ctx.value : {};
+        const options = {
+            path: ctx.path,
+            group: ctx.group,
+            context: ctx.context,
+            signal: ctx.signal,
+            cache: ctx.cache,
+        };
+
+        // Under a sync run, descend with `runSync` so the branch's own
+        // validators see `ctx.sync === true`. A container without `runSync`
+        // falls back to `run`; the composed validator returns a promise
+        // either way, which the outer `runSync` rejects structurally.
+        if (ctx.sync && typeof element.runSync === 'function') {
+            return element.runSync(input, options);
+        }
+
+        return element.run(input, options);
     }
 
     // `isContainer` narrows `element` to `IContainer`, but the
