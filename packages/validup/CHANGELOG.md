@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.2](https://github.com/tada5hi/validup/compare/validup-v2.0.1...validup-v2.0.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* **deps:** bump the minorandpatch group across 1 directory with 16 updates ([#518](https://github.com/tada5hi/validup/issues/518)) ([bb9c2b1](https://github.com/tada5hi/validup/commit/bb9c2b131606621e0e111105e56b3dbe9fa106ee))
+* reject foreign error chains and let zod validators run under runSync ([#521](https://github.com/tada5hi/validup/issues/521)) ([00f2f97](https://github.com/tada5hi/validup/commit/00f2f970ac2728f0053b7921980f147bd76c4472))
+
 ## [2.0.1](https://github.com/tada5hi/validup/compare/validup-v2.0.0...validup-v2.0.1) (2026-08-18)
 
 
