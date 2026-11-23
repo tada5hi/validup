@@ -73,6 +73,10 @@ export type ValidatorContext<C = unknown> = {
      * separate sync and async entry points read this flag to pick the
      * matching one (e.g. `@validup/zod` uses `safeParse` when it is `true`
      * and `safeParseAsync` otherwise). Absent on a context built by hand.
+     *
+     * The flag selects how a result is computed, never what it is: the
+     * output must not depend on it. The result cache does not key on it,
+     * so a value cached by `run` is replayed by `runSync` and vice versa.
      */
     sync?: boolean,
 };

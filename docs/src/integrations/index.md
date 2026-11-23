@@ -76,7 +76,20 @@ export function createValidator<C = unknown>(input: Schema | CreateFn<C>): Valid
         };
 
         // Under runSync / safeRunSync, use the library's synchronous entry point.
-        if (ctx.sync) return unwrap(schema.safeParse(ctx.value));
+        if (ctx.sync) {
+            try {
+                return unwrap(schema.safeParse(ctx.value));
+            } catch (e) {
+                // The schema needs async work: hand back an owned rejection,
+                // which runSync reports as RunSyncViolationError.
+                if (e instanceof AsyncSchemaError) {
+                    const rejected = Promise.reject(e);
+                    rejected.catch(() => {});
+                    return rejected;
+                }
+                throw e;
+            }
+        }
 
         return schema.safeParseAsync(ctx.value).then(unwrap);
     };

@@ -153,6 +153,8 @@ const parseUser: Validator = (ctx) => (ctx.sync ?
     schema.parseAsync(ctx.value));
 ```
 
+The flag selects how a result is computed, never what it is. The [result cache](./caching.md) does not key on it, so a value cached by `run()` is replayed by `runSync()` and the other way round.
+
 ## Cancellation
 
 If the run was started with `{ signal }`, the validator receives the same `signal` in `ctx.signal`. Forward it to async work that supports cancellation:
