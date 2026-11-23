@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { isIssue, matchesInstanceof } from '@ebec/core';
+import { INSTANCEOF_PROPERTY, isIssue, matchesInstanceof } from '@ebec/core';
 import { hasOwnProperty, isObject } from '../utils';
 import { VALIDUP_ERROR_INSTANCE, ValidupError } from './base';
 
@@ -36,22 +36,26 @@ export function isValidupError(error: unknown) : error is ValidupError {
         return true;
     }
 
-    if (!hasOwnProperty(error, 'issues')) {
+    // An `@instanceof` chain is an explicit class identity, the same signal
+    // `isBaseError` decides on. Every @ebec/core `BaseError` carries one,
+    // in symbol form in process and as description strings after a JSON
+    // round trip, and every subclass can carry well-formed `issues` (e.g. a
+    // permission error reporting why a policy evaluation failed). A chain
+    // without the validup marker therefore names some other class, and the
+    // issue shape below must not override it. `code` is no tiebreaker
+    // either: BaseError derives it from `this.constructor.name` unless a
+    // class passes one explicitly, and a minifier can mangle that name.
+    // Only chain-less input (plain JSON) is classified by shape.
+    if (Array.isArray(error[INSTANCEOF_PROPERTY]) || !hasOwnProperty(error, 'issues')) {
         return false;
     }
 
-    // Every BaseError (and therefore every @ebec/http error) now carries an
-    // own `issues` array that defaults to `[]`. `[].every(...)` is
-    // vacuously true, so an empty array is not on its own evidence of a
-    // validation failure — a non-empty, well-formed issue list is required,
-    // UNLESS the error already identifies itself as a ValidupError via
-    // `code`. `ValidupError`'s constructor defaults `issues` to `[]`, so a
-    // zero-issue ValidupError is a real case, not just an internal
-    // invariant every call site avoids: one produced before the
-    // `@instanceof` marker existed (validup <= 2.0.0), or one crossing a
-    // boundary that only carries the plain JSON shape, has no `instanceof`
-    // match and no marker to fall back on — but `code` survives
-    // serialization, so it is the identity signal of last resort here.
+    // A non-empty, well-formed issue list is required, because an empty
+    // array passes `every(...)` vacuously. The exception is an error that
+    // identifies itself via `code`: `ValidupError`'s constructor defaults
+    // `issues` to `[]`, so a zero-issue ValidupError is a real case.
+    // `ValidupError` passes its `code` explicitly, so it survives both
+    // serialization and minification.
     return Array.isArray(error.issues) &&
         error.issues.every((issue) => isIssue(issue)) &&
         (error.issues.length > 0 || error.code === 'VALIDUP_ERROR');
