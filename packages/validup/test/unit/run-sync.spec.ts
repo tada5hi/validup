@@ -296,4 +296,16 @@ describe('Container.runSync thenable ownership', () => {
 
         expect(unhandled).toEqual([]);
     });
+
+    it('should report the structural error when then() of the thenable throws', () => {
+        const container = new Container();
+
+        container.mount('name', () => ({
+            then() {
+                throw new Error('subscription failed');
+            },
+        }));
+
+        expect(() => container.runSync({ name: 'a' })).toThrow(RunSyncViolationError);
+    });
 });

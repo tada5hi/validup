@@ -517,7 +517,10 @@ export class Container<
                                             // rejection: an async validator that rejects
                                             // later must not surface as an unhandled
                                             // rejection (fatal under Node's default mode).
-                                            outcome.then(undefined, () => { /* ownership only */ });
+                                            // `Promise.resolve` subscribes on a later tick, so
+                                            // a `then` that throws becomes a handled rejection
+                                            // instead of replacing the structural error.
+                                            Promise.resolve(outcome).catch(() => { /* ownership only */ });
 
                                             throw new RunSyncViolationError(`runSync: validator at "${key || '<root>'}" returned a Promise`);
                                         }
