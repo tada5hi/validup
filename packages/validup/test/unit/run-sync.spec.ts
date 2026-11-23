@@ -270,3 +270,30 @@ describe('ValidatorContext.sync', () => {
         expect(seen).toEqual([true, true, false, false]);
     });
 });
+
+describe('Container.runSync thenable ownership', () => {
+    it('should not leak an unhandled rejection from a rejected thenable', async () => {
+        const unhandled: unknown[] = [];
+        const listener = (reason: unknown) => {
+            unhandled.push(reason);
+        };
+
+        process.on('unhandledRejection', listener);
+
+        try {
+            const container = new Container();
+
+            container.mount('name', () => Promise.reject(new Error('boom')));
+
+            expect(() => container.runSync({ name: 'a' })).toThrow(RunSyncViolationError);
+
+            await new Promise((resolve) => {
+                setTimeout(resolve, 10); 
+            });
+        } finally {
+            process.off('unhandledRejection', listener);
+        }
+
+        expect(unhandled).toEqual([]);
+    });
+});

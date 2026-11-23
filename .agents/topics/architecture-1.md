@@ -226,6 +226,8 @@ One behaviour was unified in passing: the "don't cache a `RunSyncViolationError`
 
 **`runParallel` owns every rejection it schedules.** Mount promises are created eagerly and `Promise.allSettled` is only attached after the whole scheduling loop, so any rejection settling in that window — or any throw that escapes the loop before `allSettled` is reached at all — would be unowned, and Node's default `--unhandled-rejections=throw` (this package requires Node >= 24) terminates the process. `Container.ownRejection` attaches a no-op `.catch` at creation and returns the **original** promise, so `allSettled` still observes the real settlement. Every scheduled promise goes through it, including the `Promise.reject(e)` for materializing a pre-dispatch failure as a task. Covered in `parallel.spec.ts` → "should not leak an unhandled rejection when a pre-dispatch read throws".
 
+The twin body's sync thunk follows the same rule: when a validator returns a thenable under `runSync`, it attaches a no-op rejection handler before throwing `RunSyncViolationError`, because nothing else will ever await that promise. Without it, an async validator that rejects (or a `compose` whose element fails) would crash the process after `runSync` has already returned control to the caller. Covered in `run-sync.spec.ts` → "should not leak an unhandled rejection from a rejected thenable".
+
 ### Optional values (`helpers/optional-value.ts`)
 
 `OptionalValue` is the atomic vocabulary that controls what counts as "optional" when `MountOptions.optional: true`. Each atom matches **exactly one** runtime value (`FALSY` is the only composite):

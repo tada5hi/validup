@@ -513,6 +513,12 @@ export class Container<
                                         const outcome = validator(ctx);
 
                                         if (isThenable(outcome)) {
+                                            // The thenable is abandoned here, so own its
+                                            // rejection: an async validator that rejects
+                                            // later must not surface as an unhandled
+                                            // rejection (fatal under Node's default mode).
+                                            outcome.then(undefined, () => { /* ownership only */ });
+
                                             throw new RunSyncViolationError(`runSync: validator at "${key || '<root>'}" returned a Promise`);
                                         }
 
