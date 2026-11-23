@@ -8,6 +8,7 @@
 import type { ValidatorDescriptor } from 'validup';
 import { ValidupError, defineValidator } from 'validup';
 import type { output as ZodOutput, ZodType } from 'zod';
+import { $ZodAsyncError } from 'zod/v4/core';
 import { buildIssuesForZodError } from './error';
 
 import type { ZodCreateFn, ZodCreateValidatorOptions } from './types';
@@ -24,6 +25,14 @@ import type { ZodCreateFn, ZodCreateValidatorOptions } from './types';
  *
  * Pass a factory `(ctx) => schema` to build per-context schemas.
  *
+ * The parse entry point follows the run mode (`ctx.sync`): under
+ * `runSync` / `safeRunSync` the schema is parsed with `safeParse` and the
+ * result is returned (or thrown) synchronously; otherwise `safeParseAsync`
+ * is used and a promise is returned. A schema that needs async parsing
+ * (async refine / transform) cannot run synchronously: in sync mode it
+ * yields an already-rejected promise, which the container reports as a
+ * structural `RunSyncViolationError` instead of a validation issue.
+ *
  * Returned as a {@link ValidatorDescriptor} (not a bare function) so it
  * can carry the `sideEffect` flag the validup runtime consults for its
  * result cache. Mounts unchanged via the same `container.mount(...)`
@@ -39,16 +48,45 @@ export function createValidator<
 ): ValidatorDescriptor<C, ZodOutput<Z>> {
     return defineValidator<C, ZodOutput<Z>>({
         sideEffect: options.sideEffect,
-        run: async (ctx) => {
+        run: (ctx) => {
             const zod = typeof input === 'function' ? input(ctx) : input;
 
-            const outcome = await zod.safeParseAsync(ctx.value);
+            type Outcome = ReturnType<Z['safeParse']>;
+            const unwrap = (outcome: Outcome): ZodOutput<Z> => {
+                if (outcome.success) {
+                    return outcome.data as ZodOutput<Z>;
+                }
 
-            if (outcome.success) {
-                return outcome.data as ZodOutput<Z>;
+                throw new ValidupError(buildIssuesForZodError(outcome.error, ctx.value));
+            };
+
+            if (!ctx.sync) {
+                return zod.safeParseAsync(ctx.value)
+                    .then((outcome) => unwrap(outcome as Outcome));
             }
 
-            throw new ValidupError(buildIssuesForZodError(outcome.error, ctx.value));
+            let outcome: Outcome;
+
+            try {
+                outcome = zod.safeParse(ctx.value) as Outcome;
+            } catch (e) {
+                if (e instanceof $ZodAsyncError) {
+                    // An async schema cannot be parsed synchronously. Return a
+                    // thenable so `runSync` raises its structural
+                    // `RunSyncViolationError` (never folded into issues), and
+                    // own the rejection here so it is never reported as
+                    // unhandled, whatever the caller does with it.
+                    const rejected = Promise.reject(e);
+
+                    rejected.catch(() => { /* ownership only */ });
+
+                    return rejected as Promise<ZodOutput<Z>>;
+                }
+
+                throw e;
+            }
+
+            return unwrap(outcome);
         },
     });
 }

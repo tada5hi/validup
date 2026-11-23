@@ -80,7 +80,9 @@ type ZodCreateFn<C = unknown> = (ctx: ValidatorContext<C>) => ZodType;
 
 ## Zod → Validup
 
-When a schema fails to parse, the adapter calls `safeParseAsync`, then converts each `ZodIssue` into a validup `IssueItem` (preserving `expected` / `received` fields), and throws a `ValidupError` carrying those issues.
+The parse entry point follows the run mode the validator sees on `ctx.sync`: under `run` / `safeRun` the adapter calls `safeParseAsync`, under `runSync` / `safeRunSync` it calls `safeParse` and returns synchronously, so a container mixing zod mounts with other synchronous validators can be driven by [`runSync`](/guide/run-modes). A schema that needs async parsing (an async `refine` or `transform`) cannot run synchronously; under `runSync` it raises a `RunSyncViolationError`, which is structural and not folded into the issue list.
+
+When a schema fails to parse, the adapter converts each `ZodIssue` into a validup `IssueItem` (preserving `expected` / `received` fields), and throws a `ValidupError` carrying those issues.
 
 ```typescript
 container.mount('user', createValidator(z.object({

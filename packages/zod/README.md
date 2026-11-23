@@ -120,7 +120,9 @@ Pass `{ sideEffect: true }` for schemas with async refines or `superRefine` call
 
 ### Zod → Validup
 
-When a schema fails to parse, the adapter calls `safeParseAsync`, then converts each `ZodIssue` into a validup `IssueItem` with the original `path`, `message`, and (when present) `expected` / `received` fields. The adapter then throws a `ValidupError` containing those issues.
+The parse entry point follows the run mode the validator sees on `ctx.sync`: under `run` / `safeRun` the adapter calls `safeParseAsync`, under `runSync` / `safeRunSync` it calls `safeParse` and returns synchronously, so a container mixing zod mounts with other synchronous validators can be driven by `runSync`. A schema that needs async parsing (an async `refine` or `transform`) cannot run synchronously; under `runSync` it raises a `RunSyncViolationError`, which is structural and not folded into the issue list.
+
+When a schema fails to parse, the adapter converts each `ZodIssue` into a validup `IssueItem` with the original `path`, `message`, and (when present) `expected` / `received` fields. The adapter then throws a `ValidupError` containing those issues.
 
 Each zod issue's `code` is mapped onto validup's `IssueCode` vocabulary so consumer-side i18n catalogs (e.g. [`@ilingo/validup`](https://npmjs.com/package/@ilingo/validup)) can ship one parameterized message per code instead of falling back to a generic "invalid value" string:
 
